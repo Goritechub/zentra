@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,8 @@ import {
   CheckCircle2, 
   Filter,
   SlidersHorizontal,
-  X
+  X,
+  MessageSquare
 } from "lucide-react";
 import { getAllStates, cadSoftwareList, formatNaira } from "@/lib/nigerian-data";
 
@@ -150,6 +152,8 @@ const sampleFreelancers = [
 
 export default function FreelancersPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState<string>("");
   const [selectedSkill, setSelectedSkill] = useState<string>("");
@@ -181,6 +185,16 @@ export default function FreelancersPage() {
   };
 
   const hasActiveFilters = searchTerm || selectedState || selectedSkill || verifiedOnly;
+
+  const handleMessageClick = (e: React.MouseEvent, freelancerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    navigate(`/messages?user=${freelancerId}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -334,11 +348,24 @@ export default function FreelancersPage() {
 
                 {/* Price */}
                 <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-sm text-muted-foreground">Starting at</p>
-                  <p className="text-lg font-bold text-primary">
-                    {formatNaira(freelancer.hourlyRate)}
-                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Starting at</p>
+                      <p className="text-lg font-bold text-primary">
+                        {formatNaira(freelancer.hourlyRate)}
+                        <span className="text-sm font-normal text-muted-foreground">/hr</span>
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => handleMessageClick(e, freelancer.id)}
+                      className="flex-shrink-0"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-1" />
+                      Message
+                    </Button>
+                  </div>
                 </div>
               </Link>
             ))}

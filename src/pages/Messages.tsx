@@ -1,5 +1,5 @@
- import { useState } from "react";
- import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
  import { useAuth } from "@/hooks/useAuth";
  import { useMessages } from "@/hooks/useMessages";
  import { ConversationList } from "@/components/messaging/ConversationList";
@@ -15,6 +15,7 @@ import { Footer } from "@/components/layout/Footer";
  const Messages = () => {
    const { user, loading: authLoading } = useAuth();
    const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
    const isMobile = useIsMobile();
    const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
    
@@ -22,6 +23,14 @@ import { Footer } from "@/components/layout/Footer";
  
    const selectedConversation = conversations.find(c => c.id === selectedUserId);
  
+  // Handle incoming user param from freelancer/job pages
+  useEffect(() => {
+    const userParam = searchParams.get("user");
+    if (userParam) {
+      setSelectedUserId(userParam);
+    }
+  }, [searchParams]);
+
    // Redirect to auth if not logged in
    if (!authLoading && !user) {
      navigate("/auth");

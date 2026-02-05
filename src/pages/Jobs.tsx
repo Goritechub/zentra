@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,8 @@ import {
   Calendar,
   X,
   Building2,
-  ArrowRight
+  ArrowRight,
+  MessageSquare
 } from "lucide-react";
 import { getAllStates, formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
@@ -134,6 +136,8 @@ const sampleJobs = [
 
 export default function JobsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState<string>("");
   const [remoteOnly, setRemoteOnly] = useState(false);
@@ -161,6 +165,18 @@ export default function JobsPage() {
   };
 
   const hasActiveFilters = searchTerm || selectedState || remoteOnly;
+
+  const handleMessageClient = (e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    // In a real app, we'd get the client_id from the job
+    // For now, we'll navigate to messages with the job context
+    navigate(`/messages?job=${jobId}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -303,10 +319,20 @@ export default function JobsPage() {
                     <p className="text-xl font-bold text-primary">
                       {formatNaira(job.budgetMin)} - {formatNaira(job.budgetMax)}
                     </p>
-                    <Button variant="outline" size="sm" className="mt-3">
-                      View Details
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => handleMessageClient(e, job.id)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Message
+                      </Button>
+                      <Button variant="default" size="sm">
+                        Apply
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Link>
