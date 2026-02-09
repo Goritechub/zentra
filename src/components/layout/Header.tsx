@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Briefcase, Search } from "lucide-react";
+import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
@@ -60,6 +60,14 @@ export function Header() {
             >
               Browse Jobs
             </Link>
+            {user && (
+              <Link 
+                to="/messages" 
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Messages
+              </Link>
+            )}
             <Link 
               to="/how-it-works" 
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -172,6 +180,16 @@ export function Header() {
                 <Briefcase className="h-4 w-4" />
                 Browse Jobs
               </Link>
+              {user && (
+                <Link 
+                  to="/messages" 
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Messages
+                </Link>
+              )}
             </nav>
             
             <div className="pt-4 border-t border-border space-y-2">
