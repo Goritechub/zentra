@@ -1,7 +1,9 @@
  import { useState, useEffect, useCallback } from "react";
  import { supabase } from "@/integrations/supabase/client";
  import { useAuth } from "@/hooks/useAuth";
- import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  
  interface Message {
    id: string;
@@ -106,8 +108,8 @@
    }, [user]);
  
    // Fetch messages for a specific conversation
-   const fetchMessages = useCallback(async () => {
-     if (!user || !selectedUserId) return;
+    const fetchMessages = useCallback(async () => {
+      if (!user || !selectedUserId || !UUID_REGEX.test(selectedUserId)) return;
  
      try {
        const { data, error } = await supabase
@@ -133,8 +135,17 @@
    }, [user, selectedUserId]);
  
    // Send a message through the moderation edge function
-   const sendMessage = async (content: string): Promise<boolean> => {
-     if (!user || !selectedUserId || !content.trim()) return false;
+    const sendMessage = async (content: string): Promise<boolean> => {
+      if (!user || !selectedUserId || !content.trim()) return false;
+
+      if (!UUID_REGEX.test(selectedUserId)) {
+        toast({
+          title: "Cannot send message",
+          description: "This user profile is not available for messaging yet.",
+          variant: "destructive",
+        });
+        return false;
+      }
  
      setSending(true);
      try {
