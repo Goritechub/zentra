@@ -211,13 +211,13 @@ export default function JobsPage() {
 
               {/* Filters */}
               <div className="flex flex-wrap gap-3">
-                <Select value={selectedState} onValueChange={setSelectedState}>
+                <Select value={selectedState} onValueChange={(val) => setSelectedState(val === "all" ? "" : val)}>
                   <SelectTrigger className="w-[180px] h-12">
                     <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
                     <SelectValue placeholder="All States" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All States</SelectItem>
+                    <SelectItem value="all">All States</SelectItem>
                     {states.map((state) => (
                       <SelectItem key={state} value={state}>
                         {state}
