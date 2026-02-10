@@ -41,6 +41,113 @@ export type Database = {
         }
         Relationships: []
       }
+      contest_entries: {
+        Row: {
+          attachments: string[] | null
+          contest_id: string
+          created_at: string | null
+          description: string | null
+          freelancer_id: string
+          id: string
+          is_winner: boolean | null
+          prize_position: number | null
+        }
+        Insert: {
+          attachments?: string[] | null
+          contest_id: string
+          created_at?: string | null
+          description?: string | null
+          freelancer_id: string
+          id?: string
+          is_winner?: boolean | null
+          prize_position?: number | null
+        }
+        Update: {
+          attachments?: string[] | null
+          contest_id?: string
+          created_at?: string | null
+          description?: string | null
+          freelancer_id?: string
+          id?: string
+          is_winner?: boolean | null
+          prize_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_entries_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_entries_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contests: {
+        Row: {
+          category: string | null
+          client_id: string
+          created_at: string | null
+          deadline: string
+          description: string
+          id: string
+          prize_first: number
+          prize_second: number | null
+          prize_third: number | null
+          required_skills: string[] | null
+          required_software: string[] | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          client_id: string
+          created_at?: string | null
+          deadline: string
+          description: string
+          id?: string
+          prize_first?: number
+          prize_second?: number | null
+          prize_third?: number | null
+          required_skills?: string[] | null
+          required_software?: string[] | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          client_id?: string
+          created_at?: string | null
+          deadline?: string
+          description?: string
+          id?: string
+          prize_first?: number
+          prize_second?: number | null
+          prize_third?: number | null
+          required_skills?: string[] | null
+          required_software?: string[] | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           amount: number
@@ -281,6 +388,67 @@ export type Database = {
           },
         ]
       }
+      offers: {
+        Row: {
+          budget: number | null
+          client_id: string
+          created_at: string | null
+          description: string | null
+          freelancer_id: string
+          id: string
+          job_id: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          budget?: number | null
+          client_id: string
+          created_at?: string | null
+          description?: string | null
+          freelancer_id: string
+          id?: string
+          job_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          budget?: number | null
+          client_id?: string
+          created_at?: string | null
+          description?: string | null
+          freelancer_id?: string
+          id?: string
+          job_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_items: {
         Row: {
           created_at: string | null
@@ -465,6 +633,178 @@ export type Database = {
             foreignKeyName: "reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_experts: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          freelancer_id: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          freelancer_id: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          freelancer_id?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_experts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_experts_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_offers: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          delivery_days: number | null
+          description: string
+          freelancer_id: string
+          id: string
+          is_active: boolean | null
+          price: number | null
+          skills: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          delivery_days?: number | null
+          description: string
+          freelancer_id: string
+          id?: string
+          is_active?: boolean | null
+          price?: number | null
+          skills?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          delivery_days?: number | null
+          description?: string
+          freelancer_id?: string
+          id?: string
+          is_active?: boolean | null
+          price?: number | null
+          skills?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_offers_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          contract_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          reference: string | null
+          status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          contract_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference?: string | null
+          status?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference?: string | null
+          status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          escrow_balance: number
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          escrow_balance?: number
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          escrow_balance?: number
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

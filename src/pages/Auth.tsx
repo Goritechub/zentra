@@ -9,13 +9,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Briefcase, Users, Loader2, CheckCircle2 } from "lucide-react";
+import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
 const signUpSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
+  email: z.string().email("Please enter a valid email").max(255),
+  password: z.string().min(6, "Password must be at least 6 characters").max(72),
   role: z.enum(["client", "freelancer"]),
 });
 
@@ -34,8 +34,9 @@ export default function AuthPage() {
 
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   
-  // Sign Up form state
   const [signUpData, setSignUpData] = useState({
     fullName: "",
     email: "",
@@ -44,14 +45,12 @@ export default function AuthPage() {
   });
   const [signUpErrors, setSignUpErrors] = useState<Record<string, string>>({});
 
-  // Sign In form state
   const [signInData, setSignInData] = useState({
     email: "",
     password: "",
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user && !authLoading) {
       navigate("/dashboard");
@@ -66,28 +65,19 @@ export default function AuthPage() {
     if (!result.success) {
       const errors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0].toString()] = err.message;
-        }
+        if (err.path[0]) errors[err.path[0].toString()] = err.message;
       });
       setSignUpErrors(errors);
       return;
     }
 
     setLoading(true);
-    const { error } = await signUp(
-      signUpData.email,
-      signUpData.password,
-      signUpData.role,
-      signUpData.fullName
-    );
+    const { error } = await signUp(signUpData.email, signUpData.password, signUpData.role, signUpData.fullName);
 
     if (error) {
-      if (error.message.includes("already registered")) {
-        toast.error("This email is already registered. Please sign in instead.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error(error.message.includes("already registered") 
+        ? "This email is already registered. Please sign in instead." 
+        : error.message);
       setLoading(false);
       return;
     }
@@ -104,9 +94,7 @@ export default function AuthPage() {
     if (!result.success) {
       const errors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0].toString()] = err.message;
-        }
+        if (err.path[0]) errors[err.path[0].toString()] = err.message;
       });
       setSignInErrors(errors);
       return;
@@ -116,11 +104,9 @@ export default function AuthPage() {
     const { error } = await signIn(signInData.email, signInData.password);
 
     if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        toast.error("Invalid email or password. Please try again.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error(error.message.includes("Invalid login credentials")
+        ? "Invalid email or password. Please try again."
+        : error.message);
       setLoading(false);
       return;
     }
@@ -179,41 +165,40 @@ export default function AuthPage() {
                       value={signInData.email}
                       onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
                     />
-                    {signInErrors.email && (
-                      <p className="text-sm text-destructive">{signInErrors.email}</p>
-                    )}
+                    {signInErrors.email && <p className="text-sm text-destructive">{signInErrors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                    />
-                    {signInErrors.password && (
-                      <p className="text-sm text-destructive">{signInErrors.password}</p>
-                    )}
+                    <div className="relative">
+                      <Input
+                        id="signin-password"
+                        type={showSignInPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signInData.password}
+                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSignInPassword(!showSignInPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                      >
+                        {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
                   </div>
 
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
+                    {loading ? (<><Loader2 className="h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  {/* Role Selection */}
                   <div className="space-y-3">
                     <Label>I want to...</Label>
                     <RadioGroup
@@ -226,36 +211,24 @@ export default function AuthPage() {
                       <label
                         htmlFor="role-client"
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "client"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-muted-foreground"
+                          signUpData.role === "client" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
                         }`}
                       >
                         <RadioGroupItem value="client" id="role-client" className="sr-only" />
                         <Briefcase className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
-                          Hire Talent
-                        </span>
-                        <span className="text-xs text-muted-foreground text-center">
-                          Find CAD experts
-                        </span>
+                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>Hire Talent</span>
+                        <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
                       </label>
                       <label
                         htmlFor="role-freelancer"
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "freelancer"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-muted-foreground"
+                          signUpData.role === "freelancer" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
                         }`}
                       >
                         <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
                         <Users className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
-                          Find Work
-                        </span>
-                        <span className="text-xs text-muted-foreground text-center">
-                          Offer CAD services
-                        </span>
+                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>Find Work</span>
+                        <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
                       </label>
                     </RadioGroup>
                   </div>
@@ -268,9 +241,7 @@ export default function AuthPage() {
                       value={signUpData.fullName}
                       onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
                     />
-                    {signUpErrors.fullName && (
-                      <p className="text-sm text-destructive">{signUpErrors.fullName}</p>
-                    )}
+                    {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -282,68 +253,59 @@ export default function AuthPage() {
                       value={signUpData.email}
                       onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
                     />
-                    {signUpErrors.email && (
-                      <p className="text-sm text-destructive">{signUpErrors.email}</p>
-                    )}
+                    {signUpErrors.email && <p className="text-sm text-destructive">{signUpErrors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                    />
-                    {signUpErrors.password && (
-                      <p className="text-sm text-destructive">{signUpErrors.password}</p>
-                    )}
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        type={showSignUpPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                      >
+                        {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
                   </div>
 
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating account...
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
+                    {loading ? (<><Loader2 className="h-4 w-4 animate-spin" />Creating account...</>) : "Create Account"}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground mt-4">
                     By signing up, you agree to our{" "}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{" "}
+                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>{" "}
                     and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
+                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
                   </p>
                 </form>
               </TabsContent>
             </Tabs>
           </div>
 
-          {/* Features list */}
           <div className="mt-8 grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              Verified Experts
+              <CheckCircle2 className="h-4 w-4 text-primary" />Verified Experts
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              Secure Payments
+              <CheckCircle2 className="h-4 w-4 text-primary" />Secure Payments
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              Nigerian Focus
+              <CheckCircle2 className="h-4 w-4 text-primary" />Nigerian Focus
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              WhatsApp Support
+              <CheckCircle2 className="h-4 w-4 text-primary" />WhatsApp Support
             </div>
           </div>
         </div>
