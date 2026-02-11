@@ -19,8 +19,9 @@ import {
 
 export default function FreelancersPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [freelancers, setFreelancers] = useState<any[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("");
@@ -38,6 +39,16 @@ export default function FreelancersPage() {
       .from("freelancer_profiles")
       .select("*, profile:profiles!freelancer_profiles_user_id_fkey(*)");
     setFreelancers(data || []);
+
+    // Fetch saved expert IDs for current user
+    if (user) {
+      const { data: savedData } = await supabase
+        .from("saved_experts" as any)
+        .select("freelancer_id")
+        .eq("client_id", user.id);
+      setSavedIds(new Set((savedData || []).map((s: any) => s.freelancer_id)));
+    }
+
     setLoading(false);
   };
 
@@ -61,10 +72,21 @@ export default function FreelancersPage() {
     e.preventDefault();
     e.stopPropagation();
     if (!user) { navigate("/auth"); return; }
-    const { error } = await supabase.from("saved_experts" as any).insert({ client_id: user.id, freelancer_id: freelancerId } as any);
-    if (error?.code === "23505") toast.info("Expert already saved");
-    else if (error) toast.error("Failed to save expert");
-    else toast.success("Expert saved!");
+    
+    if (savedIds.has(freelancerId)) {
+      // Unsave
+      await supabase.from("saved_experts" as any).delete().eq("client_id", user.id).eq("freelancer_id", freelancerId);
+      setSavedIds((prev) => { const next = new Set(prev); next.delete(freelancerId); return next; });
+      toast.success("Expert removed from saved list");
+    } else {
+      const { error } = await supabase.from("saved_experts" as any).insert({ client_id: user.id, freelancer_id: freelancerId } as any);
+      if (error?.code === "23505") toast.info("Expert already saved");
+      else if (error) toast.error("Failed to save expert");
+      else {
+        setSavedIds((prev) => new Set(prev).add(freelancerId));
+        toast.success("Expert saved!");
+      }
+    }
   };
 
   if (loading) {
@@ -154,7 +176,7 @@ export default function FreelancersPage() {
                       </div>
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={(e) => handleSaveExpert(e, f.user_id)}>
-                          <Heart className="h-4 w-4" />
+                          <Heart className={`h-4 w-4 ${savedIds.has(f.user_id) ? "fill-current text-destructive" : ""}`} />
                         </Button>
                         <Button size="sm" variant="outline" onClick={(e) => { e.preventDefault(); navigate(user ? `/messages?user=${f.user_id}` : "/auth"); }}>
                           <MessageSquare className="h-4 w-4" />

@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
-import { Send, Loader2, Clock, CheckCircle2, X } from "lucide-react";
+import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft } from "lucide-react";
 
 export default function SentOffersPage() {
   const { user, loading: authLoading } = useAuth();
@@ -49,6 +50,9 @@ export default function SentOffersPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+          </Button>
           <h1 className="text-3xl font-bold text-foreground mb-8">Sent Offers</h1>
           {offers.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">

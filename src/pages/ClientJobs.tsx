@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
-import { Briefcase, PlusCircle, Loader2, ArrowRight } from "lucide-react";
+import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 
 export default function ClientJobsPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -42,6 +42,9 @@ export default function ClientJobsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+          </Button>
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-foreground">My Jobs</h1>
             <Button asChild><Link to="/post-job"><PlusCircle className="h-4 w-4 mr-2" />Post New Job</Link></Button>

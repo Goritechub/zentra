@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [stats, setStats] = useState({ jobs: 0, proposals: 0, messages: 0, contracts: 0 });
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
 
@@ -153,18 +154,21 @@ export default function DashboardPage() {
                 <div className="bg-card rounded-xl border border-border p-6 mb-8">
                   <h2 className="text-lg font-semibold mb-4">Dashboard Menu</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {clientMenuItems.map((item) => (
-                      <Link key={item.to} to={item.to} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all group">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                          <item.icon className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{item.label}</p>
-                          <p className="text-xs text-muted-foreground">{item.desc}</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </Link>
-                    ))}
+                    {clientMenuItems.map((item) => {
+                      const isActive = location.pathname === item.to;
+                      return (
+                        <Link key={item.to} to={item.to} className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isActive ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"}`}>
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+                            <item.icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">{item.label}</p>
+                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               )}

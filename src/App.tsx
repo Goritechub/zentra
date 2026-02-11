@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { RoleGuard } from "@/components/RoleGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Freelancers from "./pages/Freelancers";
@@ -34,19 +35,21 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/freelancers" element={<Freelancers />} />
-            <Route path="/jobs" element={<Jobs />} />
+            {/* Find Talent - not for freelancers */}
+            <Route path="/freelancers" element={<RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard>} />
+            {/* Browse Jobs - not for clients */}
+            <Route path="/jobs" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><Jobs /></RoleGuard>} />
             <Route path="/job/:id" element={<JobDetails />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/jobs" element={<ClientJobs />} />
-            <Route path="/dashboard/offers" element={<SentOffers />} />
-            <Route path="/dashboard/saved" element={<SavedExperts />} />
+            <Route path="/dashboard/jobs" element={<RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard>} />
+            <Route path="/dashboard/offers" element={<RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard>} />
+            <Route path="/dashboard/saved" element={<RoleGuard allowedRoles={["client", "admin"]}><SavedExperts /></RoleGuard>} />
             <Route path="/dashboard/services" element={<BrowseServices />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/my-profile" element={<MyProfile />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/post-job" element={<PostJob />} />
-            <Route path="/launch-contest" element={<LaunchContest />} />
+            <Route path="/post-job" element={<RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard>} />
+            <Route path="/launch-contest" element={<RoleGuard allowedRoles={["client", "admin"]}><LaunchContest /></RoleGuard>} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
