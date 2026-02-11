@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +17,11 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const unreadCount = useUnreadMessages();
+
+  const isClient = profile?.role === "client";
+  const isFreelancer = profile?.role === "freelancer";
 
   const handleSignOut = async () => {
     await signOut();
@@ -26,19 +30,20 @@ export function Header() {
 
   const getInitials = (name: string | null) => {
     if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
+
+  const navLinkClass = (path: string) =>
+    `text-sm font-medium transition-colors ${
+      location.pathname === path
+        ? "text-primary"
+        : "text-muted-foreground hover:text-foreground"
+    }`;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-wide">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <span className="text-lg font-bold text-primary-foreground">C</span>
@@ -48,25 +53,21 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <Link 
-              to="/freelancers" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Find Talent
-            </Link>
-            <Link 
-              to="/jobs" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Browse Jobs
-            </Link>
+            {/* Show Find Talent to everyone except freelancers */}
+            {!isFreelancer && (
+              <Link to="/freelancers" className={navLinkClass("/freelancers")}>
+                Find Talent
+              </Link>
+            )}
+            {/* Show Browse Jobs to everyone except clients */}
+            {!isClient && (
+              <Link to="/jobs" className={navLinkClass("/jobs")}>
+                Browse Jobs
+              </Link>
+            )}
             {user && (
-              <Link 
-                to="/messages" 
-                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <Link to="/messages" className={`relative ${navLinkClass("/messages")}`}>
                 Messages
                 {unreadCount > 0 && (
                   <span className="absolute -top-2 -right-4 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
@@ -75,15 +76,11 @@ export function Header() {
                 )}
               </Link>
             )}
-            <Link 
-              to="/how-it-works" 
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Link to="/how-it-works" className={navLinkClass("/how-it-works")}>
               How It Works
             </Link>
           </nav>
 
-          {/* Desktop Auth */}
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <DropdownMenu>
@@ -113,30 +110,26 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Dashboard
+                      <User className="mr-2 h-4 w-4" />Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  {profile?.role === "freelancer" && (
+                  {isFreelancer && (
                     <DropdownMenuItem asChild>
                       <Link to="/my-profile" className="cursor-pointer">
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        My Profile
+                        <Briefcase className="mr-2 h-4 w-4" />My Profile
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  {profile?.role === "client" && (
+                  {isClient && (
                     <DropdownMenuItem asChild>
                       <Link to="/post-job" className="cursor-pointer">
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        Post a Job
+                        <Briefcase className="mr-2 h-4 w-4" />Post a Job
                       </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
+                    <LogOut className="mr-2 h-4 w-4" />Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -152,49 +145,29 @@ export function Header() {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            className="md:hidden p-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
+          <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-background">
           <div className="container-wide py-4 space-y-4">
             <nav className="flex flex-col gap-2">
-              <Link 
-                to="/freelancers" 
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Search className="h-4 w-4" />
-                Find Talent
-              </Link>
-              <Link 
-                to="/jobs" 
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Briefcase className="h-4 w-4" />
-                Browse Jobs
-              </Link>
+              {!isFreelancer && (
+                <Link to="/freelancers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
+                  <Search className="h-4 w-4" />Find Talent
+                </Link>
+              )}
+              {!isClient && (
+                <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
+                  <Briefcase className="h-4 w-4" />Browse Jobs
+                </Link>
+              )}
               {user && (
-                <Link 
-                  to="/messages" 
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Messages
+                <Link to="/messages" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
+                  <MessageSquare className="h-4 w-4" />Messages
                   {unreadCount > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                       {unreadCount > 99 ? "99+" : unreadCount}
@@ -203,26 +176,13 @@ export function Header() {
                 </Link>
               )}
             </nav>
-            
             <div className="pt-4 border-t border-border space-y-2">
               {user ? (
                 <>
-                  <Link 
-                    to="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Button variant="outline" className="w-full">
-                      Dashboard
-                    </Button>
+                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">Dashboard</Button>
                   </Link>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full text-destructive"
-                    onClick={() => {
-                      handleSignOut();
-                      setMobileMenuOpen(false);
-                    }}
-                  >
+                  <Button variant="ghost" className="w-full text-destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
                     Sign Out
                   </Button>
                 </>
