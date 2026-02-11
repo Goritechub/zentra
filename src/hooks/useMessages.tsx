@@ -34,9 +34,12 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
    const [loading, setLoading] = useState(true);
    const [sending, setSending] = useState(false);
  
-   // Fetch all conversations for the current user
-   const fetchConversations = useCallback(async () => {
-     if (!user) return;
+  // Fetch all conversations for the current user
+    const fetchConversations = useCallback(async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
  
      try {
        // Get all messages where user is sender or receiver
