@@ -31,26 +31,34 @@
      }
    }, [messages]);
  
-   if (messages.length === 0) {
-     return (
-       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-         <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-         <p className="text-muted-foreground">No messages yet</p>
-         <p className="text-sm text-muted-foreground mt-1">
-           Send a message to start the conversation
-         </p>
-       </div>
-     );
-   }
+    if (messages.length === 0) {
+      return (
+        <div className="flex flex-col h-full">
+          <Alert className="mx-4 mt-4 border-destructive/30 bg-destructive/5">
+            <ShieldAlert className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-xs">
+              <strong>Platform Policy:</strong> Sharing email addresses, phone numbers, bank details, or any private contact information in messages is strictly prohibited and will be blocked automatically.
+            </AlertDescription>
+          </Alert>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No messages yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Send a message to start the conversation
+            </p>
+          </div>
+        </div>
+      );
+    }
  
    return (
      <div className="flex flex-col h-full">
-       <Alert className="mx-4 mt-4 bg-muted/50 border-muted">
-         <ShieldAlert className="h-4 w-4" />
-         <AlertDescription className="text-xs">
-           Messages are moderated. Sharing contact details, external links, or inappropriate content is not allowed.
-         </AlertDescription>
-       </Alert>
+        <Alert className="mx-4 mt-4 border-destructive/30 bg-destructive/5">
+          <ShieldAlert className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-xs">
+            <strong>Platform Policy:</strong> Sharing email addresses, phone numbers, bank details, or any private contact information is strictly prohibited and will be blocked automatically.
+          </AlertDescription>
+        </Alert>
        
        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
          <div className="space-y-4">
