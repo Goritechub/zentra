@@ -22,6 +22,8 @@ import SentOffers from "./pages/SentOffers";
 import SavedExperts from "./pages/SavedExperts";
 import BrowseServices from "./pages/BrowseServices";
 import Transactions from "./pages/Transactions";
+import ProposalsReceived from "./pages/ProposalsReceived";
+import ContractsPage from "./pages/ContractsPage";
 
 const queryClient = new QueryClient();
 
@@ -42,8 +44,10 @@ const App = () => (
             <Route path="/job/:id" element={<JobDetails />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/jobs" element={<RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard>} />
+            <Route path="/dashboard/proposals" element={<RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard>} />
             <Route path="/dashboard/offers" element={<RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard>} />
             <Route path="/dashboard/saved" element={<RoleGuard allowedRoles={["client", "admin"]}><SavedExperts /></RoleGuard>} />
+            <Route path="/dashboard/contracts" element={<ContractsPage />} />
             <Route path="/dashboard/services" element={<BrowseServices />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/my-profile" element={<MyProfile />} />

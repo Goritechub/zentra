@@ -71,6 +71,10 @@ export default function JobDetailsPage() {
       toast.error("Please fill in all fields");
       return;
     }
+    if (days < 1) {
+      toast.error("Delivery days must be at least 1");
+      return;
+    }
 
     setSubmitting(true);
     const { error } = await supabase.from("proposals").insert({
@@ -175,11 +179,14 @@ export default function JobDetailsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Bid Amount (₦)</Label>
-                        <Input type="number" placeholder="e.g. 250000" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
+                        <Input type="number" placeholder="e.g. 250000" min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Delivery (days)</Label>
-                        <Input type="number" placeholder="e.g. 14" value={deliveryDays} onChange={(e) => setDeliveryDays(e.target.value)} />
+                        <Input type="number" placeholder="e.g. 14" min="1" value={deliveryDays} onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
+                        }} />
                       </div>
                     </div>
                     <div className="space-y-2">

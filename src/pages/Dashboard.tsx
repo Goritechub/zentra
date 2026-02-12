@@ -76,8 +76,11 @@ export default function DashboardPage() {
   const clientMenuItems = [
     { icon: PlusCircle, label: "Post a Job", to: "/post-job", desc: "Create a new job listing" },
     { icon: Trophy, label: "Launch a Contest", to: "/launch-contest", desc: "Get multiple submissions" },
-    { icon: Briefcase, label: "View Jobs", to: "/dashboard/jobs", desc: "Manage your posted jobs" },
+    { icon: Briefcase, label: "Posted Jobs", to: "/dashboard/jobs", desc: "Manage your posted jobs" },
+    { icon: FileText, label: "Proposals Received", to: "/dashboard/proposals", desc: "Review expert proposals" },
     { icon: Send, label: "Sent Offers", to: "/dashboard/offers", desc: "Offers sent to experts" },
+    { icon: MessageSquare, label: "Messages", to: "/messages", desc: "Chat with experts" },
+    { icon: BarChart3, label: "Contracts", to: "/dashboard/contracts", desc: "Manage active contracts" },
     { icon: Users, label: "Search Experts", to: "/freelancers", desc: "Find CAD professionals" },
     { icon: Heart, label: "Saved Experts", to: "/dashboard/saved", desc: "Your bookmarked experts" },
     { icon: ShoppingBag, label: "Browse Services", to: "/dashboard/services", desc: "Expert service listings" },
