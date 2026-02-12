@@ -1,10 +1,13 @@
 // Client-side content filtering for messages
 const CONTACT_PATTERNS = {
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i,
+  emailProvider: /\b(?:gmail|yahoo|outlook|hotmail|protonmail|ymail|aol|icloud|zoho|mail\.com)\b/i,
   phone: /(?:\+?234|0)?[789][01]\d{8}|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{10,11}\b/,
+  suspiciousDigits: /\b\d{7,}\b/,
   bankAccount: /\b\d{10}\b|\b\d{3}[-\s]?\d{3}[-\s]?\d{4}\b|(?:account\s*(?:number|no|#|num))\s*:?\s*\d+/i,
   whatsapp: /whatsapp|whats\s*app|wa\.me|chat\s*me\s*on/i,
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet|sort code|routing number)\b/i,
+  profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?|hell|crap)\b/i,
 };
 
 export interface FilterResult {
@@ -16,8 +19,14 @@ export function filterMessageContent(content: string): FilterResult {
   if (CONTACT_PATTERNS.email.test(content)) {
     return { blocked: true, reason: "Sharing email addresses is not allowed. Keep all communication on the platform." };
   }
+  if (CONTACT_PATTERNS.emailProvider.test(content)) {
+    return { blocked: true, reason: "References to email services (Gmail, Yahoo, etc.) are not allowed. Keep all communication on the platform." };
+  }
   if (CONTACT_PATTERNS.phone.test(content)) {
     return { blocked: true, reason: "Sharing phone numbers is not allowed. Keep all communication on the platform." };
+  }
+  if (CONTACT_PATTERNS.suspiciousDigits.test(content)) {
+    return { blocked: true, reason: "Sharing long number sequences that may be phone numbers or account numbers is not allowed." };
   }
   if (CONTACT_PATTERNS.bankAccount.test(content)) {
     return { blocked: true, reason: "Sharing bank account details is not allowed for your safety." };
@@ -27,6 +36,9 @@ export function filterMessageContent(content: string): FilterResult {
   }
   if (CONTACT_PATTERNS.scam.test(content)) {
     return { blocked: true, reason: "This message contains prohibited financial content." };
+  }
+  if (CONTACT_PATTERNS.profanity.test(content)) {
+    return { blocked: true, reason: "Profanity is not allowed. Please keep communication professional." };
   }
   return { blocked: false, reason: null };
 }

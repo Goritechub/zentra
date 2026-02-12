@@ -70,32 +70,36 @@ import { Footer } from "@/components/layout/Footer";
              <div className="flex-1 flex flex-col">
                {selectedUserId ? (
                  <>
-                   {/* Chat Header */}
-                   <div className="p-4 border-b flex items-center gap-3">
-                     {isMobile && (
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => setSelectedUserId(undefined)}
-                       >
-                         <ArrowLeft className="h-5 w-5" />
-                       </Button>
-                     )}
-                     <div>
-                       <h3 className="font-semibold">
-                         {selectedConversation?.participant.full_name || "Loading..."}
-                       </h3>
-                     </div>
-                   </div>
+                    {/* Chat Header */}
+                    <div className="p-4 border-b flex items-center gap-3">
+                      {isMobile && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedUserId(undefined)}
+                        >
+                          <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                      )}
+                      <div
+                        className="cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => selectedUserId && navigate(`/freelancer/${selectedUserId}`)}
+                      >
+                        <h3 className="font-semibold">
+                          {selectedConversation?.participant.full_name || "Loading..."}
+                        </h3>
+                      </div>
+                    </div>
                    
-                   {/* Messages */}
-                   <div className="flex-1 overflow-hidden">
-                     <ChatWindow
-                       messages={messages}
-                       recipientName={selectedConversation?.participant.full_name || undefined}
-                       recipientAvatar={selectedConversation?.participant.avatar_url}
-                     />
-                   </div>
+                    {/* Messages */}
+                    <div className="flex-1 overflow-hidden">
+                      <ChatWindow
+                        messages={messages}
+                        recipientName={selectedConversation?.participant.full_name || undefined}
+                        recipientAvatar={selectedConversation?.participant.avatar_url}
+                        recipientId={selectedUserId}
+                      />
+                    </div>
                    
                    {/* Input */}
                    <MessageInput

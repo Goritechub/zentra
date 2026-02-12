@@ -51,6 +51,10 @@ export default function PostJobPage() {
       toast.error("Title and description are required");
       return;
     }
+    if (deliveryDays && parseInt(deliveryDays) < 1) {
+      toast.error("Delivery days must be at least 1");
+      return;
+    }
 
     setLoading(true);
     const { error } = await supabase.from("jobs").insert({
@@ -168,7 +172,10 @@ export default function PostJobPage() {
               </div>
               <div className="space-y-2">
                 <Label>Delivery Timeline (days)</Label>
-                <Input type="number" placeholder="e.g. 14" value={deliveryDays} onChange={(e) => setDeliveryDays(e.target.value)} />
+                <Input type="number" placeholder="e.g. 14" min="1" value={deliveryDays} onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
+                }} />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">

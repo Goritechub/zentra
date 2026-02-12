@@ -821,7 +821,12 @@ export type Database = {
       availability_type: "full_time" | "part_time" | "weekends" | "flexible"
       contract_status: "active" | "completed" | "disputed" | "cancelled"
       job_status: "open" | "in_progress" | "completed" | "cancelled"
-      proposal_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      proposal_status:
+        | "pending"
+        | "interviewing"
+        | "accepted"
+        | "rejected"
+        | "withdrawn"
       user_role: "client" | "freelancer" | "admin"
     }
     CompositeTypes: {
@@ -953,7 +958,13 @@ export const Constants = {
       availability_type: ["full_time", "part_time", "weekends", "flexible"],
       contract_status: ["active", "completed", "disputed", "cancelled"],
       job_status: ["open", "in_progress", "completed", "cancelled"],
-      proposal_status: ["pending", "accepted", "rejected", "withdrawn"],
+      proposal_status: [
+        "pending",
+        "interviewing",
+        "accepted",
+        "rejected",
+        "withdrawn",
+      ],
       user_role: ["client", "freelancer", "admin"],
     },
   },
