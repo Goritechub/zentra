@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { 
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, Loader2, ArrowRight, Trophy, Send, Heart, ShoppingBag,
-  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon
+  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon, Award
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -88,7 +88,7 @@ export default function DashboardPage() {
       ]
     : [
         { label: "Active Projects", value: stats.jobs, icon: Briefcase, to: "/dashboard/contracts" },
-        { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/jobs" },
+        { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/dashboard/expert-proposals" },
         { label: "Messages", value: stats.messages, icon: MessageSquare, to: "/messages" },
         { label: "Contracts", value: stats.contracts, icon: BarChart3, to: "/dashboard/contracts" },
       ];
@@ -213,6 +213,16 @@ export default function DashboardPage() {
                         <BarChart3 className="h-5 w-5 mr-3" />View Contracts<ArrowRight className="h-4 w-4 ml-auto" />
                       </Button>
                     </Link>
+                    <Link to="/dashboard/expert-proposals">
+                      <Button variant="outline" className="w-full justify-start" size="lg">
+                        <FileText className="h-5 w-5 mr-3" />My Proposals & Offers<ArrowRight className="h-4 w-4 ml-auto" />
+                      </Button>
+                    </Link>
+                    <Link to="/dashboard/contest-entries">
+                      <Button variant="outline" className="w-full justify-start" size="lg">
+                        <Award className="h-5 w-5 mr-3" />Contest Entries<ArrowRight className="h-4 w-4 ml-auto" />
+                      </Button>
+                    </Link>
                     <Link to="/transactions">
                       <Button variant="outline" className="w-full justify-start" size="lg">
                         <Wallet className="h-5 w-5 mr-3" />Wallet & Earnings<ArrowRight className="h-4 w-4 ml-auto" />
@@ -255,7 +265,6 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold mb-4">Profile Status</h2>
                 <div className="space-y-4">
                   <ProfileItem emoji="📍" title="Location" done={!!profile.state} label={profile.state ? `${profile.city || ""} ${profile.state}` : "Add location"} />
-                  <ProfileItem emoji="📱" title="Phone" done={!!profile.phone} label={profile.phone ? "Added" : "Add phone"} />
                   {isFreelancer && (
                     <>
                       <Link to="/manage-skills">

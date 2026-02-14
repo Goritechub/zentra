@@ -228,19 +228,11 @@ export default function MyProfilePage() {
                   <Label htmlFor="fullName">Full Name</Label>
                   <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} placeholder="Your full name" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} placeholder="+234..." />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp">WhatsApp Number</Label>
-                  <Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} maxLength={20} placeholder="+234..." />
-                </div>
                 <div /> {/* spacer */}
               </div>
+
+
+
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
