@@ -12,12 +12,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { getAllStates, formatNaira } from "@/lib/nigerian-data";
+import { getAllStates, formatNaira, cadSoftwareList, cadSkills } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  Search, MapPin, Clock, Briefcase, Calendar, X, Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck
+  Search, MapPin, Clock, Briefcase, Calendar, X, Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck, Wrench
 } from "lucide-react";
+
+const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
 export default function JobsPage() {
   const navigate = useNavigate();
@@ -31,9 +33,16 @@ export default function JobsPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [jobType, setJobType] = useState("");
   const [jobLength, setJobLength] = useState("");
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [skillSearch, setSkillSearch] = useState("");
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
   const states = getAllStates();
+
+  const filteredSkillSuggestions = allSkillsAndTools
+    .filter(s => s.toLowerCase().includes(skillSearch.toLowerCase()) && !selectedSkills.includes(s))
+    .slice(0, 8);
 
   useEffect(() => {
     fetchJobs();
@@ -63,6 +72,18 @@ export default function JobsPage() {
     });
   };
 
+  const addSkillFilter = (skill: string) => {
+    if (!selectedSkills.includes(skill)) {
+      setSelectedSkills([...selectedSkills, skill]);
+    }
+    setSkillSearch("");
+    setShowSkillDropdown(false);
+  };
+
+  const removeSkillFilter = (skill: string) => {
+    setSelectedSkills(selectedSkills.filter(s => s !== skill));
+  };
+
   const applyFilters = (jobList: any[]) => {
     return jobList.filter((job) => {
       const matchSearch = !searchTerm ||
@@ -84,7 +105,11 @@ export default function JobsPage() {
           default: return true;
         }
       })();
-      return matchSearch && matchState && matchRemote && matchType && matchLength;
+      const matchSkills = selectedSkills.length === 0 || selectedSkills.some(skill => {
+        const jobSkills = [...(job.required_skills || []), ...(job.required_software || [])];
+        return jobSkills.some((js: string) => js.toLowerCase() === skill.toLowerCase());
+      });
+      return matchSearch && matchState && matchRemote && matchType && matchLength && matchSkills;
     }).sort((a, b) => {
       if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -97,8 +122,8 @@ export default function JobsPage() {
   const allFiltered = applyFilters(jobs);
   const savedFiltered = applyFilters(jobs.filter((j) => savedJobIds.has(j.id)));
 
-  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setRemoteOnly(false); setJobType(""); setJobLength(""); setSortBy("newest"); };
-  const hasFilters = searchTerm || selectedState || remoteOnly || jobType || jobLength || sortBy !== "newest";
+  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setRemoteOnly(false); setJobType(""); setJobLength(""); setSortBy("newest"); setSelectedSkills([]); };
+  const hasFilters = searchTerm || selectedState || remoteOnly || jobType || jobLength || sortBy !== "newest" || selectedSkills.length > 0;
 
   if (loading) {
     return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
@@ -223,6 +248,50 @@ export default function JobsPage() {
                   <Building2 className="h-4 w-4 mr-2" />Remote Only
                 </Button>
                 {hasFilters && <Button variant="ghost" onClick={clearFilters} className="h-12"><X className="h-4 w-4 mr-2" />Clear</Button>}
+              </div>
+            </div>
+
+            {/* Skills/Tools Filter */}
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Filter by Skills/Tools</span>
+              </div>
+              {selectedSkills.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedSkills.map(skill => (
+                    <Badge key={skill} variant="default" className="gap-1 pr-1">
+                      {skill}
+                      <button type="button" onClick={() => removeSkillFilter(skill)} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="relative max-w-md">
+                <Input
+                  value={skillSearch}
+                  onChange={(e) => { setSkillSearch(e.target.value); setShowSkillDropdown(true); }}
+                  onFocus={() => setShowSkillDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
+                  placeholder="Search AutoCAD, SolidWorks, Revit, BIM..."
+                  className="h-10"
+                />
+                {showSkillDropdown && skillSearch && filteredSkillSuggestions.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredSkillSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                        onMouseDown={() => addSkillFilter(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
