@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck
 } from "lucide-react";
 
 export default function ProposalsReceivedPage() {
@@ -20,14 +24,25 @@ export default function ProposalsReceivedPage() {
   const navigate = useNavigate();
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wallet, setWallet] = useState<any>(null);
+  const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
-    if (user) fetchProposals();
+    if (user) {
+      fetchProposals();
+      fetchWallet();
+    }
   }, [user, authLoading]);
 
+  const fetchWallet = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle();
+    setWallet(data);
+  };
+
   const fetchProposals = async () => {
-    // Get all jobs by this client
     const { data: jobs } = await supabase
       .from("jobs")
       .select("id, title")
@@ -46,7 +61,6 @@ export default function ProposalsReceivedPage() {
       .in("job_id", jobIds)
       .order("created_at", { ascending: false });
 
-    // Attach job title
     const enriched = (data || []).map((p: any) => ({
       ...p,
       job_title: jobs.find((j) => j.id === p.job_id)?.title || "Unknown Job",
@@ -72,6 +86,67 @@ export default function ProposalsReceivedPage() {
     }
   };
 
+  const handleAcceptAndAssign = async () => {
+    const proposal = assignDialog.proposal;
+    if (!proposal || !user) return;
+
+    const isPaymentReady = wallet && wallet.balance >= proposal.bid_amount;
+    if (!isPaymentReady) {
+      toast.error("Insufficient wallet balance. Please fund your wallet before assigning.");
+      setAssignDialog({ open: false, proposal: null });
+      return;
+    }
+
+    setAssigning(true);
+
+    // Accept proposal
+    const { error: propError } = await supabase
+      .from("proposals")
+      .update({ status: "accepted" } as any)
+      .eq("id", proposal.id);
+
+    if (propError) {
+      toast.error("Failed to accept proposal");
+      setAssigning(false);
+      return;
+    }
+
+    // Create contract
+    const { error: contractError } = await supabase.from("contracts").insert({
+      job_id: proposal.job_id,
+      client_id: user.id,
+      freelancer_id: proposal.freelancer_id,
+      proposal_id: proposal.id,
+      amount: proposal.bid_amount,
+      status: "active",
+    });
+
+    if (contractError) {
+      toast.error("Failed to create contract");
+      setAssigning(false);
+      return;
+    }
+
+    // Update job to in_progress
+    await supabase.from("jobs").update({ status: "in_progress" }).eq("id", proposal.job_id);
+
+    // Move funds to escrow
+    await supabase.from("wallets").update({
+      balance: wallet.balance - proposal.bid_amount,
+      escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
+    }).eq("user_id", user.id);
+
+    toast.success("Expert assigned and contract created!");
+    setAssignDialog({ open: false, proposal: null });
+    setAssigning(false);
+    fetchProposals();
+    fetchWallet();
+  };
+
+  const openAssignDialog = (proposal: any) => {
+    setAssignDialog({ open: true, proposal });
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
       pending: { variant: "secondary", icon: Clock },
@@ -91,6 +166,8 @@ export default function ProposalsReceivedPage() {
 
   const filterByStatus = (status: string) =>
     status === "all" ? proposals : proposals.filter((p) => p.status === status);
+
+  const paymentReady = wallet && wallet.balance > 0;
 
   if (authLoading || loading) {
     return (
@@ -113,7 +190,28 @@ export default function ProposalsReceivedPage() {
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
-          <h1 className="text-3xl font-bold text-foreground mb-8">Proposals Received</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold text-foreground">Proposals Received</h1>
+            <div className="flex items-center gap-2">
+              <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
+                {paymentReady ? <ShieldCheck className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
+                {paymentReady ? "Payment Ready" : "Payment Not Verified"}
+              </Badge>
+              {wallet && (
+                <span className="text-sm text-muted-foreground">Balance: {formatNaira(wallet.balance)}</span>
+              )}
+            </div>
+          </div>
+
+          {!paymentReady && (
+            <Alert className="mb-6 border-destructive/30 bg-destructive/5">
+              <Wallet className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-sm">
+                You need to fund your wallet before you can assign experts to jobs.{" "}
+                <Link to="/transactions" className="text-primary hover:underline font-medium">Go to Wallet →</Link>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
@@ -134,10 +232,7 @@ export default function ProposalsReceivedPage() {
                 ) : (
                   <div className="space-y-4">
                     {filterByStatus(status).map((proposal: any) => (
-                      <div
-                        key={proposal.id}
-                        className="bg-card rounded-xl border border-border p-6"
-                      >
+                      <div key={proposal.id} className="bg-card rounded-xl border border-border p-6">
                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3">
@@ -180,24 +275,13 @@ export default function ProposalsReceivedPage() {
 
                             {proposal.status === "pending" && (
                               <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateProposalStatus(proposal.id, "interviewing")}
-                                >
+                                <Button size="sm" variant="outline" onClick={() => updateProposalStatus(proposal.id, "interviewing")}>
                                   <UserCheck className="h-4 w-4 mr-1" /> Interview
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => updateProposalStatus(proposal.id, "accepted")}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept
+                                <Button size="sm" onClick={() => openAssignDialog(proposal)}>
+                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => updateProposalStatus(proposal.id, "rejected")}
-                                >
+                                <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
                                   <X className="h-4 w-4 mr-1" /> Reject
                                 </Button>
                               </div>
@@ -205,27 +289,16 @@ export default function ProposalsReceivedPage() {
 
                             {proposal.status === "interviewing" && (
                               <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => updateProposalStatus(proposal.id, "accepted")}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept
+                                <Button size="sm" onClick={() => openAssignDialog(proposal)}>
+                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => updateProposalStatus(proposal.id, "rejected")}
-                                >
+                                <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
                                   <X className="h-4 w-4 mr-1" /> Reject
                                 </Button>
                               </div>
                             )}
 
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => navigate(`/messages?user=${proposal.freelancer_id}`)}
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/messages?user=${proposal.freelancer_id}`)}>
                               <MessageSquare className="h-4 w-4 mr-1" /> Message
                             </Button>
                           </div>
@@ -240,6 +313,67 @@ export default function ProposalsReceivedPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Assignment Confirmation Dialog */}
+      <Dialog open={assignDialog.open} onOpenChange={(open) => setAssignDialog({ open, proposal: open ? assignDialog.proposal : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Expert & Create Contract</DialogTitle>
+            <DialogDescription>
+              You're about to assign this expert and create a contract. The bid amount will be moved to escrow.
+            </DialogDescription>
+          </DialogHeader>
+          {assignDialog.proposal && (
+            <div className="space-y-3 py-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Expert</span>
+                <span className="font-medium">{assignDialog.proposal.freelancer?.full_name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Bid Amount</span>
+                <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.bid_amount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery</span>
+                <span>{assignDialog.proposal.delivery_days} days</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Payment Status</span>
+                <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
+                  {paymentReady ? <ShieldCheck className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
+                  {paymentReady ? "Payment Ready" : "Not Verified"}
+                </Badge>
+              </div>
+              {wallet && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Wallet Balance</span>
+                  <span className={wallet.balance >= assignDialog.proposal.bid_amount ? "text-primary" : "text-destructive"}>
+                    {formatNaira(wallet.balance)}
+                  </span>
+                </div>
+              )}
+              {wallet && wallet.balance < assignDialog.proposal.bid_amount && (
+                <Alert className="border-destructive/30 bg-destructive/5">
+                  <Wallet className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-sm">
+                    Insufficient balance. You need at least {formatNaira(assignDialog.proposal.bid_amount)} to assign this expert.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialog({ open: false, proposal: null })}>Cancel</Button>
+            <Button
+              onClick={handleAcceptAndAssign}
+              disabled={assigning || !paymentReady || (wallet && assignDialog.proposal && wallet.balance < assignDialog.proposal.bid_amount)}
+            >
+              {assigning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Confirm & Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

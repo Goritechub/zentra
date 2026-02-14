@@ -14,8 +14,7 @@ import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
-  MapPin, Clock, Briefcase, Calendar, ArrowLeft, MessageSquare,
-  Send, Loader2, Building2, Globe
+  MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe, UserCheck, Users
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -26,6 +25,7 @@ export default function JobDetailsPage() {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [proposalCount, setProposalCount] = useState(0);
+  const [interviewingCount, setInterviewingCount] = useState(0);
 
   // Proposal form
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -51,13 +51,15 @@ export default function JobDetailsPage() {
     }
     setJob(jobData);
 
-    const [clientRes, proposalRes] = await Promise.all([
+    const [clientRes, proposalRes, interviewRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", jobData.client_id).single(),
       supabase.from("proposals").select("id", { count: "exact" }).eq("job_id", id!),
+      supabase.from("proposals").select("id", { count: "exact" }).eq("job_id", id!).eq("status", "interviewing"),
     ]);
 
     setClient(clientRes.data);
     setProposalCount(proposalRes.count || 0);
+    setInterviewingCount(interviewRes.count || 0);
     setLoading(false);
   };
 
@@ -122,6 +124,9 @@ export default function JobDetailsPage() {
     );
   }
 
+  const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
+  const canApply = profile?.role === "freelancer" && job.status === "open" && !showProposalForm;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -140,6 +145,11 @@ export default function JobDetailsPage() {
                     {job.status}
                   </Badge>
                   {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
+                  {isAssigned && (
+                    <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/30">
+                      Assigned — No longer accepting proposals
+                    </Badge>
+                  )}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
                 
@@ -151,6 +161,9 @@ export default function JobDetailsPage() {
                     <div className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days delivery</div>
                   )}
                   <div className="flex items-center gap-1"><Briefcase className="h-4 w-4" />{proposalCount} proposals</div>
+                  {interviewingCount > 0 && (
+                    <div className="flex items-center gap-1 text-primary"><UserCheck className="h-4 w-4" />{interviewingCount} interviewing</div>
+                  )}
                   <div className="flex items-center gap-1"><Calendar className="h-4 w-4" />Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</div>
                 </div>
 
@@ -169,10 +182,28 @@ export default function JobDetailsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Proposal & Interview Stats */}
+                <div className="mt-6 p-4 rounded-lg bg-muted/50 flex flex-wrap gap-6">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{proposalCount}</p>
+                      <p className="text-xs text-muted-foreground">Total Proposals</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{interviewingCount}</p>
+                      <p className="text-xs text-muted-foreground">Interviewing</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Proposal Form */}
-              {showProposalForm && profile?.role === "freelancer" && (
+              {showProposalForm && profile?.role === "freelancer" && job.status === "open" && (
                 <div className="bg-card rounded-xl border border-border p-8">
                   <h2 className="text-xl font-bold mb-6">Submit Your Proposal</h2>
                   <form onSubmit={handleSubmitProposal} className="space-y-4">
@@ -219,10 +250,13 @@ export default function JobDetailsPage() {
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
                 
-                {profile?.role === "freelancer" && job.status === "open" && !showProposalForm && (
+                {canApply && (
                   <Button className="w-full mt-4" onClick={() => user ? setShowProposalForm(true) : navigate("/auth")}>
                     <Send className="h-4 w-4 mr-2" /> Apply Now
                   </Button>
+                )}
+                {isAssigned && (
+                  <p className="text-sm text-muted-foreground mt-4 text-center">This job is no longer accepting proposals.</p>
                 )}
               </div>
 

@@ -24,6 +24,8 @@ import BrowseServices from "./pages/BrowseServices";
 import Transactions from "./pages/Transactions";
 import ProposalsReceived from "./pages/ProposalsReceived";
 import ContractsPage from "./pages/ContractsPage";
+import ManageSkills from "./pages/ManageSkills";
+import ManagePortfolio from "./pages/ManagePortfolio";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +57,8 @@ const App = () => (
             <Route path="/post-job" element={<RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard>} />
             <Route path="/launch-contest" element={<RoleGuard allowedRoles={["client", "admin"]}><LaunchContest /></RoleGuard>} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/manage-skills" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ManageSkills /></RoleGuard>} />
+            <Route path="/manage-portfolio" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ManagePortfolio /></RoleGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

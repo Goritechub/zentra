@@ -4,14 +4,15 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { 
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
-  Eye, Star, Loader2, ArrowRight, Trophy, Send, Heart, ShoppingBag,
-  Wallet, BarChart3, Clock
+  Eye, Loader2, ArrowRight, Trophy, Send, Heart, ShoppingBag,
+  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const location = useLocation();
   const [stats, setStats] = useState({ jobs: 0, proposals: 0, messages: 0, contracts: 0 });
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -53,10 +55,14 @@ export default function DashboardPage() {
       contracts: contractsRes.count || 0,
     });
 
-    // Fetch recent jobs for clients
     if (isClient) {
       const { data } = await supabase.from("jobs").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(5);
       setRecentJobs(data || []);
+    }
+
+    if (!isClient) {
+      const { data } = await supabase.from("freelancer_profiles").select("*").eq("user_id", user.id).maybeSingle();
+      setFreelancerProfile(data);
     }
   };
 
@@ -73,6 +79,20 @@ export default function DashboardPage() {
   const isFreelancer = profile.role === "freelancer";
   const isClient = profile.role === "client";
 
+  const statCards = isClient
+    ? [
+        { label: "Posted Jobs", value: stats.jobs, icon: Briefcase, to: "/dashboard/jobs" },
+        { label: "Proposals Received", value: stats.proposals, icon: FileText, to: "/dashboard/proposals" },
+        { label: "Messages", value: stats.messages, icon: MessageSquare, to: "/messages" },
+        { label: "Contracts", value: stats.contracts, icon: BarChart3, to: "/dashboard/contracts" },
+      ]
+    : [
+        { label: "Active Projects", value: stats.jobs, icon: Briefcase, to: "/dashboard/contracts" },
+        { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/jobs" },
+        { label: "Messages", value: stats.messages, icon: MessageSquare, to: "/messages" },
+        { label: "Contracts", value: stats.contracts, icon: BarChart3, to: "/dashboard/contracts" },
+      ];
+
   const clientMenuItems = [
     { icon: PlusCircle, label: "Post a Job", to: "/post-job", desc: "Create a new job listing" },
     { icon: Trophy, label: "Launch a Contest", to: "/launch-contest", desc: "Get multiple submissions" },
@@ -86,6 +106,8 @@ export default function DashboardPage() {
     { icon: ShoppingBag, label: "Browse Services", to: "/dashboard/services", desc: "Expert service listings" },
     { icon: Wallet, label: "Wallet & Transactions", to: "/transactions", desc: "Payments and balance" },
   ];
+
+  const hasSkills = freelancerProfile?.skills?.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -102,52 +124,33 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Stats */}
+          {/* Platform Notice */}
+          <Alert className="mb-6 border-primary/30 bg-primary/5">
+            <ShieldAlert className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm text-muted-foreground">
+              🔒 All communication must stay on the platform. Sharing emails, phone numbers, WhatsApp, or financial details is strictly prohibited and will be blocked.
+            </AlertDescription>
+          </Alert>
+
+          {/* Clickable Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-card rounded-xl border border-border p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Briefcase className="h-6 w-6 text-primary" />
+            {statCards.map((card) => (
+              <Link
+                key={card.label}
+                to={card.to}
+                className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <card.icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                    <p className="text-sm text-muted-foreground">{card.label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats.jobs}</p>
-                  <p className="text-sm text-muted-foreground">{isClient ? "Posted Jobs" : "Active Projects"}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats.proposals}</p>
-                  <p className="text-sm text-muted-foreground">{isClient ? "Proposals Received" : "Proposals Sent"}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <MessageSquare className="h-6 w-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats.messages}</p>
-                  <p className="text-sm text-muted-foreground">Messages</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{stats.contracts}</p>
-                  <p className="text-sm text-muted-foreground">Contracts</p>
-                </div>
-              </div>
-            </div>
+              </Link>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -190,9 +193,24 @@ export default function DashboardPage() {
                         <Settings className="h-5 w-5 mr-3" />Edit My Profile<ArrowRight className="h-4 w-4 ml-auto" />
                       </Button>
                     </Link>
+                    <Link to="/manage-skills">
+                      <Button variant="outline" className="w-full justify-start" size="lg">
+                        <Wrench className="h-5 w-5 mr-3" />Manage Skills<ArrowRight className="h-4 w-4 ml-auto" />
+                      </Button>
+                    </Link>
+                    <Link to="/manage-portfolio">
+                      <Button variant="outline" className="w-full justify-start" size="lg">
+                        <ImageIcon className="h-5 w-5 mr-3" />Manage Portfolio<ArrowRight className="h-4 w-4 ml-auto" />
+                      </Button>
+                    </Link>
                     <Link to="/messages">
                       <Button variant="outline" className="w-full justify-start" size="lg">
                         <MessageSquare className="h-5 w-5 mr-3" />View Messages<ArrowRight className="h-4 w-4 ml-auto" />
+                      </Button>
+                    </Link>
+                    <Link to="/dashboard/contracts">
+                      <Button variant="outline" className="w-full justify-start" size="lg">
+                        <BarChart3 className="h-5 w-5 mr-3" />View Contracts<ArrowRight className="h-4 w-4 ml-auto" />
                       </Button>
                     </Link>
                     <Link to="/transactions">
@@ -237,15 +255,19 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold mb-4">Profile Status</h2>
                 <div className="space-y-4">
                   <ProfileItem emoji="📍" title="Location" done={!!profile.state} label={profile.state ? `${profile.city || ""} ${profile.state}` : "Add location"} />
-                  <ProfileItem emoji="📱" title="Phone/WhatsApp" done={!!profile.phone} label={profile.phone || "Add contact"} />
+                  <ProfileItem emoji="📱" title="Phone" done={!!profile.phone} label={profile.phone ? "Added" : "Add phone"} />
                   {isFreelancer && (
                     <>
-                      <ProfileItem emoji="💼" title="Skills" done={false} label="Update skills" />
-                      <ProfileItem emoji="🖼️" title="Portfolio" done={false} label="Add portfolio items" />
+                      <Link to="/manage-skills">
+                        <ProfileItem emoji="💼" title="Skills" done={hasSkills} label={hasSkills ? `${freelancerProfile.skills.length} skills` : "Add skills"} />
+                      </Link>
+                      <Link to="/manage-portfolio">
+                        <ProfileItem emoji="🖼️" title="Portfolio" done={false} label="Add portfolio items" />
+                      </Link>
                     </>
                   )}
                 </div>
-                <Link to={isFreelancer ? "/my-profile" : "/my-profile"}>
+                <Link to="/my-profile">
                   <Button variant="outline" className="w-full mt-4" size="sm">
                     <Settings className="h-4 w-4 mr-2" />Edit Profile
                   </Button>
