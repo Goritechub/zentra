@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +15,8 @@ import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
-  MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe, UserCheck, Users
+  MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
+  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -23,9 +25,11 @@ export default function JobDetailsPage() {
   const { user, profile } = useAuth();
   const [job, setJob] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
+  const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [proposalCount, setProposalCount] = useState(0);
   const [interviewingCount, setInterviewingCount] = useState(0);
+  const [similarJobs, setSimilarJobs] = useState<any[]>([]);
 
   // Proposal form
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -51,15 +55,30 @@ export default function JobDetailsPage() {
     }
     setJob(jobData);
 
-    const [clientRes, proposalRes, interviewRes] = await Promise.all([
+    const [clientRes, proposalRes, interviewRes, walletRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", jobData.client_id).single(),
       supabase.from("proposals").select("id", { count: "exact" }).eq("job_id", id!),
       supabase.from("proposals").select("id", { count: "exact" }).eq("job_id", id!).eq("status", "interviewing"),
+      supabase.from("wallets").select("*").eq("user_id", jobData.client_id).maybeSingle(),
     ]);
 
     setClient(clientRes.data);
     setProposalCount(proposalRes.count || 0);
     setInterviewingCount(interviewRes.count || 0);
+    setWallet(walletRes.data);
+
+    // Fetch similar jobs (same skills or category)
+    const skills = [...(jobData.required_skills || []), ...(jobData.required_software || [])];
+    if (skills.length > 0) {
+      const { data: similar } = await supabase
+        .from("jobs")
+        .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
+        .eq("status", "open")
+        .neq("id", id!)
+        .limit(4);
+      setSimilarJobs(similar || []);
+    }
+
     setLoading(false);
   };
 
@@ -126,6 +145,15 @@ export default function JobDetailsPage() {
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !showProposalForm;
+  const paymentReady = wallet && wallet.balance >= (job.budget_max || job.budget_min || 0);
+
+  const deliveryLabel = () => {
+    const d = job.delivery_days || 0;
+    if (d <= 7) return "Up to 1 week";
+    if (d <= 30) return "1 week – 1 month";
+    if (d <= 90) return "1 – 3 months";
+    return "3+ months";
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -139,26 +167,32 @@ export default function JobDetailsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Job Header */}
               <div className="bg-card rounded-xl border border-border p-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <Badge variant={job.status === "open" ? "default" : "secondary"}>
-                    {job.status}
-                  </Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status}</Badge>
                   {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
+                  <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
                   {isAssigned && (
-                    <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/30">
+                    <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/30">
                       Assigned — No longer accepting proposals
+                    </Badge>
+                  )}
+                  {!isAssigned && (
+                    <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      {paymentReady ? "Payment Ready" : "Payment Unverified"}
                     </Badge>
                   )}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
-                
+
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
                   {job.state && (
                     <div className="flex items-center gap-1"><MapPin className="h-4 w-4" />{job.city ? `${job.city}, ` : ""}{job.state}</div>
                   )}
                   {job.delivery_days && (
-                    <div className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days delivery</div>
+                    <div className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days</div>
                   )}
                   <div className="flex items-center gap-1"><Briefcase className="h-4 w-4" />{proposalCount} proposals</div>
                   {interviewingCount > 0 && (
@@ -171,20 +205,58 @@ export default function JobDetailsPage() {
                   <h3 className="text-lg font-semibold mb-2">Description</h3>
                   <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
                 </div>
+              </div>
 
-                {(job.required_skills?.length > 0 || job.required_software?.length > 0) && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">Required Skills & Software</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {[...(job.required_skills || []), ...(job.required_software || [])].map((s: string) => (
-                        <Badge key={s} variant="secondary">{s}</Badge>
-                      ))}
-                    </div>
+              {/* Attachments */}
+              {job.attachments && job.attachments.length > 0 && (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Attachments</h3>
+                  <div className="space-y-2">
+                    {job.attachments.map((url: string, idx: number) => {
+                      const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                      return (
+                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                          <Download className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm text-foreground truncate">{name}</span>
+                        </a>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Proposal & Interview Stats */}
-                <div className="mt-6 p-4 rounded-lg bg-muted/50 flex flex-wrap gap-6">
+              {/* Things to Know */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Info className="h-5 w-5 text-primary" />Things to Know</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : `${job.city || ""} ${job.state || "On-site"}`} />
+                  <InfoTile icon={Wrench} label="Skill Level" value="Intermediate" />
+                  <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
+                  <InfoTile icon={Tag} label="Price Tag" value={
+                    job.budget_min && job.budget_max
+                      ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
+                      : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"
+                  } />
+                  <InfoTile icon={Briefcase} label="Job Type" value={job.is_hourly ? "Contract / Hourly" : "Project-based"} />
+                  <InfoTile icon={Clock} label="Duration" value={deliveryLabel()} />
+                </div>
+              </div>
+
+              {/* Areas of Expertise */}
+              {(job.required_skills?.length > 0 || job.required_software?.length > 0) && (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Layers className="h-5 w-5 text-primary" />Areas of Expertise</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[...(job.required_skills || []), ...(job.required_software || [])].map((s: string) => (
+                      <Badge key={s} variant="secondary" className="text-sm">{s}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Proposal & Interview Stats */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <div className="flex flex-wrap gap-6">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-muted-foreground" />
                     <div>
@@ -234,6 +306,30 @@ export default function JobDetailsPage() {
                   </form>
                 </div>
               )}
+
+              {/* Similar Jobs */}
+              {similarJobs.length > 0 && (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h3 className="text-lg font-semibold mb-4">Similar Jobs</h3>
+                  <div className="space-y-3">
+                    {similarJobs.map((sj) => (
+                      <Link key={sj.id} to={`/job/${sj.id}`} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                        <div>
+                          <p className="font-medium text-foreground hover:text-primary transition-colors">{sj.title}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>{sj.is_remote ? "Remote" : sj.state || "Nigeria"}</span>
+                            <span>{sj.is_hourly ? "Hourly" : "Fixed"}</span>
+                            {sj.delivery_days && <span>{sj.delivery_days} days</span>}
+                          </div>
+                        </div>
+                        <p className="text-sm font-semibold text-primary">
+                          {sj.budget_max ? formatNaira(sj.budget_max) : sj.budget_min ? formatNaira(sj.budget_min) : "Negotiable"}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -249,7 +345,13 @@ export default function JobDetailsPage() {
                     : "Negotiable"}
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
-                
+
+                {/* Payment status */}
+                <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                  <DollarSign className="h-4 w-4" />
+                  {paymentReady ? "Payment Ready" : "Payment Unverified"}
+                </div>
+
                 {canApply && (
                   <Button className="w-full mt-4" onClick={() => user ? setShowProposalForm(true) : navigate("/auth")}>
                     <Send className="h-4 w-4 mr-2" /> Apply Now
@@ -290,6 +392,18 @@ export default function JobDetailsPage() {
         </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function InfoTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="p-4 rounded-lg bg-muted/50 space-y-1">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="text-sm font-semibold text-foreground">{value}</p>
     </div>
   );
 }

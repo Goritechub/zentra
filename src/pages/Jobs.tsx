@@ -54,7 +54,16 @@ export default function JobsPage() {
       .select("*, client:profiles!jobs_client_id_fkey(full_name, avatar_url)")
       .eq("status", "open")
       .order("created_at", { ascending: false });
-    setJobs(data || []);
+
+    // Fetch wallets for payment readiness
+    const jobData = data || [];
+    const clientIds = [...new Set(jobData.map((j: any) => j.client_id))];
+    let walletMap: Record<string, any> = {};
+    if (clientIds.length > 0) {
+      const { data: wallets } = await supabase.from("wallets").select("user_id, balance").in("user_id", clientIds);
+      (wallets || []).forEach((w: any) => { walletMap[w.user_id] = w; });
+    }
+    setJobs(jobData.map((j: any) => ({ ...j, _wallet: walletMap[j.client_id] })));
     setLoading(false);
   };
 
@@ -158,6 +167,14 @@ export default function JobsPage() {
                   {job.delivery_days && <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days</span>}
                   <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
                   <Badge variant="outline" className="text-xs">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
+                  {(() => {
+                    const ready = job._wallet && job._wallet.balance >= (job.budget_max || job.budget_min || 0);
+                    return (
+                      <Badge variant={ready ? "default" : "destructive"} className="text-xs gap-1">
+                        {ready ? "💰 Payment Ready" : "⚠ Payment Unverified"}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </Link>
               <div className="md:text-right flex md:flex-col items-center md:items-end gap-2">
