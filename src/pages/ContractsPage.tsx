@@ -96,7 +96,7 @@ export default function ContractsPage() {
                       const partner = isClient ? contract.freelancer : contract.client;
 
                       return (
-                        <div key={contract.id} className="bg-card rounded-xl border border-border p-6">
+                        <div key={contract.id} className="bg-card rounded-xl border border-border p-6 cursor-pointer hover:border-primary transition-colors" onClick={() => navigate(`/contract/${contract.id}`)}>
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
                               <Avatar className="h-12 w-12">

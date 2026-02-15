@@ -7,16 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
+import { vetContent } from "@/lib/content-vetting";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
-  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench
+  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -30,6 +31,7 @@ export default function JobDetailsPage() {
   const [proposalCount, setProposalCount] = useState(0);
   const [interviewingCount, setInterviewingCount] = useState(0);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
+  const [hasApplied, setHasApplied] = useState(false);
 
   // Proposal form
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -67,17 +69,25 @@ export default function JobDetailsPage() {
     setInterviewingCount(interviewRes.count || 0);
     setWallet(walletRes.data);
 
-    // Fetch similar jobs (same skills or category)
-    const skills = [...(jobData.required_skills || []), ...(jobData.required_software || [])];
-    if (skills.length > 0) {
-      const { data: similar } = await supabase
-        .from("jobs")
-        .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
-        .eq("status", "open")
-        .neq("id", id!)
-        .limit(4);
-      setSimilarJobs(similar || []);
+    // Check if current user already applied
+    if (user) {
+      const { data: existing } = await supabase
+        .from("proposals")
+        .select("id")
+        .eq("job_id", id!)
+        .eq("freelancer_id", user.id)
+        .maybeSingle();
+      setHasApplied(!!existing);
     }
+
+    // Fetch similar jobs
+    const { data: similar } = await supabase
+      .from("jobs")
+      .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
+      .eq("status", "open")
+      .neq("id", id!)
+      .limit(4);
+    setSimilarJobs(similar || []);
 
     setLoading(false);
   };
@@ -97,22 +107,44 @@ export default function JobDetailsPage() {
       return;
     }
 
+    // Client-side vetting first
+    const vetResult = vetContent(coverLetter.trim());
+    if (vetResult.blocked) {
+      toast.error(vetResult.reason || "Your cover letter contains prohibited content.");
+      return;
+    }
+
     setSubmitting(true);
-    const { error } = await supabase.from("proposals").insert({
-      job_id: id,
-      freelancer_id: user.id,
-      bid_amount: amount,
-      delivery_days: days,
-      cover_letter: coverLetter.trim(),
+
+    // Submit via edge function for server-side moderation
+    const response = await supabase.functions.invoke("moderate-proposal", {
+      body: {
+        job_id: id,
+        bid_amount: amount,
+        delivery_days: days,
+        cover_letter: coverLetter.trim(),
+      },
     });
 
-    if (error) {
-      toast.error("Failed to submit proposal");
-    } else {
-      toast.success("Proposal submitted!");
-      setShowProposalForm(false);
-      setProposalCount((c) => c + 1);
+    if (response.error) {
+      const msg = typeof response.error === "object" && response.error.message
+        ? response.error.message
+        : "Your proposal was blocked due to policy violations.";
+      toast.error(msg);
+      setSubmitting(false);
+      return;
     }
+
+    if (response.data?.error) {
+      toast.error(response.data.error);
+      setSubmitting(false);
+      return;
+    }
+
+    toast.success("Proposal submitted!");
+    setShowProposalForm(false);
+    setHasApplied(true);
+    setProposalCount((c) => c + 1);
     setSubmitting(false);
   };
 
@@ -144,15 +176,15 @@ export default function JobDetailsPage() {
   }
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
-  const canApply = profile?.role === "freelancer" && job.status === "open" && !showProposalForm;
+  const canApply = profile?.role === "freelancer" && job.status === "open" && !showProposalForm && !hasApplied;
   const paymentReady = wallet && wallet.balance >= (job.budget_max || job.budget_min || 0);
 
   const deliveryLabel = () => {
     const d = job.delivery_days || 0;
     if (d <= 7) return "Up to 1 week";
-    if (d <= 30) return "1 week – 1 month";
-    if (d <= 90) return "1 – 3 months";
-    return "3+ months";
+    if (d <= 30) return `${Math.ceil(d / 7)} weeks (~${d} days)`;
+    if (d <= 90) return `${Math.ceil(d / 30)} months (~${d} days)`;
+    return `${Math.ceil(d / 30)} months (~${d} days)`;
   };
 
   return (
@@ -192,7 +224,7 @@ export default function JobDetailsPage() {
                     <div className="flex items-center gap-1"><MapPin className="h-4 w-4" />{job.city ? `${job.city}, ` : ""}{job.state}</div>
                   )}
                   {job.delivery_days && (
-                    <div className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days</div>
+                    <div className="flex items-center gap-1"><Clock className="h-4 w-4" />{deliveryLabel()}</div>
                   )}
                   <div className="flex items-center gap-1"><Briefcase className="h-4 w-4" />{proposalCount} proposals</div>
                   {interviewingCount > 0 && (
@@ -254,7 +286,7 @@ export default function JobDetailsPage() {
                 </div>
               )}
 
-              {/* Proposal & Interview Stats */}
+              {/* Proposal Stats */}
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex flex-wrap gap-6">
                   <div className="flex items-center gap-2">
@@ -273,6 +305,14 @@ export default function JobDetailsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Already Applied Notice */}
+              {hasApplied && (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <ShieldAlert className="h-4 w-4 text-primary" />
+                  <AlertDescription>You have already applied to this job.</AlertDescription>
+                </Alert>
+              )}
 
               {/* Proposal Form */}
               {showProposalForm && profile?.role === "freelancer" && job.status === "open" && (
@@ -294,7 +334,10 @@ export default function JobDetailsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Cover Letter</Label>
-                      <Textarea placeholder="Explain why you're the best fit..." rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
+                      <Textarea placeholder="Explain why you're the best fit... (No contact details allowed)" rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">
+                        ⚠️ Sharing private contact information is prohibited and will be blocked.
+                      </p>
                     </div>
                     <div className="flex gap-3">
                       <Button type="submit" disabled={submitting}>
@@ -340,22 +383,22 @@ export default function JobDetailsPage() {
                 <p className="text-2xl font-bold text-primary">
                   {job.budget_min && job.budget_max
                     ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                    : job.budget_min
-                    ? formatNaira(job.budget_min)
-                    : "Negotiable"}
+                    : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"}
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
 
-                {/* Payment status */}
                 <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
                   <DollarSign className="h-4 w-4" />
                   {paymentReady ? "Payment Ready" : "Payment Unverified"}
                 </div>
 
                 {canApply && (
-                  <Button className="w-full mt-4" onClick={() => user ? setShowProposalForm(true) : navigate("/auth")}>
+                  <Button className="w-full mt-4" onClick={() => setShowProposalForm(true)}>
                     <Send className="h-4 w-4 mr-2" /> Apply Now
                   </Button>
+                )}
+                {hasApplied && !isAssigned && (
+                  <p className="text-sm text-muted-foreground mt-4 text-center">You have already applied to this job.</p>
                 )}
                 {isAssigned && (
                   <p className="text-sm text-muted-foreground mt-4 text-center">This job is no longer accepting proposals.</p>
@@ -374,17 +417,17 @@ export default function JobDetailsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">{client.full_name || "Client"}</p>
+                      <p className="font-medium text-foreground">{client.full_name}</p>
                       {client.state && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />{client.city ? `${client.city}, ` : ""}{client.state}
+                        <p className="text-sm text-muted-foreground">
+                          {client.city ? `${client.city}, ` : ""}{client.state}
                         </p>
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Member since {new Date(client.created_at).toLocaleDateString("en-NG", { month: "long", year: "numeric" })}
-                  </p>
+                  {client.is_verified && (
+                    <Badge variant="default" className="gap-1 text-xs mb-2">✓ Verified Client</Badge>
+                  )}
                 </div>
               )}
             </div>
@@ -398,12 +441,12 @@ export default function JobDetailsPage() {
 
 function InfoTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className="p-4 rounded-lg bg-muted/50 space-y-1">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
+    <div className="p-4 rounded-lg bg-muted/50 border border-border">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="h-4 w-4 text-primary" />
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
+      <p className="text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
