@@ -20,3 +20,12 @@ enabled = true
 
 [functions.moderate-message]
 verify_jwt = false
+
+[functions.moderate-proposal]
+verify_jwt = false
+
+[functions.escrow-release]
+verify_jwt = false
+
+[functions.daily-job-notifications]
+verify_jwt = false

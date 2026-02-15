@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
+import { AuthGuard } from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Freelancers from "./pages/Freelancers";
@@ -28,6 +29,8 @@ import ManageSkills from "./pages/ManageSkills";
 import ManagePortfolio from "./pages/ManagePortfolio";
 import ExpertProposals from "./pages/ExpertProposals";
 import ContestEntries from "./pages/ContestEntries";
+import AdminDashboard from "./pages/AdminDashboard";
+import ContractDetail from "./pages/ContractDetail";
 
 const queryClient = new QueryClient();
 
@@ -39,30 +42,33 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            {/* Find Talent - not for freelancers */}
-            <Route path="/freelancers" element={<RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard>} />
-            {/* Browse Jobs - not for clients */}
-            <Route path="/jobs" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><Jobs /></RoleGuard>} />
-            <Route path="/job/:id" element={<JobDetails />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/jobs" element={<RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard>} />
-            <Route path="/dashboard/proposals" element={<RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard>} />
-            <Route path="/dashboard/offers" element={<RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard>} />
-            <Route path="/dashboard/saved" element={<RoleGuard allowedRoles={["client", "admin"]}><SavedExperts /></RoleGuard>} />
-            <Route path="/dashboard/contracts" element={<ContractsPage />} />
-            <Route path="/dashboard/services" element={<BrowseServices />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/my-profile" element={<MyProfile />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/post-job" element={<RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard>} />
-            <Route path="/launch-contest" element={<RoleGuard allowedRoles={["client", "admin"]}><LaunchContest /></RoleGuard>} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/manage-skills" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ManageSkills /></RoleGuard>} />
-            <Route path="/manage-portfolio" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ManagePortfolio /></RoleGuard>} />
-            <Route path="/dashboard/expert-proposals" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ExpertProposals /></RoleGuard>} />
-            <Route path="/dashboard/contest-entries" element={<RoleGuard allowedRoles={["freelancer", "admin"]}><ContestEntries /></RoleGuard>} />
+
+            {/* Authenticated routes */}
+            <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard></AuthGuard>} />
+            <Route path="/jobs" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><Jobs /></RoleGuard></AuthGuard>} />
+            <Route path="/job/:id" element={<AuthGuard><JobDetails /></AuthGuard>} />
+            <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+            <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/offers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/saved" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SavedExperts /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/contracts" element={<AuthGuard><ContractsPage /></AuthGuard>} />
+            <Route path="/dashboard/services" element={<AuthGuard><BrowseServices /></AuthGuard>} />
+            <Route path="/contract/:id" element={<AuthGuard><ContractDetail /></AuthGuard>} />
+            <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
+            <Route path="/my-profile" element={<AuthGuard><MyProfile /></AuthGuard>} />
+            <Route path="/post-job" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard></AuthGuard>} />
+            <Route path="/launch-contest" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><LaunchContest /></RoleGuard></AuthGuard>} />
+            <Route path="/transactions" element={<AuthGuard><Transactions /></AuthGuard>} />
+            <Route path="/manage-skills" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ManageSkills /></RoleGuard></AuthGuard>} />
+            <Route path="/manage-portfolio" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ManagePortfolio /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
+            <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ContestEntries /></RoleGuard></AuthGuard>} />
+            <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

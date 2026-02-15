@@ -216,6 +216,63 @@ export type Database = {
           },
         ]
       }
+      disputes: {
+        Row: {
+          admin_notes: string | null
+          contract_id: string
+          created_at: string
+          evidence_urls: string[] | null
+          id: string
+          milestone_id: string | null
+          raised_by: string
+          reason: string
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          contract_id: string
+          created_at?: string
+          evidence_urls?: string[] | null
+          id?: string
+          milestone_id?: string | null
+          raised_by: string
+          reason: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          contract_id?: string
+          created_at?: string
+          evidence_urls?: string[] | null
+          id?: string
+          milestone_id?: string | null
+          raised_by?: string
+          reason?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       freelancer_profiles: {
         Row: {
           availability: Database["public"]["Enums"]["availability_type"] | null
@@ -226,6 +283,7 @@ export type Database = {
           min_project_rate: number | null
           rating: number | null
           show_whatsapp: boolean | null
+          skill_levels: Json | null
           skills: string[] | null
           title: string | null
           total_jobs_completed: number | null
@@ -242,6 +300,7 @@ export type Database = {
           min_project_rate?: number | null
           rating?: number | null
           show_whatsapp?: boolean | null
+          skill_levels?: Json | null
           skills?: string[] | null
           title?: string | null
           total_jobs_completed?: number | null
@@ -258,6 +317,7 @@ export type Database = {
           min_project_rate?: number | null
           rating?: number | null
           show_whatsapp?: boolean | null
+          skill_levels?: Json | null
           skills?: string[] | null
           title?: string | null
           total_jobs_completed?: number | null
@@ -388,6 +448,89 @@ export type Database = {
           },
         ]
       }
+      milestones: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          contract_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          funded_at: string | null
+          id: string
+          status: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          contract_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          funded_at?: string | null
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          contract_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          funded_at?: string | null
+          id?: string
+          status?: string
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_logs: {
+        Row: {
+          confidence: number | null
+          content_type: string
+          created_at: string
+          id: string
+          raw_content: string | null
+          user_id: string
+          violation_reason: string
+        }
+        Insert: {
+          confidence?: number | null
+          content_type: string
+          created_at?: string
+          id?: string
+          raw_content?: string | null
+          user_id: string
+          violation_reason: string
+        }
+        Update: {
+          confidence?: number | null
+          content_type?: string
+          created_at?: string
+          id?: string
+          raw_content?: string | null
+          user_id?: string
+          violation_reason?: string
+        }
+        Relationships: []
+      }
       offers: {
         Row: {
           budget: number | null
@@ -445,6 +588,54 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_revenue: {
+        Row: {
+          commission_amount: number
+          commission_rate: number
+          contract_id: string | null
+          created_at: string
+          gross_amount: number
+          id: string
+          milestone_id: string | null
+          net_to_freelancer: number
+        }
+        Insert: {
+          commission_amount: number
+          commission_rate: number
+          contract_id?: string | null
+          created_at?: string
+          gross_amount: number
+          id?: string
+          milestone_id?: string | null
+          net_to_freelancer: number
+        }
+        Update: {
+          commission_amount?: number
+          commission_rate?: number
+          contract_id?: string | null
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          milestone_id?: string | null
+          net_to_freelancer?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_revenue_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_revenue_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
             referencedColumns: ["id"]
           },
         ]
@@ -541,9 +732,11 @@ export type Database = {
           cover_letter: string
           created_at: string | null
           delivery_days: number
+          edit_count: number
           freelancer_id: string
           id: string
           job_id: string
+          last_edited_at: string | null
           status: Database["public"]["Enums"]["proposal_status"] | null
           updated_at: string | null
         }
@@ -552,9 +745,11 @@ export type Database = {
           cover_letter: string
           created_at?: string | null
           delivery_days: number
+          edit_count?: number
           freelancer_id: string
           id?: string
           job_id: string
+          last_edited_at?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
         }
@@ -563,9 +758,11 @@ export type Database = {
           cover_letter?: string
           created_at?: string | null
           delivery_days?: number
+          edit_count?: number
           freelancer_id?: string
           id?: string
           job_id?: string
+          last_edited_at?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
         }
@@ -778,11 +975,118 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_violation_counts: {
+        Row: {
+          created_at: string
+          is_suspended: boolean
+          last_violation_at: string | null
+          messaging_restricted_until: string | null
+          total_violations: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_suspended?: boolean
+          last_violation_at?: string | null
+          messaging_restricted_until?: string | null
+          total_violations?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_suspended?: boolean
+          last_violation_at?: string | null
+          messaging_restricted_until?: string | null
+          total_violations?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          contract_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          milestone_id: string | null
+          reference: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          contract_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          milestone_id?: string | null
+          reference?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          contract_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          milestone_id?: string | null
+          reference?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           balance: number
           escrow_balance: number
           id: string
+          total_earned: number
+          total_spent: number
           updated_at: string | null
           user_id: string
         }
@@ -790,6 +1094,8 @@ export type Database = {
           balance?: number
           escrow_balance?: number
           id?: string
+          total_earned?: number
+          total_spent?: number
           updated_at?: string | null
           user_id: string
         }
@@ -797,6 +1103,8 @@ export type Database = {
           balance?: number
           escrow_balance?: number
           id?: string
+          total_earned?: number
+          total_spent?: number
           updated_at?: string | null
           user_id?: string
         }
@@ -815,9 +1123,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       availability_type: "full_time" | "part_time" | "weekends" | "flexible"
       contract_status: "active" | "completed" | "disputed" | "cancelled"
       job_status: "open" | "in_progress" | "completed" | "cancelled"
@@ -955,6 +1270,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       availability_type: ["full_time", "part_time", "weekends", "flexible"],
       contract_status: ["active", "completed", "disputed", "cancelled"],
       job_status: ["open", "in_progress", "completed", "cancelled"],

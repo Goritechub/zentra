@@ -18,9 +18,9 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     );
   }
 
-  // Allow unauthenticated users to browse public pages
+  // If not authenticated, redirect to auth (AuthGuard should handle this, but double-check)
   if (!user) {
-    return <>{children}</>;
+    return <Navigate to="/auth" replace />;
   }
 
   // Block authenticated users with wrong role
