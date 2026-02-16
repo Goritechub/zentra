@@ -214,7 +214,7 @@ export default function MyProfilePage() {
             <p className="text-muted-foreground mt-1">
               {isFreelancer
                 ? "Set up your freelancer profile to attract clients."
-                : "Complete your profile to get the most out of CADNaija."}
+                : "Complete your profile to get the most out of CADGigs."}
             </p>
           </div>
 

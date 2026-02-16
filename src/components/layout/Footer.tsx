@@ -13,12 +13,13 @@ export function Footer() {
                 <span className="text-lg font-bold text-primary-foreground">C</span>
               </div>
               <span className="text-xl font-bold">
-                CAD<span className="text-primary">Naija</span>
+                CAD<span className="text-primary">Gigs</span>
               </span>
             </Link>
             <p className="text-sm text-background/70">
               Nigeria's premier marketplace for CAD professionals. Connect with verified engineers, 
               architects, and designers across the country.
+            
             </p>
             <div className="flex items-center gap-4 text-background/70">
               <MapPin className="h-4 w-4 text-primary" />
@@ -86,8 +87,8 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-background/70">
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:hello@cadnaija.com" className="hover:text-primary transition-colors">
-                  hello@cadnaija.com
+                <a href="mailto:hello@cadgigs.com" className="hover:text-primary transition-colors">
+                  hello@cadgigs.com
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -114,7 +115,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-background/10 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-background/60">
-            © {new Date().getFullYear()} CADNaija. All rights reserved.
+            © {new Date().getFullYear()} CADGigs. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-sm text-background/60">
             <Link to="/privacy" className="hover:text-primary transition-colors">

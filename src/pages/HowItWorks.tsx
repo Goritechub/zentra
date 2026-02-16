@@ -36,7 +36,7 @@ export default function HowItWorksPage() {
         {/* Hero */}
         <section className="bg-hero-gradient text-white py-16 md:py-24">
           <div className="container-wide text-center">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">How CADNaija Works</h1>
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">How CADGigs Works</h1>
             <p className="text-white/80 text-lg max-w-2xl mx-auto">
               Whether you're hiring CAD talent or looking for engineering work, 
               our platform makes it simple, secure, and professional.
@@ -108,7 +108,7 @@ export default function HowItWorksPage() {
         <section className="section-padding">
           <div className="container-wide">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose CADNaija?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose CADGigs?</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {benefits.map((b, i) => (
