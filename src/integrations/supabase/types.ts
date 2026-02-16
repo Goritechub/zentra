@@ -351,6 +351,7 @@ export type Database = {
           required_skill_levels: Json | null
           required_skills: string[] | null
           required_software: string[] | null
+          skill_level: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"] | null
           title: string
@@ -371,6 +372,7 @@ export type Database = {
           required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
+          skill_level?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           title: string
@@ -391,6 +393,7 @@ export type Database = {
           required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
+          skill_level?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           title?: string

@@ -259,9 +259,25 @@ export default function ProposalsReceivedPage() {
                               {proposal.job_title}
                             </Link>
 
-                            <p className="text-muted-foreground text-sm mt-2 line-clamp-3">
+                            <p className="text-muted-foreground text-sm mt-2 whitespace-pre-wrap">
                               {proposal.cover_letter}
                             </p>
+
+                            {/* Expert Attachments */}
+                            {proposal.attachments && proposal.attachments.length > 0 && (
+                              <div className="mt-3 space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground">Attachments:</p>
+                                {proposal.attachments.map((url: string, idx: number) => {
+                                  const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                                  return (
+                                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm">
+                                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                                      <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
 
                             <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
                               <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>

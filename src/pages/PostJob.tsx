@@ -41,6 +41,7 @@ export default function PostJobPage() {
   const [city, setCity] = useState("");
   const [skillsWithLevel, setSkillsWithLevel] = useState<SkillWithLevel[]>([]);
   const [softwareWithLevel, setSoftwareWithLevel] = useState<SkillWithLevel[]>([]);
+  const [overallSkillLevel, setOverallSkillLevel] = useState<SkillLevel>("Intermediate");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -127,6 +128,7 @@ export default function PostJobPage() {
       required_skills: skillsWithLevel.map(s => s.name),
       required_software: softwareWithLevel.map(s => s.name),
       required_skill_levels: skillLevels,
+      skill_level: overallSkillLevel,
       attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
     } as any);
 
@@ -234,6 +236,17 @@ export default function PostJobPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+              {/* Overall Skill Level */}
+              <div className="space-y-2">
+                <Label>Overall Skill Level Required</Label>
+                <p className="text-xs text-muted-foreground">What overall proficiency level does this project require?</p>
+                <Select value={overallSkillLevel} onValueChange={(v) => setOverallSkillLevel(v as SkillLevel)}>
+                  <SelectTrigger><SelectValue placeholder="Select skill level" /></SelectTrigger>
+                  <SelectContent>
+                    {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
