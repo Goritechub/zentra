@@ -32,6 +32,7 @@ import ExpertProposals from "./pages/ExpertProposals";
 import ContestEntries from "./pages/ContestEntries";
 import AdminDashboard from "./pages/AdminDashboard";
 import ContractDetail from "./pages/ContractDetail";
+import ExpertProfile from "./pages/ExpertProfile";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/expert/:id" element={<ExpertProfile />} />
 
             {/* Authenticated routes */}
             <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard></AuthGuard>} />

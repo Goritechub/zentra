@@ -1,71 +1,85 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { formatNaira } from "@/lib/nigerian-data";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-// Sample featured freelancers data
-const featuredFreelancers = [
-  {
-    id: "1",
-    name: "Adewale Okonkwo",
-    title: "Senior Architectural Draftsman",
-    avatar: null,
-    state: "Lagos",
-    city: "Victoria Island",
-    rating: 4.9,
-    reviews: 47,
-    hourlyRate: 25000,
-    skills: ["AutoCAD", "Revit", "SketchUp"],
-    isVerified: true,
-    completedJobs: 52,
-  },
-  {
-    id: "2",
-    name: "Chioma Eze",
-    title: "Mechanical CAD Engineer",
-    avatar: null,
-    state: "Abuja FCT",
-    city: "Wuse",
-    rating: 4.8,
-    reviews: 34,
-    hourlyRate: 30000,
-    skills: ["SolidWorks", "AutoCAD", "Inventor"],
-    isVerified: true,
-    completedJobs: 38,
-  },
-  {
-    id: "3",
-    name: "Emeka Nwosu",
-    title: "BIM Specialist",
-    avatar: null,
-    state: "Rivers",
-    city: "Port Harcourt",
-    rating: 5.0,
-    reviews: 28,
-    hourlyRate: 35000,
-    skills: ["Revit", "Navisworks", "BIM 360"],
-    isVerified: true,
-    completedJobs: 31,
-  },
-  {
-    id: "4",
-    name: "Fatima Bello",
-    title: "Civil Engineering Designer",
-    avatar: null,
-    state: "Kano",
-    city: "Kano City",
-    rating: 4.7,
-    reviews: 21,
-    hourlyRate: 22000,
-    skills: ["Civil 3D", "AutoCAD", "Revit"],
-    isVerified: true,
-    completedJobs: 24,
-  },
-];
+interface FeaturedExpert {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  state: string | null;
+  city: string | null;
+  is_verified: boolean | null;
+  title: string | null;
+  rating: number | null;
+  total_jobs_completed: number | null;
+  hourly_rate: number | null;
+  skills: string[] | null;
+}
 
 export function FeaturedFreelancers() {
+  const [experts, setExperts] = useState<FeaturedExpert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchExperts = async () => {
+      const { data: fpData } = await supabase
+        .from("freelancer_profiles")
+        .select("user_id, title, rating, total_jobs_completed, hourly_rate, skills")
+        .order("rating", { ascending: false, nullsFirst: false })
+        .limit(4);
+
+      if (!fpData || fpData.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const userIds = fpData.map((fp) => fp.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, state, city, is_verified")
+        .in("id", userIds);
+
+      const merged: FeaturedExpert[] = fpData.map((fp) => {
+        const p = profiles?.find((pr) => pr.id === fp.user_id);
+        return {
+          id: fp.user_id,
+          full_name: p?.full_name || null,
+          avatar_url: p?.avatar_url || null,
+          state: p?.state || null,
+          city: p?.city || null,
+          is_verified: p?.is_verified || null,
+          title: fp.title,
+          rating: fp.rating,
+          total_jobs_completed: fp.total_jobs_completed,
+          hourly_rate: fp.hourly_rate,
+          skills: fp.skills,
+        };
+      });
+
+      setExperts(merged);
+      setLoading(false);
+    };
+    fetchExperts();
+  }, []);
+
+  const handleCardClick = (expertId: string) => {
+    if (user) {
+      navigate(`/expert/${expertId}`);
+    } else {
+      navigate(`/auth?redirect=${encodeURIComponent(`/expert/${expertId}`)}`);
+    }
+  };
+
+  if (loading || experts.length === 0) return null;
+
   return (
     <section className="section-padding bg-muted/30">
       <div className="container-wide">
@@ -79,7 +93,7 @@ export function FeaturedFreelancers() {
             </p>
           </div>
           <Button variant="outline" asChild>
-            <Link to="/freelancers">
+            <Link to={user ? "/freelancers" : "/auth?redirect=%2Ffreelancers"}>
               View All Experts
               <ArrowRight className="h-4 w-4 ml-2" />
             </Link>
@@ -87,21 +101,20 @@ export function FeaturedFreelancers() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredFreelancers.map((freelancer) => (
-            <Link
-              key={freelancer.id}
-              to={`/freelancer/${freelancer.id}`}
-              className="group bg-card rounded-xl border border-border p-6 card-hover"
+          {experts.map((expert) => (
+            <div
+              key={expert.id}
+              onClick={() => handleCardClick(expert.id)}
+              className="group bg-card rounded-xl border border-border p-6 card-hover cursor-pointer"
             >
-              {/* Avatar & Verified Badge */}
               <div className="flex items-start justify-between mb-4">
                 <Avatar className="h-16 w-16 border-2 border-background shadow-lg">
-                  <AvatarImage src={freelancer.avatar || undefined} />
+                  <AvatarImage src={expert.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
-                    {freelancer.name.split(" ").map(n => n[0]).join("")}
+                    {expert.full_name?.split(" ").map((n) => n[0]).join("") || "U"}
                   </AvatarFallback>
                 </Avatar>
-                {freelancer.isVerified && (
+                {expert.is_verified && (
                   <div className="verified-badge">
                     <CheckCircle2 className="h-3 w-3" />
                     Verified
@@ -109,48 +122,53 @@ export function FeaturedFreelancers() {
                 )}
               </div>
 
-              {/* Name & Title */}
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                {freelancer.name}
+                {expert.full_name || "Expert"}
               </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {freelancer.title}
-              </p>
+              {expert.title && (
+                <p className="text-sm text-muted-foreground mt-1">{expert.title}</p>
+              )}
 
-              {/* Location */}
-              <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">
-                <MapPin className="h-3.5 w-3.5" />
-                {freelancer.city}, {freelancer.state}
-              </div>
-
-              {/* Rating */}
-              <div className="flex items-center gap-2 mt-3">
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-accent text-accent" />
-                  <span className="font-semibold text-foreground">{freelancer.rating}</span>
+              {(expert.city || expert.state) && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {expert.city && `${expert.city}, `}{expert.state || "Nigeria"}
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  ({freelancer.reviews} reviews)
-                </span>
-              </div>
+              )}
 
-              {/* Skills */}
-              <div className="flex flex-wrap gap-1.5 mt-4">
-                {freelancer.skills.slice(0, 3).map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-xs font-medium">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
+              {expert.rating != null && (
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-accent text-accent" />
+                    <span className="font-semibold text-foreground">{expert.rating}</span>
+                  </div>
+                  {expert.total_jobs_completed != null && (
+                    <span className="text-sm text-muted-foreground">
+                      ({expert.total_jobs_completed} jobs)
+                    </span>
+                  )}
+                </div>
+              )}
 
-              {/* Price */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground">Starting at</p>
-                <p className="text-lg font-bold text-primary">
-                  {formatNaira(freelancer.hourlyRate)}<span className="text-sm font-normal text-muted-foreground">/hr</span>
-                </p>
-              </div>
-            </Link>
+              {expert.skills && expert.skills.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-4">
+                  {expert.skills.slice(0, 3).map((skill) => (
+                    <Badge key={skill} variant="secondary" className="text-xs font-medium">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {expert.hourly_rate != null && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">Starting at</p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatNaira(expert.hourly_rate)}<span className="text-sm font-normal text-muted-foreground">/hr</span>
+                  </p>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
