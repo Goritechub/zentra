@@ -33,6 +33,8 @@ import ContestEntries from "./pages/ContestEntries";
 import AdminDashboard from "./pages/AdminDashboard";
 import ContractDetail from "./pages/ContractDetail";
 import ExpertProfile from "./pages/ExpertProfile";
+import ApplyJob from "./pages/ApplyJob";
+import Contact from "./pages/Contact";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +57,7 @@ const App = () => (
             <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard></AuthGuard>} />
             <Route path="/jobs" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><Jobs /></RoleGuard></AuthGuard>} />
             <Route path="/job/:id" element={<AuthGuard><JobDetails /></AuthGuard>} />
+            <Route path="/job/:id/apply" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ApplyJob /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
             <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />
@@ -73,6 +76,7 @@ const App = () => (
             <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ContestEntries /></RoleGuard></AuthGuard>} />
             <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

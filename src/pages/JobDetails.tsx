@@ -1,23 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
-import { vetContent } from "@/lib/content-vetting";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
-  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert, Paperclip, X, Eye
+  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -32,22 +26,6 @@ export default function JobDetailsPage() {
   const [interviewingCount, setInterviewingCount] = useState(0);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
   const [hasApplied, setHasApplied] = useState(false);
-  const [existingProposal, setExistingProposal] = useState<any>(null);
-  const [viewingProposal, setViewingProposal] = useState(false);
-  const [editingProposal, setEditingProposal] = useState(false);
-  const [editBidAmount, setEditBidAmount] = useState("");
-  const [editDeliveryDays, setEditDeliveryDays] = useState("");
-  const [editCoverLetter, setEditCoverLetter] = useState("");
-  const [editSubmitting, setEditSubmitting] = useState(false);
-
-  // Proposal form
-  const [showProposalForm, setShowProposalForm] = useState(false);
-  const [bidAmount, setBidAmount] = useState("");
-  const [deliveryDays, setDeliveryDays] = useState("");
-  const [coverLetter, setCoverLetter] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [proposalFiles, setProposalFiles] = useState<File[]>([]);
-  const proposalFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (id) fetchJob();
@@ -82,17 +60,11 @@ export default function JobDetailsPage() {
     if (user) {
       const { data: existing } = await supabase
         .from("proposals")
-        .select("*")
+        .select("id")
         .eq("job_id", id!)
         .eq("freelancer_id", user.id)
         .maybeSingle();
       setHasApplied(!!existing);
-      if (existing) {
-        setExistingProposal(existing);
-        setEditBidAmount(String(existing.bid_amount));
-        setEditDeliveryDays(String(existing.delivery_days));
-        setEditCoverLetter(existing.cover_letter);
-      }
     }
 
     // Fetch similar jobs (for freelancers) or other jobs by client (for clients)
@@ -116,166 +88,6 @@ export default function JobDetailsPage() {
     }
 
     setLoading(false);
-  };
-
-  const handleProposalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => {
-      const ext = f.name.split('.').pop()?.toLowerCase();
-      return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
-    });
-    if (allowed.length < files.length) {
-      toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
-    }
-    setProposalFiles(prev => [...prev, ...allowed].slice(0, 5));
-    if (proposalFileRef.current) proposalFileRef.current.value = '';
-  };
-
-  const uploadProposalAttachments = async (): Promise<string[]> => {
-    if (!proposalFiles.length || !user) return [];
-    const urls: string[] = [];
-    for (const file of proposalFiles) {
-      const path = `${user.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('proposal-attachments').upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from('proposal-attachments').getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
-    }
-    return urls;
-  };
-
-  const handleSubmitProposal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !id) return;
-
-    const amount = parseInt(bidAmount);
-    const days = parseInt(deliveryDays);
-    if (!amount || !days || !coverLetter.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (days < 1) {
-      toast.error("Delivery days must be at least 1");
-      return;
-    }
-
-    // Client-side vetting first
-    const vetResult = vetContent(coverLetter.trim());
-    if (vetResult.blocked) {
-      toast.error(vetResult.reason || "Your cover letter contains prohibited content.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    // Upload attachments first
-    const attachmentUrls = await uploadProposalAttachments();
-
-    // Submit via edge function for server-side moderation
-    const response = await supabase.functions.invoke("moderate-proposal", {
-      body: {
-        job_id: id,
-        bid_amount: amount,
-        delivery_days: days,
-        cover_letter: coverLetter.trim(),
-        attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
-      },
-    });
-
-    if (response.error) {
-      const msg = typeof response.error === "object" && response.error.message
-        ? response.error.message
-        : "Your proposal was blocked due to policy violations.";
-      toast.error(msg);
-      setSubmitting(false);
-      return;
-    }
-
-    if (response.data?.error) {
-      toast.error(response.data.error);
-      setSubmitting(false);
-      return;
-    }
-
-    toast.success("Proposal submitted!");
-    setShowProposalForm(false);
-    setHasApplied(true);
-    setProposalCount((c) => c + 1);
-    setSubmitting(false);
-    // Refetch the proposal so view/edit works
-    const { data: newProposal } = await supabase
-      .from("proposals")
-      .select("*")
-      .eq("job_id", id!)
-      .eq("freelancer_id", user!.id)
-      .maybeSingle();
-    if (newProposal) {
-      setExistingProposal(newProposal);
-      setEditBidAmount(String(newProposal.bid_amount));
-      setEditDeliveryDays(String(newProposal.delivery_days));
-      setEditCoverLetter(newProposal.cover_letter);
-    }
-  };
-
-  const canEditProposal = () => {
-    if (!existingProposal) return false;
-    if (existingProposal.edit_count >= 2) return false;
-    const createdAt = new Date(existingProposal.created_at);
-    const threeHoursLater = new Date(createdAt.getTime() + 3 * 60 * 60 * 1000);
-    return new Date() < threeHoursLater;
-  };
-
-  const handleEditProposal = async () => {
-    if (!existingProposal || !user) return;
-
-    const amount = parseInt(editBidAmount);
-    const days = parseInt(editDeliveryDays);
-    if (!amount || !days || !editCoverLetter.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    const vetResult = vetContent(editCoverLetter.trim());
-    if (vetResult.blocked) {
-      toast.error(vetResult.reason || "Your cover letter contains prohibited content.");
-      return;
-    }
-
-    setEditSubmitting(true);
-
-    const { error } = await supabase
-      .from("proposals")
-      .update({
-        bid_amount: amount,
-        delivery_days: days,
-        cover_letter: editCoverLetter.trim(),
-        edit_count: existingProposal.edit_count + 1,
-        last_edited_at: new Date().toISOString(),
-      })
-      .eq("id", existingProposal.id);
-
-    if (error) {
-      toast.error("Failed to update proposal");
-      setEditSubmitting(false);
-      return;
-    }
-
-    toast.success("Proposal updated!");
-    setEditingProposal(false);
-    setEditSubmitting(false);
-    // Refresh proposal data
-    const { data: updated } = await supabase
-      .from("proposals")
-      .select("*")
-      .eq("id", existingProposal.id)
-      .single();
-    if (updated) {
-      setExistingProposal(updated);
-      setEditBidAmount(String(updated.bid_amount));
-      setEditDeliveryDays(String(updated.delivery_days));
-      setEditCoverLetter(updated.cover_letter);
-    }
   };
 
   if (loading) {
@@ -306,7 +118,7 @@ export default function JobDetailsPage() {
   }
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
-  const canApply = profile?.role === "freelancer" && job.status === "open" && !showProposalForm && !hasApplied;
+  const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
   const paymentReady = wallet && wallet.balance >= (job.budget_max || job.budget_min || 0);
 
   const deliveryLabel = () => {
@@ -436,161 +248,6 @@ export default function JobDetailsPage() {
                 </div>
               </div>
 
-              {/* View/Edit Proposal */}
-              {hasApplied && existingProposal && viewingProposal && (
-                <div className="bg-card rounded-xl border border-border p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold">Your Proposal</h2>
-                    <div className="flex gap-2">
-                      {editingProposal ? (
-                        <>
-                          <Button size="sm" onClick={handleEditProposal} disabled={editSubmitting}>
-                            {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Save Changes
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => {
-                            setEditingProposal(false);
-                            setEditBidAmount(String(existingProposal.bid_amount));
-                            setEditDeliveryDays(String(existingProposal.delivery_days));
-                            setEditCoverLetter(existingProposal.cover_letter);
-                          }}>Cancel</Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!canEditProposal()}
-                          onClick={() => {
-                            if (!canEditProposal()) {
-                              toast.error("The 3-hour edit window has passed. You can no longer edit this proposal.");
-                              return;
-                            }
-                            setEditingProposal(true);
-                          }}
-                        >
-                          Edit Proposal {existingProposal.edit_count > 0 && `(${existingProposal.edit_count}/2 edits used)`}
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => setViewingProposal(false)}>Close</Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bid Amount (₦)</Label>
-                        {editingProposal ? (
-                          <Input type="number" min="1" value={editBidAmount} onChange={(e) => setEditBidAmount(e.target.value)} />
-                        ) : (
-                          <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{formatNaira(existingProposal.bid_amount)}</div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Delivery (days)</Label>
-                        {editingProposal ? (
-                          <Input type="number" min="1" value={editDeliveryDays} onChange={(e) => setEditDeliveryDays(e.target.value)} />
-                        ) : (
-                          <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{existingProposal.delivery_days} days</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cover Letter</Label>
-                      {editingProposal ? (
-                        <Textarea rows={6} value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} />
-                      ) : (
-                        <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap">{existingProposal.cover_letter}</div>
-                      )}
-                    </div>
-                    {existingProposal.attachments && existingProposal.attachments.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Attachments</Label>
-                        <div className="space-y-1">
-                          {existingProposal.attachments.map((url: string, idx: number) => {
-                            const name = url.split("/").pop() || `Attachment ${idx + 1}`;
-                            return (
-                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm hover:bg-muted transition-colors">
-                                <Download className="h-4 w-4 text-primary shrink-0" />
-                                <span className="truncate">{name}</span>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-                      <span>Status: <Badge variant="secondary" className="text-xs">{existingProposal.status}</Badge></span>
-                      <span>Submitted: {formatDistanceToNow(new Date(existingProposal.created_at), { addSuffix: true })}</span>
-                      {!canEditProposal() && <span className="text-destructive">Edit window expired</span>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Proposal Form */}
-              {showProposalForm && profile?.role === "freelancer" && job.status === "open" && (
-                <div className="bg-card rounded-xl border border-border p-8">
-                  <h2 className="text-xl font-bold mb-6">Submit Your Proposal</h2>
-                  <form onSubmit={handleSubmitProposal} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bid Amount (₦)</Label>
-                        <Input type="number" placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250000"} min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Delivery (days)</Label>
-                        <Input type="number" placeholder={job.delivery_days ? `${job.delivery_days} days` : "e.g. 14"} min="1" value={deliveryDays} onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
-                        }} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cover Letter</Label>
-                      <Textarea placeholder="Explain why you're the best fit... (No contact details allowed)" rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
-                      <p className="text-xs text-muted-foreground">
-                        ⚠️ Sharing private contact information is prohibited and will be blocked.
-                      </p>
-                    </div>
-                    {/* Proposal Attachments */}
-                    <div className="space-y-2">
-                      <Label>Attachments (optional)</Label>
-                      <p className="text-xs text-muted-foreground">Upload supporting files — PDF, DOC, PNG, JPG, DWG, DXF, ZIP. Max 5 files.</p>
-                      <input
-                        ref={proposalFileRef}
-                        type="file"
-                        multiple
-                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
-                        className="hidden"
-                        onChange={handleProposalFileChange}
-                      />
-                      <Button type="button" variant="outline" size="sm" onClick={() => proposalFileRef.current?.click()} disabled={proposalFiles.length >= 5}>
-                        <Paperclip className="h-4 w-4 mr-2" /> Add Files
-                      </Button>
-                      {proposalFiles.length > 0 && (
-                        <div className="space-y-1 mt-2">
-                          {proposalFiles.map((file, idx) => (
-                            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm">
-                              <FileText className="h-4 w-4 text-primary shrink-0" />
-                              <span className="flex-1 truncate">{file.name}</span>
-                              <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
-                              <X className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setProposalFiles(proposalFiles.filter((_, i) => i !== idx))} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-3">
-                      <Button type="submit" disabled={submitting}>
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                        Submit Proposal
-                      </Button>
-                      <Button type="button" variant="outline" onClick={() => setShowProposalForm(false)}>Cancel</Button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
               {/* Similar Jobs / Other Jobs by You */}
               {similarJobs.length > 0 && (
                 <div className="bg-card rounded-xl border border-border p-6">
@@ -636,7 +293,7 @@ export default function JobDetailsPage() {
                 </div>
 
                 {canApply && (
-                  <Button className="w-full mt-4" onClick={() => setShowProposalForm(true)}>
+                  <Button className="w-full mt-4" onClick={() => navigate(`/job/${id}/apply`)}>
                     <Send className="h-4 w-4 mr-2" /> Apply Now
                   </Button>
                 )}
@@ -645,8 +302,8 @@ export default function JobDetailsPage() {
                     <Button className="w-full" variant="secondary" disabled>
                       Already Applied
                     </Button>
-                    <Button className="w-full" variant="outline" onClick={() => setViewingProposal(!viewingProposal)}>
-                      <Eye className="h-4 w-4 mr-2" /> {viewingProposal ? "Hide Proposal" : "View Application"}
+                    <Button className="w-full" variant="outline" onClick={() => navigate(`/job/${id}/apply`)}>
+                      <Eye className="h-4 w-4 mr-2" /> View Application
                     </Button>
                   </div>
                 )}
