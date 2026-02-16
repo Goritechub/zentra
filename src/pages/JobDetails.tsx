@@ -82,14 +82,25 @@ export default function JobDetailsPage() {
       setHasApplied(!!existing);
     }
 
-    // Fetch similar jobs
-    const { data: similar } = await supabase
-      .from("jobs")
-      .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
-      .eq("status", "open")
-      .neq("id", id!)
-      .limit(4);
-    setSimilarJobs(similar || []);
+    // Fetch similar jobs (for freelancers) or other jobs by client (for clients)
+    if (profile?.role === "freelancer") {
+      const { data: similar } = await supabase
+        .from("jobs")
+        .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
+        .eq("status", "open")
+        .neq("id", id!)
+        .limit(4);
+      setSimilarJobs(similar || []);
+    } else if (profile?.role === "client" && jobData.client_id === user?.id) {
+      const { data: otherJobs } = await supabase
+        .from("jobs")
+        .select("id, title, budget_min, budget_max, is_hourly, created_at, state, city, is_remote, delivery_days, status")
+        .eq("client_id", user!.id)
+        .neq("id", id!)
+        .order("created_at", { ascending: false })
+        .limit(4);
+      setSimilarJobs(otherJobs || []);
+    }
 
     setLoading(false);
   };
@@ -295,7 +306,7 @@ export default function JobDetailsPage() {
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Info className="h-5 w-5 text-primary" />Things to Know</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : `${job.city || ""} ${job.state || "On-site"}`} />
-                  <InfoTile icon={Wrench} label="Skill Level" value="Intermediate" />
+                  <InfoTile icon={Wrench} label="Skill Level" value={(job as any).skill_level || "Intermediate"} />
                   <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
                   <InfoTile icon={Tag} label="Price Tag" value={
                     job.budget_min && job.budget_max
@@ -355,11 +366,11 @@ export default function JobDetailsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Bid Amount (₦)</Label>
-                        <Input type="number" placeholder="e.g. 250000" min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
+                        <Input type="number" placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250000"} min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Delivery (days)</Label>
-                        <Input type="number" placeholder="e.g. 14" min="1" value={deliveryDays} onChange={(e) => {
+                        <Input type="number" placeholder={job.delivery_days ? `${job.delivery_days} days` : "e.g. 14"} min="1" value={deliveryDays} onChange={(e) => {
                           const val = e.target.value;
                           if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
                         }} />
@@ -411,10 +422,12 @@ export default function JobDetailsPage() {
                 </div>
               )}
 
-              {/* Similar Jobs */}
+              {/* Similar Jobs / Other Jobs by You */}
               {similarJobs.length > 0 && (
                 <div className="bg-card rounded-xl border border-border p-6">
-                  <h3 className="text-lg font-semibold mb-4">Similar Jobs</h3>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {profile?.role === "client" ? "Other Jobs by You" : "Similar Jobs"}
+                  </h3>
                   <div className="space-y-3">
                     {similarJobs.map((sj) => (
                       <Link key={sj.id} to={`/job/${sj.id}`} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
