@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
-  Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X
+  Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle
 } from "lucide-react";
 
 export default function ExpertProposalsPage() {
@@ -73,9 +73,9 @@ export default function ExpertProposalsPage() {
   );
 
   const ProposalCard = ({ p }: { p: any }) => (
-    <Link to={`/job/${p.job?.id}`} className="block bg-card rounded-xl border border-border p-6 card-hover">
+    <div className="bg-card rounded-xl border border-border p-6 card-hover">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
+        <Link to={`/job/${p.job?.id}`} className="flex-1">
           <h3 className="font-semibold text-foreground hover:text-primary transition-colors">{p.job?.title || "Untitled Job"}</h3>
           <p className="text-sm text-muted-foreground mt-1">By {p.job?.client?.full_name || "Client"}</p>
           <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{p.cover_letter}</p>
@@ -83,13 +83,25 @@ export default function ExpertProposalsPage() {
             <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{p.delivery_days} days</span>
             <span>{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
           </div>
-        </div>
-        <div className="text-right shrink-0">
+        </Link>
+        <div className="flex flex-col items-end shrink-0 gap-2">
           <p className="text-lg font-bold text-primary">{formatNaira(p.bid_amount)}</p>
-          <div className="mt-2">{statusBadge(p.status)}</div>
+          {statusBadge(p.status)}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            title={`Message ${p.job?.client?.full_name || "client"}`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/messages?user=${p.job?.client_id}`);
+            }}
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Button>
         </div>
       </div>
-    </Link>
+    </div>
   );
 
   const OfferCard = ({ o }: { o: any }) => (
@@ -101,12 +113,21 @@ export default function ExpertProposalsPage() {
           {o.description && <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{o.description}</p>}
           <p className="text-xs text-muted-foreground mt-3">{formatDistanceToNow(new Date(o.created_at), { addSuffix: true })}</p>
         </div>
-        <div className="text-right shrink-0">
+        <div className="flex flex-col items-end shrink-0 gap-2">
           {o.budget && <p className="text-lg font-bold text-primary">{formatNaira(o.budget)}</p>}
-          <Badge variant={o.status === "pending" ? "outline" : "secondary"} className="mt-2 gap-1 capitalize">
+          <Badge variant={o.status === "pending" ? "outline" : "secondary"} className="gap-1 capitalize">
             {o.status === "pending" ? <Inbox className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
             {o.status}
           </Badge>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            title={`Message ${o.client?.full_name || "client"}`}
+            onClick={() => navigate(`/messages?user=${o.client_id}`)}
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import {
-  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus
+  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft
 } from "lucide-react";
 
 export default function TransactionsPage() {
@@ -48,6 +48,9 @@ export default function TransactionsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+          </Button>
           <h1 className="text-3xl font-bold text-foreground mb-8">Wallet & Transactions</h1>
 
           {/* Wallet Cards */}
