@@ -49,7 +49,7 @@ export function Header() {
               <span className="text-lg font-bold text-primary-foreground">C</span>
             </div>
             <span className="text-xl font-bold text-foreground">
-              CAD<span className="text-primary">Naija</span>
+              CAD<span className="text-primary">Gigs</span>
             </span>
           </Link>
 

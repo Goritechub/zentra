@@ -182,52 +182,32 @@ export default function DashboardPage() {
               {isFreelancer && (
                 <div className="bg-card rounded-xl border border-border p-6 mb-8">
                   <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-                  <div className="space-y-3">
-                    <Link to="/jobs">
-                      <Button className="w-full justify-start" size="lg">
-                        <Eye className="h-5 w-5 mr-3" />Browse Available Jobs<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/my-profile">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <Settings className="h-5 w-5 mr-3" />Edit My Profile<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/manage-skills">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <Wrench className="h-5 w-5 mr-3" />Manage Skills<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/manage-portfolio">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <ImageIcon className="h-5 w-5 mr-3" />Manage Portfolio<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/messages">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <MessageSquare className="h-5 w-5 mr-3" />View Messages<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/dashboard/contracts">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <BarChart3 className="h-5 w-5 mr-3" />View Contracts<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/dashboard/expert-proposals">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <FileText className="h-5 w-5 mr-3" />My Proposals & Offers<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/dashboard/contest-entries">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <Award className="h-5 w-5 mr-3" />Contest Entries<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
-                    <Link to="/transactions">
-                      <Button variant="outline" className="w-full justify-start" size="lg">
-                        <Wallet className="h-5 w-5 mr-3" />Wallet & Earnings<ArrowRight className="h-4 w-4 ml-auto" />
-                      </Button>
-                    </Link>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
+                      { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
+                      { icon: Wrench, label: "Manage Skills", to: "/manage-skills", desc: "Add or update skills" },
+                      { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
+                      { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
+                      { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },
+                      { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions" },
+                      { icon: Award, label: "Contest Entries", to: "/dashboard/contest-entries", desc: "View your entries" },
+                      { icon: Wallet, label: "Wallet & Earnings", to: "/transactions", desc: "Track payments" },
+                    ].map((item) => {
+                      const isActive = location.pathname === item.to;
+                      return (
+                        <Link key={item.to} to={item.to} className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isActive ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"}`}>
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+                            <item.icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">{item.label}</p>
+                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               )}

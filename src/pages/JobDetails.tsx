@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
-  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert, Paperclip, X
+  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert, Paperclip, X, Eye
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -32,6 +32,13 @@ export default function JobDetailsPage() {
   const [interviewingCount, setInterviewingCount] = useState(0);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
   const [hasApplied, setHasApplied] = useState(false);
+  const [existingProposal, setExistingProposal] = useState<any>(null);
+  const [viewingProposal, setViewingProposal] = useState(false);
+  const [editingProposal, setEditingProposal] = useState(false);
+  const [editBidAmount, setEditBidAmount] = useState("");
+  const [editDeliveryDays, setEditDeliveryDays] = useState("");
+  const [editCoverLetter, setEditCoverLetter] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Proposal form
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -75,11 +82,17 @@ export default function JobDetailsPage() {
     if (user) {
       const { data: existing } = await supabase
         .from("proposals")
-        .select("id")
+        .select("*")
         .eq("job_id", id!)
         .eq("freelancer_id", user.id)
         .maybeSingle();
       setHasApplied(!!existing);
+      if (existing) {
+        setExistingProposal(existing);
+        setEditBidAmount(String(existing.bid_amount));
+        setEditDeliveryDays(String(existing.delivery_days));
+        setEditCoverLetter(existing.cover_letter);
+      }
     }
 
     // Fetch similar jobs (for freelancers) or other jobs by client (for clients)
@@ -190,6 +203,79 @@ export default function JobDetailsPage() {
     setHasApplied(true);
     setProposalCount((c) => c + 1);
     setSubmitting(false);
+    // Refetch the proposal so view/edit works
+    const { data: newProposal } = await supabase
+      .from("proposals")
+      .select("*")
+      .eq("job_id", id!)
+      .eq("freelancer_id", user!.id)
+      .maybeSingle();
+    if (newProposal) {
+      setExistingProposal(newProposal);
+      setEditBidAmount(String(newProposal.bid_amount));
+      setEditDeliveryDays(String(newProposal.delivery_days));
+      setEditCoverLetter(newProposal.cover_letter);
+    }
+  };
+
+  const canEditProposal = () => {
+    if (!existingProposal) return false;
+    if (existingProposal.edit_count >= 2) return false;
+    const createdAt = new Date(existingProposal.created_at);
+    const threeHoursLater = new Date(createdAt.getTime() + 3 * 60 * 60 * 1000);
+    return new Date() < threeHoursLater;
+  };
+
+  const handleEditProposal = async () => {
+    if (!existingProposal || !user) return;
+
+    const amount = parseInt(editBidAmount);
+    const days = parseInt(editDeliveryDays);
+    if (!amount || !days || !editCoverLetter.trim()) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    const vetResult = vetContent(editCoverLetter.trim());
+    if (vetResult.blocked) {
+      toast.error(vetResult.reason || "Your cover letter contains prohibited content.");
+      return;
+    }
+
+    setEditSubmitting(true);
+
+    const { error } = await supabase
+      .from("proposals")
+      .update({
+        bid_amount: amount,
+        delivery_days: days,
+        cover_letter: editCoverLetter.trim(),
+        edit_count: existingProposal.edit_count + 1,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq("id", existingProposal.id);
+
+    if (error) {
+      toast.error("Failed to update proposal");
+      setEditSubmitting(false);
+      return;
+    }
+
+    toast.success("Proposal updated!");
+    setEditingProposal(false);
+    setEditSubmitting(false);
+    // Refresh proposal data
+    const { data: updated } = await supabase
+      .from("proposals")
+      .select("*")
+      .eq("id", existingProposal.id)
+      .single();
+    if (updated) {
+      setExistingProposal(updated);
+      setEditBidAmount(String(updated.bid_amount));
+      setEditDeliveryDays(String(updated.delivery_days));
+      setEditCoverLetter(updated.cover_letter);
+    }
   };
 
   if (loading) {
@@ -350,12 +436,95 @@ export default function JobDetailsPage() {
                 </div>
               </div>
 
-              {/* Already Applied Notice */}
-              {hasApplied && (
-                <Alert className="border-primary/30 bg-primary/5">
-                  <ShieldAlert className="h-4 w-4 text-primary" />
-                  <AlertDescription>You have already applied to this job.</AlertDescription>
-                </Alert>
+              {/* View/Edit Proposal */}
+              {hasApplied && existingProposal && viewingProposal && (
+                <div className="bg-card rounded-xl border border-border p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold">Your Proposal</h2>
+                    <div className="flex gap-2">
+                      {editingProposal ? (
+                        <>
+                          <Button size="sm" onClick={handleEditProposal} disabled={editSubmitting}>
+                            {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Save Changes
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingProposal(false);
+                            setEditBidAmount(String(existingProposal.bid_amount));
+                            setEditDeliveryDays(String(existingProposal.delivery_days));
+                            setEditCoverLetter(existingProposal.cover_letter);
+                          }}>Cancel</Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!canEditProposal()}
+                          onClick={() => {
+                            if (!canEditProposal()) {
+                              toast.error("The 3-hour edit window has passed. You can no longer edit this proposal.");
+                              return;
+                            }
+                            setEditingProposal(true);
+                          }}
+                        >
+                          Edit Proposal {existingProposal.edit_count > 0 && `(${existingProposal.edit_count}/2 edits used)`}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => setViewingProposal(false)}>Close</Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Bid Amount (₦)</Label>
+                        {editingProposal ? (
+                          <Input type="number" min="1" value={editBidAmount} onChange={(e) => setEditBidAmount(e.target.value)} />
+                        ) : (
+                          <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{formatNaira(existingProposal.bid_amount)}</div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Delivery (days)</Label>
+                        {editingProposal ? (
+                          <Input type="number" min="1" value={editDeliveryDays} onChange={(e) => setEditDeliveryDays(e.target.value)} />
+                        ) : (
+                          <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{existingProposal.delivery_days} days</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cover Letter</Label>
+                      {editingProposal ? (
+                        <Textarea rows={6} value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} />
+                      ) : (
+                        <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap">{existingProposal.cover_letter}</div>
+                      )}
+                    </div>
+                    {existingProposal.attachments && existingProposal.attachments.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Attachments</Label>
+                        <div className="space-y-1">
+                          {existingProposal.attachments.map((url: string, idx: number) => {
+                            const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                            return (
+                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm hover:bg-muted transition-colors">
+                                <Download className="h-4 w-4 text-primary shrink-0" />
+                                <span className="truncate">{name}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
+                      <span>Status: <Badge variant="secondary" className="text-xs">{existingProposal.status}</Badge></span>
+                      <span>Submitted: {formatDistanceToNow(new Date(existingProposal.created_at), { addSuffix: true })}</span>
+                      {!canEditProposal() && <span className="text-destructive">Edit window expired</span>}
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Proposal Form */}
@@ -472,7 +641,14 @@ export default function JobDetailsPage() {
                   </Button>
                 )}
                 {hasApplied && !isAssigned && (
-                  <p className="text-sm text-muted-foreground mt-4 text-center">You have already applied to this job.</p>
+                  <div className="mt-4 space-y-2">
+                    <Button className="w-full" variant="secondary" disabled>
+                      Already Applied
+                    </Button>
+                    <Button className="w-full" variant="outline" onClick={() => setViewingProposal(!viewingProposal)}>
+                      <Eye className="h-4 w-4 mr-2" /> {viewingProposal ? "Hide Proposal" : "View Application"}
+                    </Button>
+                  </div>
                 )}
                 {isAssigned && (
                   <p className="text-sm text-muted-foreground mt-4 text-center">This job is no longer accepting proposals.</p>

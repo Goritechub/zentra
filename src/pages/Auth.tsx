@@ -27,7 +27,7 @@ const signInSchema = z.object({
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signUp, signIn, loading: authLoading } = useAuth();
+  const { user, profile, signUp, signIn, loading: authLoading } = useAuth();
   
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
@@ -52,10 +52,17 @@ export default function AuthPage() {
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (user && !authLoading) {
-      navigate("/dashboard");
+    if (user && !authLoading && profile) {
+      const redirect = searchParams.get("redirect");
+      if (redirect) {
+        navigate(redirect);
+      } else if (profile.role === "freelancer") {
+        navigate("/jobs");
+      } else {
+        navigate("/dashboard");
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, profile, navigate, searchParams]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +119,7 @@ export default function AuthPage() {
     }
 
     toast.success("Welcome back!");
-    navigate("/dashboard");
+    // Role-based redirect is handled by the useEffect watching profile
   };
 
   if (authLoading) {
@@ -134,7 +141,7 @@ export default function AuthPage() {
                 <span className="text-xl font-bold text-primary-foreground">C</span>
               </div>
               <span className="text-2xl font-bold text-foreground">
-                CAD<span className="text-primary">Naija</span>
+                CAD<span className="text-primary">Gigs</span>
               </span>
             </Link>
             <h1 className="text-2xl font-bold text-foreground">
