@@ -54,14 +54,14 @@ export function Header() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            {/* Show Find Talent to everyone except freelancers */}
-            {!isFreelancer && (
+            {/* Show Find Talent only to logged-in non-freelancers */}
+            {user && !isFreelancer && (
               <Link to="/freelancers" className={navLinkClass("/freelancers")}>
                 Find Talent
               </Link>
             )}
-            {/* Show Browse Jobs to everyone except clients */}
-            {!isClient && (
+            {/* Show Browse Jobs only to logged-in non-clients */}
+            {user && !isClient && (
               <Link to="/jobs" className={navLinkClass("/jobs")}>
                 Browse Jobs
               </Link>
@@ -155,12 +155,12 @@ export function Header() {
         <div className="md:hidden border-t border-border bg-background">
           <div className="container-wide py-4 space-y-4">
             <nav className="flex flex-col gap-2">
-              {!isFreelancer && (
+              {user && !isFreelancer && (
                 <Link to="/freelancers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <Search className="h-4 w-4" />Find Talent
                 </Link>
               )}
-              {!isClient && (
+              {user && !isClient && (
                 <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <Briefcase className="h-4 w-4" />Browse Jobs
                 </Link>
