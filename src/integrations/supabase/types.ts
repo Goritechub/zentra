@@ -348,6 +348,7 @@ export type Database = {
           id: string
           is_hourly: boolean | null
           is_remote: boolean | null
+          required_skill_levels: Json | null
           required_skills: string[] | null
           required_software: string[] | null
           state: string | null
@@ -367,6 +368,7 @@ export type Database = {
           id?: string
           is_hourly?: boolean | null
           is_remote?: boolean | null
+          required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
           state?: string | null
@@ -386,6 +388,7 @@ export type Database = {
           id?: string
           is_hourly?: boolean | null
           is_remote?: boolean | null
+          required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
           state?: string | null
