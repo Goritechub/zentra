@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -15,12 +15,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Plus } from "lucide-react";
+import { Loader2, X, Plus, Paperclip, FileText } from "lucide-react";
+
+type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
+
+interface SkillWithLevel {
+  name: string;
+  level: SkillLevel;
+}
 
 export default function PostJobPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -31,17 +39,59 @@ export default function PostJobPage() {
   const [isHourly, setIsHourly] = useState(false);
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
+  const [skillsWithLevel, setSkillsWithLevel] = useState<SkillWithLevel[]>([]);
+  const [softwareWithLevel, setSoftwareWithLevel] = useState<SkillWithLevel[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const states = getAllStates();
   const cities = state ? getCitiesByState(state) : [];
 
   const addSkill = (skill: string) => {
-    if (skill && !selectedSkills.includes(skill)) setSelectedSkills([...selectedSkills, skill]);
+    if (skill && !skillsWithLevel.find(s => s.name === skill)) {
+      setSkillsWithLevel([...skillsWithLevel, { name: skill, level: "Intermediate" }]);
+    }
   };
   const addSoftware = (sw: string) => {
-    if (sw && !selectedSoftware.includes(sw)) setSelectedSoftware([...selectedSoftware, sw]);
+    if (sw && !softwareWithLevel.find(s => s.name === sw)) {
+      setSoftwareWithLevel([...softwareWithLevel, { name: sw, level: "Intermediate" }]);
+    }
+  };
+
+  const updateSkillLevel = (name: string, level: SkillLevel) => {
+    setSkillsWithLevel(prev => prev.map(s => s.name === name ? { ...s, level } : s));
+  };
+  const updateSoftwareLevel = (name: string, level: SkillLevel) => {
+    setSoftwareWithLevel(prev => prev.map(s => s.name === name ? { ...s, level } : s));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => {
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
+    });
+    if (allowed.length < files.length) {
+      toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
+    }
+    setAttachments(prev => [...prev, ...allowed].slice(0, 5));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const uploadAttachments = async (): Promise<string[]> => {
+    if (!attachments.length || !user) return [];
+    setUploading(true);
+    const urls: string[] = [];
+    for (const file of attachments) {
+      const path = `${user.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from('job-attachments').upload(path, file);
+      if (!error) {
+        const { data } = supabase.storage.from('job-attachments').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+    }
+    setUploading(false);
+    return urls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +107,12 @@ export default function PostJobPage() {
     }
 
     setLoading(true);
+
+    const uploadedUrls = await uploadAttachments();
+
+    const skillLevels: Record<string, string> = {};
+    [...skillsWithLevel, ...softwareWithLevel].forEach(s => { skillLevels[s.name] = s.level; });
+
     const { error } = await supabase.from("jobs").insert({
       client_id: user.id,
       title: title.trim(),
@@ -68,9 +124,11 @@ export default function PostJobPage() {
       is_hourly: isHourly,
       state: state || null,
       city: city || null,
-      required_skills: selectedSkills,
-      required_software: selectedSoftware,
-    });
+      required_skills: skillsWithLevel.map(s => s.name),
+      required_software: softwareWithLevel.map(s => s.name),
+      required_skill_levels: skillLevels,
+      attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
+    } as any);
 
     if (error) {
       toast.error("Failed to post job");
@@ -97,6 +155,8 @@ export default function PostJobPage() {
     );
   }
 
+  const levels: SkillLevel[] = ["Beginner", "Intermediate", "Advanced"];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -118,6 +178,7 @@ export default function PostJobPage() {
               </div>
             </div>
 
+            {/* Skills & Software with Level Selectors */}
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold">Skills & Software</h2>
               <div className="space-y-2">
@@ -125,16 +186,25 @@ export default function PostJobPage() {
                 <Select onValueChange={addSkill}>
                   <SelectTrigger><SelectValue placeholder="Add a skill" /></SelectTrigger>
                   <SelectContent>
-                    {cadSkills.filter(s => !selectedSkills.includes(s)).map(s => (
+                    {cadSkills.filter(s => !skillsWithLevel.find(sw => sw.name === s)).map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedSkills.map(s => (
-                    <Badge key={s} variant="secondary" className="gap-1">
-                      {s} <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSkills(selectedSkills.filter(x => x !== s))} />
-                    </Badge>
+                <div className="space-y-2 mt-2">
+                  {skillsWithLevel.map(s => (
+                    <div key={s.name} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                      <span className="text-sm font-medium flex-1">{s.name}</span>
+                      <Select value={s.level} onValueChange={(v) => updateSkillLevel(s.name, v as SkillLevel)}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setSkillsWithLevel(skillsWithLevel.filter(x => x.name !== s.name))} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -143,21 +213,31 @@ export default function PostJobPage() {
                 <Select onValueChange={addSoftware}>
                   <SelectTrigger><SelectValue placeholder="Add software" /></SelectTrigger>
                   <SelectContent>
-                    {cadSoftwareList.filter(s => !selectedSoftware.includes(s)).map(s => (
+                    {cadSoftwareList.filter(s => !softwareWithLevel.find(sw => sw.name === s)).map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedSoftware.map(s => (
-                    <Badge key={s} variant="secondary" className="gap-1">
-                      {s} <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSoftware(selectedSoftware.filter(x => x !== s))} />
-                    </Badge>
+                <div className="space-y-2 mt-2">
+                  {softwareWithLevel.map(s => (
+                    <div key={s.name} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                      <span className="text-sm font-medium flex-1">{s.name}</span>
+                      <Select value={s.level} onValueChange={(v) => updateSoftwareLevel(s.name, v as SkillLevel)}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setSoftwareWithLevel(softwareWithLevel.filter(x => x.name !== s.name))} />
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
 
+            {/* Budget & Timeline */}
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold">Budget & Timeline</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -189,6 +269,36 @@ export default function PostJobPage() {
               </div>
             </div>
 
+            {/* Attachments */}
+            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <h2 className="text-lg font-semibold">Attachments</h2>
+              <p className="text-sm text-muted-foreground">Upload reference files, drawings, or briefs (PDF, DOC, PNG, JPG, DWG, DXF, ZIP). Max 5 files.</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={attachments.length >= 5}>
+                <Paperclip className="h-4 w-4 mr-2" /> Add Files
+              </Button>
+              {attachments.length > 0 && (
+                <div className="space-y-2">
+                  {attachments.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm flex-1 truncate">{file.name}</span>
+                      <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
+                      <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Location */}
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold">Location (Optional)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -214,8 +324,8 @@ export default function PostJobPage() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Posting...</> : <><Plus className="h-4 w-4 mr-2" />Post Job</>}
+            <Button type="submit" size="lg" className="w-full" disabled={loading || uploading}>
+              {loading || uploading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{uploading ? "Uploading files..." : "Posting..."}</> : <><Plus className="h-4 w-4 mr-2" />Post Job</>}
             </Button>
           </form>
         </div>

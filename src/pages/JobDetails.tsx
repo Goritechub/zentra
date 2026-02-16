@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
-  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert
+  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, ShieldAlert, Paperclip, X
 } from "lucide-react";
 
 export default function JobDetailsPage() {
@@ -39,6 +39,8 @@ export default function JobDetailsPage() {
   const [deliveryDays, setDeliveryDays] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [proposalFiles, setProposalFiles] = useState<File[]>([]);
+  const proposalFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (id) fetchJob();
@@ -92,6 +94,33 @@ export default function JobDetailsPage() {
     setLoading(false);
   };
 
+  const handleProposalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => {
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
+    });
+    if (allowed.length < files.length) {
+      toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
+    }
+    setProposalFiles(prev => [...prev, ...allowed].slice(0, 5));
+    if (proposalFileRef.current) proposalFileRef.current.value = '';
+  };
+
+  const uploadProposalAttachments = async (): Promise<string[]> => {
+    if (!proposalFiles.length || !user) return [];
+    const urls: string[] = [];
+    for (const file of proposalFiles) {
+      const path = `${user.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from('proposal-attachments').upload(path, file);
+      if (!error) {
+        const { data } = supabase.storage.from('proposal-attachments').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+    }
+    return urls;
+  };
+
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
@@ -116,6 +145,9 @@ export default function JobDetailsPage() {
 
     setSubmitting(true);
 
+    // Upload attachments first
+    const attachmentUrls = await uploadProposalAttachments();
+
     // Submit via edge function for server-side moderation
     const response = await supabase.functions.invoke("moderate-proposal", {
       body: {
@@ -123,6 +155,7 @@ export default function JobDetailsPage() {
         bid_amount: amount,
         delivery_days: days,
         cover_letter: coverLetter.trim(),
+        attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
       },
     });
 
@@ -338,6 +371,34 @@ export default function JobDetailsPage() {
                       <p className="text-xs text-muted-foreground">
                         ⚠️ Sharing private contact information is prohibited and will be blocked.
                       </p>
+                    </div>
+                    {/* Proposal Attachments */}
+                    <div className="space-y-2">
+                      <Label>Attachments (optional)</Label>
+                      <p className="text-xs text-muted-foreground">Upload supporting files — PDF, DOC, PNG, JPG, DWG, DXF, ZIP. Max 5 files.</p>
+                      <input
+                        ref={proposalFileRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                        className="hidden"
+                        onChange={handleProposalFileChange}
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => proposalFileRef.current?.click()} disabled={proposalFiles.length >= 5}>
+                        <Paperclip className="h-4 w-4 mr-2" /> Add Files
+                      </Button>
+                      {proposalFiles.length > 0 && (
+                        <div className="space-y-1 mt-2">
+                          {proposalFiles.map((file, idx) => (
+                            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm">
+                              <FileText className="h-4 w-4 text-primary shrink-0" />
+                              <span className="flex-1 truncate">{file.name}</span>
+                              <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
+                              <X className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setProposalFiles(proposalFiles.filter((_, i) => i !== idx))} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-3">
                       <Button type="submit" disabled={submitting}>
