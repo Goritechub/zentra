@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
-import { calculateServiceCharge } from "@/lib/service-charge";
+
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -490,7 +490,6 @@ export default function ProposalsReceivedPage() {
                           <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
                         </div>
                       ))}
-                      <ProposalChargeSummary amount={detailDialog.proposal.bid_amount} />
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -502,7 +501,6 @@ export default function ProposalsReceivedPage() {
                         <span className="text-muted-foreground">Delivery</span>
                         <span className="font-medium text-foreground">{formatDurationDisplay(detailDialog.proposal.delivery_days, detailDialog.proposal.delivery_unit)}</span>
                       </div>
-                      <ProposalChargeSummary amount={detailDialog.proposal.bid_amount} />
                     </div>
                   )}
                 </div>
@@ -541,22 +539,3 @@ export default function ProposalsReceivedPage() {
   );
 }
 
-function ProposalChargeSummary({ amount }: { amount: number }) {
-  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount);
-  return (
-    <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">Total Project Price</span>
-        <span className="font-semibold text-foreground">{formatNaira(amount)}</span>
-      </div>
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">Service Charge ({rateLabel})</span>
-        <span className="text-destructive">-{formatNaira(charge)}</span>
-      </div>
-      <div className="border-t border-border pt-2 flex justify-between text-sm">
-        <span className="font-semibold text-foreground">Expert Take-Home</span>
-        <span className="font-bold text-primary">{formatNaira(takeHome)}</span>
-      </div>
-    </div>
-  );
-}

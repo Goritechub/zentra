@@ -13,6 +13,8 @@ import { ArrowLeft, MessageSquare, Bot, LifeBuoy } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ShieldAlert } from "lucide-react";
 
 const SYSTEM_ID = "system";
 
@@ -23,6 +25,7 @@ const Messages = () => {
   const isMobile = useIsMobile();
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [systemMessages, setSystemMessages] = useState<any[]>([]);
+  const [isRestricted, setIsRestricted] = useState(false);
 
   // Only pass non-system IDs to the hook
   const activeUserId = selectedUserId === SYSTEM_ID ? undefined : selectedUserId;
@@ -95,6 +98,26 @@ const Messages = () => {
 
     fetchSystemMessages();
   }, [user, profile]);
+
+  // Check if user is restricted from messaging
+  useEffect(() => {
+    if (!user) return;
+    const checkRestriction = async () => {
+      const { data } = await supabase
+        .from("user_violation_counts")
+        .select("is_suspended, messaging_restricted_until")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        if (data.is_suspended) {
+          setIsRestricted(true);
+        } else if (data.messaging_restricted_until) {
+          setIsRestricted(new Date(data.messaging_restricted_until) > new Date());
+        }
+      }
+    };
+    checkRestriction();
+  }, [user]);
 
   // Redirect to auth if not logged in
   if (!authLoading && !user) {
@@ -206,6 +229,15 @@ const Messages = () => {
                       >
                         <LifeBuoy className="h-4 w-4 mr-2" /> Contact Support
                       </Button>
+                    </div>
+                  ) : isRestricted ? (
+                    <div className="p-4 border-t">
+                      <Alert variant="destructive">
+                        <ShieldAlert className="h-4 w-4" />
+                        <AlertDescription>
+                          You can't send messages as your account has been temporarily restricted due to policy violations.
+                        </AlertDescription>
+                      </Alert>
                     </div>
                   ) : (
                     <MessageInput
