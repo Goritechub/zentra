@@ -37,9 +37,8 @@ Deno.serve(async (req) => {
 
     const verifyData = await verifyRes.json();
 
-    // reCAPTCHA v3 returns a score between 0.0 and 1.0
-    // 0.5 is a reasonable threshold
-    const passed = verifyData.success && (verifyData.score === undefined || verifyData.score >= 0.5);
+    // reCAPTCHA v2 returns success boolean only (no score)
+    const passed = verifyData.success === true;
 
     return new Response(
       JSON.stringify({
