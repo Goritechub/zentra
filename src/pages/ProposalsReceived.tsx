@@ -102,13 +102,21 @@ export default function ProposalsReceivedPage() {
     }
   };
 
+  const getRequiredAmount = (proposal: any) => {
+    if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
+      return proposal.milestones[0].amount; // First milestone only
+    }
+    return proposal.bid_amount; // Full project amount
+  };
+
   const handleAcceptAndAssign = async () => {
     const proposal = assignDialog.proposal;
     if (!proposal || !user) return;
 
-    const isPaymentReady = wallet && wallet.balance >= proposal.bid_amount;
+    const requiredAmount = getRequiredAmount(proposal);
+    const isPaymentReady = wallet && wallet.balance >= requiredAmount;
     if (!isPaymentReady) {
-      toast.error("Insufficient wallet balance. Please fund your wallet before assigning.");
+      toast.error(`Insufficient wallet balance. You need at least ${formatNaira(requiredAmount)} to assign.`);
       setAssignDialog({ open: false, proposal: null });
       return;
     }
@@ -128,14 +136,14 @@ export default function ProposalsReceivedPage() {
     }
 
     // Create contract
-    const { error: contractError } = await supabase.from("contracts").insert({
+    const { data: contractData, error: contractError } = await supabase.from("contracts").insert({
       job_id: proposal.job_id,
       client_id: user.id,
       freelancer_id: proposal.freelancer_id,
       proposal_id: proposal.id,
       amount: proposal.bid_amount,
       status: "active",
-    });
+    }).select().single();
 
     if (contractError) {
       toast.error("Failed to create contract");
@@ -146,11 +154,58 @@ export default function ProposalsReceivedPage() {
     // Update job to in_progress
     await supabase.from("jobs").update({ status: "in_progress" }).eq("id", proposal.job_id);
 
-    // Move funds to escrow
-    await supabase.from("wallets").update({
-      balance: wallet.balance - proposal.bid_amount,
-      escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
-    }).eq("user_id", user.id);
+    // Create milestones in DB if milestone-based
+    if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
+      const milestoneInserts = proposal.milestones.map((ms: any, idx: number) => ({
+        contract_id: contractData.id,
+        title: ms.title,
+        amount: ms.amount,
+        due_date: ms.date || null,
+        status: idx === 0 ? "funded" : "pending",
+        funded_at: idx === 0 ? new Date().toISOString() : null,
+      }));
+      await supabase.from("milestones").insert(milestoneInserts);
+
+      // Move first milestone amount to escrow
+      await supabase.from("wallets").update({
+        balance: wallet.balance - requiredAmount,
+        escrow_balance: (wallet.escrow_balance || 0) + requiredAmount,
+        total_spent: (wallet.total_spent || 0) + requiredAmount,
+      }).eq("user_id", user.id);
+
+      await supabase.from("wallet_transactions").insert({
+        user_id: user.id,
+        type: "escrow_lock",
+        amount: requiredAmount,
+        balance_after: wallet.balance - requiredAmount,
+        description: `Funded 1st milestone for "${proposal.job_title}"`,
+        contract_id: contractData.id,
+      });
+    } else {
+      // Project-based: move full amount to escrow, create single milestone
+      await supabase.from("milestones").insert({
+        contract_id: contractData.id,
+        title: "Full Project Delivery",
+        amount: proposal.bid_amount,
+        status: "funded",
+        funded_at: new Date().toISOString(),
+      });
+
+      await supabase.from("wallets").update({
+        balance: wallet.balance - proposal.bid_amount,
+        escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
+        total_spent: (wallet.total_spent || 0) + proposal.bid_amount,
+      }).eq("user_id", user.id);
+
+      await supabase.from("wallet_transactions").insert({
+        user_id: user.id,
+        type: "escrow_lock",
+        amount: proposal.bid_amount,
+        balance_after: wallet.balance - proposal.bid_amount,
+        description: `Escrow for project: "${proposal.job_title}"`,
+        contract_id: contractData.id,
+      });
+    }
 
     // Send automatic message to the expert
     const jobTitle = proposal.job_title || "a job";
@@ -397,16 +452,23 @@ export default function ProposalsReceivedPage() {
               {wallet && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Wallet Balance</span>
-                  <span className={wallet.balance >= assignDialog.proposal.bid_amount ? "text-primary" : "text-destructive"}>
+                  <span className={wallet.balance >= getRequiredAmount(assignDialog.proposal) ? "text-primary" : "text-destructive"}>
                     {formatNaira(wallet.balance)}
                   </span>
                 </div>
               )}
-              {wallet && wallet.balance < assignDialog.proposal.bid_amount && (
+              {assignDialog.proposal.payment_type === "milestone" && assignDialog.proposal.milestones?.length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Required Now (1st Milestone)</span>
+                  <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.milestones[0].amount)}</span>
+                </div>
+              )}
+              {wallet && wallet.balance < getRequiredAmount(assignDialog.proposal) && (
                 <Alert className="border-destructive/30 bg-destructive/5">
                   <Wallet className="h-4 w-4 text-destructive" />
                   <AlertDescription className="text-sm">
-                    Insufficient balance. You need at least {formatNaira(assignDialog.proposal.bid_amount)} to assign this expert.
+                    Insufficient balance. You need at least {formatNaira(getRequiredAmount(assignDialog.proposal))} to assign this expert.{" "}
+                    <a href="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</a>
                   </AlertDescription>
                 </Alert>
               )}
@@ -416,7 +478,7 @@ export default function ProposalsReceivedPage() {
             <Button variant="outline" onClick={() => setAssignDialog({ open: false, proposal: null })}>Cancel</Button>
             <Button
               onClick={handleAcceptAndAssign}
-              disabled={assigning || !paymentReady || (wallet && assignDialog.proposal && wallet.balance < assignDialog.proposal.bid_amount)}
+              disabled={assigning || !paymentReady || (wallet && assignDialog.proposal && wallet.balance < getRequiredAmount(assignDialog.proposal))}
             >
               {assigning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
               Confirm & Assign
