@@ -23,7 +23,7 @@ const PATTERNS = {
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?)\b/i,
   obfuscatedEmail: /\bat\s+(?:gmail|yahoo|outlook|hotmail)\s+dot\s+com\b/i,
   symbolAbuse: /@@|\.\.(?:com|net|org)/i,
-  offPlatformIntent: /\b(?:message me on|call me|send me email|dm me on|contact details in|reach me at|text me|hit me up on)\b/i,
+  offPlatformIntent: /\b(?:message me on whatsapp|call me on|send me email at|dm me on instagram|reach me at my|text me on|hit me up on telegram)\b/i,
 };
 
 interface ModerationResult {
@@ -89,14 +89,22 @@ async function aiModerate(content: string): Promise<ModerationResult | null> {
         messages: [
           {
             role: "system",
-            content: `You are a content moderator for a freelance marketplace. Detect ANY attempt to share contact details or communicate off-platform. This includes:
-- Phone numbers (spaced, written out, or encoded)
-- Email addresses (obfuscated like "at gmail dot com")
-- WhatsApp, Telegram, Instagram handles
-- URLs or website links
-- Phrases like "call me", "DM me", "message me on"
-- Bank account numbers or financial details
-- Split contact info across multiple lines
+            content: `You are a content moderator for a freelance marketplace. Your job is to detect CLEAR and EXPLICIT attempts to share private contact information or move communication off-platform.
+
+BLOCK only when the message contains:
+- Actual phone numbers or digit sequences that are clearly phone/account numbers
+- Actual email addresses or obvious obfuscations (e.g. "john at gmail dot com")
+- Actual social media handles with usernames (e.g. "@john on instagram")
+- Actual URLs or links to external sites
+- Actual bank account or financial transfer details
+
+DO NOT BLOCK:
+- General discussion about work, projects, timelines, deliverables
+- Words like "call", "contact", "reach", "message" used in normal professional context (e.g. "I'll call it done", "feel free to message me here", "let me reach the deadline")
+- Mentions of platforms in general discussion (e.g. "I saw on LinkedIn that..." is fine, "@john_doe on linkedin" is not)
+- Normal business negotiations about price, timeline, scope
+
+Be lenient. Only block when you are highly confident (>0.9) that the user is actually trying to share private contact info or move off-platform. When in doubt, allow the message.
 
 Respond ONLY with JSON: {"allowed":boolean,"reason":"string","confidence":number}
 If clean, return {"allowed":true,"reason":"","confidence":1.0}`,
@@ -246,7 +254,7 @@ serve(async (req) => {
 
     // Layer B: AI (non-blocking fallback)
     const aiResult = await aiModerate(content);
-    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.7) {
+    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.9) {
       await recordViolation(supabaseAdmin, user.id, "message", content, aiResult.reason, aiResult.confidence);
       return new Response(
         JSON.stringify({
