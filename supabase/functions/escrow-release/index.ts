@@ -43,7 +43,7 @@ serve(async (req) => {
       });
     }
 
-    const { action, milestone_id, contract_id, reason, evidence_urls } = await req.json();
+    const { action, milestone_id, contract_id, reason, evidence_urls, submission_notes, submission_attachments } = await req.json();
 
     // ── FUND MILESTONE ──────────────────────────────────────────
     if (action === "fund_milestone") {
@@ -136,6 +136,8 @@ serve(async (req) => {
       await supabase.from("milestones").update({
         status: "submitted",
         submitted_at: new Date().toISOString(),
+        submission_notes: submission_notes || null,
+        submission_attachments: submission_attachments || [],
       }).eq("id", milestone_id);
 
       return new Response(JSON.stringify({ success: true }), {

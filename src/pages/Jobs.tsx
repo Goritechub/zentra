@@ -55,8 +55,14 @@ export default function JobsPage() {
       .eq("status", "open")
       .order("created_at", { ascending: false });
 
-    // Fetch wallets for payment readiness
-    const jobData = data || [];
+    // Filter out private jobs user isn't invited to
+    const jobData = (data || []).filter((j: any) => {
+      if (j.visibility === "private") {
+        return user && (j.client_id === user.id || (j.invited_expert_ids || []).includes(user.id));
+      }
+      return true;
+    });
+
     const clientIds = [...new Set(jobData.map((j: any) => j.client_id))];
     let walletMap: Record<string, any> = {};
     if (clientIds.length > 0) {
@@ -164,7 +170,9 @@ export default function JobsPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{job.is_remote ? "Remote" : `${job.city || ""} ${job.state || ""}`}</span>
-                  {job.delivery_days && <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{job.delivery_days} days</span>}
+                  {job.delivery_days && <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{(() => { const u = job.delivery_unit || "days"; const d = job.delivery_days; if (u === "weeks") return `${Math.round(d/7)} week${Math.round(d/7)!==1?"s":""}`; if (u === "months") return `${Math.round(d/30)} month${Math.round(d/30)!==1?"s":""}`; return `${d} day${d!==1?"s":""}`; })()}</span>}
+                  {job.visibility === "private" && <Badge variant="outline" className="text-xs">🔒 Private</Badge>}
+                  {job.invited_expert_ids?.length > 0 && job.visibility === "public" && <Badge variant="outline" className="text-xs">{job.invited_expert_ids.length} invited</Badge>}
                   <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
                   <Badge variant="outline" className="text-xs">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
                   {(() => {

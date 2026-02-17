@@ -123,10 +123,10 @@ export default function JobDetailsPage() {
 
   const deliveryLabel = () => {
     const d = job.delivery_days || 0;
-    if (d <= 7) return "Up to 1 week";
-    if (d <= 30) return `${Math.ceil(d / 7)} weeks (~${d} days)`;
-    if (d <= 90) return `${Math.ceil(d / 30)} months (~${d} days)`;
-    return `${Math.ceil(d / 30)} months (~${d} days)`;
+    const u = job.delivery_unit || "days";
+    if (u === "weeks") { const w = Math.round(d / 7); return `${w} week${w !== 1 ? "s" : ""}`; }
+    if (u === "months") { const m = Math.round(d / 30); return `${m} month${m !== 1 ? "s" : ""}`; }
+    return `${d} day${d !== 1 ? "s" : ""}`;
   };
 
   return (
@@ -203,7 +203,7 @@ export default function JobDetailsPage() {
               <div className="bg-card rounded-xl border border-border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Info className="h-5 w-5 text-primary" />Things to Know</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : `${job.city || ""} ${job.state || "On-site"}`} />
+                  <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : (job.city && job.state ? `${job.city}, ${job.state}` : job.state || "Physical Location")} />
                   <InfoTile icon={Wrench} label="Skill Level" value={(job as any).skill_level || "Intermediate"} />
                   <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
                   <InfoTile icon={Tag} label="Price Tag" value={
@@ -262,7 +262,7 @@ export default function JobDetailsPage() {
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                             <span>{sj.is_remote ? "Remote" : sj.state || "Nigeria"}</span>
                             <span>{sj.is_hourly ? "Hourly" : "Fixed"}</span>
-                            {sj.delivery_days && <span>{sj.delivery_days} days</span>}
+                            {sj.delivery_days && <span>{(() => { const u = (sj as any).delivery_unit || "days"; const d = sj.delivery_days; if (u === "weeks") return `${Math.round(d/7)} week${Math.round(d/7)!==1?"s":""}`; if (u === "months") return `${Math.round(d/30)} month${Math.round(d/30)!==1?"s":""}`; return `${d} day${d!==1?"s":""}`; })()}</span>}
                           </div>
                         </div>
                         <p className="text-sm font-semibold text-primary">
