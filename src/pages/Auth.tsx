@@ -28,29 +28,15 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Load reCAPTCHA v3 script
+// Load reCAPTCHA v2 script
 function loadRecaptchaScript() {
-  if (document.getElementById("recaptcha-v3-script")) return;
+  if (document.getElementById("recaptcha-v2-script")) return;
   const script = document.createElement("script");
-  script.id = "recaptcha-v3-script";
-  script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+  script.id = "recaptcha-v2-script";
+  script.src = "https://www.google.com/recaptcha/api.js";
   script.async = true;
+  script.defer = true;
   document.head.appendChild(script);
-}
-
-function getRecaptchaToken(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!(window as any).grecaptcha) {
-      reject(new Error("reCAPTCHA not loaded"));
-      return;
-    }
-    (window as any).grecaptcha.ready(() => {
-      (window as any).grecaptcha
-        .execute(RECAPTCHA_SITE_KEY, { action: "signup" })
-        .then(resolve)
-        .catch(reject);
-    });
-  });
 }
 
 export default function AuthPage() {
@@ -74,6 +60,7 @@ export default function AuthPage() {
     role: defaultRole as "client" | "freelancer",
   });
   const [signUpErrors, setSignUpErrors] = useState<Record<string, string>>({});
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const [signInData, setSignInData] = useState({
     email: "",
@@ -81,9 +68,19 @@ export default function AuthPage() {
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
 
-  // Load reCAPTCHA script on mount
+  // Load reCAPTCHA script and set up callbacks
   useEffect(() => {
     loadRecaptchaScript();
+    (window as any).onRecaptchaSuccess = (token: string) => {
+      setRecaptchaToken(token);
+    };
+    (window as any).onRecaptchaExpired = () => {
+      setRecaptchaToken(null);
+    };
+    return () => {
+      delete (window as any).onRecaptchaSuccess;
+      delete (window as any).onRecaptchaExpired;
+    };
   }, []);
 
   useEffect(() => {
@@ -131,9 +128,14 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    // Verify reCAPTCHA
+    // Verify reCAPTCHA v2
+    if (!recaptchaToken) {
+      toast.error("Please complete the reCAPTCHA checkbox.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const recaptchaToken = await getRecaptchaToken();
       const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
         "verify-recaptcha",
         { body: { token: recaptchaToken } }
@@ -141,6 +143,11 @@ export default function AuthPage() {
 
       if (verifyError || !verifyData?.success) {
         toast.error(verifyData?.error || "reCAPTCHA verification failed. Please try again.");
+        // Reset the widget
+        if ((window as any).grecaptcha) {
+          (window as any).grecaptcha.reset();
+        }
+        setRecaptchaToken(null);
         setLoading(false);
         return;
       }
@@ -162,6 +169,8 @@ export default function AuthPage() {
     }
 
     toast.success("Account created! Please check your email to verify your account.");
+    if ((window as any).grecaptcha) (window as any).grecaptcha.reset();
+    setRecaptchaToken(null);
     setLoading(false);
   };
 
@@ -405,6 +414,15 @@ export default function AuthPage() {
                       </button>
                     </div>
                     {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
+                  </div>
+
+                  <div className="flex justify-center">
+                    <div
+                      className="g-recaptcha"
+                      data-sitekey={RECAPTCHA_SITE_KEY}
+                      data-callback="onRecaptchaSuccess"
+                      data-expired-callback="onRecaptchaExpired"
+                    />
                   </div>
 
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
