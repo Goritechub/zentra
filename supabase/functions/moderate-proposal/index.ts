@@ -21,7 +21,7 @@ const PATTERNS = {
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet)\b/i,
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?)\b/i,
   obfuscatedEmail: /\bat\s+(?:gmail|yahoo|outlook|hotmail)\s+dot\s+com\b/i,
-  offPlatformIntent: /\b(?:message me on|call me|send me email|dm me on|contact details in|reach me at|text me|hit me up on)\b/i,
+  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|signal|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|signal|instagram|facebook|my\s+(?:phone|number|email)))\b/i,
 };
 
 function regexModerate(content: string): { allowed: boolean; reason: string; confidence: number } {
@@ -63,7 +63,16 @@ async function aiModerate(content: string): Promise<{ allowed: boolean; reason: 
         messages: [
           {
             role: "system",
-            content: `You are a content moderator for a freelance marketplace. Detect ANY attempt to share contact details or off-platform communication in a proposal/cover letter. Respond ONLY with JSON: {"allowed":boolean,"reason":"string","confidence":number}`,
+            content: `You are a content moderator for a freelance marketplace proposal/cover letter. ONLY block content that contains EXPLICIT contact details (real phone numbers, email addresses, social media handles/usernames) or CLEAR attempts to move communication off-platform (e.g. "message me on WhatsApp", "here's my number").
+
+DO NOT block:
+- Professional language like "call it done", "call this project", "contact you through the platform"
+- Generic words like "call", "reach", "contact" used in normal professional context
+- Discussion of project scope, timelines, deliverables
+- Technical descriptions or professional qualifications
+
+Only flag with high confidence (0.95+) when there is an UNMISTAKABLE attempt to share real contact info.
+Respond ONLY with JSON: {"allowed":boolean,"reason":"string","confidence":number}`,
           },
           { role: "user", content },
         ],
@@ -179,7 +188,7 @@ serve(async (req) => {
 
     // Layer B: AI moderation
     const aiResult = await aiModerate(cover_letter);
-    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.7) {
+    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.9) {
       await supabaseAdmin.from("moderation_logs").insert({
         user_id: user.id,
         content_type: "proposal",
