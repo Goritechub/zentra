@@ -21,6 +21,19 @@ import {
   FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download
 } from "lucide-react";
 
+function formatDurationDisplay(days: number, unit?: string): string {
+  const u = unit || "days";
+  if (u === "weeks") {
+    const weeks = Math.round(days / 7);
+    return `${weeks} week${weeks !== 1 ? "s" : ""}`;
+  }
+  if (u === "months") {
+    const months = Math.round(days / 30);
+    return `${months} month${months !== 1 ? "s" : ""}`;
+  }
+  return `${days} day${days !== 1 ? "s" : ""}`;
+}
+
 export default function ProposalsReceivedPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -297,7 +310,7 @@ export default function ProposalsReceivedPage() {
 
                             <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
                               <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>
-                              <span>Delivery: <strong className="text-foreground">{proposal.delivery_days} days</strong></span>
+                              <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
                               <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
                             </div>
                           </div>
@@ -372,7 +385,7 @@ export default function ProposalsReceivedPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Delivery</span>
-                <span>{assignDialog.proposal.delivery_days} days</span>
+                <span>{formatDurationDisplay(assignDialog.proposal.delivery_days, assignDialog.proposal.delivery_unit)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Payment Status</span>
@@ -470,7 +483,9 @@ export default function ProposalsReceivedPage() {
                         <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium text-foreground">{ms.title}</p>
-                            <p className="text-xs text-muted-foreground">Due: {new Date(ms.date).toLocaleDateString()}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Duration: {ms.duration ? `${ms.duration} ${ms.duration_unit || ms.durationUnit || "days"}` : (ms.date ? new Date(ms.date).toLocaleDateString() : "—")}
+                            </p>
                           </div>
                           <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
                         </div>
@@ -485,7 +500,7 @@ export default function ProposalsReceivedPage() {
                       </div>
                       <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
                         <span className="text-muted-foreground">Delivery</span>
-                        <span className="font-medium text-foreground">{detailDialog.proposal.delivery_days} days</span>
+                        <span className="font-medium text-foreground">{formatDurationDisplay(detailDialog.proposal.delivery_days, detailDialog.proposal.delivery_unit)}</span>
                       </div>
                       <ProposalChargeSummary amount={detailDialog.proposal.bid_amount} />
                     </div>

@@ -739,6 +739,7 @@ export type Database = {
           cover_letter: string
           created_at: string | null
           delivery_days: number
+          delivery_unit: string
           edit_count: number
           freelancer_id: string
           id: string
@@ -755,6 +756,7 @@ export type Database = {
           cover_letter: string
           created_at?: string | null
           delivery_days: number
+          delivery_unit?: string
           edit_count?: number
           freelancer_id: string
           id?: string
@@ -771,6 +773,7 @@ export type Database = {
           cover_letter?: string
           created_at?: string | null
           delivery_days?: number
+          delivery_unit?: string
           edit_count?: number
           freelancer_id?: string
           id?: string

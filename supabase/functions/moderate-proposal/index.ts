@@ -132,7 +132,7 @@ serve(async (req) => {
       );
     }
 
-    const { job_id, bid_amount, delivery_days, cover_letter, attachments, payment_type, milestones } = await req.json();
+    const { job_id, bid_amount, delivery_days, cover_letter, attachments, payment_type, milestones, delivery_unit } = await req.json();
 
     if (!job_id || !bid_amount || !delivery_days || !cover_letter?.trim()) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -213,6 +213,7 @@ serve(async (req) => {
         cover_letter: cover_letter.trim(),
         payment_type: payment_type || 'project',
         milestones: milestones || [],
+        delivery_unit: delivery_unit || 'days',
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
       })
       .select()
