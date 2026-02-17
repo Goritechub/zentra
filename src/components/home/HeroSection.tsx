@@ -10,9 +10,9 @@ export function HeroSection() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
+
       </div>
 
       <div className="container-wide relative">
@@ -27,7 +27,7 @@ export function HeroSection() {
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in-up">
               Hire Verified <span className="text-accent">CAD Engineers</span>
-              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Design. Delivered. Get Paid.</span>
+              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Design. Deliver. Get Paid.</span>
             </h1>
 
             {/* Subheadline */}
@@ -76,10 +76,10 @@ export function HeroSection() {
         <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
           <path
             d="M0 100V50C240 83.3333 480 100 720 100C960 100 1200 83.3333 1440 50V100H0Z"
-            fill="hsl(var(--background))"
-          />
+            fill="hsl(var(--background))" />
+
         </svg>
       </div>
-    </section>
-  );
+    </section>);
+
 }
