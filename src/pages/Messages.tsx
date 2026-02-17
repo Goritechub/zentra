@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageSquare, Bot, LifeBuoy } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -169,9 +170,15 @@ const Messages = () => {
                       </div>
                     ) : (
                       <div
-                        className="cursor-pointer hover:text-primary transition-colors"
+                        className="flex items-center gap-3 cursor-pointer hover:text-primary transition-colors"
                         onClick={() => selectedUserId && navigate(`/expert/${selectedUserId}`)}
                       >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={selectedConversation?.participant.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                            {selectedConversation?.participant.full_name?.[0]?.toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
                         <h3 className="font-semibold">
                           {selectedConversation?.participant.full_name || "Loading..."}
                         </h3>

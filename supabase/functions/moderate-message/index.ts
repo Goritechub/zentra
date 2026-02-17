@@ -245,8 +245,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           error: "Message blocked",
-          message: `Your message was blocked: ${regexResult.reason}. Keep all communication on the platform.`,
-          violations: regexResult.violations,
+          message: "For your safety, sharing personal contact information or social media handles is not allowed. Please keep all communication on the platform.",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -259,7 +258,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           error: "Message blocked",
-          message: `Your message was blocked: ${aiResult.reason}. Keep all communication on the platform.`,
+          message: "For your safety, sharing personal contact information or social media handles is not allowed. Please keep all communication on the platform.",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
