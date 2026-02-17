@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format } from "date-fns";
+import { format, isToday, isYesterday, differenceInCalendarDays, isThisWeek, isThisMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { MessageSquare, FileText, ImageIcon } from "lucide-react";
@@ -25,6 +25,14 @@ interface ChatWindowProps {
 
 function isImageUrl(url: string) {
   return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
+}
+
+function getDateLabel(date: Date): string {
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (differenceInCalendarDays(new Date(), date) < 7) return format(date, "EEEE"); // e.g. "Monday"
+  if (isThisMonth(date)) return "Earlier this month";
+  return format(date, "MMMM yyyy"); // e.g. "January 2026"
 }
 
 export function ChatWindow({ messages, recipientName, recipientAvatar, recipientId }: ChatWindowProps) {
@@ -67,7 +75,19 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
             const showAvatar = index === 0 ||
               messages[index - 1]?.sender_id !== message.sender_id;
 
+            const msgDate = new Date(message.created_at);
+            const prevDate = index > 0 ? new Date(messages[index - 1].created_at) : null;
+            const showDateHeader = !prevDate || getDateLabel(msgDate) !== getDateLabel(prevDate);
+
             return (
+              <div key={message.id}>
+                {showDateHeader && (
+                  <div className="flex items-center justify-center my-4">
+                    <div className="bg-muted text-muted-foreground text-xs font-medium px-3 py-1 rounded-full">
+                      {getDateLabel(msgDate)}
+                    </div>
+                  </div>
+                )}
               <div
                 key={message.id}
                 className={cn(
@@ -146,6 +166,7 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
                     {format(new Date(message.created_at), "HH:mm")}
                   </p>
                 </div>
+              </div>
               </div>
             );
           })}
