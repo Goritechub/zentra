@@ -213,6 +213,7 @@ serve(async (req) => {
         cover_letter: cover_letter.trim(),
         payment_type: payment_type || 'project',
         milestones: milestones || [],
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       })
       .select()
       .single();

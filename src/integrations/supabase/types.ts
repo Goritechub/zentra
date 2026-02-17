@@ -734,6 +734,7 @@ export type Database = {
       }
       proposals: {
         Row: {
+          attachments: string[] | null
           bid_amount: number
           cover_letter: string
           created_at: string | null
@@ -749,6 +750,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          attachments?: string[] | null
           bid_amount: number
           cover_letter: string
           created_at?: string | null
@@ -764,6 +766,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          attachments?: string[] | null
           bid_amount?: number
           cover_letter?: string
           created_at?: string | null
