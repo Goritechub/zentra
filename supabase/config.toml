@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.paystack-transfer]
 verify_jwt = false
+
+[functions.verify-recaptcha]
+verify_jwt = false
