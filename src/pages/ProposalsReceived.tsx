@@ -136,11 +136,24 @@ export default function ProposalsReceivedPage() {
       escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
     }).eq("user_id", user.id);
 
+    // Send automatic message to the expert
+    const jobTitle = proposal.job_title || "a job";
+    const autoMessage = `🎉 Congratulations! I've accepted your proposal for "${jobTitle}" and created a contract. Let's get started!`;
+    
+    await supabase.functions.invoke("moderate-message", {
+      body: {
+        receiver_id: proposal.freelancer_id,
+        content: autoMessage,
+        attachments: [],
+      },
+    });
+
     toast.success("Expert assigned and contract created!");
     setAssignDialog({ open: false, proposal: null });
     setAssigning(false);
-    fetchProposals();
-    fetchWallet();
+    
+    // Navigate to chat with the expert
+    navigate(`/messages?user=${proposal.freelancer_id}`);
   };
 
   const openAssignDialog = (proposal: any) => {
