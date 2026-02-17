@@ -120,7 +120,7 @@ export default function ExpertProfile() {
 
                   {user && user.id !== id && (
                     <Button className="w-full mt-4" asChild>
-                      <Link to={`/messages?to=${id}`}>
+                      <Link to={`/messages?user=${id}`}>
                         <MessageSquare className="h-4 w-4 mr-2" /> Contact
                       </Link>
                     </Button>
