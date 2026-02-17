@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.daily-job-notifications]
 verify_jwt = false
+
+[functions.paystack-charge]
+verify_jwt = false
+
+[functions.paystack-transfer]
+verify_jwt = false

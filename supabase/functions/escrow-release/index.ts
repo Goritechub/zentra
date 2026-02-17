@@ -7,10 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Platform commission tiers (Naira)
+// Platform commission tiers (Naira) – aligned with service-charge.ts
 function getCommissionRate(amount: number): number {
-  if (amount <= 300_000) return 0.20;
-  if (amount <= 2_000_000) return 0.15;
+  if (amount <= 1_000_000) return 0.18;
+  if (amount <= 5_000_000) return 0.15;
   if (amount <= 10_000_000) return 0.10;
   return 0.07;
 }

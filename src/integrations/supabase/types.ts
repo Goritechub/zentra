@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      bank_details: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_code: string
+          bank_name: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          recipient_code: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_code: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          recipient_code?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_code?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          recipient_code?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_details_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string | null
@@ -598,6 +645,73 @@ export type Database = {
           },
         ]
       }
+      paystack_references: {
+        Row: {
+          amount: number
+          channel: string | null
+          contract_id: string | null
+          created_at: string
+          id: string
+          milestone_id: string | null
+          paystack_response: Json | null
+          purpose: string
+          reference: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          channel?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          paystack_response?: Json | null
+          purpose?: string
+          reference: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          channel?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          paystack_response?: Json | null
+          purpose?: string
+          reference?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paystack_references_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paystack_references_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paystack_references_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_revenue: {
         Row: {
           commission_amount: number
@@ -1131,6 +1245,57 @@ export type Database = {
             foreignKeyName: "wallets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      withdrawal_requests: {
+        Row: {
+          amount: number
+          bank_detail_id: string
+          created_at: string
+          id: string
+          reason: string | null
+          status: string
+          transfer_code: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_detail_id: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          transfer_code?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_detail_id?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          transfer_code?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_bank_detail_id_fkey"
+            columns: ["bank_detail_id"]
+            isOneToOne: false
+            referencedRelation: "bank_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
