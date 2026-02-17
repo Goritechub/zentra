@@ -7,15 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
+import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
 import {
   ArrowLeft, Send, Loader2, FileText, Download, Info, DollarSign,
-  Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye
+  Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye, Plus, Trash2
 } from "lucide-react";
 
 export default function ApplyJobPage() {
@@ -35,6 +37,10 @@ export default function ApplyJobPage() {
   const [submitting, setSubmitting] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<File[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
+  const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
+  const [milestones, setMilestones] = useState<{ title: string; date: string; amount: string }[]>([
+    { title: "", date: "", amount: "" },
+  ]);
 
   // Edit fields
   const [editBidAmount, setEditBidAmount] = useState("");
@@ -116,15 +122,27 @@ export default function ApplyJobPage() {
     e.preventDefault();
     if (!user || !id) return;
 
-    const amount = parseInt(bidAmount);
-    const days = parseInt(deliveryDays);
-    if (!amount || !days || !coverLetter.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (days < 1) {
-      toast.error("Delivery days must be at least 1");
-      return;
+    if (paymentType === "project") {
+      const amount = parseInt(bidAmount);
+      const days = parseInt(deliveryDays);
+      if (!amount || !days || !coverLetter.trim()) {
+        toast.error("Please fill in all fields");
+        return;
+      }
+      if (days < 1) {
+        toast.error("Delivery days must be at least 1");
+        return;
+      }
+    } else {
+      const validMilestones = milestones.filter(m => m.title.trim() && m.amount && m.date);
+      if (validMilestones.length === 0) {
+        toast.error("Please add at least one milestone with name, date, and price");
+        return;
+      }
+      if (!coverLetter.trim()) {
+        toast.error("Please fill in your cover letter");
+        return;
+      }
     }
 
     const vetResult = vetContent(coverLetter.trim());
@@ -136,13 +154,35 @@ export default function ApplyJobPage() {
     setSubmitting(true);
     const attachmentUrls = await uploadProposalAttachments();
 
+    const totalBid = paymentType === "milestone"
+      ? milestones.reduce((sum, m) => sum + (parseInt(m.amount) || 0), 0)
+      : parseInt(bidAmount);
+
+    const totalDays = paymentType === "milestone"
+      ? Math.max(...milestones.map(m => {
+          const d = new Date(m.date);
+          const now = new Date();
+          return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        }).filter(d => d > 0), 1)
+      : parseInt(deliveryDays);
+
+    const milestonesData = paymentType === "milestone"
+      ? milestones.filter(m => m.title.trim() && m.amount && m.date).map(m => ({
+          title: m.title.trim(),
+          date: m.date,
+          amount: parseInt(m.amount),
+        }))
+      : [];
+
     const response = await supabase.functions.invoke("moderate-proposal", {
       body: {
         job_id: id,
-        bid_amount: amount,
-        delivery_days: days,
+        bid_amount: totalBid,
+        delivery_days: totalDays,
         cover_letter: coverLetter.trim(),
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+        payment_type: paymentType,
+        milestones: milestonesData,
       },
     });
 
@@ -369,20 +409,106 @@ export default function ApplyJobPage() {
               ) : (
                 <div className="bg-card rounded-xl border border-border p-8">
                   <h2 className="text-xl font-bold mb-6">Submit Your Proposal</h2>
-                  <form onSubmit={handleSubmitProposal} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bid Amount (₦)</Label>
-                        <Input type="number" placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250000"} min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Delivery (days)</Label>
-                        <Input type="number" placeholder={job.delivery_days ? `${job.delivery_days} days` : "e.g. 14"} min="1" value={deliveryDays} onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
-                        }} />
-                      </div>
+                  <form onSubmit={handleSubmitProposal} className="space-y-6">
+                    {/* Payment Type Selection */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">How would you like to be paid?</Label>
+                      <RadioGroup value={paymentType} onValueChange={(v) => setPaymentType(v as "project" | "milestone")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label htmlFor="pay-project" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "project" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                          <RadioGroupItem value="project" id="pay-project" className="mt-0.5" />
+                          <div>
+                            <p className="font-medium text-foreground">Pay by Project</p>
+                            <p className="text-xs text-muted-foreground">Get paid in full once the entire job is completed.</p>
+                          </div>
+                        </label>
+                        <label htmlFor="pay-milestone" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "milestone" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                          <RadioGroupItem value="milestone" id="pay-milestone" className="mt-0.5" />
+                          <div>
+                            <p className="font-medium text-foreground">Pay by Milestone</p>
+                            <p className="text-xs text-muted-foreground">Get paid in stages as you complete each milestone.</p>
+                          </div>
+                        </label>
+                      </RadioGroup>
                     </div>
+
+                    {/* Payment Details - By Project */}
+                    {paymentType === "project" && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Bid Amount (₦)</Label>
+                            <Input type="number" placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250000"} min="1" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Completion Date</Label>
+                            <Input type="number" placeholder={job.delivery_days ? `${job.delivery_days} days` : "e.g. 14"} min="1" value={deliveryDays} onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "" || parseInt(val) >= 1) setDeliveryDays(val);
+                            }} />
+                            <p className="text-xs text-muted-foreground">Days to complete</p>
+                          </div>
+                        </div>
+                        {bidAmount && parseInt(bidAmount) > 0 && (
+                          <ServiceChargeSummary amount={parseInt(bidAmount)} />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Payment Details - By Milestone */}
+                    {paymentType === "milestone" && (
+                      <div className="space-y-4">
+                        <Label className="text-sm font-semibold">Milestones</Label>
+                        <div className="space-y-3">
+                          {milestones.map((ms, idx) => (
+                            <div key={idx} className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-foreground">Milestone {idx + 1}</span>
+                                {milestones.length > 1 && (
+                                  <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setMilestones(milestones.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Task Name</Label>
+                                  <Input placeholder="e.g. Foundation drawings" value={ms.title} onChange={(e) => {
+                                    const updated = [...milestones];
+                                    updated[idx].title = e.target.value;
+                                    setMilestones(updated);
+                                  }} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Due Date</Label>
+                                  <Input type="date" value={ms.date} onChange={(e) => {
+                                    const updated = [...milestones];
+                                    updated[idx].date = e.target.value;
+                                    setMilestones(updated);
+                                  }} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Price (₦)</Label>
+                                  <Input type="number" placeholder="e.g. 50000" min="1" value={ms.amount} onChange={(e) => {
+                                    const updated = [...milestones];
+                                    updated[idx].amount = e.target.value;
+                                    setMilestones(updated);
+                                  }} />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setMilestones([...milestones, { title: "", date: "", amount: "" }])}>
+                          <Plus className="h-4 w-4 mr-2" /> Add Milestone
+                        </Button>
+
+                        {(() => {
+                          const totalMilestoneAmount = milestones.reduce((sum, m) => sum + (parseInt(m.amount) || 0), 0);
+                          return totalMilestoneAmount > 0 ? <ServiceChargeSummary amount={totalMilestoneAmount} /> : null;
+                        })()}
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Cover Letter</Label>
                       <Textarea placeholder="Explain why you're the best fit... (No contact details allowed)" rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
@@ -496,6 +622,26 @@ export default function ApplyJobPage() {
         </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function ServiceChargeSummary({ amount }: { amount: number }) {
+  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount);
+  return (
+    <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Total Project Price</span>
+        <span className="font-semibold text-foreground">{formatNaira(amount)}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Service Charge ({rateLabel})</span>
+        <span className="text-destructive">-{formatNaira(charge)}</span>
+      </div>
+      <div className="border-t border-border pt-2 flex justify-between text-sm">
+        <span className="font-semibold text-foreground">Your Take-Home</span>
+        <span className="font-bold text-primary">{formatNaira(takeHome)}</span>
+      </div>
     </div>
   );
 }
