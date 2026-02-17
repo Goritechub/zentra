@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, FileText, ImageIcon } from "lucide-react";
 
 interface Message {
   id: string;
@@ -13,6 +13,7 @@ interface Message {
   receiver_id: string;
   content: string;
   created_at: string;
+  attachments?: string[];
 }
 
 interface ChatWindowProps {
@@ -20,6 +21,10 @@ interface ChatWindowProps {
   recipientName?: string;
   recipientAvatar?: string | null;
   recipientId?: string;
+}
+
+function isImageUrl(url: string) {
+  return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
 }
 
 export function ChatWindow({ messages, recipientName, recipientAvatar, recipientId }: ChatWindowProps) {
@@ -94,6 +99,44 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
                   <p className="text-sm whitespace-pre-wrap break-words">
                     {message.content}
                   </p>
+
+                  {/* Attachments */}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {message.attachments.map((url, idx) => {
+                        if (isImageUrl(url)) {
+                          return (
+                            <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={url}
+                                alt="attachment"
+                                className="rounded-lg max-w-full max-h-48 object-cover border border-border/30"
+                              />
+                            </a>
+                          );
+                        }
+                        const name = decodeURIComponent(url.split("/").pop() || `File ${idx + 1}`).replace(/^\d+_/, "");
+                        return (
+                          <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded-lg text-sm border",
+                              isOwn
+                                ? "border-primary-foreground/20 hover:bg-primary-foreground/10"
+                                : "border-border hover:bg-background/50"
+                            )}
+                          >
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{name}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <p
                     className={cn(
                       "text-xs mt-1",

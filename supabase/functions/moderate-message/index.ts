@@ -230,7 +230,7 @@ serve(async (req) => {
       }
     }
 
-    const { receiver_id, content } = await req.json();
+    const { receiver_id, content, attachments } = await req.json();
     if (!receiver_id || !content) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
@@ -272,7 +272,7 @@ serve(async (req) => {
         sender_id: user.id,
         receiver_id,
         content: content.trim(),
-        attachments: [],
+        attachments: attachments || [],
       })
       .select()
       .single();
