@@ -10,13 +10,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download
 } from "lucide-react";
 
 export default function ProposalsReceivedPage() {
@@ -26,6 +28,7 @@ export default function ProposalsReceivedPage() {
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<any>(null);
   const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
+  const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
@@ -327,9 +330,14 @@ export default function ProposalsReceivedPage() {
                               </div>
                             )}
 
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/messages?user=${proposal.freelancer_id}`)}>
-                              <MessageSquare className="h-4 w-4 mr-1" /> Message
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
+                                <Eye className="h-4 w-4 mr-1" /> View Details
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => navigate(`/messages?user=${proposal.freelancer_id}`)}>
+                                <MessageSquare className="h-4 w-4 mr-1" /> Message
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -403,6 +411,137 @@ export default function ProposalsReceivedPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Proposal Detail Dialog */}
+      <Dialog open={detailDialog.open} onOpenChange={(open) => setDetailDialog({ open, proposal: open ? detailDialog.proposal : null })}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>Proposal Details</DialogTitle>
+            <DialogDescription>
+              Full proposal from {detailDialog.proposal?.freelancer?.full_name || "Expert"}
+            </DialogDescription>
+          </DialogHeader>
+          {detailDialog.proposal && (
+            <ScrollArea className="max-h-[60vh] pr-4">
+              <div className="space-y-6">
+                {/* Expert Info */}
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={detailDialog.proposal.freelancer?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                      {(detailDialog.proposal.freelancer?.full_name || "U")[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-foreground text-lg">{detailDialog.proposal.freelancer?.full_name || "Expert"}</p>
+                    {detailDialog.proposal.freelancer?.state && (
+                      <p className="text-sm text-muted-foreground">
+                        {detailDialog.proposal.freelancer.city ? `${detailDialog.proposal.freelancer.city}, ` : ""}{detailDialog.proposal.freelancer.state}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Job */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">For Job</p>
+                  <Link to={`/job/${detailDialog.proposal.job_id}`} className="text-primary hover:underline font-medium">{detailDialog.proposal.job_title}</Link>
+                </div>
+
+                {/* Cover Letter */}
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-2">Cover Letter</p>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap text-foreground">{detailDialog.proposal.cover_letter}</div>
+                </div>
+
+                {/* Payment Section */}
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    Payment Structure
+                  </p>
+                  <Badge variant="outline" className="mb-3">
+                    {detailDialog.proposal.payment_type === "milestone" ? "Pay by Milestone" : "Pay by Project"}
+                  </Badge>
+
+                  {detailDialog.proposal.payment_type === "milestone" && detailDialog.proposal.milestones?.length > 0 ? (
+                    <div className="space-y-3">
+                      {detailDialog.proposal.milestones.map((ms: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{ms.title}</p>
+                            <p className="text-xs text-muted-foreground">Due: {new Date(ms.date).toLocaleDateString()}</p>
+                          </div>
+                          <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
+                        </div>
+                      ))}
+                      <ProposalChargeSummary amount={detailDialog.proposal.bid_amount} />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
+                        <span className="text-muted-foreground">Bid Amount</span>
+                        <span className="font-semibold text-foreground">{formatNaira(detailDialog.proposal.bid_amount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
+                        <span className="text-muted-foreground">Delivery</span>
+                        <span className="font-medium text-foreground">{detailDialog.proposal.delivery_days} days</span>
+                      </div>
+                      <ProposalChargeSummary amount={detailDialog.proposal.bid_amount} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Attachments */}
+                {detailDialog.proposal.attachments && detailDialog.proposal.attachments.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Attachments</p>
+                    <div className="space-y-1">
+                      {detailDialog.proposal.attachments.map((url: string, idx: number) => {
+                        const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                        return (
+                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm">
+                            <Download className="h-4 w-4 text-primary shrink-0" />
+                            <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>Status: {statusBadge(detailDialog.proposal.status)}</span>
+                  <span>Submitted: {formatDistanceToNow(new Date(detailDialog.proposal.created_at), { addSuffix: true })}</span>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialog({ open: false, proposal: null })}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ProposalChargeSummary({ amount }: { amount: number }) {
+  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount);
+  return (
+    <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Total Project Price</span>
+        <span className="font-semibold text-foreground">{formatNaira(amount)}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Service Charge ({rateLabel})</span>
+        <span className="text-destructive">-{formatNaira(charge)}</span>
+      </div>
+      <div className="border-t border-border pt-2 flex justify-between text-sm">
+        <span className="font-semibold text-foreground">Expert Take-Home</span>
+        <span className="font-bold text-primary">{formatNaira(takeHome)}</span>
+      </div>
     </div>
   );
 }

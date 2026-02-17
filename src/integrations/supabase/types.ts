@@ -743,6 +743,8 @@ export type Database = {
           id: string
           job_id: string
           last_edited_at: string | null
+          milestones: Json | null
+          payment_type: string
           status: Database["public"]["Enums"]["proposal_status"] | null
           updated_at: string | null
         }
@@ -756,6 +758,8 @@ export type Database = {
           id?: string
           job_id: string
           last_edited_at?: string | null
+          milestones?: Json | null
+          payment_type?: string
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
         }
@@ -769,6 +773,8 @@ export type Database = {
           id?: string
           job_id?: string
           last_edited_at?: string | null
+          milestones?: Json | null
+          payment_type?: string
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
         }
