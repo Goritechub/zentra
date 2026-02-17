@@ -391,8 +391,10 @@ export type Database = {
           client_id: string
           created_at: string | null
           delivery_days: number | null
+          delivery_unit: string
           description: string
           id: string
+          invited_expert_ids: string[] | null
           is_hourly: boolean | null
           is_remote: boolean | null
           required_skill_levels: Json | null
@@ -403,6 +405,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"] | null
           title: string
           updated_at: string | null
+          visibility: string
         }
         Insert: {
           attachments?: string[] | null
@@ -412,8 +415,10 @@ export type Database = {
           client_id: string
           created_at?: string | null
           delivery_days?: number | null
+          delivery_unit?: string
           description: string
           id?: string
+          invited_expert_ids?: string[] | null
           is_hourly?: boolean | null
           is_remote?: boolean | null
           required_skill_levels?: Json | null
@@ -424,6 +429,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"] | null
           title: string
           updated_at?: string | null
+          visibility?: string
         }
         Update: {
           attachments?: string[] | null
@@ -433,8 +439,10 @@ export type Database = {
           client_id?: string
           created_at?: string | null
           delivery_days?: number | null
+          delivery_unit?: string
           description?: string
           id?: string
+          invited_expert_ids?: string[] | null
           is_hourly?: boolean | null
           is_remote?: boolean | null
           required_skill_levels?: Json | null
@@ -445,6 +453,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"] | null
           title?: string
           updated_at?: string | null
+          visibility?: string
         }
         Relationships: [
           {
@@ -512,6 +521,8 @@ export type Database = {
           funded_at: string | null
           id: string
           status: string
+          submission_attachments: string[] | null
+          submission_notes: string | null
           submitted_at: string | null
           title: string
           updated_at: string
@@ -526,6 +537,8 @@ export type Database = {
           funded_at?: string | null
           id?: string
           status?: string
+          submission_attachments?: string[] | null
+          submission_notes?: string | null
           submitted_at?: string | null
           title: string
           updated_at?: string
@@ -540,6 +553,8 @@ export type Database = {
           funded_at?: string | null
           id?: string
           status?: string
+          submission_attachments?: string[] | null
+          submission_notes?: string | null
           submitted_at?: string | null
           title?: string
           updated_at?: string
