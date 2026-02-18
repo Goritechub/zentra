@@ -195,42 +195,186 @@ export type Database = {
           },
         ]
       }
+      contract_attachments: {
+        Row: {
+          context: string
+          contract_id: string
+          created_at: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          message_id: string | null
+          milestone_id: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          context?: string
+          contract_id: string
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          message_id?: string | null
+          milestone_id?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          context?: string
+          contract_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          message_id?: string | null
+          milestone_id?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_attachments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "contract_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_attachments_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_messages: {
+        Row: {
+          content: string
+          contract_id: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_read: boolean
+          is_system_message: boolean
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          contract_id: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_read?: boolean
+          is_system_message?: boolean
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          contract_id?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_read?: boolean
+          is_system_message?: boolean
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_messages_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
+          accepted_attachments: string[] | null
+          accepted_bid_amount: number | null
+          accepted_cover_letter: string | null
+          accepted_payment_type: string | null
           amount: number
           client_id: string
           completed_at: string | null
           created_at: string | null
           freelancer_id: string
           id: string
+          job_attachments: string[] | null
+          job_budget_max: number | null
+          job_budget_min: number | null
+          job_category: string | null
+          job_delivery_days: number | null
+          job_delivery_unit: string | null
+          job_description: string | null
           job_id: string | null
+          job_title: string | null
           proposal_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["contract_status"] | null
+          terms_conditions: string | null
         }
         Insert: {
+          accepted_attachments?: string[] | null
+          accepted_bid_amount?: number | null
+          accepted_cover_letter?: string | null
+          accepted_payment_type?: string | null
           amount: number
           client_id: string
           completed_at?: string | null
           created_at?: string | null
           freelancer_id: string
           id?: string
+          job_attachments?: string[] | null
+          job_budget_max?: number | null
+          job_budget_min?: number | null
+          job_category?: string | null
+          job_delivery_days?: number | null
+          job_delivery_unit?: string | null
+          job_description?: string | null
           job_id?: string | null
+          job_title?: string | null
           proposal_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["contract_status"] | null
+          terms_conditions?: string | null
         }
         Update: {
+          accepted_attachments?: string[] | null
+          accepted_bid_amount?: number | null
+          accepted_cover_letter?: string | null
+          accepted_payment_type?: string | null
           amount?: number
           client_id?: string
           completed_at?: string | null
           created_at?: string | null
           freelancer_id?: string
           id?: string
+          job_attachments?: string[] | null
+          job_budget_max?: number | null
+          job_budget_min?: number | null
+          job_category?: string | null
+          job_delivery_days?: number | null
+          job_delivery_unit?: string | null
+          job_description?: string | null
           job_id?: string | null
+          job_title?: string | null
           proposal_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["contract_status"] | null
+          terms_conditions?: string | null
         }
         Relationships: [
           {
@@ -313,6 +457,60 @@ export type Database = {
           },
           {
             foreignKeyName: "disputes_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_transactions: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          id: string
+          milestone_id: string | null
+          payee_id: string | null
+          payer_id: string
+          reference: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          payee_id?: string | null
+          payer_id: string
+          reference?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          id?: string
+          milestone_id?: string | null
+          payee_id?: string | null
+          payer_id?: string
+          reference?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_transactions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_transactions_milestone_id_fkey"
             columns: ["milestone_id"]
             isOneToOne: false
             referencedRelation: "milestones"
@@ -506,6 +704,63 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestone_submissions: {
+        Row: {
+          attachments: string[] | null
+          contract_id: string
+          created_at: string
+          id: string
+          milestone_id: string
+          notes: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_by: string
+        }
+        Insert: {
+          attachments?: string[] | null
+          contract_id: string
+          created_at?: string
+          id?: string
+          milestone_id: string
+          notes?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by: string
+        }
+        Update: {
+          attachments?: string[] | null
+          contract_id?: string
+          created_at?: string
+          id?: string
+          milestone_id?: string
+          notes?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_submissions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestone_submissions_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
             referencedColumns: ["id"]
           },
         ]
@@ -1332,7 +1587,15 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       availability_type: "full_time" | "part_time" | "weekends" | "flexible"
-      contract_status: "active" | "completed" | "disputed" | "cancelled"
+      contract_status:
+        | "active"
+        | "completed"
+        | "disputed"
+        | "cancelled"
+        | "draft"
+        | "pending_funding"
+        | "submitted"
+        | "in_review"
       job_status: "open" | "in_progress" | "completed" | "cancelled"
       proposal_status:
         | "pending"
@@ -1470,7 +1733,16 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       availability_type: ["full_time", "part_time", "weekends", "flexible"],
-      contract_status: ["active", "completed", "disputed", "cancelled"],
+      contract_status: [
+        "active",
+        "completed",
+        "disputed",
+        "cancelled",
+        "draft",
+        "pending_funding",
+        "submitted",
+        "in_review",
+      ],
       job_status: ["open", "in_progress", "completed", "cancelled"],
       proposal_status: [
         "pending",
