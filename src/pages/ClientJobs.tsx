@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle } from "lucide-react";
+import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2 } from "lucide-react";
 
 export default function ClientJobsPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -24,8 +24,12 @@ export default function ClientJobsPage() {
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: any | null; hasAssignment: boolean }>({
     open: false, job: null, hasAssignment: false,
   });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; job: any | null }>({
+    open: false, job: null,
+  });
   const [disputeReason, setDisputeReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -44,7 +48,6 @@ export default function ClientJobsPage() {
   };
 
   const handleCancelClick = async (job: any) => {
-    // Check if job has an active contract (assigned)
     const { data: contracts } = await supabase
       .from("contracts")
       .select("id")
@@ -55,6 +58,29 @@ export default function ClientJobsPage() {
     const hasAssignment = (contracts?.length || 0) > 0;
     setCancelDialog({ open: true, job, hasAssignment });
     setDisputeReason("");
+  };
+
+  const handleDeleteClick = (job: any) => {
+    setDeleteDialog({ open: true, job });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.job) return;
+    setDeleting(true);
+
+    const { data, error } = await supabase.functions.invoke("cancel-delete-job", {
+      body: { job_id: deleteDialog.job.id },
+    });
+
+    if (error || !data?.success) {
+      toast.error(data?.error || "Failed to delete job. Please try again.");
+    } else {
+      toast.success(`Job deleted. ${data.notified} applicant(s) notified.`);
+      setJobs(prev => prev.filter(j => j.id !== deleteDialog.job.id));
+    }
+
+    setDeleting(false);
+    setDeleteDialog({ open: false, job: null });
   };
 
   const handleSimpleCancel = async () => {
@@ -79,7 +105,6 @@ export default function ClientJobsPage() {
     if (!cancelDialog.job || !disputeReason.trim()) return;
     setCancelling(true);
 
-    // Find the contract
     const { data: contracts } = await supabase
       .from("contracts")
       .select("id")
@@ -93,7 +118,6 @@ export default function ClientJobsPage() {
       return;
     }
 
-    // Create dispute
     const { error } = await supabase.from("disputes").insert({
       contract_id: contracts[0].id,
       raised_by: user!.id,
@@ -104,13 +128,16 @@ export default function ClientJobsPage() {
     if (error) {
       toast.error("Failed to open dispute");
     } else {
-      // Update contract status to disputed
       await supabase.from("contracts").update({ status: "disputed" }).eq("id", contracts[0].id);
       toast.success("Dispute submitted. An admin will review it shortly.");
     }
 
     setCancelling(false);
     setCancelDialog({ open: false, job: null, hasAssignment: false });
+  };
+
+  const canDeleteJob = (job: any) => {
+    return job.status === "open" || job.status === "cancelled";
   };
 
   if (authLoading || loading) {
@@ -175,6 +202,19 @@ export default function ClientJobsPage() {
                                 }}
                               >
                                 <XCircle className="h-4 w-4 mr-1" /> Cancel
+                              </Button>
+                            )}
+                            {canDeleteJob(job) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleDeleteClick(job);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" /> Delete
                               </Button>
                             )}
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -242,6 +282,31 @@ export default function ClientJobsPage() {
                 Yes, Cancel Job
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, job: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Job Permanently</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.job?.title}"? This will permanently remove the job and notify all applicants that the role has been closed. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, job: null })}>
+              No, Keep Job
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Yes, Delete Permanently
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
