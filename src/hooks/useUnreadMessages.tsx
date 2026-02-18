@@ -7,16 +7,23 @@ export function useUnreadMessages() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!user) {
-      setCount(0);
-      return;
-    }
+    if (!user) { setCount(0); return; }
 
     const fetchCount = async () => {
+      // Get all contracts the user is part of
+      const { data: contracts } = await supabase
+        .from("contracts")
+        .select("id")
+        .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`);
+
+      if (!contracts?.length) { setCount(0); return; }
+
+      const contractIds = contracts.map(c => c.id);
       const { count: unread, error } = await supabase
-        .from("messages")
+        .from("contract_messages")
         .select("*", { count: "exact", head: true })
-        .eq("receiver_id", user.id)
+        .in("contract_id", contractIds)
+        .neq("sender_id", user.id)
         .eq("is_read", false);
 
       if (!error && unread !== null) setCount(unread);
@@ -25,17 +32,15 @@ export function useUnreadMessages() {
     fetchCount();
 
     const channel = supabase
-      .channel("unread-messages")
+      .channel("unread-contract-messages")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
+        { event: "*", schema: "public", table: "contract_messages" },
         () => fetchCount()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   return count;

@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.cancel-delete-job]
 verify_jwt = false
+
+[functions.export-contract-pdf]
+verify_jwt = false

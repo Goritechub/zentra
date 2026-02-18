@@ -44,7 +44,7 @@ export default function DashboardPage() {
             return { count };
           })
         : supabase.from("proposals").select("*", { count: "exact" }).eq("freelancer_id", user.id),
-      supabase.from("messages").select("*", { count: "exact" }).or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`),
+      supabase.from("contract_messages").select("*", { count: "exact" }).eq("is_read", false).neq("sender_id", user.id),
       supabase.from("contracts").select("*", { count: "exact" }).or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`),
     ]);
 

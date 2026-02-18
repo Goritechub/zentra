@@ -123,6 +123,13 @@ export default function ProposalsReceivedPage() {
 
     setAssigning(true);
 
+    // Fetch full job details for snapshot
+    const { data: jobData } = await supabase
+      .from("jobs")
+      .select("title, description, budget_min, budget_max, delivery_days, delivery_unit, attachments, required_skills, required_software")
+      .eq("id", proposal.job_id)
+      .single();
+
     // Accept proposal
     const { error: propError } = await supabase
       .from("proposals")
@@ -135,7 +142,7 @@ export default function ProposalsReceivedPage() {
       return;
     }
 
-    // Create contract
+    // Create contract with snapshot data
     const { data: contractData, error: contractError } = await supabase.from("contracts").insert({
       job_id: proposal.job_id,
       client_id: user.id,
@@ -143,7 +150,20 @@ export default function ProposalsReceivedPage() {
       proposal_id: proposal.id,
       amount: proposal.bid_amount,
       status: "active",
-    }).select().single();
+      // Snapshot job details
+      job_title: jobData?.title || proposal.job_title,
+      job_description: jobData?.description || null,
+      job_budget_min: jobData?.budget_min || null,
+      job_budget_max: jobData?.budget_max || null,
+      job_delivery_days: jobData?.delivery_days || null,
+      job_delivery_unit: jobData?.delivery_unit || "days",
+      job_attachments: jobData?.attachments || [],
+      // Snapshot proposal details
+      accepted_cover_letter: proposal.cover_letter,
+      accepted_bid_amount: proposal.bid_amount,
+      accepted_attachments: proposal.attachments || [],
+      accepted_payment_type: proposal.payment_type || "project",
+    } as any).select().single();
 
     if (contractError) {
       toast.error("Failed to create contract");
@@ -166,7 +186,6 @@ export default function ProposalsReceivedPage() {
       }));
       await supabase.from("milestones").insert(milestoneInserts);
 
-      // Move first milestone amount to escrow
       await supabase.from("wallets").update({
         balance: wallet.balance - requiredAmount,
         escrow_balance: (wallet.escrow_balance || 0) + requiredAmount,
@@ -174,21 +193,15 @@ export default function ProposalsReceivedPage() {
       }).eq("user_id", user.id);
 
       await supabase.from("wallet_transactions").insert({
-        user_id: user.id,
-        type: "escrow_lock",
-        amount: requiredAmount,
+        user_id: user.id, type: "escrow_lock", amount: requiredAmount,
         balance_after: wallet.balance - requiredAmount,
         description: `Funded 1st milestone for "${proposal.job_title}"`,
         contract_id: contractData.id,
       });
     } else {
-      // Project-based: move full amount to escrow, create single milestone
       await supabase.from("milestones").insert({
-        contract_id: contractData.id,
-        title: "Full Project Delivery",
-        amount: proposal.bid_amount,
-        status: "funded",
-        funded_at: new Date().toISOString(),
+        contract_id: contractData.id, title: "Full Project Delivery",
+        amount: proposal.bid_amount, status: "funded", funded_at: new Date().toISOString(),
       });
 
       await supabase.from("wallets").update({
@@ -198,33 +211,38 @@ export default function ProposalsReceivedPage() {
       }).eq("user_id", user.id);
 
       await supabase.from("wallet_transactions").insert({
-        user_id: user.id,
-        type: "escrow_lock",
-        amount: proposal.bid_amount,
+        user_id: user.id, type: "escrow_lock", amount: proposal.bid_amount,
         balance_after: wallet.balance - proposal.bid_amount,
         description: `Escrow for project: "${proposal.job_title}"`,
         contract_id: contractData.id,
       });
     }
 
-    // Send automatic message to the expert
+    // Seed first contract message (system message with cover letter context)
     const jobTitle = proposal.job_title || "a job";
-    const autoMessage = `🎉 Congratulations! I've accepted your proposal for "${jobTitle}" and created a contract. Let's get started!`;
-    
-    await supabase.functions.invoke("moderate-message", {
-      body: {
-        receiver_id: proposal.freelancer_id,
-        content: autoMessage,
-        attachments: [],
-      },
-    });
+    await supabase.from("contract_messages").insert({
+      contract_id: contractData.id,
+      sender_id: user.id,
+      content: `🎉 Contract created for "${jobTitle}". Welcome aboard! Let's get started.`,
+      is_system_message: true,
+    } as any);
+
+    // Seed cover letter as second message from freelancer
+    if (proposal.cover_letter) {
+      await supabase.from("contract_messages").insert({
+        contract_id: contractData.id,
+        sender_id: proposal.freelancer_id,
+        content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
+        is_system_message: true,
+      } as any);
+    }
 
     toast.success("Expert assigned and contract created!");
     setAssignDialog({ open: false, proposal: null });
     setAssigning(false);
     
-    // Navigate to chat with the expert
-    navigate(`/messages?user=${proposal.freelancer_id}`);
+    // Navigate to contract page
+    navigate(`/contract/${contractData.id}`);
   };
 
   const openAssignDialog = (proposal: any) => {
@@ -401,9 +419,6 @@ export default function ProposalsReceivedPage() {
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
                                 <Eye className="h-4 w-4 mr-1" /> View Details
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => navigate(`/messages?user=${proposal.freelancer_id}`)}>
-                                <MessageSquare className="h-4 w-4 mr-1" /> Message
                               </Button>
                             </div>
                           </div>
