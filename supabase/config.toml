@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.verify-recaptcha]
 verify_jwt = false
+
+[functions.cancel-delete-job]
+verify_jwt = false
