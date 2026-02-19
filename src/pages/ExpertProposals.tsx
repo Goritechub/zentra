@@ -19,6 +19,7 @@ export default function ExpertProposalsPage() {
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
+  const [interviewContracts, setInterviewContracts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -39,9 +40,26 @@ export default function ExpertProposalsPage() {
         .eq("freelancer_id", user.id)
         .order("created_at", { ascending: false }),
     ]);
-    setProposals(proposalsRes.data || []);
+    const allProposals = proposalsRes.data || [];
+    setProposals(allProposals);
     setOffers((offersRes.data as any[]) || []);
     setLoading(false);
+
+    // Fetch interview contracts
+    const interviewing = allProposals.filter((p: any) => p.status === "interviewing");
+    if (interviewing.length) {
+      const proposalIds = interviewing.map((p: any) => p.id);
+      const { data } = await supabase
+        .from("contracts")
+        .select("id, proposal_id")
+        .in("proposal_id", proposalIds)
+        .eq("status", "interviewing" as any);
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((c: any) => { if (c.proposal_id) map[c.proposal_id] = c.id; });
+        setInterviewContracts(map);
+      }
+    }
   };
 
   if (authLoading || loading) {
@@ -87,18 +105,34 @@ export default function ExpertProposalsPage() {
         <div className="flex flex-col items-end shrink-0 gap-2">
           <p className="text-lg font-bold text-primary">{formatNaira(p.bid_amount)}</p>
           {statusBadge(p.status)}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            title={`Message ${p.job?.client?.full_name || "client"}`}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate(`/messages?user=${p.job?.client_id}`);
-            }}
-          >
-            <MessageCircle className="h-4 w-4" />
-          </Button>
+          {p.status === "interviewing" && interviewContracts[p.id] ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/contract/${interviewContracts[p.id]}?tab=chat`);
+              }}
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> Go to Chat
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              title={`Message ${p.job?.client?.full_name || "client"}`}
+              onClick={(e) => {
+                e.preventDefault();
+                if (interviewContracts[p.id]) {
+                  navigate(`/contract/${interviewContracts[p.id]}?tab=chat`);
+                }
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

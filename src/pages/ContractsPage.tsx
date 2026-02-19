@@ -38,10 +38,12 @@ export default function ContractsPage() {
   };
 
   const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any; label: string }> = {
+    interviewing: { variant: "outline", icon: Clock, label: "Interviewing" },
     active: { variant: "default", icon: Clock, label: "Active" },
     completed: { variant: "secondary", icon: CheckCircle2, label: "Completed" },
     disputed: { variant: "destructive", icon: AlertTriangle, label: "Disputed" },
     cancelled: { variant: "outline", icon: XCircle, label: "Cancelled" },
+    rejected: { variant: "destructive", icon: XCircle, label: "Rejected" },
   };
 
   const filterByStatus = (status: string) =>
@@ -73,15 +75,17 @@ export default function ContractsPage() {
           <h1 className="text-3xl font-bold text-foreground mb-8">Contracts</h1>
 
           <Tabs defaultValue="all">
-            <TabsList className="mb-6">
+            <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="all">All ({contracts.length})</TabsTrigger>
+              <TabsTrigger value="interviewing">Interviewing ({filterByStatus("interviewing").length})</TabsTrigger>
               <TabsTrigger value="active">Active ({filterByStatus("active").length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({filterByStatus("completed").length})</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected ({filterByStatus("rejected").length})</TabsTrigger>
               <TabsTrigger value="disputed">Disputed ({filterByStatus("disputed").length})</TabsTrigger>
               <TabsTrigger value="cancelled">Cancelled ({filterByStatus("cancelled").length})</TabsTrigger>
             </TabsList>
 
-            {["all", "active", "completed", "disputed", "cancelled"].map((status) => (
+            {["all", "interviewing", "active", "completed", "rejected", "disputed", "cancelled"].map((status) => (
               <TabsContent key={status} value={status}>
                 {filterByStatus(status).length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">

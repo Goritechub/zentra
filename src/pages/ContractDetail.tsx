@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+  interviewing: { variant: "outline", label: "Interviewing" },
   draft: { variant: "outline", label: "Draft" },
   pending_funding: { variant: "outline", label: "Pending Funding" },
   active: { variant: "default", label: "Active" },
@@ -34,6 +35,7 @@ const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destru
   completed: { variant: "secondary", label: "Completed" },
   cancelled: { variant: "outline", label: "Cancelled" },
   disputed: { variant: "destructive", label: "Disputed" },
+  rejected: { variant: "destructive", label: "Rejected" },
 };
 
 const MILESTONE_COLORS: Record<string, string> = {
@@ -331,7 +333,7 @@ export default function ContractDetail() {
 
             {/* CHAT TAB */}
             <TabsContent value="chat">
-              <ContractChat contractId={id!} partnerName={partner?.full_name || "User"} partnerAvatar={partner?.avatar_url} />
+              <ContractChat contractId={id!} partnerName={partner?.full_name || "User"} partnerAvatar={partner?.avatar_url} contractStatus={contract?.status} />
             </TabsContent>
 
             {/* DISPUTES TAB */}

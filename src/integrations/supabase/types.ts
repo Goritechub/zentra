@@ -854,6 +854,47 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          contract_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           budget: number | null
@@ -1596,6 +1637,8 @@ export type Database = {
         | "pending_funding"
         | "submitted"
         | "in_review"
+        | "interviewing"
+        | "rejected"
       job_status: "open" | "in_progress" | "completed" | "cancelled"
       proposal_status:
         | "pending"
@@ -1742,6 +1785,8 @@ export const Constants = {
         "pending_funding",
         "submitted",
         "in_review",
+        "interviewing",
+        "rejected",
       ],
       job_status: ["open", "in_progress", "completed", "cancelled"],
       proposal_status: [
