@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +46,7 @@ export default function ProposalsReceivedPage() {
   const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
+  const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -245,11 +248,15 @@ export default function ProposalsReceivedPage() {
     if (!proposal || !user) return;
 
     const requiredAmount = getRequiredAmount(proposal);
-    const isPaymentReady = wallet && wallet.balance >= requiredAmount;
-    if (!isPaymentReady) {
-      toast.error(`Insufficient wallet balance. You need at least ${formatNaira(requiredAmount)} to assign.`);
-      setAssignDialog({ open: false, proposal: null });
-      return;
+    const fundNow = fundingChoice === "now";
+
+    if (fundNow) {
+      const isPaymentReady = wallet && wallet.balance >= requiredAmount;
+      if (!isPaymentReady) {
+        toast.error(`Insufficient wallet balance. You need at least ${formatNaira(requiredAmount)} to assign.`);
+        setAssignDialog({ open: false, proposal: null });
+        return;
+      }
     }
 
     setAssigning(true);
@@ -282,24 +289,25 @@ export default function ProposalsReceivedPage() {
       .eq("status", "interviewing" as any);
 
     if (existingContracts?.length) {
-      // Upgrade existing interview contract to active
+      // Upgrade existing interview contract
+      const newStatus = fundNow ? "active" : "pending_funding";
       const { data: updated, error: updateErr } = await supabase
         .from("contracts")
-        .update({ status: "active" as any, started_at: new Date().toISOString() } as any)
+        .update({ status: newStatus as any, started_at: new Date().toISOString() } as any)
         .eq("id", existingContracts[0].id)
         .select()
         .single();
       if (updateErr) { toast.error("Failed to activate contract"); setAssigning(false); return; }
       contractData = updated;
     } else {
-      // Create new contract
+      const newStatus = fundNow ? "active" : "pending_funding";
       const { data: newContract, error: contractError } = await supabase.from("contracts").insert({
         job_id: proposal.job_id,
         client_id: user.id,
         freelancer_id: proposal.freelancer_id,
         proposal_id: proposal.id,
         amount: proposal.bid_amount,
-        status: "active",
+        status: newStatus as any,
         job_title: jobData?.title || proposal.job_title,
         job_description: jobData?.description || null,
         job_budget_min: jobData?.budget_min || null,
@@ -357,41 +365,84 @@ export default function ProposalsReceivedPage() {
         title: ms.title,
         amount: ms.amount,
         due_date: ms.date || null,
-        status: idx === 0 ? "funded" : "pending",
-        funded_at: idx === 0 ? new Date().toISOString() : null,
+        status: (fundNow && idx === 0) ? "funded" : "pending",
+        funded_at: (fundNow && idx === 0) ? new Date().toISOString() : null,
       }));
-      await supabase.from("milestones").insert(milestoneInserts);
+      const { data: createdMilestones } = await supabase.from("milestones").insert(milestoneInserts).select();
 
-      await supabase.from("wallets").update({
-        balance: wallet.balance - requiredAmount,
-        escrow_balance: (wallet.escrow_balance || 0) + requiredAmount,
-        total_spent: (wallet.total_spent || 0) + requiredAmount,
-      }).eq("user_id", user.id);
+      if (fundNow) {
+        await supabase.from("wallets").update({
+          balance: wallet.balance - requiredAmount,
+          escrow_balance: (wallet.escrow_balance || 0) + requiredAmount,
+          total_spent: (wallet.total_spent || 0) + requiredAmount,
+        }).eq("user_id", user.id);
 
-      await supabase.from("wallet_transactions").insert({
-        user_id: user.id, type: "escrow_lock", amount: requiredAmount,
-        balance_after: wallet.balance - requiredAmount,
-        description: `Funded 1st milestone for "${proposal.job_title}"`,
-        contract_id: contractData.id,
-      });
+        await supabase.from("wallet_transactions").insert({
+          user_id: user.id, type: "escrow_lock", amount: requiredAmount,
+          balance_after: wallet.balance - requiredAmount,
+          description: `Funded 1st milestone for "${proposal.job_title}"`,
+          contract_id: contractData.id,
+        });
+
+        // Create escrow ledger entry
+        if (createdMilestones?.[0]) {
+          await supabase.from("escrow_ledger").insert({
+            contract_id: contractData.id,
+            milestone_id: createdMilestones[0].id,
+            held_amount: requiredAmount,
+            status: "held",
+          });
+        }
+      }
     } else {
-      await supabase.from("milestones").insert({
+      const milestoneStatus = fundNow ? "funded" : "pending";
+      const { data: createdMs } = await supabase.from("milestones").insert({
         contract_id: contractData.id, title: "Full Project Delivery",
-        amount: proposal.bid_amount, status: "funded", funded_at: new Date().toISOString(),
-      });
+        amount: proposal.bid_amount, status: milestoneStatus, 
+        funded_at: fundNow ? new Date().toISOString() : null,
+      }).select().single();
 
-      await supabase.from("wallets").update({
-        balance: wallet.balance - proposal.bid_amount,
-        escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
-        total_spent: (wallet.total_spent || 0) + proposal.bid_amount,
-      }).eq("user_id", user.id);
+      if (fundNow) {
+        await supabase.from("wallets").update({
+          balance: wallet.balance - proposal.bid_amount,
+          escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
+          total_spent: (wallet.total_spent || 0) + proposal.bid_amount,
+        }).eq("user_id", user.id);
 
-      await supabase.from("wallet_transactions").insert({
-        user_id: user.id, type: "escrow_lock", amount: proposal.bid_amount,
-        balance_after: wallet.balance - proposal.bid_amount,
-        description: `Escrow for project: "${proposal.job_title}"`,
+        await supabase.from("wallet_transactions").insert({
+          user_id: user.id, type: "escrow_lock", amount: proposal.bid_amount,
+          balance_after: wallet.balance - proposal.bid_amount,
+          description: `Escrow for project: "${proposal.job_title}"`,
+          contract_id: contractData.id,
+        });
+
+        // Create escrow ledger entry
+        if (createdMs) {
+          await supabase.from("escrow_ledger").insert({
+            contract_id: contractData.id,
+            milestone_id: createdMs.id,
+            held_amount: proposal.bid_amount,
+            status: "held",
+          });
+        }
+      }
+    }
+
+    // System message about funding choice
+    if (!fundNow) {
+      await supabase.from("contract_messages").insert({
         contract_id: contractData.id,
-      });
+        sender_id: user.id,
+        content: `⏳ Contract created but funding is pending. The client will fund the milestone(s) before work begins.`,
+        is_system_message: true,
+      } as any);
+    } else {
+      await supabase.from("contract_messages").insert({
+        contract_id: contractData.id,
+        sender_id: user.id,
+        content: `💰 Funds have been deposited into escrow. Work can begin!`,
+        is_system_message: true,
+      } as any);
     }
 
     // Send notification to expert
@@ -413,6 +464,7 @@ export default function ProposalsReceivedPage() {
   };
 
   const openAssignDialog = (proposal: any) => {
+    setFundingChoice("now");
     setAssignDialog({ open: true, proposal });
   };
 
@@ -611,7 +663,7 @@ export default function ProposalsReceivedPage() {
             </DialogDescription>
           </DialogHeader>
           {assignDialog.proposal && (
-            <div className="space-y-3 py-4">
+            <div className="space-y-4 py-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Expert</span>
                 <span className="font-medium">{assignDialog.proposal.freelancer?.full_name}</span>
@@ -624,35 +676,62 @@ export default function ProposalsReceivedPage() {
                 <span className="text-muted-foreground">Delivery</span>
                 <span>{formatDurationDisplay(assignDialog.proposal.delivery_days, assignDialog.proposal.delivery_unit)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Payment Status</span>
-                <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
-                  {paymentReady ? <ShieldCheck className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
-                  {paymentReady ? "Payment Ready" : "Not Verified"}
-                </Badge>
+
+              {/* Fund Now or Later */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-sm font-semibold text-foreground">When would you like to fund?</p>
+                <RadioGroup value={fundingChoice} onValueChange={(v) => setFundingChoice(v as "now" | "later")} className="space-y-2">
+                  <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer">
+                    <RadioGroupItem value="now" id="fund-now" className="mt-0.5" />
+                    <Label htmlFor="fund-now" className="cursor-pointer flex-1">
+                      <span className="font-medium text-foreground">Fund Now</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Deposit {formatNaira(getRequiredAmount(assignDialog.proposal))} into escrow immediately. Expert can start working right away.
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer">
+                    <RadioGroupItem value="later" id="fund-later" className="mt-0.5" />
+                    <Label htmlFor="fund-later" className="cursor-pointer flex-1">
+                      <span className="font-medium text-foreground">Fund Later</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Create the contract now but fund the milestone later. Expert cannot begin until funded.
+                      </p>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
-              {wallet && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Wallet Balance</span>
-                  <span className={wallet.balance >= getRequiredAmount(assignDialog.proposal) ? "text-primary" : "text-destructive"}>
-                    {formatNaira(wallet.balance)}
-                  </span>
-                </div>
+
+              {fundingChoice === "now" && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Wallet Balance</span>
+                    <span className={wallet && wallet.balance >= getRequiredAmount(assignDialog.proposal) ? "text-primary" : "text-destructive"}>
+                      {formatNaira(wallet?.balance || 0)}
+                    </span>
+                  </div>
+                  {assignDialog.proposal.payment_type === "milestone" && assignDialog.proposal.milestones?.length > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Required Now (1st Milestone)</span>
+                      <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.milestones[0].amount)}</span>
+                    </div>
+                  )}
+                  {wallet && wallet.balance < getRequiredAmount(assignDialog.proposal) && (
+                    <Alert className="border-destructive/30 bg-destructive/5">
+                      <Wallet className="h-4 w-4 text-destructive" />
+                      <AlertDescription className="text-sm">
+                        Insufficient balance. You need at least {formatNaira(getRequiredAmount(assignDialog.proposal))} to fund now.{" "}
+                        <a href="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</a>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
-              {assignDialog.proposal.payment_type === "milestone" && assignDialog.proposal.milestones?.length > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Required Now (1st Milestone)</span>
-                  <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.milestones[0].amount)}</span>
+
+              {fundingChoice === "later" && (
+                <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm text-muted-foreground">
+                  💡 The contract will be created with <strong className="text-foreground">Pending Funding</strong> status. You can fund milestones from the contract page.
                 </div>
-              )}
-              {wallet && wallet.balance < getRequiredAmount(assignDialog.proposal) && (
-                <Alert className="border-destructive/30 bg-destructive/5">
-                  <Wallet className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-sm">
-                    Insufficient balance. You need at least {formatNaira(getRequiredAmount(assignDialog.proposal))} to assign this expert.{" "}
-                    <a href="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</a>
-                  </AlertDescription>
-                </Alert>
               )}
             </div>
           )}
@@ -660,10 +739,10 @@ export default function ProposalsReceivedPage() {
             <Button variant="outline" onClick={() => setAssignDialog({ open: false, proposal: null })}>Cancel</Button>
             <Button
               onClick={handleAcceptAndAssign}
-              disabled={assigning || !paymentReady || (wallet && assignDialog.proposal && wallet.balance < getRequiredAmount(assignDialog.proposal))}
+              disabled={assigning || (fundingChoice === "now" && wallet && assignDialog.proposal && wallet.balance < getRequiredAmount(assignDialog.proposal))}
             >
               {assigning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Confirm & Assign
+              {fundingChoice === "now" ? "Confirm & Fund" : "Confirm & Assign"}
             </Button>
           </DialogFooter>
         </DialogContent>

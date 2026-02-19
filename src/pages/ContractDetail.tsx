@@ -59,6 +59,7 @@ export default function ContractDetail() {
   const [disputes, setDisputes] = useState<any[]>([]);
   const [escrowLedger, setEscrowLedger] = useState<any[]>([]);
   const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
+  const [activityLog, setActivityLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
 
@@ -82,7 +83,7 @@ export default function ContractDetail() {
   useEffect(() => { if (id) fetchData(); }, [id]);
 
   const fetchData = async () => {
-    const [{ data: contractData }, { data: ms }, { data: ds }, { data: ledger }, { data: txns }] = await Promise.all([
+    const [{ data: contractData }, { data: ms }, { data: ds }, { data: ledger }, { data: txns }, { data: sysMessages }] = await Promise.all([
       supabase.from("contracts")
         .select("*, client:profiles!contracts_client_id_fkey(full_name, avatar_url, id), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url, id)")
         .eq("id", id).single(),
@@ -90,12 +91,14 @@ export default function ContractDetail() {
       supabase.from("disputes").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
       supabase.from("escrow_ledger").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
       supabase.from("wallet_transactions").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
+      supabase.from("contract_messages").select("*").eq("contract_id", id!).eq("is_system_message", true).order("created_at", { ascending: false }),
     ]);
     setContract(contractData);
     setMilestones(ms || []);
     setDisputes(ds || []);
     setEscrowLedger(ledger || []);
     setWalletTransactions(txns || []);
+    setActivityLog(sysMessages || []);
     setLoading(false);
   };
 
@@ -253,6 +256,7 @@ export default function ContractDetail() {
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="overview"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
               <TabsTrigger value="milestones"><MilestoneIcon className="h-4 w-4 mr-1.5" /> Milestones</TabsTrigger>
+              <TabsTrigger value="activity"><FileText className="h-4 w-4 mr-1.5" /> Activity</TabsTrigger>
               <TabsTrigger value="chat"><MessageSquare className="h-4 w-4 mr-1.5" /> Chat</TabsTrigger>
               <TabsTrigger value="transactions"><History className="h-4 w-4 mr-1.5" /> Transactions</TabsTrigger>
               <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disputes</TabsTrigger>
@@ -261,6 +265,60 @@ export default function ContractDetail() {
             {/* OVERVIEW TAB */}
             <TabsContent value="overview">
               <div className="space-y-6">
+                {/* Submission Review Banner */}
+                {(() => {
+                  const submittedMilestones = milestones.filter(ms => ms.status === "submitted");
+                  if (submittedMilestones.length === 0) return null;
+                  return (
+                    <div className="bg-primary/5 border-2 border-primary/30 rounded-xl p-5">
+                      <h3 className="text-base font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <Send className="h-5 w-5 text-primary" />
+                        {submittedMilestones.length} Delivery Awaiting Review
+                      </h3>
+                      <div className="space-y-3">
+                        {submittedMilestones.map(ms => (
+                          <div key={ms.id} className="bg-card rounded-lg border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <p className="font-medium text-foreground">{ms.title}</p>
+                              <p className="text-sm text-primary font-semibold">{formatNaira(ms.amount)}</p>
+                              {ms.submitted_at && <p className="text-xs text-muted-foreground">Submitted {formatDistanceToNow(new Date(ms.submitted_at), { addSuffix: true })}</p>}
+                              {ms.submission_notes && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{ms.submission_notes}</p>}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" variant="outline" onClick={() => setShowSubmissionDetail(ms)}>
+                                <Eye className="h-3 w-3 mr-1" /> View
+                              </Button>
+                              {isClient && (
+                                <>
+                                  <Button size="sm" onClick={() => handleMilestoneAction("approve_release", ms.id)} disabled={actionLoading}>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" /> Approve & Release
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => { setSelectedMilestoneId(ms.id); setShowRejectDialog(true); }} disabled={actionLoading}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Request Revision
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Pending Funding Banner */}
+                {isClient && contract.status === "pending_funding" && milestones.some(ms => ms.status === "pending") && (
+                  <div className="bg-accent/10 border-2 border-accent/30 rounded-xl p-5">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2 mb-2">
+                      <DollarSign className="h-5 w-5 text-accent-foreground" />
+                      Funding Required
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">Fund the first milestone to activate this contract and let the expert begin work.</p>
+                    <Button size="sm" onClick={() => setActiveTab("milestones")}>
+                      <Wallet className="h-4 w-4 mr-1" /> Go to Milestones
+                    </Button>
+                  </div>
+                )}
                 {contract.job_description && (
                   <div className="bg-card rounded-xl border border-border p-6">
                     <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> Job Details</h2>
@@ -468,6 +526,36 @@ export default function ContractDetail() {
                     </div>
                   )}
                 </div>
+              </div>
+            </TabsContent>
+
+            {/* ACTIVITY TAB */}
+            <TabsContent value="activity">
+              <div className="bg-card rounded-xl border border-border p-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Contract Activity Log</h2>
+                {activityLog.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No activity recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activityLog.map((entry) => (
+                      <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border border-border">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          {entry.content.includes("💰") || entry.content.includes("Funded") ? <DollarSign className="h-4 w-4 text-primary" /> :
+                           entry.content.includes("📦") || entry.content.includes("Submitted") || entry.content.includes("submitted") ? <Send className="h-4 w-4 text-primary" /> :
+                           entry.content.includes("✅") || entry.content.includes("Approved") || entry.content.includes("approved") ? <CheckCircle2 className="h-4 w-4 text-primary" /> :
+                           entry.content.includes("❌") || entry.content.includes("Rejected") || entry.content.includes("rejected") ? <XCircle className="h-4 w-4 text-destructive" /> :
+                           entry.content.includes("⚠️") || entry.content.includes("Dispute") ? <AlertTriangle className="h-4 w-4 text-destructive" /> :
+                           entry.content.includes("🎉") || entry.content.includes("hired") ? <CheckCircle2 className="h-4 w-4 text-primary" /> :
+                           <Clock className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground">{entry.content}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(entry.created_at), "PPp")}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </TabsContent>
 
