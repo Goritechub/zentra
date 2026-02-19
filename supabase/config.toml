@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.export-contract-pdf]
 verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false

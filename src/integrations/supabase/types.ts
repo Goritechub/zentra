@@ -464,6 +464,60 @@ export type Database = {
           },
         ]
       }
+      escrow_ledger: {
+        Row: {
+          contract_id: string
+          created_at: string
+          expert_amount: number
+          held_amount: number
+          id: string
+          milestone_id: string | null
+          platform_fee: number
+          released_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          expert_amount?: number
+          held_amount?: number
+          id?: string
+          milestone_id?: string | null
+          platform_fee?: number
+          released_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          expert_amount?: number
+          held_amount?: number
+          id?: string
+          milestone_id?: string | null
+          platform_fee?: number
+          released_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_ledger_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_ledger_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escrow_transactions: {
         Row: {
           amount: number
@@ -956,12 +1010,73 @@ export type Database = {
           },
         ]
       }
+      payout_transfers: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          contract_id: string
+          created_at: string
+          expert_id: string
+          id: string
+          initiated_at: string
+          milestone_id: string | null
+          paystack_response: Json | null
+          platform_fee: number
+          status: string
+          transfer_code: string | null
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          contract_id: string
+          created_at?: string
+          expert_id: string
+          id?: string
+          initiated_at?: string
+          milestone_id?: string | null
+          paystack_response?: Json | null
+          platform_fee?: number
+          status?: string
+          transfer_code?: string | null
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          contract_id?: string
+          created_at?: string
+          expert_id?: string
+          id?: string
+          initiated_at?: string
+          milestone_id?: string | null
+          paystack_response?: Json | null
+          platform_fee?: number
+          status?: string
+          transfer_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_transfers_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_transfers_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paystack_references: {
         Row: {
           amount: number
           channel: string | null
           contract_id: string | null
           created_at: string
+          gateway_response: string | null
           id: string
           milestone_id: string | null
           paystack_response: Json | null
@@ -976,6 +1091,7 @@ export type Database = {
           channel?: string | null
           contract_id?: string | null
           created_at?: string
+          gateway_response?: string | null
           id?: string
           milestone_id?: string | null
           paystack_response?: Json | null
@@ -990,6 +1106,7 @@ export type Database = {
           channel?: string | null
           contract_id?: string | null
           created_at?: string
+          gateway_response?: string | null
           id?: string
           milestone_id?: string | null
           paystack_response?: Json | null

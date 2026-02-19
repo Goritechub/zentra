@@ -12,17 +12,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContractChat } from "@/components/contract/ContractChat";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
-  X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3
+  X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
+  Wallet, History, XCircle
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
@@ -44,6 +45,7 @@ const MILESTONE_COLORS: Record<string, string> = {
   in_progress: "default",
   submitted: "outline",
   approved: "secondary",
+  paid: "default",
   disputed: "destructive",
 };
 
@@ -55,6 +57,8 @@ export default function ContractDetail() {
   const [contract, setContract] = useState<any>(null);
   const [milestones, setMilestones] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
+  const [escrowLedger, setEscrowLedger] = useState<any[]>([]);
+  const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
 
@@ -63,10 +67,12 @@ export default function ContractDetail() {
   const [showDispute, setShowDispute] = useState(false);
   const [showSubmitDelivery, setShowSubmitDelivery] = useState(false);
   const [showSubmissionDetail, setShowSubmissionDetail] = useState<any>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [submissionNotes, setSubmissionNotes] = useState("");
   const [submissionFiles, setSubmissionFiles] = useState<File[]>([]);
@@ -76,22 +82,31 @@ export default function ContractDetail() {
   useEffect(() => { if (id) fetchData(); }, [id]);
 
   const fetchData = async () => {
-    const [{ data: contractData }, { data: ms }, { data: ds }] = await Promise.all([
+    const [{ data: contractData }, { data: ms }, { data: ds }, { data: ledger }, { data: txns }] = await Promise.all([
       supabase.from("contracts")
         .select("*, client:profiles!contracts_client_id_fkey(full_name, avatar_url, id), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url, id)")
         .eq("id", id).single(),
       supabase.from("milestones").select("*").eq("contract_id", id!).order("created_at", { ascending: true }),
       supabase.from("disputes").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
+      supabase.from("escrow_ledger").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
+      supabase.from("wallet_transactions").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
     ]);
     setContract(contractData);
     setMilestones(ms || []);
     setDisputes(ds || []);
+    setEscrowLedger(ledger || []);
+    setWalletTransactions(txns || []);
     setLoading(false);
   };
 
   const isClient = contract?.client_id === user?.id;
   const isFreelancer = contract?.freelancer_id === user?.id;
   const partner = isClient ? contract?.freelancer : contract?.client;
+
+  // Escrow summary
+  const totalHeld = escrowLedger.filter(e => e.status === "held").reduce((s, e) => s + e.held_amount, 0);
+  const totalReleased = escrowLedger.filter(e => e.status === "released").reduce((s, e) => s + e.released_amount, 0);
+  const totalFees = escrowLedger.filter(e => e.status === "released").reduce((s, e) => s + e.platform_fee, 0);
 
   const addMilestone = async () => {
     if (!newMilestone.title || !newMilestone.amount) { toast.error("Title and amount are required"); return; }
@@ -129,18 +144,30 @@ export default function ContractDetail() {
     setActionLoading(false);
   };
 
-  const handleMilestoneAction = async (action: string, milestoneId: string) => {
+  const handleMilestoneAction = async (action: string, milestoneId: string, extra?: Record<string, string>) => {
     setActionLoading(true);
-    const response = await supabase.functions.invoke("escrow-release", { body: { action, milestone_id: milestoneId, contract_id: id } });
+    const response = await supabase.functions.invoke("escrow-release", { body: { action, milestone_id: milestoneId, contract_id: id, ...extra } });
     if (response.error || response.data?.error) toast.error(response.data?.error || "Action failed");
-    else { toast.success(action === "fund_milestone" ? "Milestone funded!" : "Payment released!"); fetchData(); }
+    else {
+      if (action === "fund_milestone") toast.success("Milestone funded! Funds held in escrow.");
+      else if (action === "approve_release") toast.success("Payment released to expert!");
+      else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
+      fetchData();
+    }
     setActionLoading(false);
+  };
+
+  const handleRejectMilestone = async () => {
+    if (!rejectionReason.trim()) { toast.error("Please provide a rejection reason"); return; }
+    await handleMilestoneAction("reject_milestone", selectedMilestoneId!, { rejection_reason: rejectionReason });
+    setShowRejectDialog(false);
+    setRejectionReason("");
+    setSelectedMilestoneId(null);
   };
 
   const handleRaiseDispute = async () => {
     if (!disputeReason.trim()) { toast.error("Please provide a reason"); return; }
     setActionLoading(true);
-    // Upload dispute evidence
     const evidenceUrls: string[] = [];
     for (const file of disputeFiles) {
       const path = `disputes/${user!.id}/${Date.now()}_${file.name}`;
@@ -194,19 +221,46 @@ export default function ContractDetail() {
             </div>
           </div>
 
+          {/* Escrow Summary Cards */}
+          {(totalHeld > 0 || totalReleased > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">Held in Escrow</span>
+                </div>
+                <p className="text-xl font-bold text-primary">{formatNaira(totalHeld)}</p>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">Released</span>
+                </div>
+                <p className="text-xl font-bold text-foreground">{formatNaira(totalReleased)}</p>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Platform Fees</span>
+                </div>
+                <p className="text-xl font-bold text-muted-foreground">{formatNaira(totalFees)}</p>
+              </div>
+            </div>
+          )}
+
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="overview"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
               <TabsTrigger value="milestones"><MilestoneIcon className="h-4 w-4 mr-1.5" /> Milestones</TabsTrigger>
               <TabsTrigger value="chat"><MessageSquare className="h-4 w-4 mr-1.5" /> Chat</TabsTrigger>
+              <TabsTrigger value="transactions"><History className="h-4 w-4 mr-1.5" /> Transactions</TabsTrigger>
               <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disputes</TabsTrigger>
             </TabsList>
 
             {/* OVERVIEW TAB */}
             <TabsContent value="overview">
               <div className="space-y-6">
-                {/* Job Details */}
                 {contract.job_description && (
                   <div className="bg-card rounded-xl border border-border p-6">
                     <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> Job Details</h2>
@@ -229,7 +283,6 @@ export default function ContractDetail() {
                   </div>
                 )}
 
-                {/* Accepted Proposal */}
                 {contract.accepted_cover_letter && (
                   <div className="bg-card rounded-xl border border-border p-6">
                     <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><ScrollText className="h-5 w-5 text-primary" /> Accepted Proposal</h2>
@@ -238,6 +291,17 @@ export default function ContractDetail() {
                       <span>Bid: <strong className="text-primary">{formatNaira(contract.accepted_bid_amount || contract.amount)}</strong></span>
                       <span>Payment: <strong className="text-foreground">{contract.accepted_payment_type === "milestone" ? "Milestone" : "Project"}</strong></span>
                     </div>
+                    {/* Fee preview */}
+                    {(() => {
+                      const amt = contract.accepted_bid_amount || contract.amount;
+                      const { rateLabel, charge, takeHome } = calculateServiceCharge(amt);
+                      return (
+                        <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
+                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({formatNaira(charge)})</p>
+                          <p className="text-muted-foreground">Expert receives: <strong className="text-primary">{formatNaira(takeHome)}</strong></p>
+                        </div>
+                      );
+                    })()}
                     {contract.accepted_attachments?.length > 0 && (
                       <div className="mt-4 space-y-1">
                         <p className="text-xs font-medium text-muted-foreground">Proposal Attachments</p>
@@ -251,7 +315,6 @@ export default function ContractDetail() {
                   </div>
                 )}
 
-                {/* Terms */}
                 {contract.terms_conditions && (
                   <div className="bg-card rounded-xl border border-border p-6">
                     <h2 className="text-lg font-semibold mb-3">Terms & Conditions</h2>
@@ -259,7 +322,6 @@ export default function ContractDetail() {
                   </div>
                 )}
 
-                {/* Contract Timeline */}
                 <div className="bg-card rounded-xl border border-border p-6">
                   <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Contract Timeline</h2>
                   <div className="space-y-2 text-sm">
@@ -276,7 +338,7 @@ export default function ContractDetail() {
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2"><MilestoneIcon className="h-5 w-5 text-primary" /> Milestones</h2>
-                  {isClient && contract.status === "active" && (
+                  {isClient && (contract.status === "active" || contract.status === "interviewing") && (
                     <Button size="sm" onClick={() => setShowAddMilestone(true)}><Plus className="h-4 w-4 mr-1" /> Add</Button>
                   )}
                 </div>
@@ -287,45 +349,65 @@ export default function ContractDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {milestones.map((ms) => (
-                      <div key={ms.id} className="border border-border rounded-lg p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium text-foreground">{ms.title}</h3>
-                              <Badge variant={(MILESTONE_COLORS[ms.status] || "secondary") as any}>{ms.status}</Badge>
-                            </div>
-                            {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
-                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                              <span className="font-semibold text-primary text-sm">{formatNaira(ms.amount)}</span>
-                              {ms.due_date && <span>Due: {new Date(ms.due_date).toLocaleDateString()}</span>}
-                              {ms.funded_at && <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-primary" /> Funded</span>}
-                              {ms.submitted_at && <span className="flex items-center gap-1"><Send className="h-3 w-3" /> Submitted</span>}
-                              {ms.approved_at && <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Approved</span>}
-                            </div>
-                            {ms.status === "submitted" && ms.submission_notes && (
-                              <Button variant="link" size="sm" className="mt-2 p-0 h-auto text-primary" onClick={() => setShowSubmissionDetail(ms)}>
-                                <Eye className="h-3 w-3 mr-1" /> View Submission
-                              </Button>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            {isClient && ms.status === "pending" && (
-                              <Button size="sm" onClick={() => handleMilestoneAction("fund_milestone", ms.id)} disabled={actionLoading}><DollarSign className="h-3 w-3 mr-1" /> Fund</Button>
-                            )}
-                            {isFreelancer && (ms.status === "funded" || ms.status === "in_progress") && (
-                              <Button size="sm" onClick={() => { setSelectedMilestoneId(ms.id); setShowSubmitDelivery(true); }} disabled={actionLoading}><Send className="h-3 w-3 mr-1" /> Submit</Button>
-                            )}
-                            {isClient && ms.status === "submitted" && (
-                              <div className="flex flex-col gap-1">
-                                <Button size="sm" onClick={() => handleMilestoneAction("approve_release", ms.id)} disabled={actionLoading}><CheckCircle2 className="h-3 w-3 mr-1" /> Approve</Button>
-                                <Button size="sm" variant="outline" onClick={() => setActiveTab("chat")}><MessageSquare className="h-3 w-3 mr-1" /> Feedback</Button>
+                    {milestones.map((ms) => {
+                      const feeInfo = calculateServiceCharge(ms.amount);
+                      return (
+                        <div key={ms.id} className="border border-border rounded-lg p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-foreground">{ms.title}</h3>
+                                <Badge variant={(MILESTONE_COLORS[ms.status] || "secondary") as any}>{ms.status}</Badge>
                               </div>
-                            )}
+                              {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
+                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                <span className="font-semibold text-primary text-sm">{formatNaira(ms.amount)}</span>
+                                {ms.due_date && <span>Due: {new Date(ms.due_date).toLocaleDateString()}</span>}
+                                {ms.funded_at && <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-primary" /> Funded</span>}
+                                {ms.submitted_at && <span className="flex items-center gap-1"><Send className="h-3 w-3" /> Submitted</span>}
+                                {ms.approved_at && <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Approved</span>}
+                              </div>
+                              {/* Fee breakdown for funded/pending milestones */}
+                              {(ms.status === "pending" || ms.status === "funded") && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Fee: {feeInfo.rateLabel} → Expert gets {formatNaira(feeInfo.takeHome)}
+                                </p>
+                              )}
+                              {ms.status === "submitted" && ms.submission_notes && (
+                                <Button variant="link" size="sm" className="mt-2 p-0 h-auto text-primary" onClick={() => setShowSubmissionDetail(ms)}>
+                                  <Eye className="h-3 w-3 mr-1" /> View Submission
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {isClient && ms.status === "pending" && (
+                                <Button size="sm" onClick={() => handleMilestoneAction("fund_milestone", ms.id)} disabled={actionLoading}>
+                                  <DollarSign className="h-3 w-3 mr-1" /> Fund Milestone
+                                </Button>
+                              )}
+                              {isFreelancer && (ms.status === "funded" || ms.status === "in_progress") && (
+                                <Button size="sm" onClick={() => { setSelectedMilestoneId(ms.id); setShowSubmitDelivery(true); }} disabled={actionLoading}>
+                                  <Send className="h-3 w-3 mr-1" /> Submit Delivery
+                                </Button>
+                              )}
+                              {isClient && ms.status === "submitted" && (
+                                <div className="flex flex-col gap-1">
+                                  <Button size="sm" onClick={() => handleMilestoneAction("approve_release", ms.id)} disabled={actionLoading}>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" /> Approve & Release
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => { setSelectedMilestoneId(ms.id); setShowRejectDialog(true); }} disabled={actionLoading}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Reject
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setActiveTab("chat")}>
+                                    <MessageSquare className="h-3 w-3 mr-1" /> Feedback
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -336,12 +418,65 @@ export default function ContractDetail() {
               <ContractChat contractId={id!} partnerName={partner?.full_name || "User"} partnerAvatar={partner?.avatar_url} contractStatus={contract?.status} />
             </TabsContent>
 
+            {/* TRANSACTIONS TAB */}
+            <TabsContent value="transactions">
+              <div className="space-y-6">
+                {/* Escrow Ledger */}
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Escrow Ledger</h2>
+                  {escrowLedger.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">No escrow entries yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {escrowLedger.map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                          <div>
+                            <Badge variant={entry.status === "held" ? "default" : entry.status === "released" ? "secondary" : "destructive"}>
+                              {entry.status}
+                            </Badge>
+                            <p className="text-sm mt-1">
+                              Held: {formatNaira(entry.held_amount)}
+                              {entry.released_amount > 0 && ` → Released: ${formatNaira(entry.released_amount)}`}
+                            </p>
+                            {entry.platform_fee > 0 && <p className="text-xs text-muted-foreground">Fee: {formatNaira(entry.platform_fee)} | Expert: {formatNaira(entry.expert_amount)}</p>}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{format(new Date(entry.created_at), "PP")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Wallet Transactions */}
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> Transaction History</h2>
+                  {walletTransactions.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">No transactions for this contract.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {walletTransactions.map((txn) => (
+                        <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{txn.description}</p>
+                            <p className="text-xs text-muted-foreground">{txn.type} • {format(new Date(txn.created_at), "PPp")}</p>
+                          </div>
+                          <span className={`font-semibold text-sm ${txn.type === "escrow_lock" ? "text-destructive" : "text-primary"}`}>
+                            {txn.type === "escrow_lock" ? "-" : "+"}{formatNaira(txn.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
             {/* DISPUTES TAB */}
             <TabsContent value="disputes">
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Disputes</h2>
-                  {contract.status === "active" && (
+                  {(contract.status === "active" || contract.status === "submitted") && (
                     <Button size="sm" variant="destructive" onClick={() => setShowDispute(true)}><AlertTriangle className="h-4 w-4 mr-1" /> Raise Dispute</Button>
                   )}
                 </div>
@@ -431,8 +566,9 @@ export default function ContractDetail() {
           <DialogFooter>
             {isClient && showSubmissionDetail?.status === "submitted" && (
               <>
+                <Button variant="destructive" onClick={() => { setSelectedMilestoneId(showSubmissionDetail.id); setShowSubmissionDetail(null); setShowRejectDialog(true); }}><XCircle className="h-4 w-4 mr-1" /> Reject</Button>
                 <Button variant="outline" onClick={() => { setShowSubmissionDetail(null); setActiveTab("chat"); }}><MessageSquare className="h-4 w-4 mr-1" /> Feedback</Button>
-                <Button onClick={() => { handleMilestoneAction("approve_release", showSubmissionDetail.id); setShowSubmissionDetail(null); }} disabled={actionLoading}><CheckCircle2 className="h-4 w-4 mr-1" /> Approve</Button>
+                <Button onClick={() => { handleMilestoneAction("approve_release", showSubmissionDetail.id); setShowSubmissionDetail(null); }} disabled={actionLoading}><CheckCircle2 className="h-4 w-4 mr-1" /> Approve & Release</Button>
               </>
             )}
             {!isClient && <Button variant="outline" onClick={() => setShowSubmissionDetail(null)}>Close</Button>}
@@ -451,10 +587,34 @@ export default function ContractDetail() {
               <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" min="1" value={newMilestone.amount} onChange={(e) => setNewMilestone(p => ({ ...p, amount: e.target.value }))} /></div>
               <div className="space-y-2"><Label>Due Date</Label><Input type="date" value={newMilestone.due_date} onChange={(e) => setNewMilestone(p => ({ ...p, due_date: e.target.value }))} /></div>
             </div>
+            {newMilestone.amount && parseInt(newMilestone.amount) > 0 && (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
+                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({formatNaira(info.charge)}) → Expert gets <strong className="text-primary">{formatNaira(info.takeHome)}</strong></p>; })()}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddMilestone(false)}>Cancel</Button>
             <Button onClick={addMilestone} disabled={actionLoading}>{actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />} Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Milestone Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reject Milestone</DialogTitle><DialogDescription>The expert will be able to resubmit their work.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Rejection Reason *</Label>
+              <Textarea placeholder="Explain what needs to be fixed..." rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowRejectDialog(false); setRejectionReason(""); }}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectMilestone} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
