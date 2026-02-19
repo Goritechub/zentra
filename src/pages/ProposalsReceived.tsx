@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
   FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download
 } from "lucide-react";
+import { createNotification } from "@/lib/notifications";
 
 function formatDurationDisplay(days: number, unit?: string): string {
   const u = unit || "days";
@@ -87,6 +88,20 @@ export default function ProposalsReceivedPage() {
   };
 
   const updateProposalStatus = async (proposalId: string, status: string) => {
+    const proposal = proposals.find(p => p.id === proposalId);
+
+    // If interviewing, create a draft contract with chat thread
+    if (status === "interviewing" && proposal) {
+      await handleStartInterview(proposal);
+      return;
+    }
+
+    // If rejecting from interviewing, close the associated contract
+    if (status === "rejected" && proposal) {
+      await handleRejectProposal(proposal);
+      return;
+    }
+
     const { error } = await supabase
       .from("proposals")
       .update({ status } as any)
@@ -100,6 +115,122 @@ export default function ProposalsReceivedPage() {
         prev.map((p) => (p.id === proposalId ? { ...p, status } : p))
       );
     }
+  };
+
+  const handleStartInterview = async (proposal: any) => {
+    // Fetch job details for snapshot
+    const { data: jobData } = await supabase
+      .from("jobs")
+      .select("title, description, budget_min, budget_max, delivery_days, delivery_unit, attachments, required_skills, required_software")
+      .eq("id", proposal.job_id)
+      .single();
+
+    // Update proposal status
+    const { error: propError } = await supabase
+      .from("proposals")
+      .update({ status: "interviewing" } as any)
+      .eq("id", proposal.id);
+
+    if (propError) { toast.error("Failed to start interview"); return; }
+
+    // Create draft contract with "interviewing" status
+    const { data: contractData, error: contractError } = await supabase.from("contracts").insert({
+      job_id: proposal.job_id,
+      client_id: user!.id,
+      freelancer_id: proposal.freelancer_id,
+      proposal_id: proposal.id,
+      amount: proposal.bid_amount,
+      status: "interviewing" as any,
+      job_title: jobData?.title || proposal.job_title,
+      job_description: jobData?.description || null,
+      job_budget_min: jobData?.budget_min || null,
+      job_budget_max: jobData?.budget_max || null,
+      job_delivery_days: jobData?.delivery_days || null,
+      job_delivery_unit: jobData?.delivery_unit || "days",
+      job_attachments: jobData?.attachments || [],
+      accepted_cover_letter: proposal.cover_letter,
+      accepted_bid_amount: proposal.bid_amount,
+      accepted_attachments: proposal.attachments || [],
+      accepted_payment_type: proposal.payment_type || "project",
+    } as any).select().single();
+
+    if (contractError || !contractData) { toast.error("Failed to create interview contract"); return; }
+
+    // Seed system message
+    const jobTitle = jobData?.title || proposal.job_title || "a job";
+    await supabase.from("contract_messages").insert({
+      contract_id: contractData.id,
+      sender_id: user!.id,
+      content: `💬 Interview started for "${jobTitle}". Discuss the project details here.`,
+      is_system_message: true,
+    } as any);
+
+    // Seed cover letter as message
+    if (proposal.cover_letter) {
+      await supabase.from("contract_messages").insert({
+        contract_id: contractData.id,
+        sender_id: proposal.freelancer_id,
+        content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
+        is_system_message: true,
+      } as any);
+    }
+
+    // Send notification to expert
+    await createNotification({
+      userId: proposal.freelancer_id,
+      type: "interview_started",
+      title: "Interview Started",
+      message: `${profile?.full_name || "A client"} started an interview for "${jobTitle}"`,
+      contractId: contractData.id,
+    });
+
+    toast.success("Interview started! A chat thread has been created.");
+    setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "interviewing" } : p));
+    navigate(`/contract/${contractData.id}?tab=chat`);
+  };
+
+  const handleRejectProposal = async (proposal: any) => {
+    // Update proposal status
+    const { error: propError } = await supabase
+      .from("proposals")
+      .update({ status: "rejected" } as any)
+      .eq("id", proposal.id);
+
+    if (propError) { toast.error("Failed to reject proposal"); return; }
+
+    // Find and close the associated interview contract if any
+    const { data: contracts } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("proposal_id", proposal.id)
+      .eq("status", "interviewing" as any);
+
+    if (contracts?.length) {
+      for (const c of contracts) {
+        await supabase.from("contracts").update({ status: "rejected" as any } as any).eq("id", c.id);
+
+        // Post system message
+        await supabase.from("contract_messages").insert({
+          contract_id: c.id,
+          sender_id: user!.id,
+          content: `❌ This interview has been closed. The proposal was declined.`,
+          is_system_message: true,
+        } as any);
+      }
+    }
+
+    // Notify expert
+    const jobTitle = proposal.job_title || "a job";
+    await createNotification({
+      userId: proposal.freelancer_id,
+      type: "proposal_rejected",
+      title: "Proposal Declined",
+      message: `Your proposal for "${jobTitle}" was declined.`,
+      contractId: contracts?.[0]?.id || null,
+    });
+
+    toast.success("Proposal rejected");
+    setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "rejected" } : p));
   };
 
   const getRequiredAmount = (proposal: any) => {
@@ -142,34 +273,79 @@ export default function ProposalsReceivedPage() {
       return;
     }
 
-    // Create contract with snapshot data
-    const { data: contractData, error: contractError } = await supabase.from("contracts").insert({
-      job_id: proposal.job_id,
-      client_id: user.id,
-      freelancer_id: proposal.freelancer_id,
-      proposal_id: proposal.id,
-      amount: proposal.bid_amount,
-      status: "active",
-      // Snapshot job details
-      job_title: jobData?.title || proposal.job_title,
-      job_description: jobData?.description || null,
-      job_budget_min: jobData?.budget_min || null,
-      job_budget_max: jobData?.budget_max || null,
-      job_delivery_days: jobData?.delivery_days || null,
-      job_delivery_unit: jobData?.delivery_unit || "days",
-      job_attachments: jobData?.attachments || [],
-      // Snapshot proposal details
-      accepted_cover_letter: proposal.cover_letter,
-      accepted_bid_amount: proposal.bid_amount,
-      accepted_attachments: proposal.attachments || [],
-      accepted_payment_type: proposal.payment_type || "project",
-    } as any).select().single();
+    // Check if an interview contract already exists for this proposal
+    let contractData: any = null;
+    const { data: existingContracts } = await supabase
+      .from("contracts")
+      .select("*")
+      .eq("proposal_id", proposal.id)
+      .eq("status", "interviewing" as any);
 
-    if (contractError) {
-      toast.error("Failed to create contract");
-      setAssigning(false);
-      return;
+    if (existingContracts?.length) {
+      // Upgrade existing interview contract to active
+      const { data: updated, error: updateErr } = await supabase
+        .from("contracts")
+        .update({ status: "active" as any, started_at: new Date().toISOString() } as any)
+        .eq("id", existingContracts[0].id)
+        .select()
+        .single();
+      if (updateErr) { toast.error("Failed to activate contract"); setAssigning(false); return; }
+      contractData = updated;
+    } else {
+      // Create new contract
+      const { data: newContract, error: contractError } = await supabase.from("contracts").insert({
+        job_id: proposal.job_id,
+        client_id: user.id,
+        freelancer_id: proposal.freelancer_id,
+        proposal_id: proposal.id,
+        amount: proposal.bid_amount,
+        status: "active",
+        job_title: jobData?.title || proposal.job_title,
+        job_description: jobData?.description || null,
+        job_budget_min: jobData?.budget_min || null,
+        job_budget_max: jobData?.budget_max || null,
+        job_delivery_days: jobData?.delivery_days || null,
+        job_delivery_unit: jobData?.delivery_unit || "days",
+        job_attachments: jobData?.attachments || [],
+        accepted_cover_letter: proposal.cover_letter,
+        accepted_bid_amount: proposal.bid_amount,
+        accepted_attachments: proposal.attachments || [],
+        accepted_payment_type: proposal.payment_type || "project",
+      } as any).select().single();
+
+      if (contractError) {
+        toast.error("Failed to create contract");
+        setAssigning(false);
+        return;
+      }
+      contractData = newContract;
+
+      // Seed first contract messages for new contracts
+      const jobTitle = proposal.job_title || "a job";
+      await supabase.from("contract_messages").insert({
+        contract_id: contractData.id,
+        sender_id: user.id,
+        content: `🎉 Contract created for "${jobTitle}". Welcome aboard! Let's get started.`,
+        is_system_message: true,
+      } as any);
+
+      if (proposal.cover_letter) {
+        await supabase.from("contract_messages").insert({
+          contract_id: contractData.id,
+          sender_id: proposal.freelancer_id,
+          content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
+          is_system_message: true,
+        } as any);
+      }
     }
+
+    // Post system message about hiring
+    await supabase.from("contract_messages").insert({
+      contract_id: contractData.id,
+      sender_id: user.id,
+      content: `🎉 Congratulations! You have been hired for this project. The contract is now active.`,
+      is_system_message: true,
+    } as any);
 
     // Update job to in_progress
     await supabase.from("jobs").update({ status: "in_progress" }).eq("id", proposal.job_id);
@@ -218,24 +394,15 @@ export default function ProposalsReceivedPage() {
       });
     }
 
-    // Seed first contract message (system message with cover letter context)
+    // Send notification to expert
     const jobTitle = proposal.job_title || "a job";
-    await supabase.from("contract_messages").insert({
-      contract_id: contractData.id,
-      sender_id: user.id,
-      content: `🎉 Contract created for "${jobTitle}". Welcome aboard! Let's get started.`,
-      is_system_message: true,
-    } as any);
-
-    // Seed cover letter as second message from freelancer
-    if (proposal.cover_letter) {
-      await supabase.from("contract_messages").insert({
-        contract_id: contractData.id,
-        sender_id: proposal.freelancer_id,
-        content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
-        is_system_message: true,
-      } as any);
-    }
+    await createNotification({
+      userId: proposal.freelancer_id,
+      type: "hired",
+      title: "You've Been Hired! 🎉",
+      message: `Congratulations! You have been hired for "${jobTitle}".`,
+      contractId: contractData.id,
+    });
 
     toast.success("Expert assigned and contract created!");
     setAssignDialog({ open: false, proposal: null });

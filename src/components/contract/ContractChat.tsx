@@ -36,9 +36,11 @@ interface ContractChatProps {
   partnerName: string;
   partnerAvatar?: string | null;
   isRestricted?: boolean;
+  contractStatus?: string;
 }
 
-export function ContractChat({ contractId, partnerName, partnerAvatar, isRestricted }: ContractChatProps) {
+export function ContractChat({ contractId, partnerName, partnerAvatar, isRestricted, contractStatus }: ContractChatProps) {
+  const chatDisabled = isRestricted || ["rejected", "cancelled", "completed"].includes(contractStatus || "");
   const { user } = useAuth();
   const { messages, loading, sending, sendMessage } = useContractMessages(contractId);
   const [content, setContent] = useState("");
@@ -177,12 +179,17 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
       </ScrollArea>
 
       {/* Input */}
-      {isRestricted ? (
+      {chatDisabled ? (
         <div className="p-3 border-t">
-          <Alert variant="destructive">
+          <Alert variant={isRestricted ? "destructive" : "default"}>
             <ShieldAlert className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              Your account is temporarily restricted from messaging.
+              {isRestricted 
+                ? "Your account is temporarily restricted from messaging."
+                : contractStatus === "rejected" 
+                  ? "This interview has been closed. Messaging is disabled."
+                  : `This contract is ${contractStatus}. Messaging is no longer available.`
+              }
             </AlertDescription>
           </Alert>
         </div>
