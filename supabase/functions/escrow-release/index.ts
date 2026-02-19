@@ -188,15 +188,28 @@ serve(async (req) => {
       if (milestone.status !== "submitted")
         return jsonResponse({ error: "Milestone not submitted for approval" }, 400);
 
-      // Verify escrow ledger entry exists and is held
-      const { data: ledgerEntry } = await supabase.from("escrow_ledger")
+      // Verify escrow ledger entry exists and is held, or create one if missing
+      let { data: ledgerEntry } = await supabase.from("escrow_ledger")
         .select("*")
         .eq("milestone_id", milestone.id)
         .eq("status", "held")
         .single();
 
-      if (!ledgerEntry)
-        return jsonResponse({ error: "No escrow funds found for this milestone" }, 400);
+      // If no ledger entry exists (e.g. milestone funded before escrow tracking), create one
+      if (!ledgerEntry) {
+        const { data: newLedger, error: ledgerErr } = await supabase.from("escrow_ledger").insert({
+          contract_id: milestone.contract_id,
+          milestone_id: milestone.id,
+          held_amount: milestone.amount,
+          status: "held",
+        }).select().single();
+
+        if (ledgerErr || !newLedger) {
+          console.error("Failed to create escrow ledger entry:", ledgerErr);
+          return jsonResponse({ error: "Failed to create escrow tracking record" }, 500);
+        }
+        ledgerEntry = newLedger;
+      }
 
       const commissionRate = getCommissionRate(milestone.amount);
       const platformFee = Math.round(milestone.amount * commissionRate);
