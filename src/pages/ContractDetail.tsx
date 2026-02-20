@@ -207,13 +207,13 @@ export default function ContractDetail() {
           <div className="bg-card rounded-xl border border-border p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
+                <Avatar className="h-12 w-12 cursor-pointer" onClick={() => navigate(`/expert/${partner?.id}/profile`)}>
                   <AvatarImage src={partner?.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary">{(partner?.full_name || "U")[0]}</AvatarFallback>
                 </Avatar>
                 <div>
                   <h1 className="text-xl font-bold text-foreground">{contract.job_title || "Contract"}</h1>
-                  <p className="text-sm text-muted-foreground">with {partner?.full_name || "User"}</p>
+                  <p className="text-sm text-muted-foreground">with <span className="text-primary hover:underline cursor-pointer" onClick={() => navigate(`/expert/${partner?.id}/profile`)}>{partner?.full_name || "User"}</span></p>
                   {contract.started_at && <p className="text-xs text-muted-foreground">Started {formatDistanceToNow(new Date(contract.started_at), { addSuffix: true })}</p>}
                 </div>
               </div>

@@ -134,7 +134,7 @@ export default function FreelancersPage() {
             {filtered.map((f) => {
               const p = f.profile;
               return (
-                <div key={f.id} className="group bg-card rounded-xl border border-border p-6 card-hover">
+                <div key={f.id} className="group bg-card rounded-xl border border-border p-6 card-hover cursor-pointer" onClick={() => navigate(`/expert/${f.user_id}/profile`)}>
                   <div className="flex items-start justify-between mb-4">
                     <Avatar className="h-16 w-16 border-2 border-background shadow-lg">
                       <AvatarImage src={p?.avatar_url || undefined} />
