@@ -224,9 +224,9 @@ export default function ContractDetail() {
             </div>
           </div>
 
-          {/* Escrow Summary Cards */}
+          {/* Escrow Summary Cards - clients only see held/released, experts see fees too */}
           {(totalHeld > 0 || totalReleased > 0) && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className={`grid grid-cols-1 gap-4 mb-6 ${isFreelancer ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
               <div className="bg-card rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="h-4 w-4 text-primary" />
@@ -241,13 +241,15 @@ export default function ContractDetail() {
                 </div>
                 <p className="text-xl font-bold text-foreground">{formatNaira(totalReleased)}</p>
               </div>
-              <div className="bg-card rounded-xl border border-border p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">Platform Fees</span>
+              {isFreelancer && (
+                <div className="bg-card rounded-xl border border-border p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Platform Fees</span>
+                  </div>
+                  <p className="text-xl font-bold text-muted-foreground">{formatNaira(totalFees)}</p>
                 </div>
-                <p className="text-xl font-bold text-muted-foreground">{formatNaira(totalFees)}</p>
-              </div>
+              )}
             </div>
           )}
 
@@ -349,14 +351,14 @@ export default function ContractDetail() {
                       <span>Bid: <strong className="text-primary">{formatNaira(contract.accepted_bid_amount || contract.amount)}</strong></span>
                       <span>Payment: <strong className="text-foreground">{contract.accepted_payment_type === "milestone" ? "Milestone" : "Project"}</strong></span>
                     </div>
-                    {/* Fee preview */}
-                    {(() => {
+                    {/* Fee preview - expert only */}
+                    {isFreelancer && (() => {
                       const amt = contract.accepted_bid_amount || contract.amount;
                       const { rateLabel, charge, takeHome } = calculateServiceCharge(amt);
                       return (
                         <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
                           <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({formatNaira(charge)})</p>
-                          <p className="text-muted-foreground">Expert receives: <strong className="text-primary">{formatNaira(takeHome)}</strong></p>
+                          <p className="text-muted-foreground">You receive: <strong className="text-primary">{formatNaira(takeHome)}</strong></p>
                         </div>
                       );
                     })()}
@@ -425,10 +427,10 @@ export default function ContractDetail() {
                                 {ms.submitted_at && <span className="flex items-center gap-1"><Send className="h-3 w-3" /> Submitted</span>}
                                 {ms.approved_at && <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Approved</span>}
                               </div>
-                              {/* Fee breakdown for funded/pending milestones */}
-                              {(ms.status === "pending" || ms.status === "funded") && (
+                              {/* Fee breakdown - expert view only */}
+                              {isFreelancer && (ms.status === "pending" || ms.status === "funded") && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Fee: {feeInfo.rateLabel} → Expert gets {formatNaira(feeInfo.takeHome)}
+                                  Fee: {feeInfo.rateLabel} → You get {formatNaira(feeInfo.takeHome)}
                                 </p>
                               )}
                               {ms.status === "submitted" && ms.submission_notes && (
@@ -496,7 +498,9 @@ export default function ContractDetail() {
                               Held: {formatNaira(entry.held_amount)}
                               {entry.released_amount > 0 && ` → Released: ${formatNaira(entry.released_amount)}`}
                             </p>
-                            {entry.platform_fee > 0 && <p className="text-xs text-muted-foreground">Fee: {formatNaira(entry.platform_fee)} | Expert: {formatNaira(entry.expert_amount)}</p>}
+                            {isFreelancer && entry.platform_fee > 0 && (
+                              <p className="text-xs text-muted-foreground">Fee: {formatNaira(entry.platform_fee)} | You receive: {formatNaira(entry.expert_amount)}</p>
+                            )}
                           </div>
                           <span className="text-xs text-muted-foreground">{format(new Date(entry.created_at), "PP")}</span>
                         </div>
@@ -675,9 +679,9 @@ export default function ContractDetail() {
               <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" min="1" value={newMilestone.amount} onChange={(e) => setNewMilestone(p => ({ ...p, amount: e.target.value }))} /></div>
               <div className="space-y-2"><Label>Due Date</Label><Input type="date" value={newMilestone.due_date} onChange={(e) => setNewMilestone(p => ({ ...p, due_date: e.target.value }))} /></div>
             </div>
-            {newMilestone.amount && parseInt(newMilestone.amount) > 0 && (
+            {newMilestone.amount && parseInt(newMilestone.amount) > 0 && isFreelancer && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({formatNaira(info.charge)}) → Expert gets <strong className="text-primary">{formatNaira(info.takeHome)}</strong></p>; })()}
+                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({formatNaira(info.charge)}) → You receive <strong className="text-primary">{formatNaira(info.takeHome)}</strong></p>; })()}
               </div>
             )}
           </div>

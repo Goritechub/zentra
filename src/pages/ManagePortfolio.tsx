@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -11,7 +11,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cadSoftwareList } from "@/lib/nigerian-data";
-import { ArrowLeft, Loader2, Plus, Trash2, ImageIcon, X } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, ImageIcon, X, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+
+function ImageCarousel({ images }: { images: string[] }) {
+  const [idx, setIdx] = useState(0);
+  if (!images || images.length === 0) return null;
+  return (
+    <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden mb-3 group">
+      <img src={images[idx]} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" />
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={() => setIdx(i => (i - 1 + images.length) % images.length)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setIdx(i => (i + 1) % images.length)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, i) => (
+              <button key={i} onClick={() => setIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/50"}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function ManagePortfolioPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -19,6 +50,7 @@ export default function ManagePortfolioPage() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // New item form
   const [showForm, setShowForm] = useState(false);
@@ -27,6 +59,8 @@ export default function ManagePortfolioPage() {
   const [projectType, setProjectType] = useState("");
   const [softwareUsed, setSoftwareUsed] = useState<string[]>([]);
   const [swSearch, setSwSearch] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -57,24 +91,62 @@ export default function ManagePortfolioPage() {
     if (user) fetchPortfolio();
   }, [user, fetchPortfolio]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(f =>
+      ["jpg", "jpeg", "png", "webp"].includes(f.name.split(".").pop()?.toLowerCase() || "")
+    );
+    const combined = [...imageFiles, ...files].slice(0, 5);
+    setImageFiles(combined);
+    // Generate previews
+    const previews: string[] = [];
+    combined.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        previews.push(ev.target?.result as string);
+        if (previews.length === combined.length) setImagePreviews([...previews]);
+      };
+      reader.readAsDataURL(file);
+    });
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const removeImage = (idx: number) => {
+    setImageFiles(f => f.filter((_, i) => i !== idx));
+    setImagePreviews(p => p.filter((_, i) => i !== idx));
+  };
+
   const handleAdd = async () => {
     if (!profileId || !title.trim()) {
       toast.error("Please enter a title");
       return;
     }
     setSaving(true);
+
+    // Upload images
+    const uploadedUrls: string[] = [];
+    for (const file of imageFiles) {
+      const path = `portfolio/${user!.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from("contract-attachments").upload(path, file);
+      if (!error) {
+        const { data } = supabase.storage.from("contract-attachments").getPublicUrl(path);
+        uploadedUrls.push(data.publicUrl);
+      }
+    }
+
     const { error } = await supabase.from("portfolio_items").insert({
       freelancer_profile_id: profileId,
       title: title.trim(),
       description: description.trim() || null,
       project_type: projectType.trim() || null,
       software_used: softwareUsed,
+      images: uploadedUrls,
     });
     if (error) {
       toast.error("Failed to add portfolio item");
     } else {
       toast.success("Portfolio item added!");
-      setTitle(""); setDescription(""); setProjectType(""); setSoftwareUsed([]); setShowForm(false);
+      setTitle(""); setDescription(""); setProjectType(""); setSoftwareUsed([]);
+      setImageFiles([]); setImagePreviews([]); setShowForm(false);
       fetchPortfolio();
     }
     setSaving(false);
@@ -173,8 +245,39 @@ export default function ManagePortfolioPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Image Upload */}
+                <div className="space-y-2">
+                  <Label>Project Images <span className="text-muted-foreground text-xs">(up to 5)</span></Label>
+                  <input ref={imageInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageFiles.length >= 5}
+                  >
+                    <Upload className="h-4 w-4 mr-2" /> Upload Images
+                  </Button>
+                  {imagePreviews.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {imagePreviews.map((src, i) => (
+                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                          <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => removeImage(i)}
+                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => { setShowForm(false); setImageFiles([]); setImagePreviews([]); }}>Cancel</Button>
                   <Button onClick={handleAdd} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     Add Item
@@ -196,8 +299,9 @@ export default function ManagePortfolioPage() {
             <div className="space-y-4">
               {items.map(item => (
                 <div key={item.id} className="bg-card rounded-xl border border-border p-6">
+                  <ImageCarousel images={item.images || []} />
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-foreground">{item.title}</h3>
                       {item.project_type && <p className="text-sm text-primary mt-1">{item.project_type}</p>}
                       {item.description && <p className="text-sm text-muted-foreground mt-2">{item.description}</p>}
@@ -205,6 +309,9 @@ export default function ManagePortfolioPage() {
                         <div className="flex flex-wrap gap-1 mt-3">
                           {item.software_used.map((sw: string) => <Badge key={sw} variant="outline" className="text-xs">{sw}</Badge>)}
                         </div>
+                      )}
+                      {item.images?.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-2">{item.images.length} image{item.images.length !== 1 ? "s" : ""}</p>
                       )}
                     </div>
                     <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}>

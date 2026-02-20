@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { 
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, Loader2, ArrowRight, Trophy, Send, Heart, ShoppingBag,
-  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon, Award
+  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon, Award, Inbox
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -188,6 +188,7 @@ export default function DashboardPage() {
                       { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
                       { icon: Wrench, label: "Manage Skills", to: "/manage-skills", desc: "Add or update skills" },
                       { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
+                      { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
                       { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
                       { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },
                       { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions" },
