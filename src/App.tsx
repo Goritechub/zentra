@@ -54,6 +54,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/expert/:id" element={<ExpertProfile />} />
+            <Route path="/expert/:id/profile" element={<ExpertProfile />} />
 
             {/* Authenticated routes */}
             <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard></AuthGuard>} />

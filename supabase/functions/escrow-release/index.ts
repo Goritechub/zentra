@@ -263,7 +263,7 @@ serve(async (req) => {
           type: "escrow_release",
           amount: expertAmount,
           balance_after: (flWallet?.balance || 0) + expertAmount,
-          description: `Payment received: ${milestone.title} (after ${(commissionRate * 100).toFixed(0)}% fee)`,
+          description: `Payment received: ${milestone.title}`,
           contract_id: milestone.contract_id,
           milestone_id: milestone.id,
         },
@@ -302,11 +302,11 @@ serve(async (req) => {
         `${formatAmount(expertAmount)} has been released to your wallet for milestone "${milestone.title}" (${(commissionRate * 100).toFixed(0)}% platform fee applied).`,
         milestone.contract_id);
 
-      // System message
+      // System message (no fee details - visible to both parties)
       await supabase.from("contract_messages").insert({
         contract_id: milestone.contract_id,
         sender_id: user.id,
-        content: `✅ Milestone "${milestone.title}" approved. ${formatAmount(expertAmount)} released to expert (${(commissionRate * 100).toFixed(0)}% fee: ${formatAmount(platformFee)}).`,
+        content: `✅ Milestone "${milestone.title}" approved. ${formatAmount(milestone.amount)} has been released.`,
         is_system_message: true,
       });
 
