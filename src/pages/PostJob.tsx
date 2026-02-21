@@ -9,11 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from
+"@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from
+"@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ export default function PostJobPage() {
 
   // Visibility & invitations
   const [visibility, setVisibility] = useState<JobVisibility>("public");
-  const [invitedExperts, setInvitedExperts] = useState<{ id: string; full_name: string }[]>([]);
+  const [invitedExperts, setInvitedExperts] = useState<{id: string;full_name: string;}[]>([]);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [expertSearch, setExpertSearch] = useState("");
   const [expertResults, setExpertResults] = useState<any[]>([]);
@@ -84,28 +84,28 @@ export default function PostJobPage() {
 
   const searchExperts = async (query: string) => {
     setExpertSearch(query);
-    if (query.length < 2) { setExpertResults([]); return; }
+    if (query.length < 2) {setExpertResults([]);return;}
     setSearchingExperts(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, avatar_url")
-      .eq("role", "freelancer")
-      .ilike("full_name", `%${query}%`)
-      .limit(10);
-    setExpertResults((data || []).filter(e => !invitedExperts.find(ie => ie.id === e.id)));
+    const { data } = await supabase.
+    from("profiles").
+    select("id, full_name, avatar_url").
+    eq("role", "freelancer").
+    ilike("full_name", `%${query}%`).
+    limit(10);
+    setExpertResults((data || []).filter((e) => !invitedExperts.find((ie) => ie.id === e.id)));
     setSearchingExperts(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => {
+    const allowed = files.filter((f) => {
       const ext = f.name.split('.').pop()?.toLowerCase();
       return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
     });
     if (allowed.length < files.length) {
       toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
     }
-    setAttachments(prev => [...prev, ...allowed].slice(0, 5));
+    setAttachments((prev) => [...prev, ...allowed].slice(0, 5));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -133,7 +133,7 @@ export default function PostJobPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { navigate("/auth"); return; }
+    if (!user) {navigate("/auth");return;}
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required");
       return;
@@ -170,14 +170,14 @@ export default function PostJobPage() {
       delivery_unit: deliveryUnit,
       is_remote: locationType === "remote",
       is_hourly: isHourly,
-      state: locationType === "physical" ? (state || null) : null,
-      city: locationType === "physical" ? (city || null) : null,
+      state: locationType === "physical" ? state || null : null,
+      city: locationType === "physical" ? city || null : null,
       required_skills: selectedSkills,
       required_software: selectedSoftware,
       skill_level: overallSkillLevel,
       attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
       visibility,
-      invited_expert_ids: invitedExperts.map(e => e.id),
+      invited_expert_ids: invitedExperts.map((e) => e.id)
     } as any);
 
     if (error) {
@@ -201,8 +201,8 @@ export default function PostJobPage() {
           </div>
         </div>
         <Footer />
-      </div>
-    );
+      </div>);
+
   }
 
   const levels: SkillLevel[] = ["Beginner", "Intermediate", "Advanced"];
@@ -252,22 +252,22 @@ export default function PostJobPage() {
               <div className="space-y-2">
                 <Label>Invite Experts {visibility === "private" && <span className="text-destructive">*</span>}</Label>
                 <p className="text-xs text-muted-foreground">
-                  {visibility === "public"
-                    ? "Optionally invite experts. The job will still be visible to all, but invited experts will be highlighted."
-                    : "Only invited experts can see and bid on this job."}
+                  {visibility === "public" ?
+                  "Optionally invite experts. The job will still be visible to all, but invited experts will be highlighted." :
+                  "Only invited experts can see and bid on this job."}
                 </p>
-                {invitedExperts.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {invitedExperts.map(e => (
-                      <Badge key={e.id} variant="secondary" className="gap-1 pr-1">
+                {invitedExperts.length > 0 &&
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {invitedExperts.map((e) =>
+                  <Badge key={e.id} variant="secondary" className="gap-1 pr-1">
                         {e.full_name}
-                        <button type="button" onClick={() => setInvitedExperts(invitedExperts.filter(x => x.id !== e.id))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
+                        <button type="button" onClick={() => setInvitedExperts(invitedExperts.filter((x) => x.id !== e.id))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
-                    ))}
+                  )}
                   </div>
-                )}
+                }
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowInviteDialog(true)}>
                   <UserPlus className="h-4 w-4 mr-2" /> Invite Experts
                 </Button>
@@ -282,46 +282,46 @@ export default function PostJobPage() {
                 <Select onValueChange={addSkill}>
                   <SelectTrigger><SelectValue placeholder="Add a skill" /></SelectTrigger>
                   <SelectContent>
-                    {cadSkills.filter(s => !selectedSkills.includes(s)).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    {cadSkills.filter((s) => !selectedSkills.includes(s)).map((s) =>
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
-                {selectedSkills.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedSkills.map(s => (
-                      <Badge key={s} variant="secondary" className="gap-1 pr-1">
+                {selectedSkills.length > 0 &&
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSkills.map((s) =>
+                  <Badge key={s} variant="secondary" className="gap-1 pr-1">
                         {s}
-                        <button type="button" onClick={() => setSelectedSkills(selectedSkills.filter(x => x !== s))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
+                        <button type="button" onClick={() => setSelectedSkills(selectedSkills.filter((x) => x !== s))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
-                    ))}
+                  )}
                   </div>
-                )}
+                }
               </div>
               <div className="space-y-2">
                 <Label>Required Software</Label>
                 <Select onValueChange={addSoftware}>
                   <SelectTrigger><SelectValue placeholder="Add software" /></SelectTrigger>
                   <SelectContent>
-                    {cadSoftwareList.filter(s => !selectedSoftware.includes(s)).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    {cadSoftwareList.filter((s) => !selectedSoftware.includes(s)).map((s) =>
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
-                {selectedSoftware.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedSoftware.map(s => (
-                      <Badge key={s} variant="secondary" className="gap-1 pr-1">
+                {selectedSoftware.length > 0 &&
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSoftware.map((s) =>
+                  <Badge key={s} variant="secondary" className="gap-1 pr-1">
                         {s}
-                        <button type="button" onClick={() => setSelectedSoftware(selectedSoftware.filter(x => x !== s))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
+                        <button type="button" onClick={() => setSelectedSoftware(selectedSoftware.filter((x) => x !== s))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
-                    ))}
+                  )}
                   </div>
-                )}
+                }
               </div>
               {/* Skill Level Required */}
               <div className="space-y-2">
@@ -330,7 +330,7 @@ export default function PostJobPage() {
                 <Select value={overallSkillLevel} onValueChange={(v) => setOverallSkillLevel(v as SkillLevel)}>
                   <SelectTrigger><SelectValue placeholder="Select skill level" /></SelectTrigger>
                   <SelectContent>
-                    {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                    {levels.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -349,11 +349,11 @@ export default function PostJobPage() {
                   <Input type="number" placeholder="e.g. 500000" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} />
                 </div>
               </div>
-              {!budgetMin && !budgetMax && (
-                <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              {!budgetMin && !budgetMax &&
+              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
                   💡 No budget set — this job will be listed as <span className="font-semibold text-foreground">Negotiable</span>.
                 </p>
-              )}
+              }
               <div className="space-y-2">
                 <Label>Delivery Timeline</Label>
                 <div className="flex gap-2">
@@ -366,8 +366,8 @@ export default function PostJobPage() {
                       const val = e.target.value;
                       if (val === "" || parseInt(val) >= 1) setDeliveryValue(val);
                     }}
-                    className="flex-1"
-                  />
+                    className="flex-1" />
+
                   <Select value={deliveryUnit} onValueChange={(v) => setDeliveryUnit(v as DurationUnit)}>
                     <SelectTrigger className="w-[120px]">
                       <SelectValue />
@@ -380,12 +380,12 @@ export default function PostJobPage() {
                   </Select>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="hourly-rate" checked={isHourly} onChange={(e) => setIsHourly(e.target.checked)} className="rounded border-border" />
-                  <Label htmlFor="hourly-rate">Hourly Rate</Label>
-                </div>
-              </div>
+              
+
+
+
+
+
             </div>
 
             {/* Location */}
@@ -401,14 +401,14 @@ export default function PostJobPage() {
                   <Label htmlFor="loc-physical" className="cursor-pointer">Physical Location</Label>
                 </div>
               </RadioGroup>
-              {locationType === "physical" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {locationType === "physical" &&
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>State</Label>
-                    <Select value={state} onValueChange={(v) => { setState(v); setCity(""); }}>
+                    <Select value={state} onValueChange={(v) => {setState(v);setCity("");}}>
                       <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
                       <SelectContent>
-                        {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {states.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -417,12 +417,12 @@ export default function PostJobPage() {
                     <Select value={city} onValueChange={setCity} disabled={!state}>
                       <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
                       <SelectContent>
-                        {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        {cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-              )}
+              }
             </div>
 
             {/* Attachments */}
@@ -435,23 +435,23 @@ export default function PostJobPage() {
                 multiple
                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
                 className="hidden"
-                onChange={handleFileChange}
-              />
+                onChange={handleFileChange} />
+
               <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={attachments.length >= 5}>
                 <Paperclip className="h-4 w-4 mr-2" /> Add Files
               </Button>
-              {attachments.length > 0 && (
-                <div className="space-y-2">
-                  {attachments.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
+              {attachments.length > 0 &&
+              <div className="space-y-2">
+                  {attachments.map((file, idx) =>
+                <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
                       <span className="text-sm flex-1 truncate">{file.name}</span>
                       <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
                       <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} />
                     </div>
-                  ))}
+                )}
                 </div>
-              )}
+              }
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={loading || uploading}>
@@ -473,7 +473,7 @@ export default function PostJobPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNegotiableConfirm(false)}>Go Back & Set Budget</Button>
-            <Button onClick={() => { setShowNegotiableConfirm(false); document.querySelector<HTMLFormElement>("form")?.requestSubmit(); }}>
+            <Button onClick={() => {setShowNegotiableConfirm(false);document.querySelector<HTMLFormElement>("form")?.requestSubmit();}}>
               Post as Negotiable
             </Button>
           </DialogFooter>
@@ -493,45 +493,45 @@ export default function PostJobPage() {
               <Input placeholder="Search by name..." className="pl-9" value={expertSearch} onChange={(e) => searchExperts(e.target.value)} />
             </div>
             {searchingExperts && <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>}
-            {expertResults.length > 0 && (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {expertResults.map(e => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    className="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors flex items-center justify-between"
-                    onClick={() => {
-                      setInvitedExperts([...invitedExperts, { id: e.id, full_name: e.full_name }]);
-                      setExpertResults(expertResults.filter(x => x.id !== e.id));
-                    }}
-                  >
+            {expertResults.length > 0 &&
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+                {expertResults.map((e) =>
+              <button
+                key={e.id}
+                type="button"
+                className="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors flex items-center justify-between"
+                onClick={() => {
+                  setInvitedExperts([...invitedExperts, { id: e.id, full_name: e.full_name }]);
+                  setExpertResults(expertResults.filter((x) => x.id !== e.id));
+                }}>
+
                     <span className="text-sm font-medium">{e.full_name}</span>
                     <Plus className="h-4 w-4 text-muted-foreground" />
                   </button>
-                ))}
+              )}
               </div>
-            )}
-            {invitedExperts.length > 0 && (
-              <div>
+            }
+            {invitedExperts.length > 0 &&
+            <div>
                 <p className="text-xs text-muted-foreground mb-2">Invited ({invitedExperts.length}):</p>
                 <div className="flex flex-wrap gap-2">
-                  {invitedExperts.map(e => (
-                    <Badge key={e.id} variant="default" className="gap-1 pr-1">
+                  {invitedExperts.map((e) =>
+                <Badge key={e.id} variant="default" className="gap-1 pr-1">
                       {e.full_name}
-                      <button type="button" onClick={() => setInvitedExperts(invitedExperts.filter(x => x.id !== e.id))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
+                      <button type="button" onClick={() => setInvitedExperts(invitedExperts.filter((x) => x.id !== e.id))} className="ml-1 rounded-full hover:bg-primary-foreground/20 p-0.5">
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
-                  ))}
+                )}
                 </div>
               </div>
-            )}
+            }
           </div>
           <DialogFooter>
             <Button onClick={() => setShowInviteDialog(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
