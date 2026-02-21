@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ type JobVisibility = "public" | "private";
 
 export default function PostJobPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,16 @@ export default function PostJobPage() {
 
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
+
+  // Pre-select invited expert from URL params
+  useEffect(() => {
+    const inviteId = searchParams.get("invite");
+    const inviteName = searchParams.get("name");
+    if (inviteId && inviteName) {
+      setVisibility("private");
+      setInvitedExperts([{ id: inviteId, full_name: decodeURIComponent(inviteName) }]);
+    }
+  }, [searchParams]);
 
   const states = getAllStates();
   const cities = state ? getCitiesByState(state) : [];
