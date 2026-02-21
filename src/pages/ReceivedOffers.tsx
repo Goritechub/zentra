@@ -15,7 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   Inbox, Loader2, ArrowLeft, MapPin, Clock, CheckCircle2, XCircle,
-  MessageSquare, Lock, DollarSign, Calendar
+  Lock, DollarSign, Calendar
 } from "lucide-react";
 
 export default function ReceivedOffersPage() {
@@ -25,7 +25,6 @@ export default function ReceivedOffersPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [selected, setSelected] = useState<any>(null);
-  const [showAccept, setShowAccept] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
 
   useEffect(() => {
@@ -83,38 +82,9 @@ export default function ReceivedOffersPage() {
     setLoading(false);
   };
 
-  const handleAccept = async () => {
-    if (!selected || !user) return;
-    setActionLoading(true);
-    try {
-      if (selected._type === "direct_offer") {
-        // Update offer status
-        await supabase.from("offers" as any).update({ status: "accepted" }).eq("id", selected.id);
-        toast.success("Offer accepted! The client will be notified.");
-        await supabase.from("notifications").insert({
-          user_id: selected.client_id,
-          title: "Offer Accepted",
-          message: `${user.email} accepted your offer: "${selected.title}"`,
-          type: "offer_accepted",
-        });
-      } else {
-        // Private job: create a proposal or contract (just notify client)
-        await supabase.from("notifications").insert({
-          user_id: selected.client_id,
-          title: "Private Offer Accepted",
-          message: `An expert accepted your private job: "${selected.title}". You can now hire them.`,
-          type: "offer_accepted",
-        });
-        toast.success("Job offer accepted! The client will be notified to start the contract.");
-      }
-      await fetchOffers();
-      setShowAccept(false);
-      setSelected(null);
-    } catch {
-      toast.error("Failed to accept offer");
-    }
-    setActionLoading(false);
-  };
+  // Accept handler removed — Accept now navigates to /job/:id/apply
+
+
 
   const handleDecline = async () => {
     if (!selected || !user) return;
@@ -123,7 +93,14 @@ export default function ReceivedOffersPage() {
       if (selected._type === "direct_offer") {
         await supabase.from("offers" as any).update({ status: "rejected" }).eq("id", selected.id);
       }
-      // For private jobs, we don't remove from invited list but we can record via notification
+      // For private jobs, remove expert from invited list
+      if (selected._type === "job_offer") {
+        const { data: job } = await supabase.from("jobs").select("invited_expert_ids").eq("id", selected.job_id).single();
+        if (job?.invited_expert_ids) {
+          const updated = (job.invited_expert_ids as string[]).filter((id: string) => id !== user.id);
+          await supabase.from("jobs").update({ invited_expert_ids: updated }).eq("id", selected.job_id);
+        }
+      }
       await supabase.from("notifications").insert({
         user_id: selected.client_id,
         title: "Offer Declined",
@@ -228,15 +205,8 @@ export default function ReceivedOffersPage() {
 
           {offer.status === "pending" && (
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button size="sm" onClick={() => { setSelected(offer); setShowAccept(true); }}>
+              <Button size="sm" onClick={() => navigate(`/job/${offer._type === "job_offer" ? offer.job_id : offer.job_id || offer.id}/apply`)}>
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Accept
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate(`/messages?user=${offer.client_id}`)}
-              >
-                <MessageSquare className="h-3.5 w-3.5 mr-1" /> Discuss Details
               </Button>
               <Button
                 size="sm"
@@ -314,25 +284,6 @@ export default function ReceivedOffersPage() {
         </div>
       </main>
       <Footer />
-
-      {/* Accept Confirm Dialog */}
-      <Dialog open={showAccept} onOpenChange={setShowAccept}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Accept Offer</DialogTitle>
-            <DialogDescription>
-              You're accepting "{selected?.title}" from {selected?.client?.full_name}. The client will be notified to proceed with the contract.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAccept(false)}>Cancel</Button>
-            <Button onClick={handleAccept} disabled={actionLoading}>
-              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Accept Offer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Decline Confirm Dialog */}
       <Dialog open={showDecline} onOpenChange={setShowDecline}>
