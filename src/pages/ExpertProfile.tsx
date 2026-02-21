@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Star, MapPin, CheckCircle2, ArrowLeft, MessageSquare, ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
+import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
@@ -42,13 +42,85 @@ function PortfolioCarousel({ images }: { images: string[] }) {
   );
 }
 
+function RatingDisplay({ rating, reviewCount }: { rating: number | null; reviewCount: number }) {
+  const displayRating = reviewCount > 0 ? (rating || 0) : 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star key={i} className={`h-3.5 w-3.5 ${i < Math.round(displayRating) ? "fill-accent text-accent" : "text-muted"}`} />
+        ))}
+      </div>
+      <span className="text-sm font-medium">{displayRating > 0 ? displayRating.toFixed(1) : "0.0"}</span>
+      <span className="text-xs text-muted-foreground">({reviewCount} {reviewCount === 1 ? "rating" : "ratings"})</span>
+    </div>
+  );
+}
+
+function ContractsCarousel({ contracts }: { contracts: any[] }) {
+  const [idx, setIdx] = useState(0);
+  if (!contracts || contracts.length === 0) return null;
+  const c = contracts[idx];
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-muted/50 rounded-lg border border-border p-5 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-foreground truncate">{c.job_title || "Untitled Contract"}</h4>
+            {c.job_category && <p className="text-xs text-primary mt-0.5">{c.job_category}</p>}
+          </div>
+          <Badge variant={c.status === "completed" ? "default" : "secondary"} className="shrink-0 ml-2 capitalize text-xs">
+            {c.status}
+          </Badge>
+        </div>
+        {c.job_description && (
+          <p className="text-sm text-muted-foreground line-clamp-2">{c.job_description}</p>
+        )}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>Amount: <span className="font-medium text-foreground">{formatNaira(c.amount)}</span></span>
+          {c.started_at && <span>Started: {new Date(c.started_at).toLocaleDateString()}</span>}
+          {c.completed_at && <span>Completed: {new Date(c.completed_at).toLocaleDateString()}</span>}
+        </div>
+        {/* Show rating for this contract if exists */}
+        {c.review && (
+          <div className="border-t border-border pt-3 mt-2">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className={`h-3 w-3 ${i < c.review.rating ? "fill-accent text-accent" : "text-muted"}`} />
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">by {c.review.reviewer_name || "Client"}</span>
+            </div>
+            {c.review.comment && <p className="text-xs text-muted-foreground mt-1">{c.review.comment}</p>}
+          </div>
+        )}
+      </div>
+      {contracts.length > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <button onClick={() => setIdx(i => (i - 1 + contracts.length) % contracts.length)} className="p-1.5 rounded-full border border-border hover:bg-muted transition-colors">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-xs text-muted-foreground">{idx + 1} of {contracts.length}</span>
+          <button onClick={() => setIdx(i => (i + 1) % contracts.length)} className="p-1.5 rounded-full border border-border hover:bg-muted transition-colors">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ExpertProfile() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [pastContracts, setPastContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [showRateDialog, setShowRateDialog] = useState(false);
@@ -77,6 +149,39 @@ export default function ExpertProfile() {
 
       setReviews(reviewsRes.data || []);
 
+      // Fetch past contracts for this expert (completed/active)
+      const { data: contractsData } = await supabase
+        .from("contracts")
+        .select("id, job_title, job_description, job_category, amount, status, started_at, completed_at")
+        .eq("freelancer_id", id)
+        .in("status", ["completed", "active"])
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (contractsData && contractsData.length > 0) {
+        // Fetch reviews for these contracts
+        const contractIds = contractsData.map(c => c.id);
+        const { data: contractReviews } = await supabase
+          .from("reviews")
+          .select("contract_id, rating, comment, reviewer:profiles!reviews_reviewer_id_fkey(full_name)")
+          .eq("reviewee_id", id)
+          .in("contract_id", contractIds);
+
+        const reviewMap = new Map();
+        (contractReviews || []).forEach(r => {
+          reviewMap.set(r.contract_id, {
+            rating: r.rating,
+            comment: r.comment,
+            reviewer_name: (r.reviewer as any)?.full_name,
+          });
+        });
+
+        setPastContracts(contractsData.map(c => ({
+          ...c,
+          review: reviewMap.get(c.id) || null,
+        })));
+      }
+
       // Check if viewing client has completed a contract with this expert
       if (user && user.id !== id) {
         const { data: contractData } = await supabase
@@ -87,7 +192,6 @@ export default function ExpertProfile() {
           .eq("status", "completed")
           .limit(1);
         if (contractData && contractData.length > 0) {
-          // Check if already reviewed
           const { data: existingReview } = await supabase
             .from("reviews")
             .select("id")
@@ -121,7 +225,6 @@ export default function ExpertProfile() {
     if (error) {
       toast.error("Failed to submit rating");
     } else {
-      // Update expert's average rating
       const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", id!);
       if (allReviews && allReviews.length > 0) {
         const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
@@ -169,6 +272,8 @@ export default function ExpertProfile() {
     );
   }
 
+  const isClient = authProfile?.role === "client";
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -203,16 +308,27 @@ export default function ExpertProfile() {
                     </Badge>
                   )}
 
-                  {user && user.id !== id && (
-                    <Button className="w-full mt-4" asChild>
+                  {/* Rating under name */}
+                  <div className="mt-3 flex justify-center">
+                    <RatingDisplay rating={freelancerProfile?.rating} reviewCount={reviews.length} />
+                  </div>
+
+                  {/* Invite / Send an Offer button for clients */}
+                  {user && user.id !== id && isClient && (
+                    <Button className="w-full mt-4" onClick={() => navigate(`/post-job?invite=${id}&name=${encodeURIComponent(profile.full_name || "Expert")}`)}>
+                      <Send className="h-4 w-4 mr-2" /> Invite / Send an Offer
+                    </Button>
+                  )}
+                  {user && user.id !== id && !isClient && (
+                    <Button className="w-full mt-4" variant="outline" asChild>
                       <Link to={`/messages?user=${id}`}>
-                        <MessageSquare className="h-4 w-4 mr-2" /> Contact
+                        <Send className="h-4 w-4 mr-2" /> Message
                       </Link>
                     </Button>
                   )}
                   {!user && (
                     <Button className="w-full mt-4" asChild>
-                      <Link to={`/auth?redirect=${encodeURIComponent(`/expert/${id}`)}`}>
+                      <Link to={`/auth?redirect=${encodeURIComponent(`/expert/${id}/profile`)}`}>
                         Sign in to Contact
                       </Link>
                     </Button>
@@ -230,7 +346,7 @@ export default function ExpertProfile() {
                         <span className="font-semibold text-primary">{formatNaira(freelancerProfile.hourly_rate)}/hr</span>
                       </div>
                     )}
-                    {freelancerProfile.years_experience && (
+                    {freelancerProfile.years_experience != null && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Experience</span>
                         <span className="font-medium">{freelancerProfile.years_experience} years</span>
@@ -248,21 +364,12 @@ export default function ExpertProfile() {
                         <span className="font-medium">{freelancerProfile.total_jobs_completed}</span>
                       </div>
                     )}
-                    {freelancerProfile.rating != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Rating</span>
-                        <span className="font-medium flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 fill-accent text-accent" />
-                          {freelancerProfile.rating}
-                        </span>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               )}
             </div>
 
-            {/* Right column – bio, skills, portfolio, reviews */}
+            {/* Right column – bio, skills, portfolio, contracts, reviews */}
             <div className="lg:col-span-2 space-y-6">
               {freelancerProfile?.bio && (
                 <Card>
@@ -320,8 +427,24 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Rate this expert (only for clients who completed a contract) */}
-              {completedContract && user && authProfile?.role === "client" && (
+              {/* CadGigs Contracts Section */}
+              {pastContracts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      CadGigs Contracts
+                      <span className="text-xs font-normal text-muted-foreground">({pastContracts.length})</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ContractsCarousel contracts={pastContracts} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Rate this expert */}
+              {completedContract && user && isClient && (
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="pt-6">
                     <p className="text-sm font-medium text-foreground mb-1">You've worked together!</p>
@@ -333,38 +456,38 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {reviews.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      Reviews
-                      {freelancerProfile?.rating > 0 && (
-                        <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
-                          <Star className="h-3.5 w-3.5 fill-accent text-accent" />
-                          {freelancerProfile.rating} avg
-                        </span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star key={i} className={`h-3.5 w-3.5 ${i < review.rating ? "fill-accent text-accent" : "text-muted"}`} />
-                            ))}
+              {/* Reviews section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Reviews
+                    <RatingDisplay rating={freelancerProfile?.rating} reviewCount={reviews.length} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {reviews.length > 0 ? (
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <div key={review.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star key={i} className={`h-3.5 w-3.5 ${i < review.rating ? "fill-accent text-accent" : "text-muted"}`} />
+                              ))}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              by {review.reviewer?.full_name || "Client"}
+                            </span>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            by {review.reviewer?.full_name || "Client"}
-                          </span>
+                          {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
                         </div>
-                        {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -459,4 +582,3 @@ export default function ExpertProfile() {
     </div>
   );
 }
-
