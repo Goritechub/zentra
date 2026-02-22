@@ -176,6 +176,10 @@ export default function JobsPage() {
                   <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
                   <Badge variant="outline" className="text-xs">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
                   {(() => {
+                    const isNegotiable = !job.budget_min && !job.budget_max;
+                    if (isNegotiable) return (
+                      <Badge variant="outline" className="text-xs gap-1">💬 Budget Negotiable</Badge>
+                    );
                     const ready = job._wallet && job._wallet.balance >= (job.budget_max || job.budget_min || 0);
                     return (
                       <Badge variant={ready ? "default" : "destructive"} className="text-xs gap-1">

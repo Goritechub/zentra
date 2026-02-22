@@ -39,7 +39,7 @@ export const nigerianStates = [
   { name: "Bayelsa", cities: ["Yenagoa", "Ogbia", "Brass"] },
 ];
 
-export const getAllStates = () => nigerianStates.map(s => s.name);
+export const getAllStates = () => nigerianStates.map(s => s.name).sort((a, b) => a.localeCompare(b));
 
 export const getCitiesByState = (stateName: string) => {
   const state = nigerianStates.find(s => s.name === stateName);
