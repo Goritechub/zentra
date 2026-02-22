@@ -16,10 +16,17 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2 } from "lucide-react";
 
+interface JobWithCounts {
+  [key: string]: any;
+  _proposalCount?: number;
+  _invitedCount?: number;
+  _interviewingCount?: number;
+}
+
 export default function ClientJobsPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<JobWithCounts[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: any | null; hasAssignment: boolean }>({
     open: false, job: null, hasAssignment: false,
@@ -38,7 +45,36 @@ export default function ClientJobsPage() {
 
   const fetchJobs = async () => {
     const { data } = await supabase.from("jobs").select("*").eq("client_id", user!.id).order("created_at", { ascending: false });
-    setJobs(data || []);
+    const jobList = data || [];
+
+    if (jobList.length > 0) {
+      const jobIds = jobList.map(j => j.id);
+
+      // Fetch proposal counts and interviewing counts
+      const { data: proposals } = await supabase
+        .from("proposals")
+        .select("id, job_id, status")
+        .in("job_id", jobIds);
+
+      const proposalMap = new Map<string, { total: number; interviewing: number }>();
+      (proposals || []).forEach((p: any) => {
+        if (!proposalMap.has(p.job_id)) proposalMap.set(p.job_id, { total: 0, interviewing: 0 });
+        const entry = proposalMap.get(p.job_id)!;
+        entry.total++;
+        if (p.status === "interviewing") entry.interviewing++;
+      });
+
+      const enriched: JobWithCounts[] = jobList.map(j => ({
+        ...j,
+        _proposalCount: proposalMap.get(j.id)?.total || 0,
+        _invitedCount: (j.invited_expert_ids || []).length,
+        _interviewingCount: proposalMap.get(j.id)?.interviewing || 0,
+      }));
+
+      setJobs(enriched);
+    } else {
+      setJobs([]);
+    }
     setLoading(false);
   };
 
@@ -219,6 +255,29 @@ export default function ClientJobsPage() {
                             )}
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
                           </div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/proposals"); }}
+                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._proposalCount || 0} proposal{(job._proposalCount || 0) !== 1 ? "s" : ""} received
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/sent-offers"); }}
+                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._invitedCount || 0} invited
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/proposals?tab=interviewing"); }}
+                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._interviewingCount || 0} interviewing
+                          </button>
                         </div>
                       </div>
                     ))}

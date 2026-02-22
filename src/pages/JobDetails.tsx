@@ -152,12 +152,20 @@ export default function JobDetailsPage() {
                       Assigned — No longer accepting proposals
                     </Badge>
                   )}
-                  {!isAssigned && (
-                    <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                    </Badge>
-                  )}
+                  {!isAssigned && (() => {
+                    const isNegotiable = !job.budget_min && !job.budget_max;
+                    if (isNegotiable) return (
+                      <Badge variant="outline" className="gap-1">
+                        <DollarSign className="h-3 w-3" />Budget Negotiable
+                      </Badge>
+                    );
+                    return (
+                      <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        {paymentReady ? "Payment Ready" : "Payment Unverified"}
+                      </Badge>
+                    );
+                  })()}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
 
@@ -287,10 +295,20 @@ export default function JobDetailsPage() {
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
 
-                <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
-                  <DollarSign className="h-4 w-4" />
-                  {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                </div>
+                {(() => {
+                  const isNegotiable = !job.budget_min && !job.budget_max;
+                  if (isNegotiable) return (
+                    <div className="mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-muted text-muted-foreground">
+                      <DollarSign className="h-4 w-4" />Budget Negotiable
+                    </div>
+                  );
+                  return (
+                    <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                      <DollarSign className="h-4 w-4" />
+                      {paymentReady ? "Payment Ready" : "Payment Unverified"}
+                    </div>
+                  );
+                })()}
 
                 {canApply && (
                   <Button className="w-full mt-4" onClick={() => navigate(`/job/${id}/apply`)}>
