@@ -18,13 +18,14 @@ const RECAPTCHA_SITE_KEY = "6LeDAG8sAAAAAMdw98tXzWMq81fzZzS8uEz7xMt0";
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
+  username: z.string().min(3, "Username must be at least 3 characters").max(30).regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
   email: z.string().email("Please enter a valid email").max(255),
   password: z.string().min(6, "Password must be at least 6 characters").max(72),
   role: z.enum(["client", "freelancer"]),
 });
 
 const signInSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
+  identifier: z.string().min(1, "Email or username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -55,6 +56,7 @@ export default function AuthPage() {
   
   const [signUpData, setSignUpData] = useState({
     fullName: "",
+    username: "",
     email: "",
     password: "",
     role: defaultRole as "client" | "freelancer",
@@ -63,7 +65,7 @@ export default function AuthPage() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const [signInData, setSignInData] = useState({
-    email: "",
+    identifier: "",
     password: "",
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
@@ -158,7 +160,20 @@ export default function AuthPage() {
       return;
     }
 
-    const { error } = await signUp(signUpData.email, signUpData.password, signUpData.role, signUpData.fullName);
+    // Check username uniqueness
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", signUpData.username)
+      .maybeSingle();
+
+    if (existingUser) {
+      toast.error("This username is already taken. Please choose another.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await signUp(signUpData.email, signUpData.password, signUpData.role, signUpData.fullName, signUpData.username);
 
     if (error) {
       toast.error(error.message.includes("already registered") 
@@ -189,11 +204,30 @@ export default function AuthPage() {
     }
 
     setLoading(true);
-    const { error } = await signIn(signInData.email, signInData.password);
+
+    // Determine if identifier is email or username
+    let email = signInData.identifier;
+    if (!signInData.identifier.includes("@")) {
+      // Look up email by username
+      const { data: profileData, error: lookupError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", signInData.identifier)
+        .single();
+
+      if (lookupError || !profileData) {
+        toast.error("No account found with that username.");
+        setLoading(false);
+        return;
+      }
+      email = profileData.email;
+    }
+
+    const { error } = await signIn(email, signInData.password);
 
     if (error) {
       toast.error(error.message.includes("Invalid login credentials")
-        ? "Invalid email or password. Please try again."
+        ? "Invalid email/username or password. Please try again."
         : error.message);
       setLoading(false);
       return;
@@ -292,15 +326,15 @@ export default function AuthPage() {
                 <Divider />
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-identifier">Email or Username</Label>
                     <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                      id="signin-identifier"
+                      type="text"
+                      placeholder="you@example.com or username"
+                      value={signInData.identifier}
+                      onChange={(e) => setSignInData({ ...signInData, identifier: e.target.value })}
                     />
-                    {signInErrors.email && <p className="text-sm text-destructive">{signInErrors.email}</p>}
+                    {signInErrors.identifier && <p className="text-sm text-destructive">{signInErrors.identifier}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -379,6 +413,19 @@ export default function AuthPage() {
                       onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
                     />
                     {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-username">Username</Label>
+                    <Input
+                      id="signup-username"
+                      placeholder="adewale_cad"
+                      value={signUpData.username}
+                      onChange={(e) => setSignUpData({ ...signUpData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                      maxLength={30}
+                    />
+                    <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only</p>
+                    {signUpErrors.username && <p className="text-sm text-destructive">{signUpErrors.username}</p>}
                   </div>
 
                   <div className="space-y-2">
