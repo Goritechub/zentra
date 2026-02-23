@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase } from "lucide-react";
+import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
@@ -78,11 +78,14 @@ function ContractsCarousel({ contracts }: { contracts: any[] }) {
           <p className="text-sm text-muted-foreground line-clamp-2">{c.job_description}</p>
         )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>Amount: <span className="font-medium text-foreground">{formatNaira(c.amount)}</span></span>
+          {/* Show Remote/Location instead of amount */}
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {c.is_remote !== false ? "Remote" : (c.location || "On-site")}
+          </span>
           {c.started_at && <span>Started: {new Date(c.started_at).toLocaleDateString()}</span>}
           {c.completed_at && <span>Completed: {new Date(c.completed_at).toLocaleDateString()}</span>}
         </div>
-        {/* Show rating for this contract if exists */}
         {c.review && (
           <div className="border-t border-border pt-3 mt-2">
             <div className="flex items-center gap-2">
@@ -121,6 +124,9 @@ export default function ExpertProfile() {
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [pastContracts, setPastContracts] = useState<any[]>([]);
+  const [certifications, setCertifications] = useState<any[]>([]);
+  const [workExperience, setWorkExperience] = useState<any[]>([]);
+  const [completedContractCount, setCompletedContractCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [showRateDialog, setShowRateDialog] = useState(false);
@@ -134,32 +140,36 @@ export default function ExpertProfile() {
     if (!id) return;
     const fetch = async () => {
       setLoading(true);
-      const [profileRes, fpRes, reviewsRes] = await Promise.all([
+      const [profileRes, fpRes, reviewsRes, certsRes, expRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", id).single(),
         supabase.from("freelancer_profiles").select("*").eq("user_id", id).maybeSingle(),
         supabase.from("reviews").select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)").eq("reviewee_id", id).order("created_at", { ascending: false }).limit(10),
+        supabase.from("certifications").select("*").eq("user_id", id).order("year_obtained", { ascending: false }),
+        supabase.from("work_experience").select("*").eq("user_id", id).order("start_year", { ascending: false }),
       ]);
       setProfile(profileRes.data);
       setFreelancerProfile(fpRes.data);
+      setReviews(reviewsRes.data || []);
+      setCertifications(certsRes.data || []);
+      setWorkExperience(expRes.data || []);
 
       if (fpRes.data) {
         const { data: pData } = await supabase.from("portfolio_items").select("*").eq("freelancer_profile_id", fpRes.data.id);
         setPortfolio(pData || []);
       }
 
-      setReviews(reviewsRes.data || []);
-
       // Fetch past contracts for this expert (completed/active)
-      const { data: contractsData } = await supabase
+      const { data: contractsData, count: completedCount } = await supabase
         .from("contracts")
-        .select("id, job_title, job_description, job_category, amount, status, started_at, completed_at")
+        .select("id, job_title, job_description, job_category, amount, status, started_at, completed_at", { count: "exact" })
         .eq("freelancer_id", id)
         .in("status", ["completed", "active"])
         .order("created_at", { ascending: false })
         .limit(20);
 
+      setCompletedContractCount(completedCount || 0);
+
       if (contractsData && contractsData.length > 0) {
-        // Fetch reviews for these contracts
         const contractIds = contractsData.map(c => c.id);
         const { data: contractReviews } = await supabase
           .from("reviews")
@@ -308,12 +318,10 @@ export default function ExpertProfile() {
                     </Badge>
                   )}
 
-                  {/* Rating under name */}
                   <div className="mt-3 flex justify-center">
                     <RatingDisplay rating={freelancerProfile?.rating} reviewCount={reviews.length} />
                   </div>
 
-                  {/* Invite / Send an Offer button for clients */}
                   {user && user.id !== id && isClient && (
                     <Button className="w-full mt-4" onClick={() => navigate(`/post-job?invite=${id}&name=${encodeURIComponent(profile.full_name || "Expert")}`)}>
                       <Send className="h-4 w-4 mr-2" /> Invite / Send an Offer
@@ -358,18 +366,16 @@ export default function ExpertProfile() {
                         <span className="font-medium">{availabilityLabels[freelancerProfile.availability] || freelancerProfile.availability}</span>
                       </div>
                     )}
-                    {freelancerProfile.total_jobs_completed != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Jobs Completed</span>
-                        <span className="font-medium">{freelancerProfile.total_jobs_completed}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Jobs Completed</span>
+                      <span className="font-medium">{completedContractCount}</span>
+                    </div>
                   </CardContent>
                 </Card>
               )}
             </div>
 
-            {/* Right column – bio, skills, portfolio, contracts, reviews */}
+            {/* Right column */}
             <div className="lg:col-span-2 space-y-6">
               {freelancerProfile?.bio && (
                 <Card>
@@ -387,6 +393,61 @@ export default function ExpertProfile() {
                     <div className="flex flex-wrap gap-2">
                       {freelancerProfile.skills.map((skill: string) => (
                         <Badge key={skill} variant="secondary">{skill}</Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Certifications */}
+              {certifications.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Award className="h-4 w-4" /> Certifications
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {certifications.map((cert: any) => (
+                        <div key={cert.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                          <Award className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground text-sm">{cert.name}</p>
+                            {cert.issuer && <p className="text-xs text-muted-foreground">{cert.issuer}</p>}
+                            {cert.year_obtained && <p className="text-xs text-muted-foreground">{cert.year_obtained}</p>}
+                            {cert.credential_url && (
+                              <a href={cert.credential_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                                View Credential
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Work Experience */}
+              {workExperience.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4" /> Work Experience
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {workExperience.map((exp: any) => (
+                        <div key={exp.id} className="border-l-2 border-primary/30 pl-4">
+                          <p className="font-medium text-foreground text-sm">{exp.role}</p>
+                          <p className="text-xs text-primary">{exp.company}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {exp.start_year} – {exp.is_current ? "Present" : (exp.end_year || "N/A")}
+                          </p>
+                          {exp.description && <p className="text-sm text-muted-foreground mt-1">{exp.description}</p>}
+                        </div>
                       ))}
                     </div>
                   </CardContent>

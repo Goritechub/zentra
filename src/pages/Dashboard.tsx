@@ -262,6 +262,11 @@ export default function DashboardPage() {
                     <Settings className="h-4 w-4 mr-2" />Edit Profile
                   </Button>
                 </Link>
+                {isFreelancer && (
+                  <Button variant="ghost" className="w-full mt-2" size="sm" onClick={() => navigate(`/expert/${user.id}/profile`)}>
+                    <Eye className="h-4 w-4 mr-2" />View Profile
+                  </Button>
+                )}
               </div>
             </div>
           </div>

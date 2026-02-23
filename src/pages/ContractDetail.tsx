@@ -255,7 +255,7 @@ export default function ContractDetail() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6 flex-wrap">
+            <TabsList className="mb-6 flex-wrap h-auto gap-1 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm">
               <TabsTrigger value="overview"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
               <TabsTrigger value="milestones"><MilestoneIcon className="h-4 w-4 mr-1.5" /> Milestones</TabsTrigger>
               <TabsTrigger value="activity"><FileText className="h-4 w-4 mr-1.5" /> Activity</TabsTrigger>
