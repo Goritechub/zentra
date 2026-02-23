@@ -4,11 +4,15 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
-import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase } from "lucide-react";
+import { toast } from "sonner";
+import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase, UserPlus, Globe, XCircle } from "lucide-react";
 
 export default function SentOffersPage() {
   const { user, loading: authLoading } = useAuth();
@@ -16,6 +20,9 @@ export default function SentOffersPage() {
   const [offers, setOffers] = useState<any[]>([]);
   const [privateJobs, setPrivateJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -35,7 +42,6 @@ export default function SentOffersPage() {
         .select("*, invitedExperts:profiles!inner(id, full_name, avatar_url)")
         .eq("client_id", user.id)
         .eq("visibility", "private")
-        .eq("status", "open")
         .order("created_at", { ascending: false }),
     ]);
     setOffers((offersRes.data as any[]) || []);
@@ -50,6 +56,39 @@ export default function SentOffersPage() {
       case "rejected": return <X className="h-4 w-4 text-destructive" />;
       default: return null;
     }
+  };
+
+  // Check if all invited experts have rejected (no more invited_expert_ids or all bowed out)
+  const isAllRejected = (job: any) => {
+    return job.status === "open" && (!job.invited_expert_ids || job.invited_expert_ids.length === 0);
+  };
+
+  const handleInviteAnother = (job: any) => {
+    // Navigate to post-job with job details prepopulated, private selected, search open
+    const params = new URLSearchParams({
+      prefill: job.id,
+      visibility: "private",
+    });
+    navigate(`/post-job?${params.toString()}`);
+  };
+
+  const handleMakePublic = (job: any) => {
+    const params = new URLSearchParams({
+      prefill: job.id,
+      visibility: "public",
+    });
+    navigate(`/post-job?${params.toString()}`);
+  };
+
+  const handleCloseJob = async () => {
+    if (!selectedJob) return;
+    setActionLoading(true);
+    const { error } = await supabase.from("jobs").update({ status: "cancelled" }).eq("id", selectedJob.id);
+    if (error) toast.error("Failed to close job");
+    else { toast.success("Job closed"); fetchOffers(); }
+    setActionLoading(false);
+    setShowCloseDialog(false);
+    setSelectedJob(null);
   };
 
   if (authLoading || loading) {
@@ -83,42 +122,61 @@ export default function SentOffersPage() {
                     <Lock className="h-4 w-4" /> Private Jobs ({privateJobs.length})
                   </h2>
                   <div className="space-y-4">
-                    {privateJobs.map((job: any) => (
-                      <div key={job.id} className="bg-card rounded-xl border border-border p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-foreground">{job.title}</h3>
-                              <Badge variant="outline" className="gap-1 text-xs">
-                                <Lock className="h-3 w-3" /> Private
-                              </Badge>
-                            </div>
-                            {job.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>}
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-                              {" · "}{(job.invited_expert_ids || []).length} expert(s) invited
-                            </p>
-                          </div>
-                          <div className="text-right ml-4">
-                            {(job.budget_min || job.budget_max) && (
-                              <p className="font-bold text-primary">
-                                {job.budget_min && job.budget_max
-                                  ? `${formatNaira(job.budget_min)} – ${formatNaira(job.budget_max)}`
-                                  : formatNaira(job.budget_max || job.budget_min)}
+                    {privateJobs.map((job: any) => {
+                      const allRejected = isAllRejected(job);
+                      return (
+                        <div key={job.id} className="bg-card rounded-xl border border-border p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-foreground">{job.title}</h3>
+                                <Badge variant="outline" className="gap-1 text-xs">
+                                  <Lock className="h-3 w-3" /> Private
+                                </Badge>
+                                {allRejected && (
+                                  <Badge variant="destructive" className="text-xs">All Declined</Badge>
+                                )}
+                              </div>
+                              {job.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>}
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                                {" · "}{(job.invited_expert_ids || []).length} expert(s) invited
                               </p>
+                            </div>
+                            <div className="text-right ml-4">
+                              {(job.budget_min || job.budget_max) && (
+                                <p className="font-bold text-primary">
+                                  {job.budget_min && job.budget_max
+                                    ? `${formatNaira(job.budget_min)} – ${formatNaira(job.budget_max)}`
+                                    : formatNaira(job.budget_max || job.budget_min)}
+                                </p>
+                              )}
+                              <Badge variant={job.status === "open" ? "secondary" : "outline"} className="mt-2 capitalize">{job.status}</Badge>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            <Button size="sm" variant="outline" asChild>
+                              <Link to={`/job/${job.id}`}>
+                                <Briefcase className="h-3.5 w-3.5 mr-1.5" /> View Job
+                              </Link>
+                            </Button>
+                            {allRejected && job.status === "open" && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => handleInviteAnother(job)}>
+                                  <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Invite Another
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleMakePublic(job)}>
+                                  <Globe className="h-3.5 w-3.5 mr-1.5" /> Make Public
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => { setSelectedJob(job); setShowCloseDialog(true); }}>
+                                  <XCircle className="h-3.5 w-3.5 mr-1.5" /> Close Job
+                                </Button>
+                              </>
                             )}
-                            <Badge variant="secondary" className="mt-2">Open</Badge>
                           </div>
                         </div>
-                        <div className="flex gap-2 mt-4">
-                          <Button size="sm" variant="outline" asChild>
-                            <Link to={`/job/${job.id}`}>
-                              <Briefcase className="h-3.5 w-3.5 mr-1.5" /> View Job
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -160,6 +218,25 @@ export default function SentOffersPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Close Job Confirm Dialog */}
+      <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Close Job</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to close "{selectedJob?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCloseDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleCloseJob} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+              Close Job
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

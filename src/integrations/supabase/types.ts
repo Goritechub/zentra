@@ -88,6 +88,44 @@ export type Database = {
         }
         Relationships: []
       }
+      certifications: {
+        Row: {
+          created_at: string
+          credential_url: string | null
+          id: string
+          issuer: string | null
+          name: string
+          user_id: string
+          year_obtained: number | null
+        }
+        Insert: {
+          created_at?: string
+          credential_url?: string | null
+          id?: string
+          issuer?: string | null
+          name: string
+          user_id: string
+          year_obtained?: number | null
+        }
+        Update: {
+          created_at?: string
+          credential_url?: string | null
+          id?: string
+          issuer?: string | null
+          name?: string
+          user_id?: string
+          year_obtained?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contest_entries: {
         Row: {
           attachments: string[] | null
@@ -1754,6 +1792,50 @@ export type Database = {
           },
           {
             foreignKeyName: "withdrawal_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_experience: {
+        Row: {
+          company: string
+          created_at: string
+          description: string | null
+          end_year: number | null
+          id: string
+          is_current: boolean
+          role: string
+          start_year: number
+          user_id: string
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          description?: string | null
+          end_year?: number | null
+          id?: string
+          is_current?: boolean
+          role: string
+          start_year: number
+          user_id: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          description?: string | null
+          end_year?: number | null
+          id?: string
+          is_current?: boolean
+          role?: string
+          start_year?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_experience_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

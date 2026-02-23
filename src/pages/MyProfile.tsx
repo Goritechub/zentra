@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
-import { Loader2, X, Save, Plus } from "lucide-react";
+import { Loader2, X, Save, Plus, Trash2, Award, Building2 } from "lucide-react";
 
 interface FreelancerProfile {
   id: string;
@@ -32,6 +32,24 @@ interface FreelancerProfile {
   years_experience: number | null;
   availability: "full_time" | "part_time" | "weekends" | "flexible" | null;
   show_whatsapp: boolean | null;
+}
+
+interface Certification {
+  id?: string;
+  name: string;
+  issuer: string;
+  year_obtained: string;
+  credential_url: string;
+}
+
+interface WorkExp {
+  id?: string;
+  company: string;
+  role: string;
+  start_year: string;
+  end_year: string;
+  is_current: boolean;
+  description: string;
 }
 
 export default function MyProfilePage() {
@@ -60,6 +78,12 @@ export default function MyProfilePage() {
   const [availability, setAvailability] = useState("flexible");
   const [showWhatsapp, setShowWhatsapp] = useState(false);
 
+  // Certifications & Work Experience
+  const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [workExperience, setWorkExperience] = useState<WorkExp[]>([]);
+  const [deletedCertIds, setDeletedCertIds] = useState<string[]>([]);
+  const [deletedExpIds, setDeletedExpIds] = useState<string[]>([]);
+
   // Skill input
   const [skillSearch, setSkillSearch] = useState("");
   const [showSkillDropdown, setShowSkillDropdown] = useState(false);
@@ -81,25 +105,43 @@ export default function MyProfilePage() {
   const fetchFreelancerProfile = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from("freelancer_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [fpRes, certsRes, expRes] = await Promise.all([
+        supabase.from("freelancer_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("certifications").select("*").eq("user_id", user.id).order("year_obtained", { ascending: false }),
+        supabase.from("work_experience").select("*").eq("user_id", user.id).order("start_year", { ascending: false }),
+      ]);
 
-      if (error) throw error;
-      setFreelancerProfile(data);
+      if (fpRes.error) throw fpRes.error;
+      setFreelancerProfile(fpRes.data);
 
-      if (data) {
-        setTitle(data.title || "");
-        setBio(data.bio || "");
-        setSkills(data.skills || []);
-        setHourlyRate(data.hourly_rate?.toString() || "");
-        setMinProjectRate(data.min_project_rate?.toString() || "");
-        setYearsExperience(data.years_experience?.toString() || "");
-        setAvailability(data.availability || "flexible");
-        setShowWhatsapp(data.show_whatsapp || false);
+      if (fpRes.data) {
+        setTitle(fpRes.data.title || "");
+        setBio(fpRes.data.bio || "");
+        setSkills(fpRes.data.skills || []);
+        setHourlyRate(fpRes.data.hourly_rate?.toString() || "");
+        setMinProjectRate(fpRes.data.min_project_rate?.toString() || "");
+        setYearsExperience(fpRes.data.years_experience?.toString() || "");
+        setAvailability(fpRes.data.availability || "flexible");
+        setShowWhatsapp(fpRes.data.show_whatsapp || false);
       }
+
+      setCertifications((certsRes.data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        issuer: c.issuer || "",
+        year_obtained: c.year_obtained?.toString() || "",
+        credential_url: c.credential_url || "",
+      })));
+
+      setWorkExperience((expRes.data || []).map((e: any) => ({
+        id: e.id,
+        company: e.company,
+        role: e.role,
+        start_year: e.start_year?.toString() || "",
+        end_year: e.end_year?.toString() || "",
+        is_current: e.is_current,
+        description: e.description || "",
+      })));
     } catch (err) {
       console.error("Error fetching freelancer profile:", err);
     } finally {
@@ -132,6 +174,39 @@ export default function MyProfilePage() {
 
   const removeSkill = (skill: string) => {
     setSkills(skills.filter((s) => s !== skill));
+  };
+
+  const addCertification = () => {
+    setCertifications([...certifications, { name: "", issuer: "", year_obtained: "", credential_url: "" }]);
+  };
+
+  const updateCert = (idx: number, field: keyof Certification, value: string) => {
+    const updated = [...certifications];
+    (updated[idx] as any)[field] = value;
+    setCertifications(updated);
+  };
+
+  const removeCert = (idx: number) => {
+    const cert = certifications[idx];
+    if (cert.id) setDeletedCertIds(prev => [...prev, cert.id!]);
+    setCertifications(certifications.filter((_, i) => i !== idx));
+  };
+
+  const addWorkExp = () => {
+    setWorkExperience([...workExperience, { company: "", role: "", start_year: "", end_year: "", is_current: false, description: "" }]);
+  };
+
+  const updateExp = (idx: number, field: keyof WorkExp, value: any) => {
+    const updated = [...workExperience];
+    (updated[idx] as any)[field] = value;
+    if (field === "is_current" && value) updated[idx].end_year = "";
+    setWorkExperience(updated);
+  };
+
+  const removeExp = (idx: number) => {
+    const exp = workExperience[idx];
+    if (exp.id) setDeletedExpIds(prev => [...prev, exp.id!]);
+    setWorkExperience(workExperience.filter((_, i) => i !== idx));
   };
 
   const handleSave = async () => {
@@ -179,6 +254,51 @@ export default function MyProfilePage() {
             .insert(freelancerData);
           if (error) throw error;
         }
+
+        // Save certifications
+        if (deletedCertIds.length > 0) {
+          await supabase.from("certifications").delete().in("id", deletedCertIds);
+        }
+        for (const cert of certifications) {
+          if (!cert.name.trim()) continue;
+          const certData = {
+            user_id: user.id,
+            name: cert.name.trim(),
+            issuer: cert.issuer.trim() || null,
+            year_obtained: cert.year_obtained ? parseInt(cert.year_obtained) : null,
+            credential_url: cert.credential_url.trim() || null,
+          };
+          if (cert.id) {
+            await supabase.from("certifications").update(certData).eq("id", cert.id);
+          } else {
+            await supabase.from("certifications").insert(certData);
+          }
+        }
+
+        // Save work experience
+        if (deletedExpIds.length > 0) {
+          await supabase.from("work_experience").delete().in("id", deletedExpIds);
+        }
+        for (const exp of workExperience) {
+          if (!exp.company.trim() || !exp.role.trim()) continue;
+          const expData = {
+            user_id: user.id,
+            company: exp.company.trim(),
+            role: exp.role.trim(),
+            start_year: parseInt(exp.start_year) || new Date().getFullYear(),
+            end_year: exp.is_current ? null : (exp.end_year ? parseInt(exp.end_year) : null),
+            is_current: exp.is_current,
+            description: exp.description.trim() || null,
+          };
+          if (exp.id) {
+            await supabase.from("work_experience").update(expData).eq("id", exp.id);
+          } else {
+            await supabase.from("work_experience").insert(expData);
+          }
+        }
+
+        setDeletedCertIds([]);
+        setDeletedExpIds([]);
       }
 
       await refreshProfile();
@@ -228,11 +348,8 @@ export default function MyProfilePage() {
                   <Label htmlFor="fullName">Full Name</Label>
                   <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} placeholder="Your full name" />
                 </div>
-                <div /> {/* spacer */}
+                <div />
               </div>
-
-
-
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -317,6 +434,104 @@ export default function MyProfilePage() {
                       </Button>
                     )}
                   </div>
+                </section>
+
+                {/* Certifications */}
+                <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <Award className="h-5 w-5 text-primary" /> Certifications
+                    </h2>
+                    <Button type="button" variant="outline" size="sm" onClick={addCertification}>
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
+                  </div>
+
+                  {certifications.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No certifications added yet. Add your professional certifications to stand out.</p>
+                  )}
+
+                  {certifications.map((cert, idx) => (
+                    <div key={idx} className="border border-border rounded-lg p-4 space-y-3 relative">
+                      <button type="button" onClick={() => removeCert(idx)} className="absolute top-3 right-3 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Certification Name *</Label>
+                          <Input value={cert.name} onChange={(e) => updateCert(idx, "name", e.target.value)} placeholder="e.g. AutoCAD Professional" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Issuing Organization</Label>
+                          <Input value={cert.issuer} onChange={(e) => updateCert(idx, "issuer", e.target.value)} placeholder="e.g. Autodesk" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Year Obtained</Label>
+                          <Input type="number" value={cert.year_obtained} onChange={(e) => updateCert(idx, "year_obtained", e.target.value)} placeholder="e.g. 2023" min={1990} max={2030} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Credential URL</Label>
+                          <Input value={cert.credential_url} onChange={(e) => updateCert(idx, "credential_url", e.target.value)} placeholder="https://..." />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+
+                {/* Work Experience */}
+                <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" /> Work Experience
+                    </h2>
+                    <Button type="button" variant="outline" size="sm" onClick={addWorkExp}>
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
+                  </div>
+
+                  {workExperience.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No work experience added yet. Add your past roles to showcase your background.</p>
+                  )}
+
+                  {workExperience.map((exp, idx) => (
+                    <div key={idx} className="border border-border rounded-lg p-4 space-y-3 relative">
+                      <button type="button" onClick={() => removeExp(idx)} className="absolute top-3 right-3 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Role / Title *</Label>
+                          <Input value={exp.role} onChange={(e) => updateExp(idx, "role", e.target.value)} placeholder="e.g. Senior CAD Engineer" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Company *</Label>
+                          <Input value={exp.company} onChange={(e) => updateExp(idx, "company", e.target.value)} placeholder="e.g. Acme Corp" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Start Year *</Label>
+                          <Input type="number" value={exp.start_year} onChange={(e) => updateExp(idx, "start_year", e.target.value)} placeholder="e.g. 2018" min={1970} max={2030} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">End Year</Label>
+                          <Input type="number" value={exp.end_year} onChange={(e) => updateExp(idx, "end_year", e.target.value)} placeholder="e.g. 2023" min={1970} max={2030} disabled={exp.is_current} />
+                        </div>
+                        <div className="flex items-end pb-1">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Switch checked={exp.is_current} onCheckedChange={(v) => updateExp(idx, "is_current", v)} />
+                            Current
+                          </label>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Description</Label>
+                        <Textarea value={exp.description} onChange={(e) => updateExp(idx, "description", e.target.value)} placeholder="Brief description of your responsibilities..." rows={2} maxLength={500} />
+                      </div>
+                    </div>
+                  ))}
                 </section>
 
                 <section className="bg-card rounded-xl border border-border p-6 space-y-5">
