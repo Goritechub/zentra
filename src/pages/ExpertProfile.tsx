@@ -78,7 +78,6 @@ function ContractsCarousel({ contracts }: { contracts: any[] }) {
           <p className="text-sm text-muted-foreground line-clamp-2">{c.job_description}</p>
         )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {/* Show Remote/Location instead of amount */}
           <span className="flex items-center gap-1">
             <MapPin className="h-3 w-3" />
             {c.is_remote !== false ? "Remote" : (c.location || "On-site")}
@@ -115,6 +114,15 @@ function ContractsCarousel({ contracts }: { contracts: any[] }) {
   );
 }
 
+const RATING_CATEGORIES = [
+  { key: "rating_skills", label: "Skills" },
+  { key: "rating_quality", label: "Work Quality" },
+  { key: "rating_availability", label: "Availability" },
+  { key: "rating_deadlines", label: "Meet Deadlines" },
+  { key: "rating_communication", label: "Communication" },
+  { key: "rating_cooperation", label: "Cooperation" },
+] as const;
+
 export default function ExpertProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -130,11 +138,16 @@ export default function ExpertProfile() {
   const [loading, setLoading] = useState(true);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [showRateDialog, setShowRateDialog] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
+  const [categoryHovers, setCategoryHovers] = useState<Record<string, number>>({});
   const [ratingComment, setRatingComment] = useState("");
   const [ratingLoading, setRatingLoading] = useState(false);
   const [completedContract, setCompletedContract] = useState<any>(null);
+
+  // Compute dynamic average rating from reviews
+  const dynamicRating = reviews.length > 0
+    ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
+    : 0;
 
   useEffect(() => {
     if (!id) return;
@@ -158,7 +171,6 @@ export default function ExpertProfile() {
         setPortfolio(pData || []);
       }
 
-      // Fetch past contracts for this expert (completed/active)
       const { data: contractsData, count: completedCount } = await supabase
         .from("contracts")
         .select("id, job_title, job_description, job_category, amount, status, started_at, completed_at", { count: "exact" })
@@ -192,7 +204,6 @@ export default function ExpertProfile() {
         })));
       }
 
-      // Check if viewing client has completed a contract with this expert
       if (user && user.id !== id) {
         const { data: contractData } = await supabase
           .from("contracts")
@@ -223,18 +234,35 @@ export default function ExpertProfile() {
   };
 
   const handleSubmitRating = async () => {
-    if (!rating || !completedContract || !user) return;
+    // Require all category ratings
+    const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
+    if (!allCategoriesFilled || !completedContract || !user) {
+      toast.error("Please rate all categories");
+      return;
+    }
     setRatingLoading(true);
+    // Compute overall rating as average of categories
+    const overallRating = Math.round(
+      RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
+    ) / 10;
+
     const { error } = await supabase.from("reviews").insert({
       contract_id: completedContract.id,
       reviewer_id: user.id,
       reviewee_id: id!,
-      rating,
+      rating: Math.round(overallRating),
       comment: ratingComment.trim() || null,
-    });
+      rating_skills: categoryRatings.rating_skills,
+      rating_quality: categoryRatings.rating_quality,
+      rating_availability: categoryRatings.rating_availability,
+      rating_deadlines: categoryRatings.rating_deadlines,
+      rating_communication: categoryRatings.rating_communication,
+      rating_cooperation: categoryRatings.rating_cooperation,
+    } as any);
     if (error) {
       toast.error("Failed to submit rating");
     } else {
+      // Update freelancer profile with new dynamic average
       const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", id!);
       if (allReviews && allReviews.length > 0) {
         const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
@@ -245,7 +273,7 @@ export default function ExpertProfile() {
       toast.success("Review submitted! Thank you.");
       setShowRateDialog(false);
       setCompletedContract(null);
-      setRating(0);
+      setCategoryRatings({});
       setRatingComment("");
     }
     setRatingLoading(false);
@@ -289,8 +317,8 @@ export default function ExpertProfile() {
       <Header />
       <main className="flex-1">
         <div className="container-wide py-8">
-          <Button variant="ghost" size="sm" asChild className="mb-6">
-            <Link to="/"><ArrowLeft className="h-4 w-4 mr-2" />Back</Link>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6">
+            <ArrowLeft className="h-4 w-4 mr-2" />Back
           </Button>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -319,7 +347,7 @@ export default function ExpertProfile() {
                   )}
 
                   <div className="mt-3 flex justify-center">
-                    <RatingDisplay rating={freelancerProfile?.rating} reviewCount={reviews.length} />
+                    <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </div>
 
                   {user && user.id !== id && isClient && (
@@ -522,7 +550,7 @@ export default function ExpertProfile() {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     Reviews
-                    <RatingDisplay rating={freelancerProfile?.rating} reviewCount={reviews.length} />
+                    <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -540,6 +568,18 @@ export default function ExpertProfile() {
                               by {review.reviewer?.full_name || "Client"}
                             </span>
                           </div>
+                          {/* Category breakdown if available */}
+                          {review.rating_skills && (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1 mb-2">
+                              {RATING_CATEGORIES.map(cat => {
+                                const val = review[cat.key];
+                                if (!val) return null;
+                                return (
+                                  <span key={cat.key}>{cat.label}: {val}/5</span>
+                                );
+                              })}
+                            </div>
+                          )}
                           {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
                         </div>
                       ))}
@@ -590,36 +630,36 @@ export default function ExpertProfile() {
         </DialogContent>
       </Dialog>
 
-      {/* Rate Expert Dialog */}
+      {/* Rate Expert Dialog with Categories */}
       <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Rate {profile?.full_name}</DialogTitle>
-            <DialogDescription>Share your experience working with this expert.</DialogDescription>
+            <DialogDescription>Rate this expert across different categories.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <p className="text-sm font-medium mb-2">Rating</p>
-              <div className="flex gap-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onMouseEnter={() => setHoverRating(i + 1)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    onClick={() => setRating(i + 1)}
-                    className="transition-transform hover:scale-110"
-                  >
-                    <Star className={`h-8 w-8 ${i < (hoverRating || rating) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
-                  </button>
-                ))}
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {RATING_CATEGORIES.map(cat => (
+              <div key={cat.key}>
+                <p className="text-sm font-medium mb-1">{cat.label}</p>
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseEnter={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      onMouseLeave={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: 0 }))}
+                      onClick={() => setCategoryRatings(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star className={`h-6 w-6 ${i < ((categoryHovers[cat.key] || 0) || (categoryRatings[cat.key] || 0)) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
+                    </button>
+                  ))}
+                  {categoryRatings[cat.key] && (
+                    <span className="text-xs text-muted-foreground ml-1 self-center">{categoryRatings[cat.key]}/5</span>
+                  )}
+                </div>
               </div>
-              {rating > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][rating]}
-                </p>
-              )}
-            </div>
+            ))}
             <div className="space-y-2">
               <label className="text-sm font-medium">Review <span className="text-muted-foreground">(optional)</span></label>
               <Textarea
@@ -633,7 +673,7 @@ export default function ExpertProfile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRateDialog(false)}>Cancel</Button>
-            <Button onClick={handleSubmitRating} disabled={!rating || ratingLoading}>
+            <Button onClick={handleSubmitRating} disabled={ratingLoading}>
               {ratingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
               Submit Review
             </Button>
