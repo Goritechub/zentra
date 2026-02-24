@@ -11,7 +11,7 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { 
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
-  Eye, Loader2, ArrowRight, Trophy, Send, Heart, ShoppingBag,
+  Eye, Loader2, ArrowRight, Trophy, Send, Heart,
   Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon, Award, Inbox
 } from "lucide-react";
 
@@ -102,8 +102,7 @@ export default function DashboardPage() {
     { icon: MessageSquare, label: "Messages", to: "/messages", desc: "Chat with experts" },
     { icon: BarChart3, label: "Contracts", to: "/dashboard/contracts", desc: "Manage active contracts" },
     { icon: Users, label: "Search Experts", to: "/freelancers", desc: "Find CAD professionals" },
-    { icon: Heart, label: "Saved Experts", to: "/dashboard/saved", desc: "Your bookmarked experts" },
-    { icon: ShoppingBag, label: "Browse Services", to: "/dashboard/services", desc: "Expert service listings" },
+    { icon: Heart, label: "Saved Experts", to: "/freelancers", desc: "Your bookmarked experts" },
     { icon: Wallet, label: "Wallet & Transactions", to: "/transactions", desc: "Payments and balance" },
   ];
 

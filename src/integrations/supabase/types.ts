@@ -1420,6 +1420,12 @@ export type Database = {
           created_at: string | null
           id: string
           rating: number
+          rating_availability: number | null
+          rating_communication: number | null
+          rating_cooperation: number | null
+          rating_deadlines: number | null
+          rating_quality: number | null
+          rating_skills: number | null
           reviewee_id: string
           reviewer_id: string
         }
@@ -1429,6 +1435,12 @@ export type Database = {
           created_at?: string | null
           id?: string
           rating: number
+          rating_availability?: number | null
+          rating_communication?: number | null
+          rating_cooperation?: number | null
+          rating_deadlines?: number | null
+          rating_quality?: number | null
+          rating_skills?: number | null
           reviewee_id: string
           reviewer_id: string
         }
@@ -1438,6 +1450,12 @@ export type Database = {
           created_at?: string | null
           id?: string
           rating?: number
+          rating_availability?: number | null
+          rating_communication?: number | null
+          rating_cooperation?: number | null
+          rating_deadlines?: number | null
+          rating_quality?: number | null
+          rating_skills?: number | null
           reviewee_id?: string
           reviewer_id?: string
         }

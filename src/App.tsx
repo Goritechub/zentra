@@ -21,8 +21,6 @@ import PostJob from "./pages/PostJob";
 import LaunchContest from "./pages/LaunchContest";
 import ClientJobs from "./pages/ClientJobs";
 import SentOffers from "./pages/SentOffers";
-import SavedExperts from "./pages/SavedExperts";
-import BrowseServices from "./pages/BrowseServices";
 import Transactions from "./pages/Transactions";
 import ProposalsReceived from "./pages/ProposalsReceived";
 import ContractsPage from "./pages/ContractsPage";
@@ -65,9 +63,7 @@ const App = () => (
             <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/offers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard></AuthGuard>} />
-            <Route path="/dashboard/saved" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SavedExperts /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/contracts" element={<AuthGuard><ContractsPage /></AuthGuard>} />
-            <Route path="/dashboard/services" element={<AuthGuard><BrowseServices /></AuthGuard>} />
             <Route path="/contract/:id" element={<AuthGuard><ContractDetail /></AuthGuard>} />
             <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
             <Route path="/my-profile" element={<AuthGuard><MyProfile /></AuthGuard>} />
