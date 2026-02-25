@@ -257,11 +257,17 @@ export default function ContractDetail() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6 flex-wrap h-auto gap-1 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm">
               <TabsTrigger value="overview"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
-              <TabsTrigger value="milestones"><MilestoneIcon className="h-4 w-4 mr-1.5" /> Milestones</TabsTrigger>
+              <TabsTrigger value="milestones" disabled={contract.status === "interviewing"}>
+                <MilestoneIcon className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Milestones"}
+              </TabsTrigger>
               <TabsTrigger value="activity"><FileText className="h-4 w-4 mr-1.5" /> Activity</TabsTrigger>
               <TabsTrigger value="chat"><MessageSquare className="h-4 w-4 mr-1.5" /> Chat</TabsTrigger>
-              <TabsTrigger value="transactions"><History className="h-4 w-4 mr-1.5" /> Transactions</TabsTrigger>
-              <TabsTrigger value="disputes"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disputes</TabsTrigger>
+              <TabsTrigger value="transactions" disabled={contract.status === "interviewing"}>
+                <History className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Transactions"}
+              </TabsTrigger>
+              <TabsTrigger value="disputes" disabled={contract.status === "interviewing"}>
+                <AlertTriangle className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Disputes"}
+              </TabsTrigger>
             </TabsList>
 
             {/* OVERVIEW TAB */}
@@ -398,7 +404,7 @@ export default function ContractDetail() {
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2"><MilestoneIcon className="h-5 w-5 text-primary" /> Milestones</h2>
-                  {isClient && (contract.status === "active" || contract.status === "interviewing") && (
+                  {isClient && contract.status === "active" && (
                     <Button size="sm" onClick={() => setShowAddMilestone(true)}><Plus className="h-4 w-4 mr-1" /> Add</Button>
                   )}
                 </div>

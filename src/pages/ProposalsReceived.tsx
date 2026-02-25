@@ -47,6 +47,7 @@ export default function ProposalsReceivedPage() {
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
+  const [interviewingId, setInterviewingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -121,6 +122,7 @@ export default function ProposalsReceivedPage() {
   };
 
   const handleStartInterview = async (proposal: any) => {
+    setInterviewingId(proposal.id);
     // Fetch job details for snapshot
     const { data: jobData } = await supabase
       .from("jobs")
@@ -612,8 +614,8 @@ export default function ProposalsReceivedPage() {
 
                             {proposal.status === "pending" && (
                               <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => updateProposalStatus(proposal.id, "interviewing")}>
-                                  <UserCheck className="h-4 w-4 mr-1" /> Interview
+                                <Button size="sm" variant="outline" onClick={() => updateProposalStatus(proposal.id, "interviewing")} disabled={interviewingId === proposal.id}>
+                                  {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
                                 </Button>
                                 <Button size="sm" onClick={() => openAssignDialog(proposal)}>
                                   <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign

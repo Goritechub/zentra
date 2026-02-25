@@ -50,10 +50,112 @@ serve(async (req) => {
 
     // ── INITIATE CHARGE ──
     if (action === "initiate") {
-      const { amount, channel, bank, ussd, email } = body;
-      // amount is in kobo from frontend
+      const { amount, channel, bank, ussd, email, card } = body;
       const reference = `txn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+      // For card payments, use Transaction Initialize API (redirects to Paystack checkout)
+      if (channel === "card") {
+        const initBody: any = {
+          email: email || user.email,
+          amount: String(amount),
+          reference,
+          callback_url: body.callback_url || undefined,
+          metadata: {
+            user_id: user.id,
+            purpose: body.purpose || "wallet_funding",
+            custom_fields: [
+              { display_name: "User ID", variable_name: "user_id", value: user.id },
+            ],
+          },
+          channels: ["card"],
+        };
+
+        const paystackRes = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(initBody),
+        });
+
+        const paystackData = await paystackRes.json();
+
+        // Save reference to DB
+        await supabase.from("paystack_references").insert({
+          user_id: user.id,
+          reference,
+          amount: parseInt(String(amount)),
+          channel: "card",
+          status: "open_url",
+          paystack_response: paystackData.data,
+          purpose: body.purpose || "wallet_funding",
+          contract_id: body.contract_id || null,
+          milestone_id: body.milestone_id || null,
+        });
+
+        return new Response(JSON.stringify({
+          success: true,
+          status: "open_url",
+          reference,
+          data: { url: paystackData.data?.authorization_url, ...paystackData.data },
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // For bank payments, use Transaction Initialize with bank channel
+      if (channel === "bank") {
+        const initBody: any = {
+          email: email || user.email,
+          amount: String(amount),
+          reference,
+          metadata: {
+            user_id: user.id,
+            purpose: body.purpose || "wallet_funding",
+            custom_fields: [
+              { display_name: "User ID", variable_name: "user_id", value: user.id },
+            ],
+          },
+          channels: ["bank", "bank_transfer"],
+        };
+
+        const paystackRes = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(initBody),
+        });
+
+        const paystackData = await paystackRes.json();
+
+        await supabase.from("paystack_references").insert({
+          user_id: user.id,
+          reference,
+          amount: parseInt(String(amount)),
+          channel: "bank",
+          status: "open_url",
+          paystack_response: paystackData.data,
+          purpose: body.purpose || "wallet_funding",
+          contract_id: body.contract_id || null,
+          milestone_id: body.milestone_id || null,
+        });
+
+        return new Response(JSON.stringify({
+          success: true,
+          status: "open_url",
+          reference,
+          data: { url: paystackData.data?.authorization_url, ...paystackData.data },
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // For USSD, keep using Charge API
       const chargeBody: any = {
         email: email || user.email,
         amount: String(amount),
@@ -67,11 +169,8 @@ serve(async (req) => {
         },
       };
 
-      if (channel === "bank" && bank) {
-        chargeBody.bank = bank; // { code, account_number }
-      }
       if (channel === "ussd" && ussd) {
-        chargeBody.ussd = ussd; // { type }
+        chargeBody.ussd = ussd;
       }
 
       const paystackRes = await fetch(`${PAYSTACK_BASE}/charge`, {
@@ -85,7 +184,6 @@ serve(async (req) => {
 
       const paystackData = await paystackRes.json();
 
-      // Map paystack status to our internal status
       let internalStatus = "pending";
       if (paystackData.data?.status === "success") internalStatus = "success";
       else if (paystackData.data?.status === "send_pin") internalStatus = "send_pin";
@@ -96,12 +194,11 @@ serve(async (req) => {
       else if (paystackData.data?.status === "open_url") internalStatus = "open_url";
       else if (paystackData.data?.status === "pay_offline") internalStatus = "pay_offline";
 
-      // Save reference to DB
       await supabase.from("paystack_references").insert({
         user_id: user.id,
         reference,
         amount: parseInt(String(amount)),
-        channel: channel || "card",
+        channel: channel || "ussd",
         status: internalStatus,
         paystack_response: paystackData.data,
         purpose: body.purpose || "wallet_funding",
@@ -109,7 +206,6 @@ serve(async (req) => {
         milestone_id: body.milestone_id || null,
       });
 
-      // If success immediately, credit wallet
       if (internalStatus === "success") {
         await creditWallet(supabase, user.id, parseInt(String(amount)), reference, body.purpose);
       }
@@ -203,6 +299,18 @@ serve(async (req) => {
     // ── CHECK PENDING ──
     if (action === "check_pending") {
       const { reference } = body;
+      // Try verify transaction first (works for initialized transactions)
+      const verifyRes = await fetch(`${PAYSTACK_BASE}/transaction/verify/${reference}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
+      });
+      const verifyData = await verifyRes.json();
+      
+      if (verifyData.data?.status) {
+        return await handleChargeResponse(supabase, user.id, reference, verifyData, body.purpose);
+      }
+
+      // Fallback to charge endpoint
       const res = await fetch(`${PAYSTACK_BASE}/charge/${reference}`, {
         method: "GET",
         headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
@@ -236,7 +344,6 @@ async function handleChargeResponse(supabase: any, userId: string, reference: st
   }).eq("reference", reference);
 
   if (internalStatus === "success") {
-    // Get the paystack ref to know the amount
     const { data: ref } = await supabase.from("paystack_references").select("*").eq("reference", reference).single();
     if (ref) {
       await creditWallet(supabase, userId, ref.amount, reference, ref.purpose);
@@ -274,7 +381,6 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     });
   }
 
-  // Record wallet transaction
   await supabase.from("wallet_transactions").insert({
     user_id: userId,
     type: "credit",
@@ -284,7 +390,6 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     reference,
   });
 
-  // Also record in transactions table
   await supabase.from("transactions").insert({
     user_id: userId,
     type: "credit",
