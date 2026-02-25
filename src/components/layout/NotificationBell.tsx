@@ -39,7 +39,7 @@ export function NotificationBell() {
             </button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>
           ) : (

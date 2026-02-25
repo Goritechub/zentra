@@ -28,16 +28,6 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
   const [reference, setReference] = useState("");
   const [paystackData, setPaystackData] = useState<any>(null);
 
-  // Card fields
-  const [cardNumber, setCardNumber] = useState("");
-  const [expMonth, setExpMonth] = useState("");
-  const [expYear, setExpYear] = useState("");
-  const [cvv, setCvv] = useState("");
-
-  // Bank fields
-  const [bankCode, setBankCode] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-
   // USSD
   const [ussdType, setUssdType] = useState("737");
 
@@ -56,12 +46,6 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
     setOtp("");
     setPhone("");
     setBirthday("");
-    setCardNumber("");
-    setExpMonth("");
-    setExpYear("");
-    setCvv("");
-    setBankCode("");
-    setAccountNumber("");
     setLoading(false);
   };
 
@@ -88,9 +72,6 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
       purpose: "wallet_funding",
     };
 
-    if (channel === "bank" && bankCode && accountNumber) {
-      chargeBody.bank = { code: bankCode, account_number: accountNumber };
-    }
     if (channel === "ussd") {
       chargeBody.ussd = { type: ussdType };
     }
@@ -133,6 +114,10 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
         break;
       case "open_url":
         setStep("open_url");
+        // Auto-open the payment URL for card/bank
+        if (data?.url) {
+          window.open(data.url, "_blank");
+        }
         break;
       case "pay_offline":
         setStep("pay_offline");
@@ -221,18 +206,11 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
               </TabsList>
 
               <TabsContent value="card">
-                <p className="text-sm text-muted-foreground">You'll be prompted for card details by Paystack securely.</p>
+                <p className="text-sm text-muted-foreground">You'll be redirected to Paystack's secure checkout page to enter your card details.</p>
               </TabsContent>
 
-              <TabsContent value="bank" className="space-y-3">
-                <div className="space-y-2">
-                  <Label>Bank Code</Label>
-                  <Input placeholder="e.g. 057" value={bankCode} onChange={(e) => setBankCode(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Account Number</Label>
-                  <Input placeholder="0000000000" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
-                </div>
+              <TabsContent value="bank">
+                <p className="text-sm text-muted-foreground">You'll be redirected to Paystack's secure page for bank transfer payment.</p>
               </TabsContent>
 
               <TabsContent value="ussd">
@@ -303,12 +281,14 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
           </div>
         )}
 
-        {step === "open_url" && paystackData?.url && (
+        {step === "open_url" && (
           <div className="space-y-4 py-2 text-center">
             <p className="text-sm text-muted-foreground">Complete payment in the new window, then click below to verify.</p>
-            <Button variant="outline" onClick={() => window.open(paystackData.url, "_blank")}>
-              Open Payment Page
-            </Button>
+            {paystackData?.url && (
+              <Button variant="outline" onClick={() => window.open(paystackData.url, "_blank")}>
+                Open Payment Page
+              </Button>
+            )}
             <Button className="w-full" onClick={checkPending} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               I've Completed Payment

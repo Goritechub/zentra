@@ -145,6 +145,16 @@ export default function PostJobPage() {
       return;
     }
 
+    // Enforce minimum ₦30,000 job price
+    if (budgetMin && parseInt(budgetMin) < 30000) {
+      toast.error("Minimum budget must be at least ₦30,000");
+      return;
+    }
+    if (budgetMax && parseInt(budgetMax) < 30000) {
+      toast.error("Maximum budget must be at least ₦30,000");
+      return;
+    }
+
     if (deliveryValue && parseInt(deliveryValue) < 1) {
       toast.error("Delivery value must be at least 1");
       return;

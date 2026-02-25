@@ -204,22 +204,27 @@ export default function ExpertProfile() {
         })));
       }
 
+      // Find completed contracts without reviews (per-job rating)
       if (user && user.id !== id) {
-        const { data: contractData } = await supabase
+        const { data: completedContracts } = await supabase
           .from("contracts")
-          .select("id")
+          .select("id, job_title, amount")
           .eq("client_id", user.id)
           .eq("freelancer_id", id)
           .eq("status", "completed")
-          .limit(1);
-        if (contractData && contractData.length > 0) {
-          const { data: existingReview } = await supabase
+          .order("completed_at", { ascending: false });
+        
+        if (completedContracts && completedContracts.length > 0) {
+          // Find first contract without a review from this user
+          const { data: existingReviews } = await supabase
             .from("reviews")
-            .select("id")
-            .eq("contract_id", contractData[0].id)
+            .select("contract_id")
             .eq("reviewer_id", user.id)
-            .maybeSingle();
-          if (!existingReview) setCompletedContract(contractData[0]);
+            .in("contract_id", completedContracts.map(c => c.id));
+          
+          const reviewedIds = new Set((existingReviews || []).map(r => r.contract_id));
+          const unreviewedContract = completedContracts.find(c => !reviewedIds.has(c.id));
+          if (unreviewedContract) setCompletedContract(unreviewedContract);
         }
       }
 
@@ -545,7 +550,7 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Reviews section */}
+              {/* Reviews Carousel Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -555,35 +560,7 @@ export default function ExpertProfile() {
                 </CardHeader>
                 <CardContent>
                   {reviews.length > 0 ? (
-                    <div className="space-y-4">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="flex items-center gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star key={i} className={`h-3.5 w-3.5 ${i < review.rating ? "fill-accent text-accent" : "text-muted"}`} />
-                              ))}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              by {review.reviewer?.full_name || "Client"}
-                            </span>
-                          </div>
-                          {/* Category breakdown if available */}
-                          {review.rating_skills && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1 mb-2">
-                              {RATING_CATEGORIES.map(cat => {
-                                const val = review[cat.key];
-                                if (!val) return null;
-                                return (
-                                  <span key={cat.key}>{cat.label}: {val}/5</span>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
-                        </div>
-                      ))}
-                    </div>
+                    <ReviewsCarousel reviews={reviews} />
                   ) : (
                     <p className="text-sm text-muted-foreground">No reviews yet.</p>
                   )}

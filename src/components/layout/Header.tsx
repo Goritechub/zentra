@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare } from "lucide-react";
+import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useUnreadMessages();
+  const { unreadCount: notifUnreadCount } = useNotifications();
 
   const isClient = profile?.role === "client";
   const isFreelancer = profile?.role === "freelancer";
@@ -55,13 +57,11 @@ export function Header() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            {/* Show Find Talent only to logged-in non-freelancers */}
             {user && !isFreelancer && (
               <Link to="/freelancers" className={navLinkClass("/freelancers")}>
                 Find Talent
               </Link>
             )}
-            {/* Show Browse Jobs only to logged-in non-clients */}
             {user && !isClient && (
               <Link to="/jobs" className={navLinkClass("/jobs")}>
                 Browse Jobs
@@ -149,9 +149,12 @@ export function Header() {
             )}
           </div>
 
-          <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="flex md:hidden items-center gap-2">
+            {user && <NotificationBell />}
+            <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -175,6 +178,16 @@ export function Header() {
                   {unreadCount > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                       {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {user && (
+                <Link to="/notifications" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
+                  <Bell className="h-4 w-4" />Notifications
+                  {notifUnreadCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                      {notifUnreadCount > 99 ? "99+" : notifUnreadCount}
                     </span>
                   )}
                 </Link>

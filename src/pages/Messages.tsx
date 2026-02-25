@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Loader2, ArrowLeft, Trash2, X } from "lucide-react";
+import { MessageSquare, Loader2, ArrowLeft, Trash2, X, Archive, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 interface ContractConversation {
@@ -116,9 +117,7 @@ const Messages = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const isClosedContract = (status: string) => {
-    return ["completed", "cancelled"].includes(status);
-  };
+  const isClosedContract = (status: string) => ["completed", "cancelled"].includes(status);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -164,6 +163,21 @@ const Messages = () => {
     }
   };
 
+  const handleUnhide = async (contractId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("hidden_conversations").delete().eq("user_id", user.id).eq("contract_id", contractId);
+    if (error) {
+      toast.error("Failed to unhide conversation");
+    } else {
+      setHiddenIds(prev => {
+        const next = new Set(prev);
+        next.delete(contractId);
+        return next;
+      });
+      toast.success("Conversation restored");
+    }
+  };
+
   const onPointerDown = useCallback((convo: ContractConversation) => {
     longPressTimer.current = setTimeout(() => {
       setSelectMode(true);
@@ -179,6 +193,7 @@ const Messages = () => {
   }, []);
 
   const visibleConversations = conversations.filter(c => !hiddenIds.has(c.contractId));
+  const archivedConversations = conversations.filter(c => hiddenIds.has(c.contractId));
 
   if (authLoading || loading) {
     return (
@@ -189,6 +204,103 @@ const Messages = () => {
       </div>
     );
   }
+
+  const renderConvoList = (convos: ContractConversation[], isArchived = false) => (
+    convos.length === 0 ? (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <MessageSquare className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+        <p className="text-muted-foreground">{isArchived ? "No archived conversations" : "No conversations yet"}</p>
+      </div>
+    ) : (
+      <div className="overflow-y-auto flex-1">
+        <div className="divide-y divide-border">
+          {convos.map((convo) => (
+            <div
+              key={convo.contractId}
+              className={cn(
+                "w-full flex items-start gap-4 p-4 text-left transition-colors hover:bg-muted/50",
+                convo.unreadCount > 0 && !isArchived && "bg-primary/5"
+              )}
+              onPointerDown={!isArchived ? () => onPointerDown(convo) : undefined}
+              onPointerUp={!isArchived ? onPointerUp : undefined}
+              onPointerLeave={!isArchived ? onPointerUp : undefined}
+            >
+              {selectMode && !isArchived && (
+                <div className="flex items-center pt-1">
+                  <Checkbox
+                    checked={selectedIds.has(convo.contractId)}
+                    onCheckedChange={() => toggleSelect(convo.contractId)}
+                  />
+                </div>
+              )}
+              <button
+                className="flex items-start gap-4 flex-1 text-left"
+                onClick={() => {
+                  if (selectMode && !isArchived) {
+                    toggleSelect(convo.contractId);
+                  } else {
+                    navigate(`/contract/${convo.contractId}?tab=chat`);
+                  }
+                }}
+              >
+                <Avatar className="h-11 w-11 flex-shrink-0">
+                  <AvatarImage src={convo.partner.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {convo.partner.full_name?.[0]?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-foreground truncate">{convo.contractTitle}</span>
+                      <Badge variant="outline" className="text-xs shrink-0">{convo.contractStatus}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {convo.lastMessageAt && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(convo.lastMessageAt), { addSuffix: true })}
+                        </span>
+                      )}
+                      {convo.unreadCount > 0 && !isArchived && (
+                        <Badge variant="default" className="h-5 min-w-[20px] flex items-center justify-center">
+                          {convo.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">with {convo.partner.full_name}</p>
+                  {convo.lastMessage && (
+                    <p className="text-sm text-muted-foreground truncate mt-1">{convo.lastMessage}</p>
+                  )}
+                </div>
+              </button>
+              {isArchived ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={(e) => { e.stopPropagation(); handleUnhide(convo.contractId); }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              ) : (
+                !selectMode && isClosedContract(convo.contractStatus) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); handleHideSingle(convo.contractId); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
@@ -201,7 +313,6 @@ const Messages = () => {
           <h1 className="text-2xl font-bold">Messages</h1>
         </div>
 
-        {/* Select mode toolbar */}
         {selectMode && (
           <div className="flex items-center justify-between bg-card border border-border rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2">
@@ -210,108 +321,33 @@ const Messages = () => {
               </Button>
               <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={selectedIds.size === 0}
-              onClick={handleHideSelected}
-            >
+            <Button variant="destructive" size="sm" disabled={selectedIds.size === 0} onClick={handleHideSelected}>
               <Trash2 className="h-4 w-4 mr-1" /> Hide Selected
             </Button>
           </div>
         )}
 
-        <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
-          {visibleConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-              <p className="text-muted-foreground">No conversations yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Conversations will appear here when you have active contracts
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-y-auto flex-1">
-              <div className="divide-y divide-border">
-                {visibleConversations.map((convo) => (
-                  <div
-                    key={convo.contractId}
-                    className={cn(
-                      "w-full flex items-start gap-4 p-4 text-left transition-colors hover:bg-muted/50",
-                      convo.unreadCount > 0 && "bg-primary/5"
-                    )}
-                    onPointerDown={() => onPointerDown(convo)}
-                    onPointerUp={onPointerUp}
-                    onPointerLeave={onPointerUp}
-                  >
-                    {selectMode && (
-                      <div className="flex items-center pt-1">
-                        <Checkbox
-                          checked={selectedIds.has(convo.contractId)}
-                          onCheckedChange={() => toggleSelect(convo.contractId)}
-                        />
-                      </div>
-                    )}
-                    <button
-                      className="flex items-start gap-4 flex-1 text-left"
-                      onClick={() => {
-                        if (selectMode) {
-                          toggleSelect(convo.contractId);
-                        } else {
-                          navigate(`/contract/${convo.contractId}?tab=chat`);
-                        }
-                      }}
-                    >
-                      <Avatar className="h-11 w-11 flex-shrink-0">
-                        <AvatarImage src={convo.partner.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {convo.partner.full_name?.[0]?.toUpperCase() || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-semibold text-foreground truncate">{convo.contractTitle}</span>
-                            <Badge variant="outline" className="text-xs shrink-0">{convo.contractStatus}</Badge>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {convo.lastMessageAt && (
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(convo.lastMessageAt), { addSuffix: true })}
-                              </span>
-                            )}
-                            {convo.unreadCount > 0 && (
-                              <Badge variant="default" className="h-5 min-w-[20px] flex items-center justify-center">
-                                {convo.unreadCount}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">with {convo.partner.full_name}</p>
-                        {convo.lastMessage && (
-                          <p className="text-sm text-muted-foreground truncate mt-1">{convo.lastMessage}</p>
-                        )}
-                      </div>
-                    </button>
-                    {!selectMode && isClosedContract(convo.contractStatus) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleHideSingle(convo.contractId);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
+        <Tabs defaultValue="active" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mb-4">
+            <TabsTrigger value="active">
+              <MessageSquare className="h-4 w-4 mr-1" /> Messages ({visibleConversations.length})
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              <Archive className="h-4 w-4 mr-1" /> Archived ({archivedConversations.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="active" className="flex-1 min-h-0">
+            <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+              {renderConvoList(visibleConversations)}
+            </Card>
+          </TabsContent>
+          <TabsContent value="archived" className="flex-1 min-h-0">
+            <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+              {renderConvoList(archivedConversations, true)}
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
       <Footer />
     </div>
