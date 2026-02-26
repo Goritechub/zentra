@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ReviewsCarousel } from "@/components/ReviewsCarousel";
 
 function PortfolioCarousel({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
@@ -153,16 +154,14 @@ export default function ExpertProfile() {
     if (!id) return;
     const fetch = async () => {
       setLoading(true);
-      const [profileRes, fpRes, reviewsRes, certsRes, expRes] = await Promise.all([
+      const [profileRes, fpRes, certsRes, expRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", id).single(),
         supabase.from("freelancer_profiles").select("*").eq("user_id", id).maybeSingle(),
-        supabase.from("reviews").select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)").eq("reviewee_id", id).order("created_at", { ascending: false }).limit(10),
         supabase.from("certifications").select("*").eq("user_id", id).order("year_obtained", { ascending: false }),
         supabase.from("work_experience").select("*").eq("user_id", id).order("start_year", { ascending: false }),
       ]);
       setProfile(profileRes.data);
       setFreelancerProfile(fpRes.data);
-      setReviews(reviewsRes.data || []);
       setCertifications(certsRes.data || []);
       setWorkExperience(expRes.data || []);
 
@@ -204,6 +203,15 @@ export default function ExpertProfile() {
         })));
       }
 
+      // Fetch reviews with contract info for ReviewsCarousel
+      const { data: reviewsData } = await supabase
+        .from("reviews")
+        .select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url), contract:contracts!reviews_contract_id_fkey(job_title, amount)")
+        .eq("reviewee_id", id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      setReviews(reviewsData || []);
+
       // Find completed contracts without reviews (per-job rating)
       if (user && user.id !== id) {
         const { data: completedContracts } = await supabase
@@ -215,7 +223,6 @@ export default function ExpertProfile() {
           .order("completed_at", { ascending: false });
         
         if (completedContracts && completedContracts.length > 0) {
-          // Find first contract without a review from this user
           const { data: existingReviews } = await supabase
             .from("reviews")
             .select("contract_id")
@@ -239,14 +246,12 @@ export default function ExpertProfile() {
   };
 
   const handleSubmitRating = async () => {
-    // Require all category ratings
     const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
     if (!allCategoriesFilled || !completedContract || !user) {
       toast.error("Please rate all categories");
       return;
     }
     setRatingLoading(true);
-    // Compute overall rating as average of categories
     const overallRating = Math.round(
       RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
     ) / 10;
@@ -267,7 +272,6 @@ export default function ExpertProfile() {
     if (error) {
       toast.error("Failed to submit rating");
     } else {
-      // Update freelancer profile with new dynamic average
       const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", id!);
       if (allReviews && allReviews.length > 0) {
         const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
@@ -521,13 +525,13 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* CadGigs Contracts Section */}
+              {/* ZentraGig Contracts Section */}
               {pastContracts.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Briefcase className="h-4 w-4" />
-                      CadGigs Contracts
+                      ZentraGig Contracts
                       <span className="text-xs font-normal text-muted-foreground">({pastContracts.length})</span>
                     </CardTitle>
                   </CardHeader>

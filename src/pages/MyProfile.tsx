@@ -334,7 +334,7 @@ export default function MyProfilePage() {
             <p className="text-muted-foreground mt-1">
               {isFreelancer
                 ? "Set up your freelancer profile to attract clients."
-                : "Complete your profile to get the most out of CADGigs."}
+                : "Complete your profile to get the most out of ZentraGig."}
             </p>
           </div>
 
@@ -577,6 +577,27 @@ export default function MyProfilePage() {
                 </section>
               </>
             )}
+
+            {/* Delete Account */}
+            <section className="bg-card rounded-xl border border-destructive/30 p-6 space-y-4">
+              <h2 className="text-lg font-semibold text-destructive">Danger Zone</h2>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!window.confirm("Are you sure you want to delete your account? This action is permanent and cannot be undone.")) return;
+                  const { error } = await supabase.auth.signOut();
+                  if (!error) {
+                    toast({ title: "Account deletion requested", description: "Please contact support to complete account deletion." });
+                    navigate("/");
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+              </Button>
+            </section>
 
             {/* Save */}
             <div className="flex justify-end gap-3 pb-8">

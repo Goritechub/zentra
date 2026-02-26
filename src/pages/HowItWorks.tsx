@@ -36,7 +36,7 @@ export default function HowItWorksPage() {
         {/* Hero */}
         <section className="bg-hero-gradient text-white py-16 md:py-24">
           <div className="container-wide text-center">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">How CADGigs Works</h1>
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">How ZentraGig Works</h1>
             <p className="text-white/80 text-lg max-w-2xl mx-auto">
               Whether you're hiring CAD talent or looking for engineering work, 
               our platform makes it simple, secure, and professional.

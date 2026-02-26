@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2 } from "lucide-react";
+import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2, Eye } from "lucide-react";
 
 interface JobWithCounts {
   [key: string]: any;
@@ -50,18 +50,23 @@ export default function ClientJobsPage() {
     if (jobList.length > 0) {
       const jobIds = jobList.map(j => j.id);
 
-      // Fetch proposal counts and interviewing counts
-      const { data: proposals } = await supabase
-        .from("proposals")
-        .select("id, job_id, status")
-        .in("job_id", jobIds);
+      // Fetch proposal counts, interviewing counts, and view counts
+      const [proposalsRes, viewsRes] = await Promise.all([
+        supabase.from("proposals").select("id, job_id, status").in("job_id", jobIds),
+        supabase.from("job_views").select("job_id").in("job_id", jobIds),
+      ]);
 
       const proposalMap = new Map<string, { total: number; interviewing: number }>();
-      (proposals || []).forEach((p: any) => {
+      ((proposalsRes.data || []) as any[]).forEach((p: any) => {
         if (!proposalMap.has(p.job_id)) proposalMap.set(p.job_id, { total: 0, interviewing: 0 });
         const entry = proposalMap.get(p.job_id)!;
         entry.total++;
         if (p.status === "interviewing") entry.interviewing++;
+      });
+
+      const viewMap = new Map<string, number>();
+      ((viewsRes.data || []) as any[]).forEach((v: any) => {
+        viewMap.set(v.job_id, (viewMap.get(v.job_id) || 0) + 1);
       });
 
       const enriched: JobWithCounts[] = jobList.map(j => ({
@@ -69,6 +74,7 @@ export default function ClientJobsPage() {
         _proposalCount: proposalMap.get(j.id)?.total || 0,
         _invitedCount: (j.invited_expert_ids || []).length,
         _interviewingCount: proposalMap.get(j.id)?.interviewing || 0,
+        _viewCount: viewMap.get(j.id) || 0,
       }));
 
       setJobs(enriched);
@@ -257,6 +263,9 @@ export default function ClientJobsPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5" /> {job._viewCount || 0} view{(job._viewCount || 0) !== 1 ? "s" : ""}
+                          </span>
                           <button
                             type="button"
                             onClick={(e) => { e.preventDefault(); navigate("/dashboard/proposals"); }}

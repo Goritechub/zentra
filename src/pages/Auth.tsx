@@ -298,10 +298,10 @@ export default function AuthPage() {
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                <span className="text-xl font-bold text-primary-foreground">C</span>
+                <span className="text-xl font-bold text-primary-foreground">Z</span>
               </div>
               <span className="text-2xl font-bold text-foreground">
-                CAD<span className="text-primary">Gigs</span>
+                Zentra<span className="text-primary">Gig</span>
               </span>
             </Link>
             <h1 className="text-2xl font-bold text-foreground">

@@ -31,6 +31,16 @@ export default function JobDetailsPage() {
     if (id) fetchJob();
   }, [id]);
 
+  useEffect(() => {
+    // Record a view when a freelancer opens the job
+    if (id && user && profile?.role === "freelancer") {
+      supabase.from("job_views").upsert(
+        { job_id: id, viewer_id: user.id } as any,
+        { onConflict: "job_id,viewer_id" }
+      ).then(() => {});
+    }
+  }, [id, user, profile]);
+
   const fetchJob = async () => {
     const { data: jobData, error } = await supabase
       .from("jobs")

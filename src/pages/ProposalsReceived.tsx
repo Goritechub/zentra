@@ -45,6 +45,7 @@ export default function ProposalsReceivedPage() {
   const [wallet, setWallet] = useState<any>(null);
   const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
+  const [interviewConfirm, setInterviewConfirm] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
@@ -614,7 +615,7 @@ export default function ProposalsReceivedPage() {
 
                             {proposal.status === "pending" && (
                               <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => updateProposalStatus(proposal.id, "interviewing")} disabled={interviewingId === proposal.id}>
+                                <Button size="sm" variant="outline" onClick={() => setInterviewConfirm({ open: true, proposal })} disabled={interviewingId === proposal.id}>
                                   {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
                                 </Button>
                                 <Button size="sm" onClick={() => openAssignDialog(proposal)}>
@@ -857,6 +858,32 @@ export default function ProposalsReceivedPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailDialog({ open: false, proposal: null })}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Interview Confirmation Dialog */}
+      <Dialog open={interviewConfirm.open} onOpenChange={(open) => !open && setInterviewConfirm({ open: false, proposal: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start Interview</DialogTitle>
+            <DialogDescription>
+              Do you want to proceed to interview <strong>{interviewConfirm.proposal?.freelancer?.full_name || "this expert"}</strong>? This will create a chat thread for discussion.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInterviewConfirm({ open: false, proposal: null })}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!interviewConfirm.proposal) return;
+                setInterviewConfirm({ open: false, proposal: null });
+                await updateProposalStatus(interviewConfirm.proposal.id, "interviewing");
+              }}
+              disabled={interviewingId === interviewConfirm.proposal?.id}
+            >
+              {interviewingId === interviewConfirm.proposal?.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+              Continue
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
