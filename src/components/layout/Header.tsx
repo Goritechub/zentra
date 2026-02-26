@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell } from "lucide-react";
+import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell, Palette } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useColorTheme, THEME_OPTIONS } from "@/hooks/useTheme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,7 @@ export function Header() {
   const location = useLocation();
   const unreadCount = useUnreadMessages();
   const { unreadCount: notifUnreadCount } = useNotifications();
+  const { colorTheme, setColorTheme } = useColorTheme();
 
   const isClient = profile?.role === "client";
   const isFreelancer = profile?.role === "freelancer";
@@ -49,10 +51,10 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">C</span>
+              <span className="text-lg font-bold text-primary-foreground">Z</span>
             </div>
             <span className="text-xl font-bold text-foreground">
-              CAD<span className="text-primary">Gigs</span>
+              Zentra<span className="text-primary">Gig</span>
             </span>
           </Link>
 
@@ -83,6 +85,27 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            {/* Theme Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Palette className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {THEME_OPTIONS.map((t) => (
+                  <DropdownMenuItem
+                    key={t.value}
+                    onClick={() => setColorTheme(t.value)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: t.color }} />
+                    <span>{t.label}</span>
+                    {colorTheme === t.value && <span className="ml-auto text-xs">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {user ? (
               <>
               <NotificationBell />
