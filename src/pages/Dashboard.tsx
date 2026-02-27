@@ -96,6 +96,7 @@ export default function DashboardPage() {
   const clientMenuItems = [
     { icon: PlusCircle, label: "Post a Job", to: "/post-job", desc: "Create a new job listing" },
     { icon: Trophy, label: "Launch a Contest", to: "/launch-contest", desc: "Get multiple submissions" },
+    { icon: Trophy, label: "My Contests", to: "/dashboard/my-contests", desc: "Manage your contests" },
     { icon: Briefcase, label: "Posted Jobs", to: "/dashboard/jobs", desc: "Manage your posted jobs" },
     { icon: FileText, label: "Proposals Received", to: "/dashboard/proposals", desc: "Review expert proposals" },
     { icon: Send, label: "Sent Offers", to: "/dashboard/offers", desc: "Offers sent to experts" },
@@ -103,6 +104,7 @@ export default function DashboardPage() {
     { icon: BarChart3, label: "Contracts", to: "/dashboard/contracts", desc: "Manage active contracts" },
     { icon: Users, label: "Search Experts", to: "/freelancers", desc: "Find CAD professionals" },
     { icon: Heart, label: "Saved Experts", to: "/freelancers", desc: "Your bookmarked experts" },
+    { icon: Eye, label: "Browse Services", to: "/browse-services", desc: "Find expert services" },
     { icon: Wallet, label: "Wallet & Transactions", to: "/transactions", desc: "Payments and balance" },
   ];
 
@@ -184,9 +186,11 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
                       { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
+                      { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
                       { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
                       { icon: Wrench, label: "Manage Skills", to: "/manage-skills", desc: "Add or update skills" },
                       { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
+                      { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
                       { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
                       { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
                       { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },

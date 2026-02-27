@@ -176,6 +176,7 @@ export type Database = {
       }
       contests: {
         Row: {
+          banner_image: string | null
           category: string | null
           client_id: string
           created_at: string | null
@@ -187,11 +188,15 @@ export type Database = {
           prize_third: number | null
           required_skills: string[] | null
           required_software: string[] | null
+          rules: string | null
           status: string
           title: string
           updated_at: string | null
+          visibility: string
+          winner_selection_method: string | null
         }
         Insert: {
+          banner_image?: string | null
           category?: string | null
           client_id: string
           created_at?: string | null
@@ -203,11 +208,15 @@ export type Database = {
           prize_third?: number | null
           required_skills?: string[] | null
           required_software?: string[] | null
+          rules?: string | null
           status?: string
           title: string
           updated_at?: string | null
+          visibility?: string
+          winner_selection_method?: string | null
         }
         Update: {
+          banner_image?: string | null
           category?: string | null
           client_id?: string
           created_at?: string | null
@@ -219,9 +228,12 @@ export type Database = {
           prize_third?: number | null
           required_skills?: string[] | null
           required_software?: string[] | null
+          rules?: string | null
           status?: string
           title?: string
           updated_at?: string | null
+          visibility?: string
+          winner_selection_method?: string | null
         }
         Relationships: [
           {
@@ -1553,40 +1565,52 @@ export type Database = {
       }
       service_offers: {
         Row: {
+          banner_image: string | null
           category: string | null
           created_at: string | null
           delivery_days: number | null
+          delivery_unit: string | null
           description: string
           freelancer_id: string
           id: string
           is_active: boolean | null
           price: number | null
+          pricing_type: string | null
+          revisions_allowed: number | null
           skills: string[] | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          banner_image?: string | null
           category?: string | null
           created_at?: string | null
           delivery_days?: number | null
+          delivery_unit?: string | null
           description: string
           freelancer_id: string
           id?: string
           is_active?: boolean | null
           price?: number | null
+          pricing_type?: string | null
+          revisions_allowed?: number | null
           skills?: string[] | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          banner_image?: string | null
           category?: string | null
           created_at?: string | null
           delivery_days?: number | null
+          delivery_unit?: string | null
           description?: string
           freelancer_id?: string
           id?: string
           is_active?: boolean | null
           price?: number | null
+          pricing_type?: string | null
+          revisions_allowed?: number | null
           skills?: string[] | null
           title?: string
           updated_at?: string | null
