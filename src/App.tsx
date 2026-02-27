@@ -36,6 +36,11 @@ import ApplyJob from "./pages/ApplyJob";
 import Contact from "./pages/Contact";
 import Notifications from "./pages/Notifications";
 import ReceivedOffers from "./pages/ReceivedOffers";
+import BrowseContests from "./pages/BrowseContests";
+import ContestDetailPage from "./pages/ContestDetail";
+import MyContests from "./pages/MyContests";
+import MyServices from "./pages/MyServices";
+import BrowseServices from "./pages/BrowseServices";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +85,16 @@ const App = () => (
             <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
             <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
             <Route path="/contact" element={<Contact />} />
+
+            {/* Contests */}
+            <Route path="/contests" element={<AuthGuard><BrowseContests /></AuthGuard>} />
+            <Route path="/contest/:id" element={<AuthGuard><ContestDetailPage /></AuthGuard>} />
+            <Route path="/dashboard/my-contests" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><MyContests /></RoleGuard></AuthGuard>} />
+
+            {/* Services */}
+            <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><MyServices /></RoleGuard></AuthGuard>} />
+            <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><BrowseServices /></RoleGuard></AuthGuard>} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

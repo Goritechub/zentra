@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -14,12 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Trophy } from "lucide-react";
+import { Loader2, X, Trophy, Upload } from "lucide-react";
 
 export default function LaunchContestPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const bannerRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -28,8 +29,10 @@ export default function LaunchContestPage() {
   const [prizeSecond, setPrizeSecond] = useState("");
   const [prizeThird, setPrizeThird] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [visibility, setVisibility] = useState("open");
+  const [rules, setRules] = useState("");
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
 
   const categories = [
     "Architectural Drafting", "Mechanical CAD", "Electrical CAD", "3D Modeling",
@@ -45,6 +48,17 @@ export default function LaunchContestPage() {
     }
 
     setLoading(true);
+
+    let bannerUrl: string | null = null;
+    if (bannerFile) {
+      const path = `banners/${user.id}/${Date.now()}_${bannerFile.name}`;
+      const { error } = await supabase.storage.from("contest-banners").upload(path, bannerFile);
+      if (!error) {
+        const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
+        bannerUrl = data.publicUrl;
+      }
+    }
+
     const { error } = await supabase.from("contests" as any).insert({
       client_id: user.id,
       title: title.trim(),
@@ -55,14 +69,17 @@ export default function LaunchContestPage() {
       prize_third: prizeThird ? parseInt(prizeThird) : 0,
       deadline,
       required_skills: selectedSkills,
-      required_software: selectedSoftware,
+      visibility,
+      rules: rules.trim() || null,
+      banner_image: bannerUrl,
+      winner_selection_method: "client_selects",
     } as any);
 
     if (error) {
       toast.error("Failed to launch contest");
     } else {
       toast.success("Contest launched!");
-      navigate("/dashboard");
+      navigate("/dashboard/my-contests");
     }
     setLoading(false);
   };
@@ -111,8 +128,34 @@ export default function LaunchContestPage() {
                 <Textarea placeholder="Describe what you want contestants to design..." rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Submission Deadline *</Label>
-                <Input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                <Label>Rules / How to Enter</Label>
+                <Textarea placeholder="Explain the rules and submission guidelines..." rows={4} value={rules} onChange={(e) => setRules(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Submission Deadline *</Label>
+                  <Input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contest Visibility</Label>
+                  <Select value={visibility} onValueChange={setVisibility}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Open (entries visible to all)</SelectItem>
+                      <SelectItem value="closed">Closed (only entry count shown)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Banner Image (optional)</Label>
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-1" /> {bannerFile ? bannerFile.name : "Upload Banner"}
+                  </Button>
+                  {bannerFile && <button type="button" onClick={() => setBannerFile(null)} className="text-muted-foreground"><X className="h-4 w-4" /></button>}
+                </div>
+                <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={e => setBannerFile(e.target.files?.[0] || null)} />
               </div>
             </div>
 
