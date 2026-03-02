@@ -27,7 +27,7 @@ export default function MyContestsPage() {
       .select("*")
       .eq("client_id", user!.id)
       .order("created_at", { ascending: false });
-    
+
     const list = (data as any[]) || [];
 
     if (list.length > 0) {
@@ -43,6 +43,20 @@ export default function MyContestsPage() {
   };
 
   const totalPrize = (c: any) => (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0);
+
+  const getStatusLabel = (contest: any) => {
+    if (contest.status === "ended" || contest.status === "completed") return "Completed";
+    if (contest.status === "selecting_winners") return "Selecting Winners";
+    if (isPast(new Date(contest.deadline))) return "Selecting Winners";
+    return "Active";
+  };
+
+  const getStatusVariant = (contest: any): "default" | "secondary" | "outline" => {
+    const label = getStatusLabel(contest);
+    if (label === "Completed") return "secondary";
+    if (label === "Selecting Winners") return "outline";
+    return "default";
+  };
 
   if (authLoading || loading) {
     return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
@@ -73,34 +87,31 @@ export default function MyContestsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {contests.map((contest: any) => {
-                const ended = isPast(new Date(contest.deadline)) || contest.status === "ended";
-                return (
-                  <Link
-                    key={contest.id}
-                    to={`/contest/${contest.id}`}
-                    className="block bg-card rounded-xl border border-border p-6 card-hover"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg text-foreground">{contest.title}</h3>
-                          <Badge variant={ended ? "secondary" : "default"}>{ended ? "Ended" : "Active"}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{contest.description}</p>
-                        <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries</span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {ended ? "Ended" : `${formatDistanceToNow(new Date(contest.deadline))} left`}
-                          </span>
-                        </div>
+              {contests.map((contest: any) => (
+                <Link
+                  key={contest.id}
+                  to={`/contest/${contest.id}`}
+                  className="block bg-card rounded-xl border border-border p-6 card-hover"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-lg text-foreground">{contest.title}</h3>
+                        <Badge variant={getStatusVariant(contest)}>{getStatusLabel(contest)}</Badge>
                       </div>
-                      <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{contest.description}</p>
+                      <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries</span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {getStatusLabel(contest) === "Active" ? `${formatDistanceToNow(new Date(contest.deadline))} left` : getStatusLabel(contest)}
+                        </span>
+                      </div>
                     </div>
-                  </Link>
-                );
-              })}
+                    <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>

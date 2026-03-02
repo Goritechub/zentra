@@ -126,6 +126,80 @@ export type Database = {
           },
         ]
       }
+      contest_comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "contest_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_comments: {
+        Row: {
+          content: string
+          contest_id: string
+          created_at: string
+          id: string
+          parent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          contest_id: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          contest_id?: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_comments_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "contest_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contest_entries: {
         Row: {
           attachments: string[] | null
@@ -134,6 +208,7 @@ export type Database = {
           description: string | null
           freelancer_id: string
           id: string
+          is_nominee: boolean | null
           is_winner: boolean | null
           prize_position: number | null
         }
@@ -144,6 +219,7 @@ export type Database = {
           description?: string | null
           freelancer_id: string
           id?: string
+          is_nominee?: boolean | null
           is_winner?: boolean | null
           prize_position?: number | null
         }
@@ -154,6 +230,7 @@ export type Database = {
           description?: string | null
           freelancer_id?: string
           id?: string
+          is_nominee?: boolean | null
           is_winner?: boolean | null
           prize_position?: number | null
         }

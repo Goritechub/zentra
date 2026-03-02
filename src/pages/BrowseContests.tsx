@@ -75,12 +75,16 @@ export default function BrowseContestsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {contests.map((contest: any) => {
-                const ended = isPast(new Date(contest.deadline)) || contest.status === "ended";
+                const isCompleted = contest.status === "ended" || contest.status === "completed";
+                const isSelecting = contest.status === "selecting_winners" || (isPast(new Date(contest.deadline)) && !isCompleted);
+                const statusLabel = isCompleted ? "Completed" : isSelecting ? "Selecting Winners" : "Active";
+                const statusVariant = isCompleted ? "secondary" as const : isSelecting ? "outline" as const : "default" as const;
+                const dimmed = isCompleted;
                 return (
                   <Link
                     key={contest.id}
                     to={`/contest/${contest.id}`}
-                    className={`bg-card rounded-xl border border-border overflow-hidden card-hover transition-all ${ended ? "opacity-60 grayscale-[30%]" : ""}`}
+                    className={`bg-card rounded-xl border border-border overflow-hidden card-hover transition-all ${dimmed ? "opacity-60 grayscale-[30%]" : ""}`}
                   >
                     {/* Banner */}
                     <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
@@ -90,10 +94,10 @@ export default function BrowseContestsPage() {
                         <Trophy className="h-16 w-16 text-primary/30" />
                       )}
                       <Badge
-                        variant={ended ? "secondary" : "default"}
+                        variant={statusVariant}
                         className="absolute top-3 right-3"
                       >
-                        {ended ? "Ended" : "Active"}
+                        {statusLabel}
                       </Badge>
                     </div>
 
@@ -108,7 +112,7 @@ export default function BrowseContestsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
-                          {ended ? "Ended" : `${formatDistanceToNow(new Date(contest.deadline))} left`}
+                          {isCompleted ? "Completed" : isSelecting ? "Selecting Winners" : `${formatDistanceToNow(new Date(contest.deadline))} left`}
                         </span>
                       </div>
                       {contest.category && (
