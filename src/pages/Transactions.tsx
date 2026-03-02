@@ -20,6 +20,12 @@ import {
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 
+// Types that should show as credit (green, incoming)
+const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
+
+// Types to hide from display (internal escrow bookkeeping)
+const hiddenTypes = ["escrow_credit", "escrow_hold"];
+
 export default function TransactionsPage() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
@@ -45,7 +51,9 @@ export default function TransactionsPage() {
       supabase.from("wallet_transactions" as any).select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(50),
     ]);
     setWallet(walletRes.data);
-    setTransactions((txRes.data as any[]) || []);
+    // Filter out internal escrow bookkeeping entries
+    const allTx = (txRes.data as any[]) || [];
+    setTransactions(allTx.filter(tx => !hiddenTypes.includes(tx.type)));
     setLoading(false);
   };
 
@@ -64,7 +72,7 @@ export default function TransactionsPage() {
     try {
       const canvas = await html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff" });
       const link = document.createElement("a");
-      link.download = `CADGigs_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.png`;
+      link.download = `ZentraGig_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
@@ -84,15 +92,13 @@ export default function TransactionsPage() {
       "Balance After": tx.balance_after,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
-    // Add header row for watermark
-    XLSX.utils.sheet_add_aoa(ws, [["CADGigs Transaction Report", "", "", "", ""], [`Generated: ${new Date().toLocaleDateString("en-NG")}`, "", "", "", ""]], { origin: -1 });
+    XLSX.utils.sheet_add_aoa(ws, [["ZentraGig Transaction Report", "", "", "", ""], [`Generated: ${new Date().toLocaleDateString("en-NG")}`, "", "", "", ""]], { origin: -1 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-    XLSX.writeFile(wb, `CADGigs_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.xlsx`);
+    XLSX.writeFile(wb, `ZentraGig_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.xlsx`);
     setExporting(false);
   };
 
-  const creditTypes = ["credit", "escrow_release", "refund"];
   const filteredForExport = getFilteredTransactions();
 
   if (authLoading || loading) {
@@ -233,12 +239,12 @@ export default function TransactionsPage() {
               <div ref={exportRef} style={{ width: 800, padding: 32, background: "#fff", fontFamily: "sans-serif" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
                   <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>CADGigs Transaction Report</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>ZentraGig Transaction Report</h2>
                     <p style={{ fontSize: 12, color: "#888" }}>
                       {exportFrom && exportTo ? `${exportFrom} — ${exportTo}` : "All Transactions"}
                     </p>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#2563eb" }}>CADGigs</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#2563eb" }}>ZentraGig</div>
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
@@ -264,7 +270,7 @@ export default function TransactionsPage() {
                 </table>
                 <div style={{ marginTop: 24, borderTop: "1px solid #e5e7eb", paddingTop: 12, display: "flex", justifyContent: "space-between", fontSize: 11, color: "#aaa" }}>
                   <span>Generated on {new Date().toLocaleDateString("en-NG")}</span>
-                  <span style={{ fontWeight: 700, color: "#2563eb" }}>© CADGigs</span>
+                  <span style={{ fontWeight: 700, color: "#2563eb" }}>© ZentraGig</span>
                 </div>
               </div>
             </div>
