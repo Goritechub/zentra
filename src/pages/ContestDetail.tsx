@@ -139,22 +139,61 @@ export default function ContestDetailPage() {
   };
 
   const fetchComments = useCallback(async () => {
-    console.log("FETCHCOMMENTS RUNNING ✅", id);
-
-    const { data, error } = await supabase
+    // 1) Fetch comments
+    const { data: commentsData, error: commentsError } = await supabase
       .from("contest_comments")
       .select("*")
       .eq("contest_id", id)
       .order("created_at", { ascending: true });
 
-    console.log("comments raw", data, error);
+    console.log("comments raw", commentsData, commentsError);
 
-    if (error) {
+    if (commentsError) {
       toast.error("Failed to load comments");
       return;
     }
 
-    setComments((data as any[]) || []);
+    const rows = (commentsData as any[]) || [];
+
+    // 2) Fetch profiles for the commenters
+    const userIds = Array.from(new Set(rows.map((c) => c.user_id).filter(Boolean)));
+
+    let profileMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, username")
+        .in("id", userIds);
+
+      console.log("profiles for comments", profilesData, profilesError);
+
+      if (!profilesError && profilesData) {
+        profileMap = new Map(profilesData.map((p: any) => [p.id, p]));
+      }
+    }
+
+    // 3) Attach `user` field so your existing UI works
+    const hydrated = rows.map((c) => ({
+      ...c,
+      user: profileMap.get(c.user_id) || null,
+    }));
+
+    setComments(hydrated);
+
+    // 4) Update participants list for @mentions
+    setContestParticipants((prev) => {
+      const updated = [...prev];
+      hydrated.forEach((c: any) => {
+        if (!updated.find((p) => p.id === c.user_id)) {
+          updated.push({
+            id: c.user_id,
+            full_name: c.user?.full_name,
+            username: c.user?.username,
+          });
+        }
+      });
+      return updated;
+    });
   }, [id]);
 
   const deadlinePassed = contest ? isPast(new Date(contest.deadline)) : false;
