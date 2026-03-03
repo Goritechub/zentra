@@ -208,6 +208,12 @@ export default function ContestDetailPage() {
     : 0;
   const allEntries = [...entries, ...nominees, ...winners];
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
+  const isEnded = contest?.status === "ended" || contest?.status === "completed";
+  const canExtendDeadline = isOwner && !isEnded && deadlinePassed && contest?.status === "active";
+  const canSelectWinners =
+    isOwner &&
+    !isEnded &&
+    (contest?.status === "selecting_winners" || (deadlinePassed && contest?.status === "active"));
 
   // Calculate max nominees based on prize structure
   const getMaxNominees = () => {
@@ -305,8 +311,12 @@ export default function ContestDetailPage() {
   };
 
   const handlePublishWinners = async () => {
-    if (nominees.length === 0) {
-      toast.error("No nominees selected");
+    const requiredWinners = getMaxNominees();
+
+    if (nominees.length !== requiredWinners) {
+      toast.error(
+        `Please nominate exactly ${requiredWinners} winner${requiredWinners === 1 ? "" : "s"} before publishing.`,
+      );
       return;
     }
     setPublishingWinners(true);
@@ -630,7 +640,7 @@ export default function ContestDetailPage() {
           </div>
 
           {/* Selecting Winners message */}
-          {(isSelectingWinners || (deadlinePassed && !isCompleted)) && (
+          {canSelectWinners && (
             <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="h-5 w-5 text-accent" />
@@ -640,9 +650,11 @@ export default function ContestDetailPage() {
               </div>
               {isOwner && (
                 <div className="flex gap-2 mt-3">
-                  <Button size="sm" variant="outline" onClick={() => setShowExtendDialog(true)}>
-                    <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
-                  </Button>
+                  {canExtendDeadline && (
+                    <Button size="sm" variant="outline" onClick={() => setShowExtendDialog(true)}>
+                      <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
+                    </Button>
+                  )}
                   <Button size="sm" onClick={() => navigate(`#winners`)}>
                     <Award className="h-4 w-4 mr-1" /> Proceed to Select Winners
                   </Button>
@@ -685,9 +697,13 @@ export default function ContestDetailPage() {
                 ✓ You've entered this contest
               </Badge>
             )}
-            {isOwner && (isSelectingWinners || (deadlinePassed && !isCompleted)) && nominees.length > 0 && (
-              <Button onClick={() => setShowPublishConfirm(true)}>
-                <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length})
+            {isOwner && !isEnded && (isSelectingWinners || deadlinePassed) && (
+              <Button
+                onClick={() => setShowPublishConfirm(true)}
+                disabled={nominees.length !== maxNominees}
+                title={nominees.length !== maxNominees ? `Nominate ${maxNominees} to publish` : ""}
+              >
+                <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length}/{maxNominees})
               </Button>
             )}
           </div>
@@ -839,7 +855,7 @@ export default function ContestDetailPage() {
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold text-foreground">Entries ({allEntries.length})</h2>
-                  {isOwner && !isCompleted && (
+                  {isOwner && !isEnded && (
                     <p className="text-xs text-muted-foreground">
                       Nominees: {nominees.length}/{maxNominees}
                     </p>
@@ -896,7 +912,7 @@ export default function ContestDetailPage() {
                             </p>
                             {isOwner &&
                               !entry.is_winner &&
-                              !isCompleted &&
+                              !isEnded &&
                               ((entry as any).is_nominee ? (
                                 <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
                                   Remove
@@ -938,7 +954,7 @@ export default function ContestDetailPage() {
             <TabsContent value="winners">
               <div className="bg-card rounded-xl border border-border p-6">
                 {/* Nominees section - only visible to owner before publishing */}
-                {isOwner && !isCompleted && nominees.length > 0 && (
+                {isOwner && !isEnded && nominees.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Star className="h-4 w-4 text-primary" /> Your Nominees ({nominees.length}/{maxNominees}) —
@@ -969,7 +985,7 @@ export default function ContestDetailPage() {
                   </div>
                 )}
 
-                {isOwner && !isCompleted && nominees.length === 0 && (
+                {isOwner && !isEnded && nominees.length === 0 && (
                   <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border">
                     <p className="text-sm text-muted-foreground">
                       No nominees yet. Go to the <strong>Entries</strong> tab to nominate entries. You can nominate up
