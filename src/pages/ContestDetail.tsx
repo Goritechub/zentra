@@ -139,7 +139,8 @@ export default function ContestDetailPage() {
   };
 
   const fetchComments = useCallback(async () => {
-    // 1) Test base fetch first (no join)
+    console.log("FETCHCOMMENTS RUNNING ✅", id);
+
     const { data, error } = await supabase
       .from("contest_comments")
       .select("*")
@@ -153,7 +154,6 @@ export default function ContestDetailPage() {
       return;
     }
 
-    // If raw works, try join (next step) — but first show raw
     setComments((data as any[]) || []);
   }, [id]);
 
