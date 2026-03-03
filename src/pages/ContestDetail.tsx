@@ -80,13 +80,7 @@ export default function ContestDetailPage() {
 
   const isClient = profile?.role === "client";
   const isExpert = profile?.role === "freelancer";
-  const { data, error } = await supabase
-    .from("contest_comments")
-    .select("*")
-    .eq("contest_id", id)
-    .order("created_at", { ascending: true });
 
-  console.log("comments", data, error);
   useEffect(() => {
     if (id) {
       fetchContest();
@@ -145,28 +139,22 @@ export default function ContestDetailPage() {
   };
 
   const fetchComments = useCallback(async () => {
-    const { data: commentsData } = await supabase
-      .from("contest_comments" as any)
-      .select("*, user:profiles!contest_comments_user_id_fkey(full_name, avatar_url, username)")
+    // 1) Test base fetch first (no join)
+    const { data, error } = await supabase
+      .from("contest_comments")
+      .select("*")
       .eq("contest_id", id)
       .order("created_at", { ascending: true });
-    setComments((commentsData as any[]) || []);
 
-    // Add commenters to participants
-    if (commentsData) {
-      setContestParticipants((prev) => {
-        const updated = [...prev];
-        (commentsData as any[]).forEach((c: any) => {
-          if (!updated.find((p) => p.id === c.user_id)) {
-            updated.push({ id: c.user_id, full_name: c.user?.full_name, username: c.user?.username });
-          }
-        });
-        return updated;
-      });
+    console.log("comments raw", data, error);
+
+    if (error) {
+      toast.error("Failed to load comments");
+      return;
     }
 
-    const { data: likesData } = await supabase.from("contest_comment_likes" as any).select("*");
-    setCommentLikes((likesData as any[]) || []);
+    // If raw works, try join (next step) — but first show raw
+    setComments((data as any[]) || []);
   }, [id]);
 
   const deadlinePassed = contest ? isPast(new Date(contest.deadline)) : false;
