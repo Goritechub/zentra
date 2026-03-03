@@ -15,11 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
-import { Loader2, X, Save, Plus, Trash2, Award, Building2 } from "lucide-react";
+import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck } from "lucide-react";
 
 interface FreelancerProfile {
   id: string;
@@ -83,6 +84,9 @@ export default function MyProfilePage() {
   const [workExperience, setWorkExperience] = useState<WorkExp[]>([]);
   const [deletedCertIds, setDeletedCertIds] = useState<string[]>([]);
   const [deletedExpIds, setDeletedExpIds] = useState<string[]>([]);
+  const [authCode, setAuthCode] = useState("");
+  const [hasAuthCode, setHasAuthCode] = useState(false);
+  const [savingAuthCode, setSavingAuthCode] = useState(false);
 
   // Skill input
   const [skillSearch, setSkillSearch] = useState("");
@@ -99,6 +103,11 @@ export default function MyProfilePage() {
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
+    }
+    if (user) {
+      supabase.functions.invoke("auth-code", { body: { action: "check" } }).then(({ data }) => {
+        setHasAuthCode(data?.has_code || false);
+      });
     }
   }, [user, authLoading, navigate]);
 
@@ -577,6 +586,61 @@ export default function MyProfilePage() {
                 </section>
               </>
             )}
+
+            {/* Auth Code Section */}
+            <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" /> Authentication Code
+              </h2>
+              {hasAuthCode ? (
+                <div>
+                  <p className="text-sm text-muted-foreground">✅ Your 6-digit authentication code is set. It's required for publishing contest winners, funding milestones, and withdrawals.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={async () => {
+                      const current = prompt("Enter your current 6-digit code to reset:");
+                      if (!current || current.length !== 6) return;
+                      const { data } = await supabase.functions.invoke("auth-code", { body: { action: "reset", code: current } });
+                      if (data?.success) {
+                        setHasAuthCode(false);
+                        toast({ title: "Auth code cleared", description: "You can now set a new code." });
+                      } else {
+                        toast({ title: "Error", description: data?.error || "Invalid code", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Reset Auth Code
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Set a 6-digit code to secure critical actions like publishing winners and making withdrawals.</p>
+                  <AuthCodeInput value={authCode} onChange={setAuthCode} disabled={savingAuthCode} />
+                  <Button
+                    onClick={async () => {
+                      if (authCode.length !== 6) { toast({ title: "Enter all 6 digits", variant: "destructive" }); return; }
+                      setSavingAuthCode(true);
+                      const { data } = await supabase.functions.invoke("auth-code", { body: { action: "set", code: authCode } });
+                      setSavingAuthCode(false);
+                      if (data?.success) {
+                        setHasAuthCode(true);
+                        setAuthCode("");
+                        toast({ title: "Auth code set!", description: "Your authentication code has been saved securely." });
+                      } else {
+                        toast({ title: "Error", description: data?.error || "Failed to set code", variant: "destructive" });
+                      }
+                    }}
+                    disabled={savingAuthCode || authCode.length !== 6}
+                    className="w-full"
+                  >
+                    {savingAuthCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                    Save Authentication Code
+                  </Button>
+                </div>
+              )}
+            </section>
 
             {/* Delete Account */}
             <section className="bg-card rounded-xl border border-destructive/30 p-6 space-y-4">
