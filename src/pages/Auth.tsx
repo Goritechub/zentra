@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
-const RECAPTCHA_SITE_KEY = "6LeDAG8sAAAAAMdw98tXzWMq81fzZzS8uEz7xMt0";
+const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
