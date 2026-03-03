@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -18,7 +18,11 @@ const RECAPTCHA_SITE_KEY = "6LeDAG8sAAAAAMdw98tXzWMq81fzZzS8uEz7xMt0";
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
-  username: z.string().min(3, "Username must be at least 3 characters").max(30).regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
   email: z.string().email("Please enter a valid email").max(255),
   password: z.string().min(6, "Password must be at least 6 characters").max(72),
   role: z.enum(["client", "freelancer"]),
@@ -30,13 +34,21 @@ const signInSchema = z.object({
 });
 
 // Load reCAPTCHA v2 script
-function loadRecaptchaScript() {
-  if (document.getElementById("recaptcha-v2-script")) return;
+function loadRecaptchaScript(onLoad: () => void) {
+  // already loaded
+  if (document.getElementById("recaptcha-v2-script")) {
+    // if grecaptcha is already available, call onLoad immediately
+    if ((window as any).grecaptcha) onLoad();
+    return;
+  }
+
   const script = document.createElement("script");
   script.id = "recaptcha-v2-script";
-  script.src = "https://www.google.com/recaptcha/api.js";
+  // explicit render mode
+  script.src = "https://www.google.com/recaptcha/api.js?render=explicit";
   script.async = true;
   script.defer = true;
+  script.onload = onLoad;
   document.head.appendChild(script);
 }
 
@@ -44,7 +56,7 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, profile, signUp, signIn, loading: authLoading } = useAuth();
-  
+
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
 
@@ -53,7 +65,10 @@ export default function AuthPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
-  
+  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
+  const [recaptchaWidgetId, setRecaptchaWidgetId] = useState<number | null>(null);
+  const [recaptchaReady, setRecaptchaReady] = useState(false);
+
   const [signUpData, setSignUpData] = useState({
     fullName: "",
     username: "",
@@ -72,18 +87,38 @@ export default function AuthPage() {
 
   // Load reCAPTCHA script and set up callbacks
   useEffect(() => {
-    loadRecaptchaScript();
-    (window as any).onRecaptchaSuccess = (token: string) => {
-      setRecaptchaToken(token);
-    };
-    (window as any).onRecaptchaExpired = () => {
-      setRecaptchaToken(null);
-    };
+    loadRecaptchaScript(() => {
+      setRecaptchaReady(true);
+    });
+
+    (window as any).onRecaptchaSuccess = (token: string) => setRecaptchaToken(token);
+    (window as any).onRecaptchaExpired = () => setRecaptchaToken(null);
+
     return () => {
       delete (window as any).onRecaptchaSuccess;
       delete (window as any).onRecaptchaExpired;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "signup") return;
+    if (!recaptchaReady) return;
+    if (!recaptchaContainerRef.current) return;
+
+    const grecaptcha = (window as any).grecaptcha;
+    if (!grecaptcha?.render) return;
+
+    // Avoid rendering multiple times
+    if (recaptchaWidgetId !== null) return;
+
+    const id = grecaptcha.render(recaptchaContainerRef.current, {
+      sitekey: RECAPTCHA_SITE_KEY,
+      callback: (token: string) => (window as any).onRecaptchaSuccess?.(token),
+      "expired-callback": () => (window as any).onRecaptchaExpired?.(),
+    });
+
+    setRecaptchaWidgetId(id);
+  }, [activeTab, recaptchaReady, recaptchaWidgetId]);
 
   useEffect(() => {
     if (user && !authLoading && profile) {
@@ -101,6 +136,10 @@ export default function AuthPage() {
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
     try {
+      const desiredRole =
+        activeTab === "signup" ? signUpData.role : searchParams.get("role") === "freelancer" ? "freelancer" : "client";
+
+      localStorage.setItem("pending_oauth_role", desiredRole);
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
@@ -113,6 +152,29 @@ export default function AuthPage() {
       setGoogleLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const applyPendingRole = async () => {
+      if (!user || !profile) return;
+
+      const pending = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
+      if (!pending) return;
+
+      // Only override if profile has no role OR it was defaulted incorrectly
+      if (!profile.role || profile.role === "client") {
+        const { error } = await supabase.from("profiles").update({ role: pending }).eq("id", user.id);
+
+        if (!error) {
+          localStorage.removeItem("pending_oauth_role");
+        }
+      } else {
+        // profile already has a role; don't override
+        localStorage.removeItem("pending_oauth_role");
+      }
+    };
+
+    applyPendingRole();
+  }, [user, profile]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,17 +200,16 @@ export default function AuthPage() {
     }
 
     try {
-      const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-        "verify-recaptcha",
-        { body: { token: recaptchaToken } }
-      );
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-recaptcha", {
+        body: { token: recaptchaToken },
+      });
 
       if (verifyError || !verifyData?.success) {
         toast.error(verifyData?.error || "reCAPTCHA verification failed. Please try again.");
         // Reset the widget
-        if ((window as any).grecaptcha) {
-          (window as any).grecaptcha.reset();
-        }
+        const grecaptcha = (window as any).grecaptcha;
+        if (grecaptcha && recaptchaWidgetId !== null) grecaptcha.reset(recaptchaWidgetId);
+        setRecaptchaToken(null);
         setRecaptchaToken(null);
         setLoading(false);
         return;
@@ -173,12 +234,20 @@ export default function AuthPage() {
       return;
     }
 
-    const { error } = await signUp(signUpData.email, signUpData.password, signUpData.role, signUpData.fullName, signUpData.username);
+    const { error } = await signUp(
+      signUpData.email,
+      signUpData.password,
+      signUpData.role,
+      signUpData.fullName,
+      signUpData.username,
+    );
 
     if (error) {
-      toast.error(error.message.includes("already registered") 
-        ? "This email is already registered. Please sign in instead." 
-        : error.message);
+      toast.error(
+        error.message.includes("already registered")
+          ? "This email is already registered. Please sign in instead."
+          : error.message,
+      );
       setLoading(false);
       return;
     }
@@ -226,9 +295,11 @@ export default function AuthPage() {
     const { error } = await signIn(email, signInData.password);
 
     if (error) {
-      toast.error(error.message.includes("Invalid login credentials")
-        ? "Invalid email/username or password. Please try again."
-        : error.message);
+      toast.error(
+        error.message.includes("Invalid login credentials")
+          ? "Invalid email/username or password. Please try again."
+          : error.message,
+      );
       setLoading(false);
       return;
     }
@@ -308,9 +379,7 @@ export default function AuthPage() {
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {activeTab === "signin"
-                ? "Sign in to access your dashboard"
-                : "Join Nigeria's #1 CAD marketplace"}
+              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join Nigeria's #1 CAD marketplace"}
             </p>
           </div>
 
@@ -361,7 +430,14 @@ export default function AuthPage() {
                   </div>
 
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (<><Loader2 className="h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
                   </Button>
                 </form>
               </TabsContent>
@@ -374,31 +450,41 @@ export default function AuthPage() {
                     <Label>I want to...</Label>
                     <RadioGroup
                       value={signUpData.role}
-                      onValueChange={(value: "client" | "freelancer") =>
-                        setSignUpData({ ...signUpData, role: value })
-                      }
+                      onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value })}
                       className="grid grid-cols-2 gap-3"
                     >
                       <label
                         htmlFor="role-client"
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "client" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+                          signUpData.role === "client"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground"
                         }`}
                       >
                         <RadioGroupItem value="client" id="role-client" className="sr-only" />
-                        <Briefcase className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>Hire Talent</span>
+                        <Briefcase
+                          className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`}
+                        />
+                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
+                          Hire Talent
+                        </span>
                         <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
                       </label>
                       <label
                         htmlFor="role-freelancer"
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "freelancer" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+                          signUpData.role === "freelancer"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground"
                         }`}
                       >
                         <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
-                        <Users className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>Find Work</span>
+                        <Users
+                          className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`}
+                        />
+                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
+                          Find Work
+                        </span>
                         <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
                       </label>
                     </RadioGroup>
@@ -421,7 +507,12 @@ export default function AuthPage() {
                       id="signup-username"
                       placeholder="adewale_cad"
                       value={signUpData.username}
-                      onChange={(e) => setSignUpData({ ...signUpData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                      onChange={(e) =>
+                        setSignUpData({
+                          ...signUpData,
+                          username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+                        })
+                      }
                       maxLength={30}
                     />
                     <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only</p>
@@ -464,23 +555,29 @@ export default function AuthPage() {
                   </div>
 
                   <div className="flex justify-center">
-                    <div
-                      className="g-recaptcha"
-                      data-sitekey={RECAPTCHA_SITE_KEY}
-                      data-callback="onRecaptchaSuccess"
-                      data-expired-callback="onRecaptchaExpired"
-                    />
+                    <div ref={recaptchaContainerRef} />
                   </div>
 
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (<><Loader2 className="h-4 w-4 animate-spin" />Creating account...</>) : "Create Account"}
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating account...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground mt-4">
                     By signing up, you agree to our{" "}
-                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>{" "}
+                    <Link to="/terms" className="text-primary hover:underline">
+                      Terms of Service
+                    </Link>{" "}
                     and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                    <Link to="/privacy" className="text-primary hover:underline">
+                      Privacy Policy
+                    </Link>
                   </p>
                 </form>
               </TabsContent>
@@ -489,16 +586,20 @@ export default function AuthPage() {
 
           <div className="mt-8 grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />Verified Experts
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Verified Experts
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />Secure Payments
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Secure Payments
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />Nigerian Focus
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Nigerian Focus
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-primary" />WhatsApp Support
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              WhatsApp Support
             </div>
           </div>
         </div>
