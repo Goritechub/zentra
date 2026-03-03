@@ -74,10 +74,12 @@ export default function FreelancersPage() {
   const filtered = freelancers.filter((f) => {
     const p = f.profile;
     if (!p) return false;
+    const term = searchTerm.toLowerCase().replace(/^@/, "");
     const matchSearch = !searchTerm ||
-      (p.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (f.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (f.skills || []).some((s: string) => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      (p.full_name || "").toLowerCase().includes(term) ||
+      (p.username || "").toLowerCase().includes(term) ||
+      (f.title || "").toLowerCase().includes(term) ||
+      (f.skills || []).some((s: string) => s.toLowerCase().includes(term));
     const matchState = !selectedState || p.state === selectedState;
     const matchSkill = !selectedSkill || (f.skills || []).includes(selectedSkill);
     const matchVerified = !verifiedOnly || p.is_verified;
@@ -151,7 +153,7 @@ export default function FreelancersPage() {
                 <div className="flex flex-col lg:flex-row gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Search by name, skill, or title..." className="pl-10 h-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <Input placeholder="Search by name, @username, skill, or title..." className="pl-10 h-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <Select value={selectedState} onValueChange={(v) => setSelectedState(v === "all" ? "" : v)}>
@@ -189,6 +191,7 @@ export default function FreelancersPage() {
                         </div>
                       </div>
                       <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{p?.full_name}</h3>
+                      {p?.username && <p className="text-xs text-muted-foreground">@{p.username}</p>}
                       <p className="text-sm text-muted-foreground mt-1">{f.title || "CAD Professional"}</p>
                       {p?.state && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">

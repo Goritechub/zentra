@@ -126,6 +126,35 @@ export type Database = {
           },
         ]
       }
+      comment_mentions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          mentioned_user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          mentioned_user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          mentioned_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "contest_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contest_comment_likes: {
         Row: {
           comment_id: string
@@ -1416,6 +1445,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_code_hash: string | null
           avatar_url: string | null
           city: string | null
           created_at: string | null
@@ -1431,6 +1461,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          auth_code_hash?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
@@ -1446,6 +1477,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          auth_code_hash?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
