@@ -24,24 +24,8 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  Loader2,
-  ArrowLeft,
-  Trophy,
-  Calendar,
-  Users,
-  FileText,
-  Award,
-  Upload,
-  Eye,
-  Lock,
-  Star,
-  MessageSquare,
-  ThumbsUp,
-  Heart,
-  Reply,
-  Send,
-  Clock,
-  AtSign,
+  Loader2, ArrowLeft, Trophy, Calendar, Users, FileText, Award, Upload, Eye, Lock, Star,
+  MessageSquare, ThumbsUp, Heart, Reply, Send, Clock, AtSign, Bell, BellOff,
 } from "lucide-react";
 
 export default function ContestDetailPage() {
@@ -65,6 +49,10 @@ export default function ContestDetailPage() {
   const [newDeadline, setNewDeadline] = useState("");
   const [extendingDeadline, setExtendingDeadline] = useState(false);
 
+  // Follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
   // Comments state
   const [comments, setComments] = useState<any[]>([]);
   const [commentLikes, setCommentLikes] = useState<any[]>([]);
@@ -85,15 +73,48 @@ export default function ContestDetailPage() {
     if (id) {
       fetchContest();
       fetchComments();
+      fetchLikes();
+      if (user) fetchFollowState();
     }
-  }, [id]);
+  }, [id, user]);
 
-  // Scroll to comments if navigated with hash
   useEffect(() => {
     if (location.hash === "#comments" && commentsRef.current) {
       setTimeout(() => commentsRef.current?.scrollIntoView({ behavior: "smooth" }), 500);
     }
   }, [location.hash, comments]);
+
+  const fetchFollowState = async () => {
+    if (!user || !id) return;
+    const { data } = await supabase
+      .from("contest_follows" as any)
+      .select("id")
+      .eq("contest_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    setIsFollowing(!!data);
+  };
+
+  const handleToggleFollow = async () => {
+    if (!user || !id) return;
+    setFollowLoading(true);
+    if (isFollowing) {
+      await supabase
+        .from("contest_follows" as any)
+        .delete()
+        .eq("contest_id", id)
+        .eq("user_id", user.id);
+      setIsFollowing(false);
+      toast.success("Unfollowed contest");
+    } else {
+      await supabase
+        .from("contest_follows" as any)
+        .insert({ contest_id: id, user_id: user.id } as any);
+      setIsFollowing(true);
+      toast.success("Following contest — you'll be notified of new comments");
+    }
+    setFollowLoading(false);
+  };
 
   const fetchContest = async () => {
     const { data } = (await supabase
@@ -116,7 +137,6 @@ export default function ContestDetailPage() {
     setNominees(allEntries.filter((e) => (e as any).is_nominee && !e.is_winner));
     setEntries(allEntries.filter((e) => !e.is_winner && !(e as any).is_nominee));
 
-    // Build participants list for @mentions
     const participants: any[] = [];
     if (data) {
       participants.push({
@@ -138,15 +158,21 @@ export default function ContestDetailPage() {
     setLoading(false);
   };
 
+  const fetchLikes = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("contest_comment_likes")
+      .select("*");
+    // We need likes for this contest's comments — fetch all for now, filter client-side
+    setCommentLikes((data as any[]) || []);
+  };
+
   const fetchComments = useCallback(async () => {
-    // 1) Fetch comments
     const { data: commentsData, error: commentsError } = await supabase
       .from("contest_comments")
       .select("*")
       .eq("contest_id", id)
       .order("created_at", { ascending: true });
-
-    console.log("comments raw", commentsData, commentsError);
 
     if (commentsError) {
       toast.error("Failed to load comments");
@@ -154,25 +180,20 @@ export default function ContestDetailPage() {
     }
 
     const rows = (commentsData as any[]) || [];
-
-    // 2) Fetch profiles for the commenters
     const userIds = Array.from(new Set(rows.map((c) => c.user_id).filter(Boolean)));
 
     let profileMap = new Map<string, any>();
     if (userIds.length > 0) {
-      const { data: profilesData, error: profilesError } = await supabase
+      const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url, username")
         .in("id", userIds);
 
-      console.log("profiles for comments", profilesData, profilesError);
-
-      if (!profilesError && profilesData) {
+      if (profilesData) {
         profileMap = new Map(profilesData.map((p: any) => [p.id, p]));
       }
     }
 
-    // 3) Attach `user` field so your existing UI works
     const hydrated = rows.map((c) => ({
       ...c,
       user: profileMap.get(c.user_id) || null,
@@ -180,7 +201,16 @@ export default function ContestDetailPage() {
 
     setComments(hydrated);
 
-    // 4) Update participants list for @mentions
+    // Also refresh likes
+    const commentIds = rows.map(c => c.id);
+    if (commentIds.length > 0) {
+      const { data: likesData } = await supabase
+        .from("contest_comment_likes")
+        .select("*")
+        .in("comment_id", commentIds);
+      setCommentLikes((likesData as any[]) || []);
+    }
+
     setContestParticipants((prev) => {
       const updated = [...prev];
       hydrated.forEach((c: any) => {
@@ -209,13 +239,14 @@ export default function ContestDetailPage() {
   const allEntries = [...entries, ...nominees, ...winners];
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
   const isEnded = contest?.status === "ended" || contest?.status === "completed";
-  const canExtendDeadline = isOwner && !isEnded && deadlinePassed && contest?.status === "active";
+
+  // Extend deadline: only once, only if not ended, only if deadline passed, only owner
+  const canExtendDeadline = isOwner && !isEnded && deadlinePassed && contest?.status === "active" && !contest?.deadline_extended_once && winners.length === 0;
   const canSelectWinners =
     isOwner &&
     !isEnded &&
     (contest?.status === "selecting_winners" || (deadlinePassed && contest?.status === "active"));
 
-  // Calculate max nominees based on prize structure
   const getMaxNominees = () => {
     if (!contest) return 1;
     let count = 1;
@@ -237,7 +268,6 @@ export default function ContestDetailPage() {
     return "default";
   };
 
-  // Auto-update status to selecting_winners when deadline passes
   useEffect(() => {
     if (contest && deadlinePassed && contest.status === "active" && isOwner) {
       supabase
@@ -321,33 +351,23 @@ export default function ContestDetailPage() {
     }
     setPublishingWinners(true);
 
-    const sortedNominees = [...nominees].slice(0, 3);
-    for (let i = 0; i < sortedNominees.length; i++) {
-      await supabase
-        .from("contest_entries")
-        .update({ is_winner: true, prize_position: i + 1, is_nominee: false } as any)
-        .eq("id", sortedNominees[i].id);
-    }
-
-    await supabase
-      .from("contests" as any)
-      .update({ status: "ended" })
-      .eq("id", id);
-
-    // Notify winners
-    for (let i = 0; i < sortedNominees.length; i++) {
-      const prize = i === 0 ? contest.prize_first : i === 1 ? contest.prize_second : contest.prize_third;
-      await createNotification({
-        userId: sortedNominees[i].freelancer_id,
-        type: "contest_winner",
-        title: `🏆 You won ${i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"} place!`,
-        message: `Congratulations! You won ${formatNaira(prize)} in "${contest.title}"`,
+    try {
+      const { data, error } = await supabase.functions.invoke("publish-contest-winners", {
+        body: { contest_id: id },
       });
-    }
 
-    toast.success("Winners published! Escrow payouts triggered.");
-    setShowPublishConfirm(false);
-    fetchContest();
+      if (error || !data?.success) {
+        toast.error(data?.error || "Failed to publish winners. Please try again.");
+        setPublishingWinners(false);
+        return;
+      }
+
+      toast.success("Winners published! Prize payouts completed.");
+      setShowPublishConfirm(false);
+      fetchContest();
+    } catch (err: any) {
+      toast.error("Failed to publish winners.");
+    }
     setPublishingWinners(false);
   };
 
@@ -357,14 +377,19 @@ export default function ContestDetailPage() {
       return;
     }
     setExtendingDeadline(true);
-    await supabase
+    const { error } = await supabase
       .from("contests" as any)
-      .update({ deadline: newDeadline, status: "active" })
+      .update({ deadline: newDeadline, status: "active", deadline_extended_once: true } as any)
       .eq("id", id);
-    toast.success("Deadline extended! Contest is active again.");
-    setShowExtendDialog(false);
-    setNewDeadline("");
-    fetchContest();
+
+    if (error) {
+      toast.error("Failed to extend deadline");
+    } else {
+      toast.success("Deadline extended! Contest is active again.");
+      setShowExtendDialog(false);
+      setNewDeadline("");
+      fetchContest();
+    }
     setExtendingDeadline(false);
   };
 
@@ -398,14 +423,46 @@ export default function ContestDetailPage() {
     setShowMentions(false);
   };
 
-  // Extract mentions from text
   const extractMentions = (text: string): string[] => {
     const matches = text.match(/@(\w+)/g);
     if (!matches) return [];
     return matches.map((m) => m.slice(1));
   };
 
-  // Comments
+  // Notify followers + owner on new comment
+  const notifyOnComment = async (commentText: string) => {
+    if (!contest || !user || !id) return;
+
+    // Notify contest owner (always, unless commenter is the owner)
+    if (contest.client_id !== user.id) {
+      await createNotification({
+        userId: contest.client_id,
+        type: "contest_comment",
+        title: "New comment on your contest",
+        message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
+      });
+    }
+
+    // Notify followers who are participants (exclude self)
+    const { data: followers } = await supabase
+      .from("contest_follows" as any)
+      .select("user_id")
+      .eq("contest_id", id);
+
+    if (followers) {
+      for (const f of followers as any[]) {
+        if (f.user_id === user.id) continue;
+        if (f.user_id === contest.client_id) continue; // already notified
+        await createNotification({
+          userId: f.user_id,
+          type: "contest_comment",
+          title: "New comment on a contest you follow",
+          message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
+        });
+      }
+    }
+  };
+
   const handlePostComment = async (parentId?: string) => {
     const text = parentId ? replyText : newComment;
     if (!text.trim() || !user) return;
@@ -448,6 +505,9 @@ export default function ContestDetailPage() {
       }
     }
 
+    // Notify followers + owner
+    await notifyOnComment(text);
+
     if (parentId) {
       setReplyTo(null);
       setReplyText("");
@@ -467,7 +527,15 @@ export default function ContestDetailPage() {
     } else {
       await supabase.from("contest_comment_likes" as any).insert({ comment_id: commentId, user_id: user.id } as any);
     }
-    fetchComments();
+    // Refresh likes
+    const commentIds = comments.map(c => c.id);
+    if (commentIds.length > 0) {
+      const { data: likesData } = await supabase
+        .from("contest_comment_likes")
+        .select("*")
+        .in("comment_id", commentIds);
+      setCommentLikes((likesData as any[]) || []);
+    }
   };
 
   const getCommentLikeCount = (commentId: string) => commentLikes.filter((l: any) => l.comment_id === commentId).length;
@@ -479,7 +547,6 @@ export default function ContestDetailPage() {
   const topLevelComments = comments.filter((c: any) => !c.parent_id);
   const getReplies = (parentId: string) => comments.filter((c: any) => c.parent_id === parentId);
 
-  // Render @mentions in text
   const renderCommentText = (text: string) => {
     const parts = text.split(/(@\w+)/g);
     return parts.map((part, i) => {
@@ -704,6 +771,21 @@ export default function ContestDetailPage() {
                 title={nominees.length !== maxNominees ? `Nominate ${maxNominees} to publish` : ""}
               >
                 <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length}/{maxNominees})
+              </Button>
+            )}
+            {/* Follow/Unfollow button */}
+            {user && !isOwner && (
+              <Button
+                variant={isFollowing ? "outline" : "secondary"}
+                size="sm"
+                onClick={handleToggleFollow}
+                disabled={followLoading}
+              >
+                {isFollowing ? (
+                  <><BellOff className="h-4 w-4 mr-1" /> Unfollow</>
+                ) : (
+                  <><Bell className="h-4 w-4 mr-1" /> Follow Contest</>
+                )}
               </Button>
             )}
           </div>
@@ -1132,7 +1214,9 @@ export default function ContestDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Extend Contest Deadline</DialogTitle>
-            <DialogDescription>Set a new deadline to reopen the contest for more entries.</DialogDescription>
+            <DialogDescription>
+              Set a new deadline to reopen the contest for more entries. You can only extend the deadline once.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
