@@ -33,25 +33,6 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Load reCAPTCHA v2 script
-function loadRecaptchaScript(onLoad: () => void) {
-  // already loaded
-  if (document.getElementById("recaptcha-v2-script")) {
-    // if grecaptcha is already available, call onLoad immediately
-    if ((window as any).grecaptcha) onLoad();
-    return;
-  }
-
-  const script = document.createElement("script");
-  script.id = "recaptcha-v2-script";
-  // explicit render mode
-  script.src = "https://www.google.com/recaptcha/api.js?render=explicit";
-  script.async = true;
-  script.defer = true;
-  script.onload = onLoad;
-  document.head.appendChild(script);
-}
-
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -66,8 +47,9 @@ export default function AuthPage() {
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
-  const [recaptchaWidgetId, setRecaptchaWidgetId] = useState<number | null>(null);
-  const [recaptchaReady, setRecaptchaReady] = useState(false);
+  const recaptchaWidgetIdRef = useRef<number | null>(null);
+  const recaptchaScriptLoaded = useRef(false);
+  const recaptchaRendering = useRef(false);
 
   const [signUpData, setSignUpData] = useState({
     fullName: "",
@@ -85,40 +67,113 @@ export default function AuthPage() {
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
 
-  // Load reCAPTCHA script and set up callbacks
-  useEffect(() => {
-    loadRecaptchaScript(() => {
-      setRecaptchaReady(true);
-    });
+  // Stable callbacks via refs to avoid stale closures
+  const recaptchaTokenRef = useRef(recaptchaToken);
+  recaptchaTokenRef.current = recaptchaToken;
 
-    (window as any).onRecaptchaSuccess = (token: string) => setRecaptchaToken(token);
-    (window as any).onRecaptchaExpired = () => setRecaptchaToken(null);
-
-    return () => {
-      delete (window as any).onRecaptchaSuccess;
-      delete (window as any).onRecaptchaExpired;
-    };
+  const onRecaptchaSuccess = useCallback((token: string) => {
+    console.log("[reCAPTCHA] Token received:", token?.substring(0, 20) + "...");
+    setRecaptchaToken(token);
   }, []);
 
+  const onRecaptchaExpired = useCallback(() => {
+    console.log("[reCAPTCHA] Token expired");
+    setRecaptchaToken(null);
+  }, []);
+
+  // Load reCAPTCHA script once
+  useEffect(() => {
+    if (recaptchaScriptLoaded.current) return;
+    if (document.getElementById("recaptcha-v2-script")) {
+      recaptchaScriptLoaded.current = true;
+      console.log("[reCAPTCHA] Script already in DOM");
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "recaptcha-v2-script";
+    script.src = "https://www.google.com/recaptcha/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      console.log("[reCAPTCHA] Script loaded");
+      recaptchaScriptLoaded.current = true;
+    };
+    script.onerror = () => {
+      console.error("[reCAPTCHA] Script failed to load");
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  // Render reCAPTCHA widget when signup tab is active
   useEffect(() => {
     if (activeTab !== "signup") return;
-    if (!recaptchaReady) return;
-    if (!recaptchaContainerRef.current) return;
 
-    const grecaptcha = (window as any).grecaptcha;
-    if (!grecaptcha?.render) return;
+    const tryRender = () => {
+      const grecaptcha = (window as any).grecaptcha;
+      if (!grecaptcha?.render) {
+        console.log("[reCAPTCHA] grecaptcha.render not available yet, retrying...");
+        return false;
+      }
+      if (!recaptchaContainerRef.current) {
+        console.log("[reCAPTCHA] Container ref not ready");
+        return false;
+      }
+      if (recaptchaWidgetIdRef.current !== null) {
+        console.log("[reCAPTCHA] Widget already rendered, id:", recaptchaWidgetIdRef.current);
+        return true;
+      }
+      if (recaptchaRendering.current) return false;
 
-    // Avoid rendering multiple times
-    if (recaptchaWidgetId !== null) return;
+      recaptchaRendering.current = true;
 
-    const id = grecaptcha.render(recaptchaContainerRef.current, {
-      sitekey: RECAPTCHA_SITE_KEY,
-      callback: (token: string) => (window as any).onRecaptchaSuccess?.(token),
-      "expired-callback": () => (window as any).onRecaptchaExpired?.(),
-    });
+      // Clear any leftover iframes in the container
+      recaptchaContainerRef.current.innerHTML = "";
 
-    setRecaptchaWidgetId(id);
-  }, [activeTab, recaptchaReady, recaptchaWidgetId]);
+      try {
+        console.log("[reCAPTCHA] Rendering widget...");
+        const widgetId = grecaptcha.render(recaptchaContainerRef.current, {
+          sitekey: RECAPTCHA_SITE_KEY,
+          callback: onRecaptchaSuccess,
+          "expired-callback": onRecaptchaExpired,
+        });
+        recaptchaWidgetIdRef.current = widgetId;
+        console.log("[reCAPTCHA] Widget rendered, id:", widgetId);
+      } catch (err) {
+        console.error("[reCAPTCHA] Render error:", err);
+      } finally {
+        recaptchaRendering.current = false;
+      }
+      return true;
+    };
+
+    // Try immediately
+    if (tryRender()) return;
+
+    // Poll until ready
+    const interval = setInterval(() => {
+      if (tryRender()) clearInterval(interval);
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [activeTab, onRecaptchaSuccess, onRecaptchaExpired]);
+
+  // Reset when switching away from signup
+  useEffect(() => {
+    if (activeTab !== "signup" && recaptchaWidgetIdRef.current !== null) {
+      const grecaptcha = (window as any).grecaptcha;
+      if (grecaptcha) {
+        try {
+          grecaptcha.reset(recaptchaWidgetIdRef.current);
+        } catch {}
+      }
+      setRecaptchaToken(null);
+      recaptchaWidgetIdRef.current = null;
+      if (recaptchaContainerRef.current) {
+        recaptchaContainerRef.current.innerHTML = "";
+      }
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (user && !authLoading && profile) {
@@ -151,7 +206,7 @@ export default function AuthPage() {
     } finally {
       setGoogleLoading(false);
     }
-  }, []);
+  }, [activeTab, signUpData.role, searchParams]);
 
   useEffect(() => {
     const applyPendingRole = async () => {
@@ -160,15 +215,15 @@ export default function AuthPage() {
       const pending = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
       if (!pending) return;
 
-      // Only override if profile has no role OR it was defaulted incorrectly
-      if (!profile.role || profile.role === "client") {
+      // Only override if profile has default role (client) and user intended freelancer
+      if (pending === "freelancer" && profile.role === "client") {
         const { error } = await supabase.from("profiles").update({ role: pending }).eq("id", user.id);
-
         if (!error) {
           localStorage.removeItem("pending_oauth_role");
+          // Force profile refresh
+          window.location.reload();
         }
       } else {
-        // profile already has a role; don't override
         localStorage.removeItem("pending_oauth_role");
       }
     };
@@ -206,10 +261,8 @@ export default function AuthPage() {
 
       if (verifyError || !verifyData?.success) {
         toast.error(verifyData?.error || "reCAPTCHA verification failed. Please try again.");
-        // Reset the widget
         const grecaptcha = (window as any).grecaptcha;
-        if (grecaptcha && recaptchaWidgetId !== null) grecaptcha.reset(recaptchaWidgetId);
-        setRecaptchaToken(null);
+        if (grecaptcha && recaptchaWidgetIdRef.current !== null) grecaptcha.reset(recaptchaWidgetIdRef.current);
         setRecaptchaToken(null);
         setLoading(false);
         return;
@@ -253,7 +306,10 @@ export default function AuthPage() {
     }
 
     toast.success("Account created! Please check your email to verify your account.");
-    if ((window as any).grecaptcha) (window as any).grecaptcha.reset();
+    const grecaptcha = (window as any).grecaptcha;
+    if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
+      grecaptcha.reset(recaptchaWidgetIdRef.current);
+    }
     setRecaptchaToken(null);
     setLoading(false);
   };
@@ -274,10 +330,8 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    // Determine if identifier is email or username
     let email = signInData.identifier;
     if (!signInData.identifier.includes("@")) {
-      // Look up email by username
       const { data: profileData, error: lookupError } = await supabase
         .from("profiles")
         .select("email")

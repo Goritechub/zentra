@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -20,11 +21,13 @@ import {
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 
-// Types that should show as credit (green, incoming)
+// Types that show as credit (green, incoming)
 const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
 
 // Types to hide from display (internal escrow bookkeeping)
 const hiddenTypes = ["escrow_credit", "escrow_hold"];
+
+type TxFilter = "all" | "credits" | "debits";
 
 export default function TransactionsPage() {
   const navigate = useNavigate();
@@ -38,6 +41,7 @@ export default function TransactionsPage() {
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,13 +55,20 @@ export default function TransactionsPage() {
       supabase.from("wallet_transactions" as any).select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(50),
     ]);
     setWallet(walletRes.data);
-    // Filter out internal escrow bookkeeping entries
     const allTx = (txRes.data as any[]) || [];
     setTransactions(allTx.filter(tx => !hiddenTypes.includes(tx.type)));
     setLoading(false);
   };
 
   const isFreelancer = profile?.role === "freelancer";
+
+  const isCredit = (tx: any) => creditTypes.includes(tx.type);
+
+  const filteredTransactions = transactions.filter(tx => {
+    if (txFilter === "credits") return isCredit(tx);
+    if (txFilter === "debits") return !isCredit(tx);
+    return true;
+  });
 
   const getFilteredTransactions = () => {
     let filtered = transactions;
@@ -100,6 +111,12 @@ export default function TransactionsPage() {
   };
 
   const filteredForExport = getFilteredTransactions();
+
+  const getEmptyMessage = () => {
+    if (txFilter === "credits") return "No money in yet";
+    if (txFilter === "debits") return "No money out yet";
+    return "No transactions yet";
+  };
 
   if (authLoading || loading) {
     return (
@@ -160,20 +177,36 @@ export default function TransactionsPage() {
                 <Download className="h-4 w-4 mr-1" /> Export
               </Button>
             </div>
-            {transactions.length === 0 ? (
+
+            {/* Filter Tabs */}
+            <div className="px-6 pt-4">
+              <Tabs value={txFilter} onValueChange={(v) => setTxFilter(v as TxFilter)}>
+                <TabsList>
+                  <TabsTrigger value="all">All Activity</TabsTrigger>
+                  <TabsTrigger value="credits">
+                    <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money In
+                  </TabsTrigger>
+                  <TabsTrigger value="debits">
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money Out
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {filteredTransactions.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No transactions yet</p>
+                <p>{getEmptyMessage()}</p>
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {transactions.map((tx: any) => {
-                  const isCredit = creditTypes.includes(tx.type);
+                {filteredTransactions.map((tx: any) => {
+                  const credit = isCredit(tx);
                   return (
                     <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCredit ? "bg-primary/10" : "bg-destructive/10"}`}>
-                          {isCredit
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${credit ? "bg-primary/10" : "bg-destructive/10"}`}>
+                          {credit
                             ? <ArrowDownLeft className="h-5 w-5 text-primary" />
                             : <ArrowUpRight className="h-5 w-5 text-destructive" />}
                         </div>
@@ -183,8 +216,8 @@ export default function TransactionsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold ${isCredit ? "text-primary" : "text-destructive"}`}>
-                          {isCredit ? "+" : "-"}{formatNaira(tx.amount)}
+                        <p className={`font-semibold ${credit ? "text-primary" : "text-destructive"}`}>
+                          {credit ? "+" : "-"}{formatNaira(tx.amount)}
                         </p>
                         <p className="text-xs text-muted-foreground">Bal: {formatNaira(tx.balance_after)}</p>
                       </div>

@@ -280,6 +280,35 @@ export type Database = {
           },
         ]
       }
+      contest_follows: {
+        Row: {
+          contest_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          contest_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          contest_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_follows_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contests: {
         Row: {
           banner_image: string | null
@@ -287,6 +316,7 @@ export type Database = {
           client_id: string
           created_at: string | null
           deadline: string
+          deadline_extended_once: boolean
           description: string
           id: string
           prize_first: number
@@ -307,6 +337,7 @@ export type Database = {
           client_id: string
           created_at?: string | null
           deadline: string
+          deadline_extended_once?: boolean
           description: string
           id?: string
           prize_first?: number
@@ -327,6 +358,7 @@ export type Database = {
           client_id?: string
           created_at?: string | null
           deadline?: string
+          deadline_extended_once?: boolean
           description?: string
           id?: string
           prize_first?: number
