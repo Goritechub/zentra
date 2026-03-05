@@ -1,6 +1,5 @@
-import { useRef, useEffect, useState, KeyboardEvent } from "react";
+import { useRef, useEffect, useState, useCallback, KeyboardEvent } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -9,7 +8,7 @@ import { useContractMessages, ContractMessage } from "@/hooks/useContractMessage
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-  Send, Loader2, Paperclip, X, FileText, ShieldAlert, MessageSquare, Bot,
+  Send, Loader2, Paperclip, X, FileText, ShieldAlert, MessageSquare, Bot, ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,12 +46,41 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+  const prevMessageCount = useRef(messages.length);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setHasNewMessages(false);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    setIsAtBottom(atBottom);
+    if (atBottom) setHasNewMessages(false);
+  }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messages.length > prevMessageCount.current) {
+      if (isAtBottom) {
+        requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+      } else {
+        setHasNewMessages(true);
+      }
     }
-  }, [messages]);
+    prevMessageCount.current = messages.length;
+  }, [messages.length, isAtBottom]);
+
+  // Initial scroll
+  useEffect(() => {
+    if (messages.length > 0 && !loading) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
+    }
+  }, [loading]);
 
   const handleSend = async () => {
     if ((!content.trim() && files.length === 0) || sending) return;
@@ -86,9 +114,9 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   }
 
   return (
-    <div className="flex flex-col h-[500px] border border-border rounded-xl overflow-hidden bg-card">
+    <div className="flex flex-col h-[500px] border border-border rounded-xl overflow-hidden bg-card relative">
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12 text-center">
             <MessageSquare className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
@@ -174,9 +202,22 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
                 </div>
               );
             })}
+            <div ref={bottomRef} />
           </div>
         )}
-      </ScrollArea>
+      </div>
+
+      {/* New messages pill */}
+      {hasNewMessages && !isAtBottom && (
+        <Button
+          size="sm"
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full shadow-lg gap-1 z-10"
+          onClick={scrollToBottom}
+        >
+          <ArrowDown className="h-3.5 w-3.5" />
+          New messages
+        </Button>
+      )}
 
       {/* Input */}
       {chatDisabled ? (
@@ -184,9 +225,9 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
           <Alert variant={isRestricted ? "destructive" : "default"}>
             <ShieldAlert className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              {isRestricted 
+              {isRestricted
                 ? "Your account is temporarily restricted from messaging."
-                : contractStatus === "rejected" 
+                : contractStatus === "rejected"
                   ? "This interview has been closed. Messaging is disabled."
                   : `This contract is ${contractStatus}. Messaging is no longer available.`
               }

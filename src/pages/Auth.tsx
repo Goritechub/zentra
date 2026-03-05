@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 
 const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
@@ -36,7 +37,7 @@ const signInSchema = z.object({
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, profile, signUp, signIn, loading: authLoading } = useAuth();
+  const { user, profile, signUp, signIn, loading: authLoading, refreshProfile } = useAuth();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
@@ -86,7 +87,6 @@ export default function AuthPage() {
     if (recaptchaScriptLoaded.current) return;
     if (document.getElementById("recaptcha-v2-script")) {
       recaptchaScriptLoaded.current = true;
-      console.log("[reCAPTCHA] Script already in DOM");
       return;
     }
 
@@ -96,7 +96,6 @@ export default function AuthPage() {
     script.async = true;
     script.defer = true;
     script.onload = () => {
-      console.log("[reCAPTCHA] Script loaded");
       recaptchaScriptLoaded.current = true;
     };
     script.onerror = () => {
@@ -111,34 +110,21 @@ export default function AuthPage() {
 
     const tryRender = () => {
       const grecaptcha = (window as any).grecaptcha;
-      if (!grecaptcha?.render) {
-        console.log("[reCAPTCHA] grecaptcha.render not available yet, retrying...");
-        return false;
-      }
-      if (!recaptchaContainerRef.current) {
-        console.log("[reCAPTCHA] Container ref not ready");
-        return false;
-      }
-      if (recaptchaWidgetIdRef.current !== null) {
-        console.log("[reCAPTCHA] Widget already rendered, id:", recaptchaWidgetIdRef.current);
-        return true;
-      }
+      if (!grecaptcha?.render) return false;
+      if (!recaptchaContainerRef.current) return false;
+      if (recaptchaWidgetIdRef.current !== null) return true;
       if (recaptchaRendering.current) return false;
 
       recaptchaRendering.current = true;
-
-      // Clear any leftover iframes in the container
       recaptchaContainerRef.current.innerHTML = "";
 
       try {
-        console.log("[reCAPTCHA] Rendering widget...");
         const widgetId = grecaptcha.render(recaptchaContainerRef.current, {
           sitekey: RECAPTCHA_SITE_KEY,
           callback: onRecaptchaSuccess,
           "expired-callback": onRecaptchaExpired,
         });
         recaptchaWidgetIdRef.current = widgetId;
-        console.log("[reCAPTCHA] Widget rendered, id:", widgetId);
       } catch (err) {
         console.error("[reCAPTCHA] Render error:", err);
       } finally {
@@ -147,10 +133,8 @@ export default function AuthPage() {
       return true;
     };
 
-    // Try immediately
     if (tryRender()) return;
 
-    // Poll until ready
     const interval = setInterval(() => {
       if (tryRender()) clearInterval(interval);
     }, 300);
@@ -163,9 +147,7 @@ export default function AuthPage() {
     if (activeTab !== "signup" && recaptchaWidgetIdRef.current !== null) {
       const grecaptcha = (window as any).grecaptcha;
       if (grecaptcha) {
-        try {
-          grecaptcha.reset(recaptchaWidgetIdRef.current);
-        } catch {}
+        try { grecaptcha.reset(recaptchaWidgetIdRef.current); } catch {}
       }
       setRecaptchaToken(null);
       recaptchaWidgetIdRef.current = null;
@@ -191,45 +173,91 @@ export default function AuthPage() {
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
     try {
+      // Determine desired role: signup tab uses radio, signin tab uses URL param or default
       const desiredRole =
         activeTab === "signup" ? signUpData.role : searchParams.get("role") === "freelancer" ? "freelancer" : "client";
 
+      // Store role + timestamp so we can detect new users after redirect
       localStorage.setItem("pending_oauth_role", desiredRole);
+      localStorage.setItem("pending_oauth_ts", Date.now().toString());
+
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
       if (result.error) {
         toast.error(result.error.message || "Google sign-in failed. Please try again.");
+        localStorage.removeItem("pending_oauth_role");
+        localStorage.removeItem("pending_oauth_ts");
       }
     } catch (err: any) {
       toast.error("Google sign-in failed. Please try again.");
+      localStorage.removeItem("pending_oauth_role");
+      localStorage.removeItem("pending_oauth_ts");
     } finally {
       setGoogleLoading(false);
     }
   }, [activeTab, signUpData.role, searchParams]);
 
+  // Robust post-OAuth role assignment
   useEffect(() => {
     const applyPendingRole = async () => {
-      if (!user || !profile) return;
+      if (!user) return;
 
-      const pending = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
-      if (!pending) return;
+      const pendingRole = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
+      const pendingTs = localStorage.getItem("pending_oauth_ts");
+      if (!pendingRole || !pendingTs) return;
 
-      // Only override if profile has default role (client) and user intended freelancer
-      if (pending === "freelancer" && profile.role === "client") {
-        const { error } = await supabase.from("profiles").update({ role: pending }).eq("id", user.id);
-        if (!error) {
-          localStorage.removeItem("pending_oauth_role");
-          // Force profile refresh
-          window.location.reload();
-        }
-      } else {
+      // Only process if the OAuth flow was recent (within 60 seconds)
+      const elapsed = Date.now() - parseInt(pendingTs);
+      if (elapsed > 60000) {
         localStorage.removeItem("pending_oauth_role");
+        localStorage.removeItem("pending_oauth_ts");
+        return;
       }
+
+      // Poll for profile to exist (trigger may not have run yet)
+      let profileData: any = null;
+      for (let i = 0; i < 10; i++) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, role, created_at")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (data) {
+          profileData = data;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      if (!profileData) {
+        localStorage.removeItem("pending_oauth_role");
+        localStorage.removeItem("pending_oauth_ts");
+        return;
+      }
+
+      // Detect if this is a NEW user: profile created within the last 30 seconds
+      const profileAge = Date.now() - new Date(profileData.created_at).getTime();
+      const isNewUser = profileAge < 30000;
+
+      if (isNewUser && profileData.role !== pendingRole) {
+        // New user created with default role - update to intended role
+        const { error } = await supabase
+          .from("profiles")
+          .update({ role: pendingRole })
+          .eq("id", user.id);
+        if (!error) {
+          await refreshProfile();
+        }
+      }
+      // Existing user: never override their role
+
+      localStorage.removeItem("pending_oauth_role");
+      localStorage.removeItem("pending_oauth_ts");
     };
 
     applyPendingRole();
-  }, [user, profile]);
+  }, [user, refreshProfile]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,7 +275,6 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    // Verify reCAPTCHA v2
     if (!recaptchaToken) {
       toast.error("Please complete the reCAPTCHA checkbox.");
       setLoading(false);
@@ -274,7 +301,6 @@ export default function AuthPage() {
       return;
     }
 
-    // Check username uniqueness
     const { data: existingUser } = await supabase
       .from("profiles")
       .select("id")
@@ -282,7 +308,7 @@ export default function AuthPage() {
       .maybeSingle();
 
     if (existingUser) {
-      toast.error("This username is already taken. Please choose another.");
+      setSignUpErrors({ username: "This username is already taken" });
       setLoading(false);
       return;
     }
@@ -296,11 +322,11 @@ export default function AuthPage() {
     );
 
     if (error) {
-      toast.error(
-        error.message.includes("already registered")
-          ? "This email is already registered. Please sign in instead."
-          : error.message,
-      );
+      if (error.message.includes("already registered")) {
+        setSignUpErrors({ email: "This email is already registered. Please sign in instead." });
+      } else {
+        toast.error(error.message);
+      }
       setLoading(false);
       return;
     }
@@ -339,7 +365,7 @@ export default function AuthPage() {
         .single();
 
       if (lookupError || !profileData) {
-        toast.error("No account found with that username.");
+        setSignInErrors({ identifier: "No account found with that username" });
         setLoading(false);
         return;
       }
@@ -349,11 +375,11 @@ export default function AuthPage() {
     const { error } = await signIn(email, signInData.password);
 
     if (error) {
-      toast.error(
-        error.message.includes("Invalid login credentials")
-          ? "Invalid email/username or password. Please try again."
-          : error.message,
-      );
+      if (error.message.includes("Invalid login credentials")) {
+        setSignInErrors({ password: "Invalid email/username or password" });
+      } else {
+        toast.error(error.message);
+      }
       setLoading(false);
       return;
     }
@@ -382,22 +408,10 @@ export default function AuthPage() {
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <svg className="h-5 w-5" viewBox="0 0 24 24">
-          <path
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-            fill="#4285F4"
-          />
-          <path
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            fill="#34A853"
-          />
-          <path
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            fill="#FBBC05"
-          />
-          <path
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            fill="#EA4335"
-          />
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
         </svg>
       )}
       {label}
@@ -414,6 +428,10 @@ export default function AuthPage() {
       </div>
     </div>
   );
+
+  // Helper for field error styling
+  const fieldClass = (field: string, errors: Record<string, string>) =>
+    errors[field] ? "border-destructive focus-visible:ring-destructive" : "";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -455,7 +473,11 @@ export default function AuthPage() {
                       type="text"
                       placeholder="you@example.com or username"
                       value={signInData.identifier}
-                      onChange={(e) => setSignInData({ ...signInData, identifier: e.target.value })}
+                      onChange={(e) => {
+                        setSignInData({ ...signInData, identifier: e.target.value });
+                        if (signInErrors.identifier) setSignInErrors((prev) => { const { identifier, ...rest } = prev; return rest; });
+                      }}
+                      className={fieldClass("identifier", signInErrors)}
                     />
                     {signInErrors.identifier && <p className="text-sm text-destructive">{signInErrors.identifier}</p>}
                   </div>
@@ -468,8 +490,11 @@ export default function AuthPage() {
                         type={showSignInPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={signInData.password}
-                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                        className="pr-10"
+                        onChange={(e) => {
+                          setSignInData({ ...signInData, password: e.target.value });
+                          if (signInErrors.password) setSignInErrors((prev) => { const { password, ...rest } = prev; return rest; });
+                        }}
+                        className={cn("pr-10", fieldClass("password", signInErrors))}
                       />
                       <button
                         type="button"
@@ -516,12 +541,8 @@ export default function AuthPage() {
                         }`}
                       >
                         <RadioGroupItem value="client" id="role-client" className="sr-only" />
-                        <Briefcase
-                          className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
-                          Hire Talent
-                        </span>
+                        <Briefcase className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>Hire Talent</span>
                         <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
                       </label>
                       <label
@@ -533,12 +554,8 @@ export default function AuthPage() {
                         }`}
                       >
                         <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
-                        <Users
-                          className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
-                          Find Work
-                        </span>
+                        <Users className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>Find Work</span>
                         <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
                       </label>
                     </RadioGroup>
@@ -550,7 +567,11 @@ export default function AuthPage() {
                       id="signup-name"
                       placeholder="Adewale Okonkwo"
                       value={signUpData.fullName}
-                      onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                      onChange={(e) => {
+                        setSignUpData({ ...signUpData, fullName: e.target.value });
+                        if (signUpErrors.fullName) setSignUpErrors((prev) => { const { fullName, ...rest } = prev; return rest; });
+                      }}
+                      className={fieldClass("fullName", signUpErrors)}
                     />
                     {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
                   </div>
@@ -561,13 +582,12 @@ export default function AuthPage() {
                       id="signup-username"
                       placeholder="adewale_cad"
                       value={signUpData.username}
-                      onChange={(e) =>
-                        setSignUpData({
-                          ...signUpData,
-                          username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
-                        })
-                      }
+                      onChange={(e) => {
+                        setSignUpData({ ...signUpData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") });
+                        if (signUpErrors.username) setSignUpErrors((prev) => { const { username, ...rest } = prev; return rest; });
+                      }}
                       maxLength={30}
+                      className={fieldClass("username", signUpErrors)}
                     />
                     <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only</p>
                     {signUpErrors.username && <p className="text-sm text-destructive">{signUpErrors.username}</p>}
@@ -580,7 +600,11 @@ export default function AuthPage() {
                       type="email"
                       placeholder="you@example.com"
                       value={signUpData.email}
-                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                      onChange={(e) => {
+                        setSignUpData({ ...signUpData, email: e.target.value });
+                        if (signUpErrors.email) setSignUpErrors((prev) => { const { email, ...rest } = prev; return rest; });
+                      }}
+                      className={fieldClass("email", signUpErrors)}
                     />
                     {signUpErrors.email && <p className="text-sm text-destructive">{signUpErrors.email}</p>}
                   </div>
@@ -593,8 +617,11 @@ export default function AuthPage() {
                         type={showSignUpPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={signUpData.password}
-                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="pr-10"
+                        onChange={(e) => {
+                          setSignUpData({ ...signUpData, password: e.target.value });
+                          if (signUpErrors.password) setSignUpErrors((prev) => { const { password, ...rest } = prev; return rest; });
+                        }}
+                        className={cn("pr-10", fieldClass("password", signUpErrors))}
                       />
                       <button
                         type="button"
@@ -625,13 +652,9 @@ export default function AuthPage() {
 
                   <p className="text-xs text-center text-muted-foreground mt-4">
                     By signing up, you agree to our{" "}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{" "}
+                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>{" "}
                     and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
+                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
                   </p>
                 </form>
               </TabsContent>
