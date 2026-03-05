@@ -24,9 +24,200 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, Trophy, Calendar, Users, FileText, Award, Upload, Eye, Lock, Star,
-  MessageSquare, ThumbsUp, Heart, Reply, Send, Clock, AtSign, Bell, BellOff,
+  Loader2,
+  ArrowLeft,
+  Trophy,
+  Calendar,
+  Users,
+  FileText,
+  Award,
+  Upload,
+  Eye,
+  Lock,
+  Star,
+  MessageSquare,
+  ThumbsUp,
+  Heart,
+  Reply,
+  Send,
+  Clock,
+  AtSign,
+  Bell,
+  BellOff,
 } from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// CommentItem — lifted OUTSIDE ContestDetailPage so React sees a stable
+// component reference across renders, preventing the input from losing focus
+// on every keystroke.
+// ---------------------------------------------------------------------------
+
+interface CommentItemProps {
+  comment: any;
+  depth?: number;
+  contest: any;
+  user: any;
+  commentLikes: any[];
+  replyTo: string | null;
+  replyText: string;
+  postingComment: boolean;
+  showMentions: boolean;
+  mentionSuggestions: any[];
+  mentionTarget: "comment" | "reply";
+  getReplies: (parentId: string) => any[];
+  renderCommentText: (text: string) => React.ReactNode;
+  getCommentLikeCount: (commentId: string) => number;
+  hasUserLiked: (commentId: string) => boolean;
+  isLikedByClient: (commentId: string) => boolean;
+  onLike: (commentId: string) => void;
+  onReplyToggle: (commentId: string) => void;
+  onReplyTextChange: (value: string) => void;
+  onPostReply: (parentId: string) => void;
+  onInsertMention: (participant: any) => void;
+}
+
+const CommentItem = ({
+  comment,
+  depth = 0,
+  contest,
+  user,
+  commentLikes,
+  replyTo,
+  replyText,
+  postingComment,
+  showMentions,
+  mentionSuggestions,
+  mentionTarget,
+  getReplies,
+  renderCommentText,
+  getCommentLikeCount,
+  hasUserLiked,
+  isLikedByClient,
+  onLike,
+  onReplyToggle,
+  onReplyTextChange,
+  onPostReply,
+  onInsertMention,
+}: CommentItemProps) => {
+  const replies = getReplies(comment.id);
+  const likeCount = getCommentLikeCount(comment.id);
+  const liked = hasUserLiked(comment.id);
+  const clientLiked = isLikedByClient(comment.id);
+
+  return (
+    <div className={`${depth > 0 ? "ml-6 pl-4 border-l-2 border-border" : ""}`}>
+      <div className={`p-3 rounded-lg ${clientLiked ? "bg-primary/5 border border-primary/20" : "bg-muted/30"}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-medium text-foreground">{(comment.user as any)?.full_name || "User"}</span>
+          {(comment.user as any)?.username && (
+            <span className="text-xs text-muted-foreground">@{(comment.user as any).username}</span>
+          )}
+          {comment.user_id === contest.client_id && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              Contest Owner
+            </Badge>
+          )}
+          {clientLiked && (
+            <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary/20 text-primary border-0">
+              <Heart className="h-2.5 w-2.5 mr-0.5" /> Liked by Client
+            </Badge>
+          )}
+          <span className="text-xs text-muted-foreground ml-auto">
+            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+          </span>
+        </div>
+        <p className="text-sm text-foreground/80">{renderCommentText(comment.content)}</p>
+        <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={() => onLike(comment.id)}
+            className={`flex items-center gap-1 text-xs ${liked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <ThumbsUp className="h-3 w-3" /> {likeCount > 0 && likeCount}
+          </button>
+          {user && (
+            <button
+              onClick={() => onReplyToggle(comment.id)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Reply className="h-3 w-3" /> Reply
+            </button>
+          )}
+        </div>
+      </div>
+
+      {replyTo === comment.id && (
+        <div className="ml-6 mt-2 relative">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Write a reply... (use @ to mention)"
+              value={replyText}
+              onChange={(e) => onReplyTextChange(e.target.value)}
+              className="flex-1 h-8 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && !showMentions && onPostReply(comment.id)}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onPostReply(comment.id)}
+              disabled={postingComment || !replyText.trim()}
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {showMentions && mentionTarget === "reply" && (
+            <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-32 overflow-y-auto">
+              {mentionSuggestions.map((p) => (
+                <button
+                  key={p.id}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                  onClick={() => onInsertMention(p)}
+                >
+                  <span className="font-medium">{p.full_name}</span>
+                  {p.username && <span className="text-muted-foreground ml-1">@{p.username}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {replies.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {replies.map((r: any) => (
+            <CommentItem
+              key={r.id}
+              comment={r}
+              depth={depth + 1}
+              contest={contest}
+              user={user}
+              commentLikes={commentLikes}
+              replyTo={replyTo}
+              replyText={replyText}
+              postingComment={postingComment}
+              showMentions={showMentions}
+              mentionSuggestions={mentionSuggestions}
+              mentionTarget={mentionTarget}
+              getReplies={getReplies}
+              renderCommentText={renderCommentText}
+              getCommentLikeCount={getCommentLikeCount}
+              hasUserLiked={hasUserLiked}
+              isLikedByClient={isLikedByClient}
+              onLike={onLike}
+              onReplyToggle={onReplyToggle}
+              onReplyTextChange={onReplyTextChange}
+              onPostReply={onPostReply}
+              onInsertMention={onInsertMention}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
 
 export default function ContestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -107,9 +298,7 @@ export default function ContestDetailPage() {
       setIsFollowing(false);
       toast.success("Unfollowed contest");
     } else {
-      await supabase
-        .from("contest_follows" as any)
-        .insert({ contest_id: id, user_id: user.id } as any);
+      await supabase.from("contest_follows" as any).insert({ contest_id: id, user_id: user.id } as any);
       setIsFollowing(true);
       toast.success("Following contest — you'll be notified of new comments");
     }
@@ -160,10 +349,7 @@ export default function ContestDetailPage() {
 
   const fetchLikes = async () => {
     if (!id) return;
-    const { data } = await supabase
-      .from("contest_comment_likes")
-      .select("*");
-    // We need likes for this contest's comments — fetch all for now, filter client-side
+    const { data } = await supabase.from("contest_comment_likes").select("*");
     setCommentLikes((data as any[]) || []);
   };
 
@@ -202,12 +388,9 @@ export default function ContestDetailPage() {
     setComments(hydrated);
 
     // Also refresh likes
-    const commentIds = rows.map(c => c.id);
+    const commentIds = rows.map((c) => c.id);
     if (commentIds.length > 0) {
-      const { data: likesData } = await supabase
-        .from("contest_comment_likes")
-        .select("*")
-        .in("comment_id", commentIds);
+      const { data: likesData } = await supabase.from("contest_comment_likes").select("*").in("comment_id", commentIds);
       setCommentLikes((likesData as any[]) || []);
     }
 
@@ -240,8 +423,13 @@ export default function ContestDetailPage() {
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
   const isEnded = contest?.status === "ended" || contest?.status === "completed";
 
-  // Extend deadline: only once, only if not ended, only if deadline passed, only owner
-  const canExtendDeadline = isOwner && !isEnded && deadlinePassed && contest?.status === "active" && !contest?.deadline_extended_once && winners.length === 0;
+  const canExtendDeadline =
+    isOwner &&
+    !isEnded &&
+    deadlinePassed &&
+    contest?.status === "active" &&
+    !contest?.deadline_extended_once &&
+    winners.length === 0;
   const canSelectWinners =
     isOwner &&
     !isEnded &&
@@ -433,7 +621,6 @@ export default function ContestDetailPage() {
   const notifyOnComment = async (commentText: string) => {
     if (!contest || !user || !id) return;
 
-    // Notify contest owner (always, unless commenter is the owner)
     if (contest.client_id !== user.id) {
       await createNotification({
         userId: contest.client_id,
@@ -443,7 +630,6 @@ export default function ContestDetailPage() {
       });
     }
 
-    // Notify followers who are participants (exclude self)
     const { data: followers } = await supabase
       .from("contest_follows" as any)
       .select("user_id")
@@ -452,7 +638,7 @@ export default function ContestDetailPage() {
     if (followers) {
       for (const f of followers as any[]) {
         if (f.user_id === user.id) continue;
-        if (f.user_id === contest.client_id) continue; // already notified
+        if (f.user_id === contest.client_id) continue;
         await createNotification({
           userId: f.user_id,
           type: "contest_comment",
@@ -505,7 +691,6 @@ export default function ContestDetailPage() {
       }
     }
 
-    // Notify followers + owner
     await notifyOnComment(text);
 
     if (parentId) {
@@ -527,13 +712,9 @@ export default function ContestDetailPage() {
     } else {
       await supabase.from("contest_comment_likes" as any).insert({ comment_id: commentId, user_id: user.id } as any);
     }
-    // Refresh likes
-    const commentIds = comments.map(c => c.id);
+    const commentIds = comments.map((c) => c.id);
     if (commentIds.length > 0) {
-      const { data: likesData } = await supabase
-        .from("contest_comment_likes")
-        .select("*")
-        .in("comment_id", commentIds);
+      const { data: likesData } = await supabase.from("contest_comment_likes").select("*").in("comment_id", commentIds);
       setCommentLikes((likesData as any[]) || []);
     }
   };
@@ -559,6 +740,17 @@ export default function ContestDetailPage() {
       }
       return part;
     });
+  };
+
+  // Handlers passed down to CommentItem
+  const handleReplyToggle = (commentId: string) => {
+    setReplyTo(replyTo === commentId ? null : commentId);
+    setReplyText("");
+  };
+
+  const handleReplyTextChange = (value: string) => {
+    setReplyText(value);
+    handleMentionSearch(value, "reply");
   };
 
   if (loading) {
@@ -587,102 +779,27 @@ export default function ContestDetailPage() {
 
   const maxNominees = getMaxNominees();
 
-  const CommentItem = ({ comment, depth = 0 }: { comment: any; depth?: number }) => {
-    const replies = getReplies(comment.id);
-    const likeCount = getCommentLikeCount(comment.id);
-    const liked = hasUserLiked(comment.id);
-    const clientLiked = isLikedByClient(comment.id);
-
-    return (
-      <div className={`${depth > 0 ? "ml-6 pl-4 border-l-2 border-border" : ""}`}>
-        <div className={`p-3 rounded-lg ${clientLiked ? "bg-primary/5 border border-primary/20" : "bg-muted/30"}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-foreground">{(comment.user as any)?.full_name || "User"}</span>
-            {(comment.user as any)?.username && (
-              <span className="text-xs text-muted-foreground">@{(comment.user as any).username}</span>
-            )}
-            {comment.user_id === contest.client_id && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                Contest Owner
-              </Badge>
-            )}
-            {clientLiked && (
-              <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary/20 text-primary border-0">
-                <Heart className="h-2.5 w-2.5 mr-0.5" /> Liked by Client
-              </Badge>
-            )}
-            <span className="text-xs text-muted-foreground ml-auto">
-              {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-            </span>
-          </div>
-          <p className="text-sm text-foreground/80">{renderCommentText(comment.content)}</p>
-          <div className="flex items-center gap-3 mt-2">
-            <button
-              onClick={() => handleLikeComment(comment.id)}
-              className={`flex items-center gap-1 text-xs ${liked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <ThumbsUp className="h-3 w-3" /> {likeCount > 0 && likeCount}
-            </button>
-            {user && (
-              <button
-                onClick={() => {
-                  setReplyTo(replyTo === comment.id ? null : comment.id);
-                  setReplyText("");
-                }}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Reply className="h-3 w-3" /> Reply
-              </button>
-            )}
-          </div>
-        </div>
-        {replyTo === comment.id && (
-          <div className="ml-6 mt-2 relative">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Write a reply... (use @ to mention)"
-                value={replyText}
-                onChange={(e) => {
-                  setReplyText(e.target.value);
-                  handleMentionSearch(e.target.value, "reply");
-                }}
-                className="flex-1 h-8 text-sm"
-                onKeyDown={(e) => e.key === "Enter" && !showMentions && handlePostComment(comment.id)}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handlePostComment(comment.id)}
-                disabled={postingComment || !replyText.trim()}
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            {showMentions && mentionTarget === "reply" && (
-              <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-32 overflow-y-auto">
-                {mentionSuggestions.map((p) => (
-                  <button
-                    key={p.id}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                    onClick={() => insertMention(p)}
-                  >
-                    <span className="font-medium">{p.full_name}</span>
-                    {p.username && <span className="text-muted-foreground ml-1">@{p.username}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {replies.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {replies.map((r: any) => (
-              <CommentItem key={r.id} comment={r} depth={depth + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  // Shared props for every CommentItem
+  const commentItemProps = {
+    contest,
+    user,
+    commentLikes,
+    replyTo,
+    replyText,
+    postingComment,
+    showMentions,
+    mentionSuggestions,
+    mentionTarget,
+    getReplies,
+    renderCommentText,
+    getCommentLikeCount,
+    hasUserLiked,
+    isLikedByClient,
+    onLike: handleLikeComment,
+    onReplyToggle: handleReplyToggle,
+    onReplyTextChange: handleReplyTextChange,
+    onPostReply: handlePostComment,
+    onInsertMention: insertMention,
   };
 
   return (
@@ -773,7 +890,6 @@ export default function ContestDetailPage() {
                 <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length}/{maxNominees})
               </Button>
             )}
-            {/* Follow/Unfollow button */}
             {user && !isOwner && (
               <Button
                 variant={isFollowing ? "outline" : "secondary"}
@@ -782,9 +898,13 @@ export default function ContestDetailPage() {
                 disabled={followLoading}
               >
                 {isFollowing ? (
-                  <><BellOff className="h-4 w-4 mr-1" /> Unfollow</>
+                  <>
+                    <BellOff className="h-4 w-4 mr-1" /> Unfollow
+                  </>
                 ) : (
-                  <><Bell className="h-4 w-4 mr-1" /> Follow Contest</>
+                  <>
+                    <Bell className="h-4 w-4 mr-1" /> Follow Contest
+                  </>
                 )}
               </Button>
             )}
@@ -925,7 +1045,7 @@ export default function ContestDetailPage() {
                   ) : (
                     <div className="space-y-3">
                       {topLevelComments.map((c: any) => (
-                        <CommentItem key={c.id} comment={c} />
+                        <CommentItem key={c.id} comment={c} {...commentItemProps} />
                       ))}
                     </div>
                   )}
