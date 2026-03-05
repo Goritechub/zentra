@@ -141,7 +141,7 @@ export function Header() {
                   </DropdownMenuItem>
                   {isFreelancer && (
                     <DropdownMenuItem asChild>
-                      <Link to="/my-profile" className="cursor-pointer">
+                      <Link to={`/expert/${user?.id}/profile`} className="cursor-pointer">
                         <Briefcase className="mr-2 h-4 w-4" />My Profile
                       </Link>
                     </DropdownMenuItem>

@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
-import { ShoppingBag, Loader2, MessageSquare, Clock, ArrowLeft, Star, Search, X } from "lucide-react";
+import { ShoppingBag, Loader2, MessageSquare, Clock, ArrowLeft, Star, Search, X, ChevronLeft, ChevronRight, Send } from "lucide-react";
 
 const CATEGORIES = [
   "Product Design", "CAD Drafting", "3D Modeling", "3D Printing",
@@ -26,6 +29,8 @@ export default function BrowseServicesPage() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [galleryIdx, setGalleryIdx] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -35,7 +40,7 @@ export default function BrowseServicesPage() {
   const fetchServices = async () => {
     const { data } = await supabase
       .from("service_offers" as any)
-      .select("*, freelancer:profiles!service_offers_freelancer_id_fkey(full_name, avatar_url), freelancer_profile:freelancer_profiles!service_offers_freelancer_id_fkey(rating)")
+      .select("*, freelancer:profiles!service_offers_freelancer_id_fkey(full_name, avatar_url, username), freelancer_profile:freelancer_profiles!service_offers_freelancer_id_fkey(rating)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     setServices((data as any[]) || []);
@@ -43,7 +48,7 @@ export default function BrowseServicesPage() {
   };
 
   const filtered = services.filter(svc => {
-    if (categoryFilter && svc.category !== categoryFilter) return false;
+    if (categoryFilter && categoryFilter !== "all" && svc.category !== categoryFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return svc.title.toLowerCase().includes(q) || svc.description?.toLowerCase().includes(q) || svc.skills?.some((s: string) => s.toLowerCase().includes(q));
@@ -51,9 +56,16 @@ export default function BrowseServicesPage() {
     return true;
   });
 
+  const openServiceDetail = (svc: any) => {
+    setSelectedService(svc);
+    setGalleryIdx(0);
+  };
+
   if (authLoading || loading) {
     return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
   }
+
+  const svcImages = selectedService?.images || [];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -103,10 +115,16 @@ export default function BrowseServicesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((svc: any) => (
-                <div key={svc.id} className="bg-card rounded-xl border border-border overflow-hidden card-hover">
-                  {/* Banner placeholder */}
+                <div
+                  key={svc.id}
+                  className="bg-card rounded-xl border border-border overflow-hidden card-hover cursor-pointer"
+                  onClick={() => openServiceDetail(svc)}
+                >
+                  {/* Thumbnail */}
                   <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                    {svc.banner_image ? (
+                    {svc.images?.length > 0 ? (
+                      <img src={svc.images[0]} alt={svc.title} className="w-full h-full object-cover" />
+                    ) : svc.banner_image ? (
                       <img src={svc.banner_image} alt={svc.title} className="w-full h-full object-cover" />
                     ) : (
                       <ShoppingBag className="h-10 w-10 text-primary/30" />
@@ -143,12 +161,13 @@ export default function BrowseServicesPage() {
 
                     {svc.freelancer && (
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                        <Link to={`/expert/${svc.freelancer_id}/profile`} className="text-xs text-muted-foreground hover:text-primary">
+                        <Link
+                          to={`/expert/${svc.freelancer_id}/profile`}
+                          className="text-xs text-muted-foreground hover:text-primary"
+                          onClick={e => e.stopPropagation()}
+                        >
                           by {(svc.freelancer as any).full_name}
                         </Link>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/messages?user=${svc.freelancer_id}`)}>
-                          <MessageSquare className="h-4 w-4 mr-1" />Message
-                        </Button>
                       </div>
                     )}
                   </div>
@@ -159,6 +178,122 @@ export default function BrowseServicesPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Service Detail Dialog */}
+      <Dialog open={!!selectedService} onOpenChange={() => setSelectedService(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedService?.title}</DialogTitle>
+            {selectedService?.category && (
+              <DialogDescription>{selectedService.category}</DialogDescription>
+            )}
+          </DialogHeader>
+
+          {/* Image Gallery */}
+          {svcImages.length > 0 && (
+            <div className="space-y-3">
+              <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                <img
+                  src={svcImages[galleryIdx]}
+                  alt={`Service image ${galleryIdx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                {svcImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setGalleryIdx(i => (i - 1 + svcImages.length) % svcImages.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1.5 hover:bg-background transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setGalleryIdx(i => (i + 1) % svcImages.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1.5 hover:bg-background transition-colors"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+              {svcImages.length > 1 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {svcImages.map((url: string, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => setGalleryIdx(i)}
+                      className={`aspect-video bg-muted rounded-lg overflow-hidden border-2 transition-colors ${
+                        i === galleryIdx ? "border-primary" : "border-transparent"
+                      }`}
+                    >
+                      <img src={url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedService?.description}</p>
+
+            <div className="flex flex-wrap gap-4 text-sm">
+              {selectedService?.price && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Price</p>
+                  <p className="font-bold text-primary">
+                    {selectedService.pricing_type === "starting_from" ? "From " : ""}{formatNaira(selectedService.price)}
+                  </p>
+                </div>
+              )}
+              {selectedService?.delivery_days && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Delivery</p>
+                  <p className="font-medium">{selectedService.delivery_days} {selectedService.delivery_unit || "days"}</p>
+                </div>
+              )}
+              {selectedService?.revisions_allowed && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Revisions</p>
+                  <p className="font-medium">{selectedService.revisions_allowed}</p>
+                </div>
+              )}
+            </div>
+
+            {selectedService?.skills?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedService.skills.map((s: string) => (
+                  <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setSelectedService(null)}>Close</Button>
+            {selectedService?.freelancer_id && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedService(null);
+                    navigate(`/expert/${selectedService.freelancer_id}/profile`);
+                  }}
+                >
+                  View Expert Profile
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSelectedService(null);
+                    navigate(`/messages?user=${selectedService.freelancer_id}`);
+                  }}
+                >
+                  <Send className="h-4 w-4 mr-2" /> Hire Expert
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

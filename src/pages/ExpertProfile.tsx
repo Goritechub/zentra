@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2 } from "lucide-react";
+import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
@@ -359,6 +359,11 @@ export default function ExpertProfile() {
                     <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </div>
 
+                  {user && user.id === id && (
+                    <Button className="w-full mt-4" variant="outline" onClick={() => navigate("/my-profile")}>
+                      <Settings className="h-4 w-4 mr-2" /> Edit Profile
+                    </Button>
+                  )}
                   {user && user.id !== id && isClient && (
                     <Button className="w-full mt-4" onClick={() => navigate(`/post-job?invite=${id}&name=${encodeURIComponent(profile.full_name || "Expert")}`)}>
                       <Send className="h-4 w-4 mr-2" /> Invite / Send an Offer
