@@ -8,6 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -47,9 +53,7 @@ import {
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// CommentItem — lifted OUTSIDE ContestDetailPage so React sees a stable
-// component reference across renders, preventing the input from losing focus
-// on every keystroke.
+// CommentItem
 // ---------------------------------------------------------------------------
 
 interface CommentItemProps {
@@ -216,6 +220,91 @@ const CommentItem = ({
 };
 
 // ---------------------------------------------------------------------------
+// WinnerCard
+// ---------------------------------------------------------------------------
+function WinnerCard({
+  winner,
+  contest,
+  position,
+  isLarge,
+  isOpen,
+  onViewEntry,
+}: {
+  winner: any;
+  contest: any;
+  position: number;
+  isLarge?: boolean;
+  isOpen: boolean;
+  onViewEntry: (entryId: string) => void;
+}) {
+  const navigate = useNavigate();
+  const medal = position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉";
+  const posLabel = position === 1 ? "1st Place" : position === 2 ? "2nd Place" : "3rd Place";
+  const prize = position === 1 ? contest.prize_first : position === 2 ? contest.prize_second : contest.prize_third;
+  const name = (winner.freelancer as any)?.full_name || "Expert";
+  const username = (winner.freelancer as any)?.username;
+  const avatarUrl = (winner.freelancer as any)?.avatar_url;
+  const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div
+      className={`relative bg-card rounded-2xl border border-border shadow-lg pt-10 pb-5 px-5 text-center transition-transform hover:shadow-xl ${
+        isLarge ? "scale-105 z-10 border-primary/40 shadow-xl" : ""
+      }`}
+    >
+      {/* Medal badge */}
+      <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-3xl">{medal}</div>
+
+      {/* Avatar overlapping top */}
+      <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+        <Avatar className={`border-4 border-background shadow-md ${isLarge ? "h-16 w-16" : "h-14 w-14"}`}>
+          <AvatarImage src={avatarUrl || undefined} />
+          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
+      <div className="mt-2">
+        <button
+          onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
+          className="hover:underline"
+        >
+          <p className={`font-bold text-foreground ${isLarge ? "text-lg" : "text-base"}`}>{name}</p>
+        </button>
+        {username && (
+          <button
+            onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
+            className="hover:underline"
+          >
+            <p className="text-xs text-muted-foreground">@{username}</p>
+          </button>
+        )}
+      </div>
+
+      <Badge variant="outline" className="mt-2 text-xs">
+        {posLabel}
+      </Badge>
+
+      <p className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}>
+        {formatNaira(prize)}
+      </p>
+
+      {isOpen && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-3 text-xs"
+          onClick={() => onViewEntry(winner.id)}
+        >
+          <Eye className="h-3 w-3 mr-1" /> View Entry
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page component
 // ---------------------------------------------------------------------------
 
@@ -239,6 +328,7 @@ export default function ContestDetailPage() {
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [newDeadline, setNewDeadline] = useState("");
   const [extendingDeadline, setExtendingDeadline] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
 
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false);
@@ -387,7 +477,6 @@ export default function ContestDetailPage() {
 
     setComments(hydrated);
 
-    // Also refresh likes
     const commentIds = rows.map((c) => c.id);
     if (commentIds.length > 0) {
       const { data: likesData } = await supabase.from("contest_comment_likes").select("*").in("comment_id", commentIds);
@@ -423,6 +512,9 @@ export default function ContestDetailPage() {
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
   const isEnded = contest?.status === "ended" || contest?.status === "completed";
 
+  // Contest is "over" for follow button purposes
+  const isContestOver = isEnded || winners.length > 0;
+
   const canExtendDeadline =
     isOwner &&
     !isEnded &&
@@ -444,14 +536,14 @@ export default function ContestDetailPage() {
   };
 
   const getStatusLabel = () => {
-    if (isCompleted) return "Completed";
+    if (isCompleted || winners.length > 0) return "Completed";
     if (isSelectingWinners) return "Selecting Winners";
     if (deadlinePassed && contest?.status === "active") return "Selecting Winners";
     return "Active";
   };
 
   const getStatusVariant = (): "default" | "secondary" | "outline" => {
-    if (isCompleted) return "secondary";
+    if (isCompleted || winners.length > 0) return "secondary";
     if (isSelectingWinners || deadlinePassed) return "outline";
     return "default";
   };
@@ -581,6 +673,19 @@ export default function ContestDetailPage() {
     setExtendingDeadline(false);
   };
 
+  // Navigate to entries tab and scroll to a specific entry
+  const handleViewEntry = (entryId: string) => {
+    setActiveTab("entries");
+    setTimeout(() => {
+      const el = document.getElementById(`entry-${entryId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-primary", "ring-offset-2");
+        setTimeout(() => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"), 3000);
+      }
+    }, 300);
+  };
+
   // @Mention handling
   const handleMentionSearch = (text: string, target: "comment" | "reply") => {
     const match = text.match(/@(\w*)$/);
@@ -617,7 +722,6 @@ export default function ContestDetailPage() {
     return matches.map((m) => m.slice(1));
   };
 
-  // Notify followers + owner on new comment
   const notifyOnComment = async (commentText: string) => {
     if (!contest || !user || !id) return;
 
@@ -671,7 +775,6 @@ export default function ContestDetailPage() {
       return;
     }
 
-    // Handle @mentions
     const mentionedUsernames = extractMentions(text);
     if (mentionedUsernames.length > 0 && inserted) {
       for (const username of mentionedUsernames) {
@@ -742,7 +845,6 @@ export default function ContestDetailPage() {
     });
   };
 
-  // Handlers passed down to CommentItem
   const handleReplyToggle = (commentId: string) => {
     setReplyTo(replyTo === commentId ? null : commentId);
     setReplyText("");
@@ -779,7 +881,6 @@ export default function ContestDetailPage() {
 
   const maxNominees = getMaxNominees();
 
-  // Shared props for every CommentItem
   const commentItemProps = {
     contest,
     user,
@@ -839,7 +940,7 @@ export default function ContestDetailPage() {
                       <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
                     </Button>
                   )}
-                  <Button size="sm" onClick={() => navigate(`#winners`)}>
+                  <Button size="sm" onClick={() => setActiveTab("winners")}>
                     <Award className="h-4 w-4 mr-1" /> Proceed to Select Winners
                   </Button>
                 </div>
@@ -891,27 +992,38 @@ export default function ContestDetailPage() {
               </Button>
             )}
             {user && !isOwner && (
-              <Button
-                variant={isFollowing ? "outline" : "secondary"}
-                size="sm"
-                onClick={handleToggleFollow}
-                disabled={followLoading}
-              >
-                {isFollowing ? (
-                  <>
-                    <BellOff className="h-4 w-4 mr-1" /> Unfollow
-                  </>
-                ) : (
-                  <>
-                    <Bell className="h-4 w-4 mr-1" /> Follow Contest
-                  </>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant={isFollowing ? "outline" : "secondary"}
+                      size="sm"
+                      onClick={handleToggleFollow}
+                      disabled={followLoading || isContestOver}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <BellOff className="h-4 w-4 mr-1" /> Unfollow
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="h-4 w-4 mr-1" /> Follow Contest
+                        </>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {isContestOver && (
+                  <TooltipContent>
+                    <p>Contest is over</p>
+                  </TooltipContent>
                 )}
-              </Button>
+              </Tooltip>
             )}
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="description">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="description">
                 <FileText className="h-4 w-4 mr-1.5" /> Description
@@ -1080,7 +1192,8 @@ export default function ContestDetailPage() {
                     {allEntries.map((entry: any) => (
                       <div
                         key={entry.id}
-                        className={`border rounded-lg p-4 ${(entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"}`}
+                        id={`entry-${entry.id}`}
+                        className={`border rounded-lg p-4 transition-all ${(entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -1197,7 +1310,7 @@ export default function ContestDetailPage() {
                   </div>
                 )}
 
-                {/* Published Winners */}
+                {/* Published Winners - Podium Layout */}
                 {winners.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -1205,35 +1318,71 @@ export default function ContestDetailPage() {
                       {isCompleted ? "No winners were selected." : "Winners will appear here when the contest ends."}
                     </p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {winners.map((w: any) => (
-                      <div
-                        key={w.id}
-                        className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 border border-border"
-                      >
-                        <div className="text-3xl">
-                          {w.prize_position === 1 ? "🥇" : w.prize_position === 2 ? "🥈" : "🥉"}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-foreground">
-                            {(w.freelancer as any)?.full_name || "Expert"}
-                          </p>
-                          {(w.freelancer as any)?.username && (
-                            <p className="text-xs text-muted-foreground">@{(w.freelancer as any).username}</p>
-                          )}
-                          <p className="text-sm text-muted-foreground line-clamp-1">{w.description}</p>
-                        </div>
-                        <p className="font-bold text-primary">
-                          {formatNaira(
-                            w.prize_position === 1
-                              ? contest.prize_first
-                              : w.prize_position === 2
-                                ? contest.prize_second
-                                : contest.prize_third,
-                          )}
-                        </p>
+                ) : winners.length === 3 ? (
+                  /* 3-winner podium layout */
+                  <>
+                    {/* Desktop podium */}
+                    <div className="hidden md:grid grid-cols-3 gap-6 items-end pt-12 pb-4">
+                      {/* 2nd place - left */}
+                      <div className="pt-6">
+                        <WinnerCard
+                          winner={winners[1]}
+                          contest={contest}
+                          position={2}
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
                       </div>
+                      {/* 1st place - center, larger */}
+                      <div className="pt-6">
+                        <WinnerCard
+                          winner={winners[0]}
+                          contest={contest}
+                          position={1}
+                          isLarge
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
+                      </div>
+                      {/* 3rd place - right */}
+                      <div className="pt-6">
+                        <WinnerCard
+                          winner={winners[2]}
+                          contest={contest}
+                          position={3}
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
+                      </div>
+                    </div>
+                    {/* Mobile stack */}
+                    <div className="md:hidden space-y-8 pt-12">
+                      {winners.map((w: any) => (
+                        <WinnerCard
+                          key={w.id}
+                          winner={w}
+                          contest={contest}
+                          position={w.prize_position || 1}
+                          isLarge={w.prize_position === 1}
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  /* 1 or 2 winners - simple cards */
+                  <div className={`grid gap-6 pt-12 ${winners.length === 1 ? "max-w-sm mx-auto" : "grid-cols-1 sm:grid-cols-2"}`}>
+                    {winners.map((w: any) => (
+                      <WinnerCard
+                        key={w.id}
+                        winner={w}
+                        contest={contest}
+                        position={w.prize_position || 1}
+                        isLarge={w.prize_position === 1}
+                        isOpen={isOpen}
+                        onViewEntry={handleViewEntry}
+                      />
                     ))}
                   </div>
                 )}

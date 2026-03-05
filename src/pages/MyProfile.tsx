@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
-import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck } from "lucide-react";
+import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft } from "lucide-react";
 
 interface FreelancerProfile {
   id: string;
@@ -338,6 +338,9 @@ export default function MyProfilePage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
           <div className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Edit Profile</h1>
             <p className="text-muted-foreground mt-1">

@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { 
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, Loader2, ArrowRight, Trophy, Send, Heart,
-  Wallet, BarChart3, ShieldAlert, Wrench, ImageIcon, Award, Inbox
+  Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -188,7 +188,6 @@ export default function DashboardPage() {
                       { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
                       { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
                       { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
-                      { icon: Wrench, label: "Manage Skills", to: "/manage-skills", desc: "Add or update skills" },
                       { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
                       { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
                       { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
@@ -251,7 +250,7 @@ export default function DashboardPage() {
                   <ProfileItem emoji="📍" title="Location" done={!!profile.state} label={profile.state ? `${profile.city || ""} ${profile.state}` : "Add location"} />
                   {isFreelancer && (
                     <>
-                      <Link to="/manage-skills">
+                      <Link to="/my-profile">
                         <ProfileItem emoji="💼" title="Skills" done={hasSkills} label={hasSkills ? `${freelancerProfile.skills.length} skills` : "Add skills"} />
                       </Link>
                       <Link to="/manage-portfolio">

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, ShoppingBag, PlusCircle, Edit, Pause, Play, Trash2, X, Clock
+  Loader2, ArrowLeft, ShoppingBag, PlusCircle, Edit, Pause, Play, Trash2, X, Clock, Upload, ImageIcon
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -48,6 +47,9 @@ export default function MyServicesPage() {
   const [revisions, setRevisions] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -67,7 +69,7 @@ export default function MyServicesPage() {
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory(""); setPricingType("fixed");
     setPrice(""); setDeliveryDays(""); setDeliveryUnit("days"); setRevisions("");
-    setSkills([]); setSkillInput(""); setEditing(null);
+    setSkills([]); setSkillInput(""); setEditing(null); setImages([]);
   };
 
   const openEditForm = (svc: any) => {
@@ -81,7 +83,28 @@ export default function MyServicesPage() {
     setDeliveryUnit(svc.delivery_unit || "days");
     setRevisions(svc.revisions_allowed?.toString() || "");
     setSkills(svc.skills || []);
+    setImages(svc.images || []);
     setShowForm(true);
+  };
+
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || !user) return;
+    setUploadingImages(true);
+    const newUrls: string[] = [];
+    for (const file of Array.from(files).slice(0, 5 - images.length)) {
+      const path = `${user.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from("service-images").upload(path, file);
+      if (!error) {
+        const { data } = supabase.storage.from("service-images").getPublicUrl(path);
+        newUrls.push(data.publicUrl);
+      }
+    }
+    setImages(prev => [...prev, ...newUrls]);
+    setUploadingImages(false);
+  };
+
+  const removeImage = (idx: number) => {
+    setImages(images.filter((_, i) => i !== idx));
   };
 
   const handleSave = async () => {
@@ -99,6 +122,8 @@ export default function MyServicesPage() {
       delivery_unit: deliveryUnit,
       revisions_allowed: revisions ? parseInt(revisions) : null,
       skills,
+      images,
+      banner_image: images.length > 0 ? images[0] : null,
       is_active: true,
     };
 
@@ -158,39 +183,51 @@ export default function MyServicesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {services.map((svc: any) => (
-                <div key={svc.id} className={`bg-card rounded-xl border border-border p-6 ${!svc.is_active ? "opacity-60" : ""}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      {svc.category && <Badge variant="secondary" className="mb-1 text-xs">{svc.category}</Badge>}
-                      <h3 className="font-semibold text-foreground">{svc.title}</h3>
+                <div key={svc.id} className={`bg-card rounded-xl border border-border overflow-hidden ${!svc.is_active ? "opacity-60" : ""}`}>
+                  {/* Thumbnail */}
+                  <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                    {svc.images?.length > 0 ? (
+                      <img src={svc.images[0]} alt={svc.title} className="w-full h-full object-cover" />
+                    ) : svc.banner_image ? (
+                      <img src={svc.banner_image} alt={svc.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <ShoppingBag className="h-10 w-10 text-primary/30" />
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        {svc.category && <Badge variant="secondary" className="mb-1 text-xs">{svc.category}</Badge>}
+                        <h3 className="font-semibold text-foreground">{svc.title}</h3>
+                      </div>
+                      <Badge variant={svc.is_active ? "default" : "outline"}>
+                        {svc.is_active ? "Active" : "Paused"}
+                      </Badge>
                     </div>
-                    <Badge variant={svc.is_active ? "default" : "outline"}>
-                      {svc.is_active ? "Active" : "Paused"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{svc.description}</p>
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    {svc.price && (
-                      <span className="font-bold text-primary">
-                        {svc.pricing_type === "starting_from" ? "From " : ""}{formatNaira(svc.price)}
-                      </span>
-                    )}
-                    {svc.delivery_days && (
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {svc.delivery_days} {svc.delivery_unit || "days"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openEditForm(svc)} className="flex-1">
-                      <Edit className="h-3 w-3 mr-1" /> Edit
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleActive(svc)}>
-                      {svc.is_active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => deleteService(svc.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{svc.description}</p>
+                    <div className="flex items-center justify-between text-sm mb-4">
+                      {svc.price && (
+                        <span className="font-bold text-primary">
+                          {svc.pricing_type === "starting_from" ? "From " : ""}{formatNaira(svc.price)}
+                        </span>
+                      )}
+                      {svc.delivery_days && (
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> {svc.delivery_days} {svc.delivery_unit || "days"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => openEditForm(svc)} className="flex-1">
+                        <Edit className="h-3 w-3 mr-1" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => toggleActive(svc)}>
+                        {svc.is_active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-destructive" onClick={() => deleteService(svc.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -225,6 +262,53 @@ export default function MyServicesPage() {
               <Label>Description *</Label>
               <Textarea placeholder="Describe what's included..." rows={4} value={description} onChange={e => setDescription(e.target.value)} />
             </div>
+
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <Label>Service Images (up to 5)</Label>
+              {images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {images.map((url, i) => (
+                    <div key={i} className="relative aspect-video bg-muted rounded-lg overflow-hidden group">
+                      <img src={url} alt={`Service image ${i + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      {i === 0 && (
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-background/80 text-foreground px-1.5 py-0.5 rounded">Thumbnail</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {images.length < 5 && (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={e => handleImageUpload(e.target.files)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImages}
+                  >
+                    {uploadingImages ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                    Upload Images
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Pricing Type</Label>

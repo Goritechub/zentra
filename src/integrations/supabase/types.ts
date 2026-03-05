@@ -1714,6 +1714,7 @@ export type Database = {
           description: string
           freelancer_id: string
           id: string
+          images: string[] | null
           is_active: boolean | null
           price: number | null
           pricing_type: string | null
@@ -1731,6 +1732,7 @@ export type Database = {
           description: string
           freelancer_id: string
           id?: string
+          images?: string[] | null
           is_active?: boolean | null
           price?: number | null
           pricing_type?: string | null
@@ -1748,6 +1750,7 @@ export type Database = {
           description?: string
           freelancer_id?: string
           id?: string
+          images?: string[] | null
           is_active?: boolean | null
           price?: number | null
           pricing_type?: string | null
