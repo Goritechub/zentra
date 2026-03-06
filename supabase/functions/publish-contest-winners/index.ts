@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller
     const supabaseUser = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -48,7 +47,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch contest
     const { data: contest, error: contestErr } = await supabaseAdmin
       .from("contests")
       .select("*")
@@ -62,7 +60,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is contest owner
     if (contest.client_id !== user.id) {
       return new Response(JSON.stringify({ error: "Only the contest owner can publish winners" }), {
         status: 403,
@@ -70,7 +67,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify contest is in correct state
     if (contest.status === "ended" || contest.status === "completed") {
       return new Response(JSON.stringify({ error: "Contest already completed" }), {
         status: 400,
@@ -78,7 +74,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch nominees
     const { data: nominees } = await supabaseAdmin
       .from("contest_entries")
       .select("*")
@@ -92,10 +87,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate expected winners count
+    // Calculate expected winners count (up to 5)
     let expectedCount = 1;
     if (contest.prize_second > 0) expectedCount = 2;
     if (contest.prize_third > 0) expectedCount = 3;
+    if (contest.prize_fourth > 0) expectedCount = 4;
+    if (contest.prize_fifth > 0) expectedCount = 5;
 
     if (nominees.length !== expectedCount) {
       return new Response(
@@ -104,7 +101,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const prizes = [contest.prize_first, contest.prize_second || 0, contest.prize_third || 0];
+    const prizes = [
+      contest.prize_first,
+      contest.prize_second || 0,
+      contest.prize_third || 0,
+      contest.prize_fourth || 0,
+      contest.prize_fifth || 0,
+    ];
+
+    const posLabels = ["1st", "2nd", "3rd", "4th", "5th"];
 
     // Mark nominees as winners
     for (let i = 0; i < nominees.length; i++) {
@@ -120,14 +125,13 @@ Deno.serve(async (req) => {
       .update({ status: "ended" })
       .eq("id", contest_id);
 
-    // Payout prizes from client's escrow to winners' wallets
+    // Payout prizes
     for (let i = 0; i < nominees.length; i++) {
       const prizeAmount = prizes[i];
       if (prizeAmount <= 0) continue;
 
       const winnerId = nominees[i].freelancer_id;
 
-      // Get or create winner's wallet
       let { data: winnerWallet } = await supabaseAdmin
         .from("wallets")
         .select("*")
@@ -145,7 +149,6 @@ Deno.serve(async (req) => {
 
       if (!winnerWallet) continue;
 
-      // Credit winner's wallet
       const newBalance = winnerWallet.balance + prizeAmount;
       const newTotalEarned = winnerWallet.total_earned + prizeAmount;
       await supabaseAdmin
@@ -153,17 +156,15 @@ Deno.serve(async (req) => {
         .update({ balance: newBalance, total_earned: newTotalEarned })
         .eq("user_id", winnerId);
 
-      // Record wallet transaction for winner
       await supabaseAdmin.from("wallet_transactions").insert({
         user_id: winnerId,
         amount: prizeAmount,
         balance_after: newBalance,
         type: "credit",
-        description: `Contest prize (${i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"} place) — "${contest.title}"`,
+        description: `Contest prize (${posLabels[i]} place) — "${contest.title}"`,
         reference: `contest_prize_${contest_id}_${i + 1}`,
       });
 
-      // Deduct from client's escrow
       const { data: clientWallet } = await supabaseAdmin
         .from("wallets")
         .select("*")
@@ -178,11 +179,10 @@ Deno.serve(async (req) => {
           .eq("user_id", contest.client_id);
       }
 
-      // Notify winner
       await supabaseAdmin.from("notifications").insert({
         user_id: winnerId,
         type: "contest_winner",
-        title: `🏆 You won ${i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"} place!`,
+        title: `🏆 You won ${posLabels[i]} place!`,
         message: `Congratulations! You won ₦${(prizeAmount / 100).toLocaleString()} in "${contest.title}". The prize has been credited to your wallet.`,
         contract_id: null,
       });

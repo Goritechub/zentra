@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -10,13 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2, Settings } from "lucide-react";
+import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2, Settings, Share2, Download, Link as LinkIcon, Image, ShieldCheck, Clock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ReviewsCarousel } from "@/components/ReviewsCarousel";
+import html2canvas from "html2canvas";
 
 function PortfolioCarousel({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
@@ -144,30 +144,48 @@ export default function ExpertProfile() {
   const [ratingComment, setRatingComment] = useState("");
   const [ratingLoading, setRatingLoading] = useState(false);
   const [completedContract, setCompletedContract] = useState<any>(null);
+  const [services, setServices] = useState<any[]>([]);
 
-  // Compute dynamic average rating from reviews
+  // Verification
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [requestingVerification, setRequestingVerification] = useState(false);
+
+  // Export
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
   const dynamicRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
     : 0;
+
+  const isOwner = user?.id === id;
 
   useEffect(() => {
     if (!id) return;
     const fetch = async () => {
       setLoading(true);
-      const [profileRes, fpRes, certsRes, expRes] = await Promise.all([
+      const [profileRes, fpRes, certsRes, expRes, servicesRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", id).single(),
         supabase.from("freelancer_profiles").select("*").eq("user_id", id).maybeSingle(),
         supabase.from("certifications").select("*").eq("user_id", id).order("year_obtained", { ascending: false }),
         supabase.from("work_experience").select("*").eq("user_id", id).order("start_year", { ascending: false }),
+        supabase.from("service_offers").select("id, title, price, category").eq("freelancer_id", id).eq("is_active", true).limit(10),
       ]);
       setProfile(profileRes.data);
       setFreelancerProfile(fpRes.data);
       setCertifications(certsRes.data || []);
       setWorkExperience(expRes.data || []);
+      setServices(servicesRes.data || []);
 
       if (fpRes.data) {
         const { data: pData } = await supabase.from("portfolio_items").select("*").eq("freelancer_profile_id", fpRes.data.id);
         setPortfolio(pData || []);
+      }
+
+      // Verification status
+      if (user?.id === id) {
+        const { data: vr } = await supabase.from("verification_requests").select("status").eq("user_id", id).maybeSingle();
+        setVerificationStatus(vr?.status || null);
       }
 
       const { data: contractsData, count: completedCount } = await supabase
@@ -203,7 +221,6 @@ export default function ExpertProfile() {
         })));
       }
 
-      // Fetch reviews with contract info for ReviewsCarousel
       const { data: reviewsData } = await supabase
         .from("reviews")
         .select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url), contract:contracts!reviews_contract_id_fkey(job_title, amount)")
@@ -212,7 +229,6 @@ export default function ExpertProfile() {
         .limit(30);
       setReviews(reviewsData || []);
 
-      // Find completed contracts without reviews (per-job rating)
       if (user && user.id !== id) {
         const { data: completedContracts } = await supabase
           .from("contracts")
@@ -288,6 +304,67 @@ export default function ExpertProfile() {
     setRatingLoading(false);
   };
 
+  const handleRequestVerification = async () => {
+    if (!user || !id) return;
+    setRequestingVerification(true);
+    const { error } = await supabase.from("verification_requests").insert({ user_id: id } as any);
+    if (error) {
+      if (error.code === "23505") toast.info("Verification request already submitted");
+      else toast.error("Failed to submit verification request");
+    } else {
+      toast.success("Verification request submitted!");
+      setVerificationStatus("pending");
+    }
+    setRequestingVerification(false);
+  };
+
+  // Export functions
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/expert/${id}/profile`;
+    navigator.clipboard.writeText(url);
+    toast.success("Profile link copied!");
+    setShowShareMenu(false);
+  };
+
+  const handleExportImage = async () => {
+    if (!profileRef.current) return;
+    toast.info("Generating image...");
+    try {
+      const canvas = await html2canvas(profileRef.current, { useCORS: true, scale: 2 });
+      const link = document.createElement("a");
+      link.download = `${profile?.full_name || "expert"}-profile.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      toast.success("Image downloaded!");
+    } catch {
+      toast.error("Failed to generate image");
+    }
+    setShowShareMenu(false);
+  };
+
+  const handleExportPDF = async () => {
+    if (!profileRef.current) return;
+    toast.info("Generating PDF...");
+    try {
+      const canvas = await html2canvas(profileRef.current, { useCORS: true, scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+      // Simple PDF via printable window
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(`
+          <html><head><title>${profile?.full_name || "Expert"} Profile</title>
+          <style>body{margin:0;display:flex;justify-content:center;}img{max-width:100%;height:auto;}</style></head>
+          <body><img src="${imgData}" /></body></html>
+        `);
+        win.document.close();
+        setTimeout(() => { win.print(); }, 500);
+      }
+    } catch {
+      toast.error("Failed to generate PDF");
+    }
+    setShowShareMenu(false);
+  };
+
   const availabilityLabels: Record<string, string> = {
     full_time: "Full Time",
     part_time: "Part Time",
@@ -325,10 +402,33 @@ export default function ExpertProfile() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <div className="container-wide py-8">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />Back
-          </Button>
+        <div className="container-wide py-8" ref={profileRef}>
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />Back
+            </Button>
+            {/* Share/Export */}
+            {isOwner && (
+              <div className="relative">
+                <Button variant="outline" size="sm" onClick={() => setShowShareMenu(!showShareMenu)}>
+                  <Share2 className="h-4 w-4 mr-2" /> Share / Export
+                </Button>
+                {showShareMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 w-48">
+                    <button onClick={handleCopyLink} className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2 rounded-t-lg">
+                      <LinkIcon className="h-4 w-4" /> Copy Link
+                    </button>
+                    <button onClick={handleExportImage} className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2">
+                      <Image className="h-4 w-4" /> Download Image
+                    </button>
+                    <button onClick={handleExportPDF} className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2 rounded-b-lg">
+                      <Download className="h-4 w-4" /> Print / PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left column – profile card */}
@@ -342,6 +442,9 @@ export default function ExpertProfile() {
                     </AvatarFallback>
                   </Avatar>
                   <h1 className="text-xl font-bold mt-4 text-foreground">{profile.full_name}</h1>
+                  {profile.username && (
+                    <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                  )}
                   {freelancerProfile?.title && (
                     <p className="text-muted-foreground">{freelancerProfile.title}</p>
                   )}
@@ -358,6 +461,35 @@ export default function ExpertProfile() {
                   <div className="mt-3 flex justify-center">
                     <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </div>
+
+                  {/* Verification badge request - owner only */}
+                  {isOwner && !profile.is_verified && (
+                    <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border text-left">
+                      {verificationStatus === null && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">Get a verification badge to build trust.</p>
+                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
+                            {requestingVerification ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
+                            Request Verification
+                          </Button>
+                        </div>
+                      )}
+                      {verificationStatus === "pending" && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4 text-accent" />
+                          <span>Verification pending review</span>
+                        </div>
+                      )}
+                      {verificationStatus === "rejected" && (
+                        <div>
+                          <p className="text-xs text-destructive mb-1">Verification request was not approved.</p>
+                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
+                            <ShieldCheck className="h-3 w-3 mr-1" /> Request Again
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {user && user.id === id && (
                     <Button className="w-full mt-4" variant="outline" onClick={() => navigate("/my-profile")}>
@@ -441,7 +573,26 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Certifications */}
+              {/* Services */}
+              {services.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Services</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {services.map((s: any) => (
+                        <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{s.title}</p>
+                            {s.category && <p className="text-xs text-muted-foreground">{s.category}</p>}
+                          </div>
+                          {s.price && <span className="text-sm font-semibold text-primary">{formatNaira(s.price)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {certifications.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -471,7 +622,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Work Experience */}
               {workExperience.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -530,7 +680,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* ZentraGig Contracts Section */}
               {pastContracts.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -546,7 +695,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Rate this expert */}
               {completedContract && user && isClient && (
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="pt-6">
@@ -559,7 +707,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {/* Reviews Carousel Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -616,7 +763,7 @@ export default function ExpertProfile() {
         </DialogContent>
       </Dialog>
 
-      {/* Rate Expert Dialog with Categories */}
+      {/* Rate Expert Dialog */}
       <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>

@@ -29,7 +29,7 @@ export default function ContestEntriesPage() {
     if (!user) return;
     const { data } = await supabase
       .from("contest_entries")
-      .select("*, contest:contests(id, title, description, deadline, status, prize_first, prize_second, prize_third, client_id, client:profiles!contests_client_id_fkey(full_name))")
+      .select("*, contest:contests(id, title, description, deadline, status, prize_first, prize_second, prize_third, prize_fourth, prize_fifth, client_id, client:profiles!contests_client_id_fkey(full_name))")
       .eq("freelancer_id", user.id)
       .order("created_at", { ascending: false });
     setEntries((data as any[]) || []);
@@ -44,7 +44,7 @@ export default function ContestEntriesPage() {
   const won = entries.filter(e => e.is_winner);
 
   const totalPrize = (c: any) => {
-    return (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0);
+    return (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
   };
 
   const EmptyState = ({ icon: Icon, text, sub }: { icon: any; text: string; sub?: string }) => (
