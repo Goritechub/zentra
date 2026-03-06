@@ -7,9 +7,9 @@ interface ZentraGigLogoProps {
 }
 
 const sizeMap = {
-  sm: { circle: "h-8 w-8", icon: "h-8 w-8", text: "text-lg" },
-  md: { circle: "h-9 w-9", icon: "h-[28px] w-[28px]", text: "text-xl" },
-  lg: { circle: "h-10 w-10", icon: "h-10 w-10", text: "text-2xl" },
+  sm: { circle: "h-8 w-8", icon: "h-10 w-10", text: "text-lg" },
+  md: { circle: "h-9 w-9", icon: "h-11 w-11", text: "text-xl" },
+  lg: { circle: "h-10 w-10", icon: "h-12 w-12", text: "text-2xl" },
 };
 
 export function ZentraGigLogo({ size = "md", showText = true, className = "" }: ZentraGigLogoProps) {
