@@ -10,6 +10,25 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Loader2, Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
 
+// Canonical status derivation — mirrors ContestDetail.tsx
+function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+  if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
+  if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
+  return "active";
+}
+
+function statusLabel(s: ReturnType<typeof deriveContestStatus>) {
+  if (s === "completed") return "Completed";
+  if (s === "selecting_winners") return "Selecting Winners";
+  return "Active";
+}
+
+function statusVariant(s: ReturnType<typeof deriveContestStatus>): "default" | "secondary" | "outline" {
+  if (s === "completed") return "secondary";
+  if (s === "selecting_winners") return "outline";
+  return "default";
+}
+
 export default function BrowseContestsPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -29,30 +48,53 @@ export default function BrowseContestsPage() {
 
     const contestList = (data as any[]) || [];
 
-    // Fetch entry counts
     if (contestList.length > 0) {
-      const ids = contestList.map(c => c.id);
-      const { data: entries } = await supabase
-        .from("contest_entries")
-        .select("contest_id")
-        .in("contest_id", ids);
+      const ids = contestList.map((c) => c.id);
+
+      // Fetch entry counts
+      const { data: entries } = await supabase.from("contest_entries").select("contest_id").in("contest_id", ids);
 
       const countMap = new Map<string, number>();
       (entries || []).forEach((e: any) => {
         countMap.set(e.contest_id, (countMap.get(e.contest_id) || 0) + 1);
       });
 
-      contestList.forEach(c => { c._entryCount = countMap.get(c.id) || 0; });
+      // Fetch winner counts so status is accurate even before the owner visits
+      const { data: winnerRows } = await supabase
+        .from("contest_entries")
+        .select("contest_id")
+        .in("contest_id", ids)
+        .eq("is_winner", true);
+
+      const winnerCountMap = new Map<string, number>();
+      (winnerRows || []).forEach((e: any) => {
+        winnerCountMap.set(e.contest_id, (winnerCountMap.get(e.contest_id) || 0) + 1);
+      });
+
+      contestList.forEach((c) => {
+        c._entryCount = countMap.get(c.id) || 0;
+        c._winnersCount = winnerCountMap.get(c.id) || 0;
+      });
     }
 
     setContests(contestList);
     setLoading(false);
   };
 
-  const totalPrize = (c: any) => (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0);
+  // All five prize tiers
+  const totalPrize = (c: any) =>
+    (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -75,16 +117,16 @@ export default function BrowseContestsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {contests.map((contest: any) => {
-                const isCompleted = contest.status === "ended" || contest.status === "completed";
-                const isSelecting = contest.status === "selecting_winners" || (isPast(new Date(contest.deadline)) && !isCompleted);
-                const statusLabel = isCompleted ? "Completed" : isSelecting ? "Selecting Winners" : "Active";
-                const statusVariant = isCompleted ? "secondary" as const : isSelecting ? "outline" as const : "default" as const;
-                const dimmed = isCompleted;
+                const derived = deriveContestStatus(contest, contest._winnersCount || 0);
+                const dimmed = derived === "completed";
+
                 return (
                   <Link
                     key={contest.id}
                     to={`/contest/${contest.id}`}
-                    className={`bg-card rounded-xl border border-border overflow-hidden card-hover transition-all ${dimmed ? "opacity-60 grayscale-[30%]" : ""}`}
+                    className={`bg-card rounded-xl border border-border overflow-hidden card-hover transition-all ${
+                      dimmed ? "opacity-60 grayscale-[30%]" : ""
+                    }`}
                   >
                     {/* Banner */}
                     <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
@@ -93,11 +135,8 @@ export default function BrowseContestsPage() {
                       ) : (
                         <Trophy className="h-16 w-16 text-primary/30" />
                       )}
-                      <Badge
-                        variant={statusVariant}
-                        className="absolute top-3 right-3"
-                      >
-                        {statusLabel}
+                      <Badge variant={statusVariant(derived)} className="absolute top-3 right-3">
+                        {statusLabel(derived)}
                       </Badge>
                     </div>
 
@@ -112,11 +151,17 @@ export default function BrowseContestsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
-                          {isCompleted ? "Completed" : isSelecting ? "Selecting Winners" : `${formatDistanceToNow(new Date(contest.deadline))} left`}
+                          {derived === "completed"
+                            ? "Completed"
+                            : derived === "selecting_winners"
+                              ? "Selecting Winners"
+                              : `${formatDistanceToNow(new Date(contest.deadline))} left`}
                         </span>
                       </div>
                       {contest.category && (
-                        <Badge variant="outline" className="mt-3 text-xs">{contest.category}</Badge>
+                        <Badge variant="outline" className="mt-3 text-xs">
+                          {contest.category}
+                        </Badge>
                       )}
                     </div>
                   </Link>
