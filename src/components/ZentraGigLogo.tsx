@@ -18,7 +18,7 @@ export function ZentraGigLogo({ size = "md", showText = true, className = "" }: 
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <span className={`${s.circle} rounded-full flex items-center justify-center shrink-0 bg-primary overflow-hidden`}>
-        <img src={logoIcon} alt="ZentraGig" className="h-full w-full object-cover scale-125" />
+        <img src={logoIcon} alt="ZentraGig" className="h-full w-full object-cover scale-140" />
       </span>
       {showText && (
         <span className={`${s.text} font-bold`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
