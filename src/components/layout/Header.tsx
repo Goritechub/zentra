@@ -7,6 +7,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useColorTheme, THEME_OPTIONS } from "@/hooks/useTheme";
+import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,12 +51,7 @@ export function Header() {
       <div className="container-wide">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">Z</span>
-            </div>
-            <span className="text-xl font-bold text-foreground">
-              Zentra<span className="text-primary">Gig</span>
-            </span>
+            <ZentraGigLogo size="md" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">

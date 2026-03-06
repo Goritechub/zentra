@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import {
@@ -20,7 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
-import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle, Camera } from "lucide-react";
 
 interface FreelancerProfile {
   id: string;
@@ -57,10 +58,12 @@ export default function MyProfilePage() {
   const { user, profile, loading: authLoading, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Form fields – general profile
   const [fullName, setFullName] = useState("");
@@ -68,6 +71,7 @@ export default function MyProfilePage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Form fields – freelancer
   const [title, setTitle] = useState("");
@@ -160,6 +164,7 @@ export default function MyProfilePage() {
       setWhatsapp(profile.whatsapp || "");
       setState(profile.state || "");
       setCity(profile.city || "");
+      setAvatarUrl(profile.avatar_url || null);
     }
     if (user && profile?.role === "freelancer") {
       fetchFreelancerProfile();
@@ -167,6 +172,32 @@ export default function MyProfilePage() {
       setLoading(false);
     }
   }, [profile, user, fetchFreelancerProfile]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 5MB for profile pictures.", variant: "destructive" });
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const newUrl = `${data.publicUrl}?t=${Date.now()}`;
+      await supabase.from("profiles").update({ avatar_url: newUrl }).eq("id", user.id);
+      setAvatarUrl(newUrl);
+      await refreshProfile();
+      toast({ title: "Avatar updated!" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const addSkill = (skill: string) => {
     if (!skills.includes(skill)) setSkills([...skills, skill]);
@@ -266,6 +297,13 @@ export default function MyProfilePage() {
 
       await refreshProfile();
       toast({ title: "Profile updated", description: "Your changes have been saved." });
+      
+      // Redirect to view profile
+      if (profile.role === "freelancer") {
+        navigate(`/expert/${user.id}/profile`);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       console.error("Error saving profile:", err);
       toast({ title: "Error", description: err.message || "Failed to save profile.", variant: "destructive" });
@@ -281,13 +319,6 @@ export default function MyProfilePage() {
     setDeleteChecking(true);
 
     try {
-      // Pre-check via RPC
-      const { data, error } = await supabase.rpc("delete_user_account", { _user_id: user!.id });
-      // The function returns success:false with error message if checks fail
-      // But we don't want to actually delete yet - we just call it to check
-      // Actually, the function does delete if checks pass. So we need a different approach.
-
-      // Check wallet balance
       const { data: wallet } = await supabase.from("wallets").select("balance, escrow_balance").eq("user_id", user!.id).maybeSingle();
       if (wallet && ((wallet.balance || 0) + (wallet.escrow_balance || 0)) > 0) {
         setDeleteError("You have a remaining wallet balance. Please withdraw all funds before deleting your account.");
@@ -295,7 +326,6 @@ export default function MyProfilePage() {
         return;
       }
 
-      // Check active contracts
       const { count: activeContracts } = await supabase.from("contracts").select("id", { count: "exact", head: true })
         .or(`client_id.eq.${user!.id},freelancer_id.eq.${user!.id}`)
         .in("status", ["active", "pending_funding", "in_review", "draft", "interviewing"]);
@@ -305,7 +335,6 @@ export default function MyProfilePage() {
         return;
       }
 
-      // Check active jobs
       const { count: activeJobs } = await supabase.from("jobs").select("id", { count: "exact", head: true })
         .eq("client_id", user!.id)
         .in("status", ["open", "in_progress"]);
@@ -315,7 +344,6 @@ export default function MyProfilePage() {
         return;
       }
 
-      // All checks passed - require auth code
       if (!hasAuthCode) {
         setDeleteError("You must set an authentication code before you can delete your account. Please set one above.");
         setDeleteChecking(false);
@@ -347,7 +375,6 @@ export default function MyProfilePage() {
         return;
       }
 
-      // Account deleted - sign out
       await signOut();
       toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
       navigate("/");
@@ -355,6 +382,11 @@ export default function MyProfilePage() {
       toast({ title: "Error", description: err.message || "Failed to delete account", variant: "destructive" });
       setDeleting(false);
     }
+  };
+
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
   if (authLoading || loading) {
@@ -388,6 +420,47 @@ export default function MyProfilePage() {
           </div>
 
           <div className="space-y-8">
+            {/* Avatar Upload */}
+            <section className="bg-card rounded-xl border border-border p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Profile Picture</h2>
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                    <AvatarImage src={avatarUrl || undefined} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                      {getInitials(fullName || profile.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    {uploadingAvatar ? (
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    ) : (
+                      <Camera className="h-6 w-6 text-white" />
+                    )}
+                  </button>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                </div>
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}>
+                    {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}
+                    {avatarUrl ? "Change Photo" : "Upload Photo"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG or WebP. Max 5MB.</p>
+                </div>
+              </div>
+            </section>
+
             {/* General Info */}
             <section className="bg-card rounded-xl border border-border p-6 space-y-5">
               <h2 className="text-lg font-semibold text-foreground">General Information</h2>

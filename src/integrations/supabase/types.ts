@@ -235,10 +235,12 @@ export type Database = {
           contest_id: string
           created_at: string | null
           description: string | null
+          edit_count: number
           freelancer_id: string
           id: string
           is_nominee: boolean | null
           is_winner: boolean | null
+          last_edited_at: string | null
           prize_position: number | null
         }
         Insert: {
@@ -246,10 +248,12 @@ export type Database = {
           contest_id: string
           created_at?: string | null
           description?: string | null
+          edit_count?: number
           freelancer_id: string
           id?: string
           is_nominee?: boolean | null
           is_winner?: boolean | null
+          last_edited_at?: string | null
           prize_position?: number | null
         }
         Update: {
@@ -257,10 +261,12 @@ export type Database = {
           contest_id?: string
           created_at?: string | null
           description?: string | null
+          edit_count?: number
           freelancer_id?: string
           id?: string
           is_nominee?: boolean | null
           is_winner?: boolean | null
+          last_edited_at?: string | null
           prize_position?: number | null
         }
         Relationships: [
@@ -319,7 +325,9 @@ export type Database = {
           deadline_extended_once: boolean
           description: string
           id: string
+          prize_fifth: number | null
           prize_first: number
+          prize_fourth: number | null
           prize_second: number | null
           prize_third: number | null
           required_skills: string[] | null
@@ -329,6 +337,7 @@ export type Database = {
           title: string
           updated_at: string | null
           visibility: string
+          winner_justifications: Json | null
           winner_selection_method: string | null
         }
         Insert: {
@@ -340,7 +349,9 @@ export type Database = {
           deadline_extended_once?: boolean
           description: string
           id?: string
+          prize_fifth?: number | null
           prize_first?: number
+          prize_fourth?: number | null
           prize_second?: number | null
           prize_third?: number | null
           required_skills?: string[] | null
@@ -350,6 +361,7 @@ export type Database = {
           title: string
           updated_at?: string | null
           visibility?: string
+          winner_justifications?: Json | null
           winner_selection_method?: string | null
         }
         Update: {
@@ -361,7 +373,9 @@ export type Database = {
           deadline_extended_once?: boolean
           description?: string
           id?: string
+          prize_fifth?: number | null
           prize_first?: number
+          prize_fourth?: number | null
           prize_second?: number | null
           prize_third?: number | null
           required_skills?: string[] | null
@@ -371,6 +385,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           visibility?: string
+          winner_justifications?: Json | null
           winner_selection_method?: string | null
         }
         Relationships: [
@@ -1870,6 +1885,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      verification_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
