@@ -12,6 +12,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
@@ -440,12 +441,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                <span className="text-xl font-bold text-primary-foreground">Z</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">
-                Zentra<span className="text-primary">Gig</span>
-              </span>
+              <ZentraGigLogo size="lg" />
             </Link>
             <h1 className="text-2xl font-bold text-foreground">
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
