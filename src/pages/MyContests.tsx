@@ -10,6 +10,25 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Loader2, Trophy, ArrowLeft, PlusCircle, Users, Calendar } from "lucide-react";
 
+// Canonical status derivation — mirrors ContestDetail.tsx
+function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+  if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
+  if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
+  return "active";
+}
+
+function statusLabel(s: ReturnType<typeof deriveContestStatus>) {
+  if (s === "completed") return "Completed";
+  if (s === "selecting_winners") return "Selecting Winners";
+  return "Active";
+}
+
+function statusVariant(s: ReturnType<typeof deriveContestStatus>): "default" | "secondary" | "outline" {
+  if (s === "completed") return "secondary";
+  if (s === "selecting_winners") return "outline";
+  return "default";
+}
+
 export default function MyContestsPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -31,35 +50,50 @@ export default function MyContestsPage() {
     const list = (data as any[]) || [];
 
     if (list.length > 0) {
-      const ids = list.map(c => c.id);
+      const ids = list.map((c) => c.id);
+
+      // Entry counts
       const { data: entries } = await supabase.from("contest_entries").select("contest_id").in("contest_id", ids);
+
       const countMap = new Map<string, number>();
       (entries || []).forEach((e: any) => countMap.set(e.contest_id, (countMap.get(e.contest_id) || 0) + 1));
-      list.forEach(c => { c._entryCount = countMap.get(c.id) || 0; });
+
+      // Winner counts for accurate status
+      const { data: winnerRows } = await supabase
+        .from("contest_entries")
+        .select("contest_id")
+        .in("contest_id", ids)
+        .eq("is_winner", true);
+
+      const winnerCountMap = new Map<string, number>();
+      (winnerRows || []).forEach((e: any) =>
+        winnerCountMap.set(e.contest_id, (winnerCountMap.get(e.contest_id) || 0) + 1),
+      );
+
+      list.forEach((c) => {
+        c._entryCount = countMap.get(c.id) || 0;
+        c._winnersCount = winnerCountMap.get(c.id) || 0;
+      });
     }
 
     setContests(list);
     setLoading(false);
   };
 
-  const totalPrize = (c: any) => (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0);
-
-  const getStatusLabel = (contest: any) => {
-    if (contest.status === "ended" || contest.status === "completed") return "Completed";
-    if (contest.status === "selecting_winners") return "Selecting Winners";
-    if (isPast(new Date(contest.deadline))) return "Selecting Winners";
-    return "Active";
-  };
-
-  const getStatusVariant = (contest: any): "default" | "secondary" | "outline" => {
-    const label = getStatusLabel(contest);
-    if (label === "Completed") return "secondary";
-    if (label === "Selecting Winners") return "outline";
-    return "default";
-  };
+  // All five prize tiers
+  const totalPrize = (c: any) =>
+    (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -75,7 +109,9 @@ export default function MyContestsPage() {
               <Trophy className="h-8 w-8 text-primary" /> My Contests
             </h1>
             <Button asChild>
-              <Link to="/launch-contest"><PlusCircle className="h-4 w-4 mr-2" /> Launch Contest</Link>
+              <Link to="/launch-contest">
+                <PlusCircle className="h-4 w-4 mr-2" /> Launch Contest
+              </Link>
             </Button>
           </div>
 
@@ -83,35 +119,45 @@ export default function MyContestsPage() {
             <div className="text-center py-16 text-muted-foreground">
               <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>You haven't launched any contests yet</p>
-              <Button className="mt-4" asChild><Link to="/launch-contest">Launch Your First Contest</Link></Button>
+              <Button className="mt-4" asChild>
+                <Link to="/launch-contest">Launch Your First Contest</Link>
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              {contests.map((contest: any) => (
-                <Link
-                  key={contest.id}
-                  to={`/contest/${contest.id}`}
-                  className="block bg-card rounded-xl border border-border p-6 card-hover"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg text-foreground">{contest.title}</h3>
-                        <Badge variant={getStatusVariant(contest)}>{getStatusLabel(contest)}</Badge>
+              {contests.map((contest: any) => {
+                const derived = deriveContestStatus(contest, contest._winnersCount || 0);
+                const label = statusLabel(derived);
+                const variant = statusVariant(derived);
+
+                return (
+                  <Link
+                    key={contest.id}
+                    to={`/contest/${contest.id}`}
+                    className="block bg-card rounded-xl border border-border p-6 card-hover"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg text-foreground">{contest.title}</h3>
+                          <Badge variant={variant}>{label}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{contest.description}</p>
+                        <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {derived === "active" ? `${formatDistanceToNow(new Date(contest.deadline))} left` : label}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{contest.description}</p>
-                      <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries</span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {getStatusLabel(contest) === "Active" ? `${formatDistanceToNow(new Date(contest.deadline))} left` : getStatusLabel(contest)}
-                        </span>
-                      </div>
+                      <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
                     </div>
-                    <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
