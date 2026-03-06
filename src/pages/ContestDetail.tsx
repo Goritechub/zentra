@@ -9,11 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -47,18 +43,46 @@ import {
   Reply,
   Send,
   Clock,
-  AtSign,
   Bell,
   BellOff,
   MapPin,
   Trash2,
   Edit3,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// CommentItem
+// Status helpers — single source of truth for the whole file
+// ---------------------------------------------------------------------------
+
+/**
+ * Derives the canonical contest status from DB record + live winners count.
+ *
+ *  "active"            — deadline in future, no winners yet
+ *  "selecting_winners" — deadline passed, no winners published yet
+ *  "completed"         — winners published (winners.length > 0)
+ *                        OR db status is "ended" / "completed"
+ */
+function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+  if (!contest) return "active";
+  if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
+  if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
+  return "active";
+}
+
+function getStatusLabel(status: ReturnType<typeof deriveContestStatus>) {
+  if (status === "completed") return "Completed";
+  if (status === "selecting_winners") return "Selecting Winners";
+  return "Active";
+}
+
+function getStatusVariant(status: ReturnType<typeof deriveContestStatus>): "default" | "secondary" | "outline" {
+  if (status === "completed") return "secondary";
+  if (status === "selecting_winners") return "outline";
+  return "default";
+}
+
+// ---------------------------------------------------------------------------
+// CommentItem — outside main component so React sees a stable reference
 // ---------------------------------------------------------------------------
 
 interface CommentItemProps {
@@ -73,6 +97,7 @@ interface CommentItemProps {
   showMentions: boolean;
   mentionSuggestions: any[];
   mentionTarget: "comment" | "reply";
+  commentsLocked: boolean;
   getReplies: (parentId: string) => any[];
   renderCommentText: (text: string) => React.ReactNode;
   getCommentLikeCount: (commentId: string) => number;
@@ -97,6 +122,7 @@ const CommentItem = ({
   showMentions,
   mentionSuggestions,
   mentionTarget,
+  commentsLocked,
   getReplies,
   renderCommentText,
   getCommentLikeCount,
@@ -139,11 +165,13 @@ const CommentItem = ({
         <div className="flex items-center gap-3 mt-2">
           <button
             onClick={() => onLike(comment.id)}
-            className={`flex items-center gap-1 text-xs ${liked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex items-center gap-1 text-xs ${
+              liked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             <ThumbsUp className="h-3 w-3" /> {likeCount > 0 && likeCount}
           </button>
-          {user && (
+          {user && !commentsLocked && (
             <button
               onClick={() => onReplyToggle(comment.id)}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -154,7 +182,7 @@ const CommentItem = ({
         </div>
       </div>
 
-      {replyTo === comment.id && (
+      {replyTo === comment.id && !commentsLocked && (
         <div className="ml-6 mt-2 relative">
           <div className="flex gap-2">
             <Input
@@ -206,6 +234,7 @@ const CommentItem = ({
               showMentions={showMentions}
               mentionSuggestions={mentionSuggestions}
               mentionTarget={mentionTarget}
+              commentsLocked={commentsLocked}
               getReplies={getReplies}
               renderCommentText={renderCommentText}
               getCommentLikeCount={getCommentLikeCount}
@@ -225,7 +254,7 @@ const CommentItem = ({
 };
 
 // ---------------------------------------------------------------------------
-// WinnerCard with justification
+// WinnerCard
 // ---------------------------------------------------------------------------
 function WinnerCard({
   winner,
@@ -253,9 +282,13 @@ function WinnerCard({
   const name = (winner.freelancer as any)?.full_name || "Expert";
   const username = (winner.freelancer as any)?.username;
   const avatarUrl = (winner.freelancer as any)?.avatar_url;
-  const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+  const initials = name
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
-  // Get justification from contest.winner_justifications
   const justifications = contest.winner_justifications || {};
   const justification = justifications[String(position)] || "";
   const clientLocation = (contest.client as any)?.state || (contest.client as any)?.city || "";
@@ -273,9 +306,7 @@ function WinnerCard({
       <div className="absolute -top-8 left-1/2 -translate-x-1/2">
         <Avatar className={`border-4 border-background shadow-md ${isLarge ? "h-16 w-16" : "h-14 w-14"}`}>
           <AvatarImage src={avatarUrl || undefined} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
-            {initials}
-          </AvatarFallback>
+          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">{initials}</AvatarFallback>
         </Avatar>
       </div>
 
@@ -299,9 +330,7 @@ function WinnerCard({
         {posLabel}
       </Badge>
 
-      <p className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}>
-        {formatNaira(prize)}
-      </p>
+      <p className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}>{formatNaira(prize)}</p>
 
       {justification && (
         <div className="mt-3 text-left">
@@ -334,37 +363,42 @@ export default function ContestDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile } = useAuth();
+
   const [contest, setContest] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [winners, setWinners] = useState<any[]>([]);
   const [nominees, setNominees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("description");
+
+  // Submit entry
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submissionDesc, setSubmissionDesc] = useState("");
   const [submissionFiles, setSubmissionFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
-  const [showAuthCode, setShowAuthCode] = useState(false);
-  const [publishingWinners, setPublishingWinners] = useState(false);
-  const [showExtendDialog, setShowExtendDialog] = useState(false);
-  const [newDeadline, setNewDeadline] = useState("");
-  const [extendingDeadline, setExtendingDeadline] = useState(false);
-  const [activeTab, setActiveTab] = useState("description");
 
-  // Justification fields for publish flow
-  const [justifications, setJustifications] = useState<Record<string, string>>({});
-
-  // Edit entry state
+  // Edit entry
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editFiles, setEditFiles] = useState<File[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // Follow state
+  // Publish winners
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [showAuthCode, setShowAuthCode] = useState(false);
+  const [publishingWinners, setPublishingWinners] = useState(false);
+  const [justifications, setJustifications] = useState<Record<string, string>>({});
+
+  // Extend deadline
+  const [showExtendDialog, setShowExtendDialog] = useState(false);
+  const [newDeadline, setNewDeadline] = useState("");
+  const [extendingDeadline, setExtendingDeadline] = useState(false);
+
+  // Follow
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
-  // Comments state
+  // Comments
   const [comments, setComments] = useState<any[]>([]);
   const [commentLikes, setCommentLikes] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -377,8 +411,49 @@ export default function ContestDetailPage() {
   const [contestParticipants, setContestParticipants] = useState<any[]>([]);
   const commentsRef = useRef<HTMLDivElement>(null);
 
-  const isClient = profile?.role === "client";
   const isExpert = profile?.role === "freelancer";
+
+  // ---------------------------------------------------------------------------
+  // Derived state — all status logic flows from here
+  // ---------------------------------------------------------------------------
+  const contestStatus = deriveContestStatus(contest, winners.length);
+  const isCompleted = contestStatus === "completed";
+  const isSelectingWinners = contestStatus === "selecting_winners";
+  const isActive = contestStatus === "active";
+
+  const deadlinePassed = contest ? isPast(new Date(contest.deadline)) : false;
+  const isOpen = contest?.visibility === "open";
+  const isOwner = contest?.client_id === user?.id;
+
+  const totalPrize = contest
+    ? (contest.prize_first || 0) +
+      (contest.prize_second || 0) +
+      (contest.prize_third || 0) +
+      (contest.prize_fourth || 0) +
+      (contest.prize_fifth || 0)
+    : 0;
+
+  const allEntries = [...entries, ...nominees, ...winners];
+  const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
+  const acceptingEntries = isActive && !deadlinePassed;
+
+  // "Proceed to select winners" banner: owner only, selecting state, no winners yet
+  const canSelectWinners = isOwner && isSelectingWinners && winners.length === 0;
+
+  const canExtendDeadline =
+    isOwner &&
+    !isCompleted &&
+    deadlinePassed &&
+    contest?.status === "active" &&
+    !contest?.deadline_extended_once &&
+    winners.length === 0;
+
+  // Comments locked once contest is completed
+  const commentsLocked = isCompleted;
+
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
     if (id) {
@@ -394,6 +469,20 @@ export default function ContestDetailPage() {
       setTimeout(() => commentsRef.current?.scrollIntoView({ behavior: "smooth" }), 500);
     }
   }, [location.hash, comments]);
+
+  // Auto-promote status to "selecting_winners" in the DB for ALL viewers,
+  // not just the owner — so every user sees the right status immediately.
+  useEffect(() => {
+    if (contest && deadlinePassed && contest.status === "active" && winners.length === 0) {
+      supabase
+        .from("contests" as any)
+        .update({ status: "selecting_winners" })
+        .eq("id", id)
+        .then(() => {
+          setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
+        });
+    }
+  }, [contest?.id, deadlinePassed, contest?.status, winners.length]);
 
   const fetchFollowState = async () => {
     if (!user || !id) return;
@@ -439,12 +528,12 @@ export default function ContestDetailPage() {
       .eq("contest_id", id!)
       .order("created_at", { ascending: false });
 
-    const allEntries = (entriesData as any[]) || [];
+    const allFetched = (entriesData as any[]) || [];
     setWinners(
-      allEntries.filter((e) => e.is_winner).sort((a, b) => (a.prize_position || 99) - (b.prize_position || 99)),
+      allFetched.filter((e) => e.is_winner).sort((a, b) => (a.prize_position || 99) - (b.prize_position || 99)),
     );
-    setNominees(allEntries.filter((e) => (e as any).is_nominee && !e.is_winner));
-    setEntries(allEntries.filter((e) => !e.is_winner && !(e as any).is_nominee));
+    setNominees(allFetched.filter((e) => (e as any).is_nominee && !e.is_winner));
+    setEntries(allFetched.filter((e) => !e.is_winner && !(e as any).is_nominee));
 
     const participants: any[] = [];
     if (data) {
@@ -454,7 +543,7 @@ export default function ContestDetailPage() {
         username: (data.client as any)?.username,
       });
     }
-    allEntries.forEach((e) => {
+    allFetched.forEach((e) => {
       if (!participants.find((p) => p.id === e.freelancer_id)) {
         participants.push({
           id: e.freelancer_id,
@@ -494,7 +583,6 @@ export default function ContestDetailPage() {
         .from("profiles")
         .select("id, full_name, avatar_url, username")
         .in("id", userIds);
-
       if (profilesData) {
         profileMap = new Map(profilesData.map((p: any) => [p.id, p]));
       }
@@ -528,32 +616,9 @@ export default function ContestDetailPage() {
     });
   }, [id]);
 
-  const deadlinePassed = contest ? isPast(new Date(contest.deadline)) : false;
-  const isSelectingWinners = contest?.status === "selecting_winners";
-  const isCompleted = contest?.status === "ended" || contest?.status === "completed";
-  const ended = isCompleted;
-  const acceptingEntries = !deadlinePassed && !isSelectingWinners && !isCompleted && contest?.status === "active";
-  const isOpen = contest?.visibility === "open";
-  const isOwner = contest?.client_id === user?.id;
-  const totalPrize = contest
-    ? (contest.prize_first || 0) + (contest.prize_second || 0) + (contest.prize_third || 0) + (contest.prize_fourth || 0) + (contest.prize_fifth || 0)
-    : 0;
-  const allEntries = [...entries, ...nominees, ...winners];
-  const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
-  const isEnded = contest?.status === "ended" || contest?.status === "completed";
-  const isContestOver = isEnded || winners.length > 0;
-
-  const canExtendDeadline =
-    isOwner &&
-    !isEnded &&
-    deadlinePassed &&
-    contest?.status === "active" &&
-    !contest?.deadline_extended_once &&
-    winners.length === 0;
-  const canSelectWinners =
-    isOwner &&
-    !isEnded &&
-    (contest?.status === "selecting_winners" || (deadlinePassed && contest?.status === "active"));
+  // ---------------------------------------------------------------------------
+  // Entry helpers
+  // ---------------------------------------------------------------------------
 
   const getMaxNominees = () => {
     if (!contest) return 1;
@@ -565,47 +630,24 @@ export default function ContestDetailPage() {
     return count;
   };
 
-  // Check if a user's entry can be edited
   const canEditEntry = (entry: any) => {
     if (entry.freelancer_id !== user?.id) return false;
-    if (isEnded || deadlinePassed) return false;
+    if (isCompleted || deadlinePassed) return false;
     if ((entry.edit_count || 0) >= 2) return false;
     const createdAt = new Date(entry.last_edited_at || entry.created_at);
     if (differenceInHours(new Date(), createdAt) > 8) return false;
     return true;
   };
 
-  // Check if entry can be deleted
   const canDeleteEntry = (entry: any) => {
     if (entry.freelancer_id !== user?.id) return false;
-    if (deadlinePassed || isEnded) return false;
+    if (deadlinePassed || isCompleted) return false;
     return true;
   };
 
-  const getStatusLabel = () => {
-    if (isCompleted || winners.length > 0) return "Completed";
-    if (isSelectingWinners) return "Selecting Winners";
-    if (deadlinePassed && contest?.status === "active") return "Selecting Winners";
-    return "Active";
-  };
-
-  const getStatusVariant = (): "default" | "secondary" | "outline" => {
-    if (isCompleted || winners.length > 0) return "secondary";
-    if (isSelectingWinners || deadlinePassed) return "outline";
-    return "default";
-  };
-
-  useEffect(() => {
-    if (contest && deadlinePassed && contest.status === "active" && isOwner) {
-      supabase
-        .from("contests" as any)
-        .update({ status: "selecting_winners" })
-        .eq("id", id)
-        .then(() => {
-          setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
-        });
-    }
-  }, [contest, deadlinePassed]);
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
 
   const handleSubmitEntry = async () => {
     if (!submissionDesc.trim()) {
@@ -613,7 +655,6 @@ export default function ContestDetailPage() {
       return;
     }
     setSubmitting(true);
-
     const urls: string[] = [];
     for (const file of submissionFiles) {
       const path = `entries/${user!.id}/${Date.now()}_${file.name}`;
@@ -623,14 +664,12 @@ export default function ContestDetailPage() {
         urls.push(data.publicUrl);
       }
     }
-
     const { error } = await supabase.from("contest_entries").insert({
       contest_id: id,
       freelancer_id: user!.id,
       description: submissionDesc.trim(),
       attachments: urls,
     });
-
     if (error) toast.error("Failed to submit entry");
     else {
       toast.success("Entry submitted!");
@@ -648,7 +687,6 @@ export default function ContestDetailPage() {
       return;
     }
     setEditSubmitting(true);
-
     let newAttachments = editingEntry.attachments || [];
     if (editFiles.length > 0) {
       const urls: string[] = [];
@@ -662,7 +700,6 @@ export default function ContestDetailPage() {
       }
       newAttachments = urls;
     }
-
     const { error } = await supabase
       .from("contest_entries")
       .update({
@@ -672,7 +709,6 @@ export default function ContestDetailPage() {
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", editingEntry.id);
-
     if (error) toast.error("Failed to update entry");
     else {
       toast.success("Entry updated!");
@@ -695,11 +731,9 @@ export default function ContestDetailPage() {
   };
 
   const handleNominate = async (entryId: string) => {
-    const maxNominees = getMaxNominees();
-    if (nominees.length >= maxNominees) {
-      toast.error(
-        `You can only nominate up to ${maxNominees} entr${maxNominees === 1 ? "y" : "ies"} based on your prize structure.`,
-      );
+    const max = getMaxNominees();
+    if (nominees.length >= max) {
+      toast.error(`You can only nominate up to ${max} entr${max === 1 ? "y" : "ies"} based on your prize structure.`);
       return;
     }
     await supabase
@@ -720,41 +754,33 @@ export default function ContestDetailPage() {
   };
 
   const handlePublishWinners = async () => {
-    const requiredWinners = getMaxNominees();
-
-    // Validate justifications
-    for (let i = 1; i <= requiredWinners; i++) {
+    const required = getMaxNominees();
+    for (let i = 1; i <= required; i++) {
       if (!justifications[String(i)]?.trim()) {
         toast.error(`Please provide a justification for position ${i}`);
         setPublishingWinners(false);
         return;
       }
     }
-
     setPublishingWinners(true);
 
-    // Save justifications to contest first
     await supabase
       .from("contests" as any)
       .update({ winner_justifications: justifications } as any)
       .eq("id", id);
 
     try {
-      const { data, error } = await supabase.functions.invoke("publish-contest-winners", {
-        body: { contest_id: id },
-      });
-
+      const { data, error } = await supabase.functions.invoke("publish-contest-winners", { body: { contest_id: id } });
       if (error || !data?.success) {
         toast.error(data?.error || "Failed to publish winners. Please try again.");
         setPublishingWinners(false);
         return;
       }
-
       toast.success("Winners published! Prize payouts completed.");
       setShowPublishConfirm(false);
       setJustifications({});
       fetchContest();
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to publish winners.");
     }
     setPublishingWinners(false);
@@ -768,9 +794,12 @@ export default function ContestDetailPage() {
     setExtendingDeadline(true);
     const { error } = await supabase
       .from("contests" as any)
-      .update({ deadline: newDeadline, status: "active", deadline_extended_once: true } as any)
+      .update({
+        deadline: newDeadline,
+        status: "active",
+        deadline_extended_once: true,
+      } as any)
       .eq("id", id);
-
     if (error) {
       toast.error("Failed to extend deadline");
     } else {
@@ -794,7 +823,10 @@ export default function ContestDetailPage() {
     }, 300);
   };
 
-  // @Mention handling
+  // ---------------------------------------------------------------------------
+  // Comment helpers
+  // ---------------------------------------------------------------------------
+
   const handleMentionSearch = (text: string, target: "comment" | "reply") => {
     const match = text.match(/@(\w*)$/);
     if (match) {
@@ -832,7 +864,6 @@ export default function ContestDetailPage() {
 
   const notifyOnComment = async (commentText: string) => {
     if (!contest || !user || !id) return;
-
     if (contest.client_id !== user.id) {
       await createNotification({
         userId: contest.client_id,
@@ -841,12 +872,10 @@ export default function ContestDetailPage() {
         message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
       });
     }
-
     const { data: followers } = await supabase
       .from("contest_follows" as any)
       .select("user_id")
       .eq("contest_id", id);
-
     if (followers) {
       for (const f of followers as any[]) {
         if (f.user_id === user.id) continue;
@@ -862,6 +891,7 @@ export default function ContestDetailPage() {
   };
 
   const handlePostComment = async (parentId?: string) => {
+    if (commentsLocked) return;
     const text = parentId ? replyText : newComment;
     if (!text.trim() || !user) return;
     setPostingComment(true);
@@ -963,6 +993,10 @@ export default function ContestDetailPage() {
     handleMentionSearch(value, "reply");
   };
 
+  // ---------------------------------------------------------------------------
+  // Loading / not-found guard
+  // ---------------------------------------------------------------------------
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -987,7 +1021,14 @@ export default function ContestDetailPage() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Render constants
+  // ---------------------------------------------------------------------------
+
   const maxNominees = getMaxNominees();
+  const prizeLabels = ["🥇 1st Place", "🥈 2nd Place", "🥉 3rd Place", "🏅 4th Place", "🏅 5th Place"];
+  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+  const nomineeEmojis = ["🥇", "🥈", "🥉", "🏅", "🏅"];
 
   const commentItemProps = {
     contest,
@@ -999,6 +1040,7 @@ export default function ContestDetailPage() {
     showMentions,
     mentionSuggestions,
     mentionTarget,
+    commentsLocked,
     getReplies,
     renderCommentText,
     getCommentLikeCount,
@@ -1011,10 +1053,9 @@ export default function ContestDetailPage() {
     onInsertMention: insertMention,
   };
 
-  // Prize label helpers
-  const prizeLabels = ["🥇 1st Place", "🥈 2nd Place", "🥉 3rd Place", "🏅 4th Place", "🏅 5th Place"];
-  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
-  const nomineeEmojis = ["🥇", "🥈", "🥉", "🏅", "🏅"];
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -1032,36 +1073,42 @@ export default function ContestDetailPage() {
             ) : (
               <Trophy className="h-20 w-20 text-primary/30" />
             )}
-            <Badge variant={getStatusVariant()} className="absolute top-4 right-4 text-sm">
-              {getStatusLabel()}
+            <Badge variant={getStatusVariant(contestStatus)} className="absolute top-4 right-4 text-sm">
+              {getStatusLabel(contestStatus)}
             </Badge>
           </div>
 
-          {/* Selecting Winners message */}
+          {/* Owner "select winners" banner — hidden once winners are published */}
           {canSelectWinners && (
             <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="h-5 w-5 text-accent" />
-                <p className="font-semibold text-foreground">
-                  Contest has ended. {isOwner ? "Select your winners." : "The client is currently selecting winners."}
-                </p>
+                <p className="font-semibold text-foreground">Contest has ended. Select your winners.</p>
               </div>
-              {isOwner && (
-                <div className="flex gap-2 mt-3">
-                  {canExtendDeadline && (
-                    <Button size="sm" variant="outline" onClick={() => setShowExtendDialog(true)}>
-                      <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={() => setActiveTab("winners")}>
-                    <Award className="h-4 w-4 mr-1" /> Proceed to Select Winners
+              <div className="flex gap-2 mt-3">
+                {canExtendDeadline && (
+                  <Button size="sm" variant="outline" onClick={() => setShowExtendDialog(true)}>
+                    <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
                   </Button>
-                </div>
-              )}
+                )}
+                <Button size="sm" onClick={() => setActiveTab("winners")}>
+                  <Award className="h-4 w-4 mr-1" /> Proceed to Select Winners
+                </Button>
+              </div>
             </div>
           )}
 
-          {/* Header */}
+          {/* Non-owner "selecting winners" notice */}
+          {isSelectingWinners && !isOwner && (
+            <div className="bg-muted/50 border border-border rounded-lg p-4 mb-6 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                The client is currently reviewing entries and selecting winners.
+              </p>
+            </div>
+          )}
+
+          {/* Contest header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold text-foreground">{contest.title}</h1>
@@ -1095,7 +1142,7 @@ export default function ContestDetailPage() {
                 ✓ You've entered this contest
               </Badge>
             )}
-            {isOwner && !isEnded && (isSelectingWinners || deadlinePassed) && (
+            {isOwner && isSelectingWinners && winners.length === 0 && (
               <Button
                 onClick={() => setShowPublishConfirm(true)}
                 disabled={nominees.length !== maxNominees}
@@ -1104,34 +1151,24 @@ export default function ContestDetailPage() {
                 <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length}/{maxNominees})
               </Button>
             )}
-            {user && !isOwner && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button
-                      variant={isFollowing ? "outline" : "secondary"}
-                      size="sm"
-                      onClick={handleToggleFollow}
-                      disabled={followLoading || isContestOver}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <BellOff className="h-4 w-4 mr-1" /> Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <Bell className="h-4 w-4 mr-1" /> Follow Contest
-                        </>
-                      )}
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {isContestOver && (
-                  <TooltipContent>
-                    <p>Contest is over</p>
-                  </TooltipContent>
+            {/* Follow — only visible while contest is not completed */}
+            {user && !isOwner && !isCompleted && (
+              <Button
+                variant={isFollowing ? "outline" : "secondary"}
+                size="sm"
+                onClick={handleToggleFollow}
+                disabled={followLoading}
+              >
+                {isFollowing ? (
+                  <>
+                    <BellOff className="h-4 w-4 mr-1" /> Unfollow
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4 mr-1" /> Follow Contest
+                  </>
                 )}
-              </Tooltip>
+              </Button>
             )}
           </div>
 
@@ -1149,6 +1186,9 @@ export default function ContestDetailPage() {
               </TabsTrigger>
             </TabsList>
 
+            {/* ---------------------------------------------------------------- */}
+            {/* DESCRIPTION                                                       */}
+            {/* ---------------------------------------------------------------- */}
             <TabsContent value="description">
               <div className="bg-card rounded-xl border border-border p-6 space-y-6">
                 <div>
@@ -1187,9 +1227,16 @@ export default function ContestDetailPage() {
                       const prize = contest[key];
                       if (!prize || prize <= 0) return null;
                       return (
-                        <div key={key} className={`flex justify-between p-3 rounded-lg ${idx === 0 ? "bg-accent/10" : "bg-muted/50"}`}>
+                        <div
+                          key={key}
+                          className={`flex justify-between p-3 rounded-lg ${
+                            idx === 0 ? "bg-accent/10" : "bg-muted/50"
+                          }`}
+                        >
                           <span>{prizeLabels[idx]}</span>
-                          <span className={idx === 0 ? "font-bold text-primary" : "font-semibold"}>{formatNaira(prize)}</span>
+                          <span className={idx === 0 ? "font-bold text-primary" : "font-semibold"}>
+                            {formatNaira(prize)}
+                          </span>
                         </div>
                       );
                     })}
@@ -1212,13 +1259,19 @@ export default function ContestDetailPage() {
                   </p>
                 </div>
 
-                {/* Comments Section */}
+                {/* Comments */}
                 <div className="border-t border-border pt-6" ref={commentsRef} id="comments">
                   <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-primary" /> Comments ({comments.length})
                   </h3>
 
-                  {user && (
+                  {/* Locked notice replaces input when contest is over */}
+                  {commentsLocked ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border mb-4">
+                      <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <p className="text-sm text-muted-foreground">This contest has ended. Comments are closed.</p>
+                    </div>
+                  ) : user ? (
                     <div className="relative mb-6">
                       <div className="flex gap-2">
                         <Textarea
@@ -1254,7 +1307,7 @@ export default function ContestDetailPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  ) : null}
 
                   {topLevelComments.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -1272,11 +1325,14 @@ export default function ContestDetailPage() {
               </div>
             </TabsContent>
 
+            {/* ---------------------------------------------------------------- */}
+            {/* ENTRIES                                                           */}
+            {/* ---------------------------------------------------------------- */}
             <TabsContent value="entries">
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold text-foreground">Entries ({allEntries.length})</h2>
-                  {isOwner && !isEnded && (
+                  {isOwner && !isCompleted && (
                     <p className="text-xs text-muted-foreground">
                       Nominees: {nominees.length}/{maxNominees}
                     </p>
@@ -1289,12 +1345,34 @@ export default function ContestDetailPage() {
                     <p>No entries yet</p>
                   </div>
                 ) : !isOpen && !isOwner ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="font-medium">{allEntries.length} entries submitted</p>
-                    <p className="text-sm mt-1">This is a closed contest. Entry details are hidden.</p>
+                  /* Closed contest — blurred ghost list + overlay */
+                  <div className="relative">
+                    <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
+                      {allEntries.map((entry: any) => (
+                        <div key={entry.id} className="border border-border rounded-lg p-4 bg-muted/30">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 w-32 bg-muted rounded" />
+                              <div className="h-3 w-full bg-muted rounded" />
+                              <div className="h-3 w-2/3 bg-muted rounded" />
+                            </div>
+                            <div className="h-4 w-20 bg-muted rounded" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 rounded-lg">
+                      <Lock className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="font-semibold text-foreground">
+                        {allEntries.length} {allEntries.length === 1 ? "entry" : "entries"} submitted
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 text-center px-8">
+                        This is a closed contest. Entry details are only visible to the contest owner.
+                      </p>
+                    </div>
                   </div>
                 ) : (
+                  /* Open contest or owner — full list */
                   <div className="space-y-4">
                     {allEntries.map((entry: any) => {
                       const isMyEntry = entry.freelancer_id === user?.id;
@@ -1306,7 +1384,9 @@ export default function ContestDetailPage() {
                         <div
                           key={entry.id}
                           id={`entry-${entry.id}`}
-                          className={`border rounded-lg p-4 transition-all ${(entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"}`}
+                          className={`border rounded-lg p-4 transition-all ${
+                            (entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"
+                          }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -1328,7 +1408,13 @@ export default function ContestDetailPage() {
                                   <Badge variant="default" className="bg-accent text-accent-foreground">
                                     <Award className="h-3 w-3 mr-1" />
                                     {entry.prize_position <= 3
-                                      ? `${entry.prize_position === 1 ? "1st" : entry.prize_position === 2 ? "2nd" : "3rd"} Place`
+                                      ? `${
+                                          entry.prize_position === 1
+                                            ? "1st"
+                                            : entry.prize_position === 2
+                                              ? "2nd"
+                                              : "3rd"
+                                        } Place`
                                       : `${entry.prize_position}th Place`}
                                   </Badge>
                                 )}
@@ -1342,10 +1428,9 @@ export default function ContestDetailPage() {
                               <p className="text-xs text-muted-foreground">
                                 {format(new Date(entry.created_at), "MMM d, yyyy")}
                               </p>
-                              {/* Owner nomination controls */}
                               {isOwner &&
                                 !entry.is_winner &&
-                                !isEnded &&
+                                !isCompleted &&
                                 ((entry as any).is_nominee ? (
                                   <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
                                     Remove
@@ -1360,7 +1445,6 @@ export default function ContestDetailPage() {
                                     <Star className="h-3 w-3 mr-1" /> Nominate
                                   </Button>
                                 ))}
-                              {/* Freelancer edit/delete controls */}
                               {isMyEntry && !entry.is_winner && (
                                 <div className="flex gap-1">
                                   {editable && (
@@ -1377,7 +1461,9 @@ export default function ContestDetailPage() {
                                           <Edit3 className="h-3 w-3" />
                                         </Button>
                                       </TooltipTrigger>
-                                      <TooltipContent>{editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining</TooltipContent>
+                                      <TooltipContent>
+                                        {editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining
+                                      </TooltipContent>
                                     </Tooltip>
                                   )}
                                   {deletable && (
@@ -1417,10 +1503,13 @@ export default function ContestDetailPage() {
               </div>
             </TabsContent>
 
+            {/* ---------------------------------------------------------------- */}
+            {/* WINNERS                                                           */}
+            {/* ---------------------------------------------------------------- */}
             <TabsContent value="winners">
               <div className="bg-card rounded-xl border border-border p-6">
-                {/* Nominees section - only visible to owner before publishing */}
-                {isOwner && !isEnded && nominees.length > 0 && (
+                {/* Nominees — owner only, before publishing */}
+                {isOwner && !isCompleted && nominees.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Star className="h-4 w-4 text-primary" /> Your Nominees ({nominees.length}/{maxNominees}) —
@@ -1451,17 +1540,16 @@ export default function ContestDetailPage() {
                   </div>
                 )}
 
-                {isOwner && !isEnded && nominees.length === 0 && (
+                {isOwner && !isCompleted && nominees.length === 0 && (
                   <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border">
                     <p className="text-sm text-muted-foreground">
                       No nominees yet. Go to the <strong>Entries</strong> tab to nominate entries. You can nominate up
-                      to <strong>{maxNominees}</strong> entr{maxNominees === 1 ? "y" : "ies"} based on your prize
-                      structure.
+                      to <strong>{maxNominees}</strong> entr
+                      {maxNominees === 1 ? "y" : "ies"} based on your prize structure.
                     </p>
                   </div>
                 )}
 
-                {/* Published Winners - Adaptive Layout */}
                 {winners.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -1471,27 +1559,54 @@ export default function ContestDetailPage() {
                   </div>
                 ) : winners.length >= 3 ? (
                   <>
-                    {/* Desktop podium: top 3 */}
                     <div className="hidden md:grid grid-cols-3 gap-6 items-end pt-12 pb-4">
                       <div className="pt-6">
-                        <WinnerCard winner={winners[1]} contest={contest} position={2} isOpen={isOpen} onViewEntry={handleViewEntry} />
+                        <WinnerCard
+                          winner={winners[1]}
+                          contest={contest}
+                          position={2}
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
                       </div>
                       <div className="pt-6">
-                        <WinnerCard winner={winners[0]} contest={contest} position={1} isLarge isOpen={isOpen} onViewEntry={handleViewEntry} />
+                        <WinnerCard
+                          winner={winners[0]}
+                          contest={contest}
+                          position={1}
+                          isLarge
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
                       </div>
                       <div className="pt-6">
-                        <WinnerCard winner={winners[2]} contest={contest} position={3} isOpen={isOpen} onViewEntry={handleViewEntry} />
+                        <WinnerCard
+                          winner={winners[2]}
+                          contest={contest}
+                          position={3}
+                          isOpen={isOpen}
+                          onViewEntry={handleViewEntry}
+                        />
                       </div>
                     </div>
-                    {/* 4th/5th place below podium on desktop */}
                     {winners.length > 3 && (
-                      <div className={`hidden md:grid gap-6 mt-6 ${winners.length === 4 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2 max-w-lg mx-auto"}`}>
+                      <div
+                        className={`hidden md:grid gap-6 mt-6 ${
+                          winners.length === 4 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2 max-w-lg mx-auto"
+                        }`}
+                      >
                         {winners.slice(3).map((w: any) => (
-                          <WinnerCard key={w.id} winner={w} contest={contest} position={w.prize_position || 4} isOpen={isOpen} onViewEntry={handleViewEntry} />
+                          <WinnerCard
+                            key={w.id}
+                            winner={w}
+                            contest={contest}
+                            position={w.prize_position || 4}
+                            isOpen={isOpen}
+                            onViewEntry={handleViewEntry}
+                          />
                         ))}
                       </div>
                     )}
-                    {/* Mobile stack */}
                     <div className="md:hidden space-y-8 pt-12">
                       {winners.map((w: any) => (
                         <WinnerCard
@@ -1507,7 +1622,11 @@ export default function ContestDetailPage() {
                     </div>
                   </>
                 ) : (
-                  <div className={`grid gap-6 pt-12 ${winners.length === 1 ? "max-w-sm mx-auto" : "grid-cols-1 sm:grid-cols-2"}`}>
+                  <div
+                    className={`grid gap-6 pt-12 ${
+                      winners.length === 1 ? "max-w-sm mx-auto" : "grid-cols-1 sm:grid-cols-2"
+                    }`}
+                  >
                     {winners.map((w: any) => (
                       <WinnerCard
                         key={w.id}
@@ -1554,7 +1673,9 @@ export default function ContestDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSubmitEntry} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
               Submit
@@ -1569,7 +1690,9 @@ export default function ContestDetailPage() {
           <DialogHeader>
             <DialogTitle>Edit Entry</DialogTitle>
             <DialogDescription>
-              You have {2 - (editingEntry?.edit_count || 0)} edit{2 - (editingEntry?.edit_count || 0) !== 1 ? "s" : ""} remaining. Edits allowed within 8 hours of submission.
+              You have {2 - (editingEntry?.edit_count || 0)} edit
+              {2 - (editingEntry?.edit_count || 0) !== 1 ? "s" : ""} remaining. Edits allowed within 8 hours of
+              submission.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -1591,7 +1714,9 @@ export default function ContestDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingEntry(null)}>
+              Cancel
+            </Button>
             <Button onClick={handleEditEntry} disabled={editSubmitting}>
               {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Edit3 className="h-4 w-4 mr-2" />}
               Save Changes
@@ -1600,7 +1725,7 @@ export default function ContestDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Winners — First Confirmation with Justifications */}
+      {/* Publish Winners — Justifications */}
       <Dialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -1615,14 +1740,20 @@ export default function ContestDetailPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{nomineeEmojis[idx] || "🏅"}</span>
                   <span className="font-medium">{(n.freelancer as any)?.full_name || "Expert"}</span>
-                  <span className="ml-auto font-bold text-primary">
-                    {formatNaira(contest[prizeKeys[idx]] || 0)}
-                  </span>
+                  <span className="ml-auto font-bold text-primary">{formatNaira(contest[prizeKeys[idx]] || 0)}</span>
                 </div>
                 <Textarea
-                  placeholder={`Why did you choose this entry for ${prizeLabels[idx]?.replace(/^[^\s]+\s/, "")}? (required, max 300 chars)`}
+                  placeholder={`Why did you choose this entry for ${prizeLabels[idx]?.replace(
+                    /^[^\s]+\s/,
+                    "",
+                  )}? (required, max 300 chars)`}
                   value={justifications[String(idx + 1)] || ""}
-                  onChange={(e) => setJustifications(prev => ({ ...prev, [String(idx + 1)]: e.target.value }))}
+                  onChange={(e) =>
+                    setJustifications((prev) => ({
+                      ...prev,
+                      [String(idx + 1)]: e.target.value,
+                    }))
+                  }
                   rows={2}
                   maxLength={300}
                   className="text-sm"
@@ -1634,10 +1765,11 @@ export default function ContestDetailPage() {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={() => {
-                // Validate justifications filled
                 for (let i = 1; i <= nominees.length; i++) {
                   if (!justifications[String(i)]?.trim()) {
                     toast.error(`Please provide a justification for position ${i}`);
@@ -1655,7 +1787,7 @@ export default function ContestDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Winners — Auth Code Verification */}
+      {/* Auth Code Verification */}
       <AuthCodeVerifyModal
         open={showAuthCode}
         onOpenChange={setShowAuthCode}
@@ -1680,7 +1812,9 @@ export default function ContestDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleExtendDeadline} disabled={extendingDeadline}>
               {extendingDeadline ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
