@@ -28,6 +28,8 @@ export default function LaunchContestPage() {
   const [prizeFirst, setPrizeFirst] = useState("");
   const [prizeSecond, setPrizeSecond] = useState("");
   const [prizeThird, setPrizeThird] = useState("");
+  const [prizeFourth, setPrizeFourth] = useState("");
+  const [prizeFifth, setPrizeFifth] = useState("");
   const [deadline, setDeadline] = useState("");
   const [visibility, setVisibility] = useState("open");
   const [rules, setRules] = useState("");
@@ -67,6 +69,8 @@ export default function LaunchContestPage() {
       prize_first: parseInt(prizeFirst),
       prize_second: prizeSecond ? parseInt(prizeSecond) : 0,
       prize_third: prizeThird ? parseInt(prizeThird) : 0,
+      prize_fourth: prizeFourth ? parseInt(prizeFourth) : 0,
+      prize_fifth: prizeFifth ? parseInt(prizeFifth) : 0,
       deadline,
       required_skills: selectedSkills,
       visibility,
@@ -161,6 +165,7 @@ export default function LaunchContestPage() {
 
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" />Prize Structure</h2>
+              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required.</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>🥇 1st Prize (₦) *</Label>
@@ -173,6 +178,18 @@ export default function LaunchContestPage() {
                 <div className="space-y-2">
                   <Label>🥉 3rd Prize (₦)</Label>
                   <Input type="number" placeholder="Optional" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>🏅 4th Prize (₦)</Label>
+                  <Input type="number" placeholder="Optional" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
+                  {!prizeThird && <p className="text-xs text-muted-foreground">Set 3rd prize first</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>🏅 5th Prize (₦)</Label>
+                  <Input type="number" placeholder="Optional" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
+                  {!prizeFourth && <p className="text-xs text-muted-foreground">Set 4th prize first</p>}
                 </div>
               </div>
             </div>

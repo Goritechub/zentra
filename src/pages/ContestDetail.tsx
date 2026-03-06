@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { createNotification } from "@/lib/notifications";
 import { formatNaira } from "@/lib/nigerian-data";
-import { isPast, format, formatDistanceToNow } from "date-fns";
+import { isPast, format, formatDistanceToNow, differenceInHours } from "date-fns";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -50,6 +50,11 @@ import {
   AtSign,
   Bell,
   BellOff,
+  MapPin,
+  Trash2,
+  Edit3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -220,7 +225,7 @@ const CommentItem = ({
 };
 
 // ---------------------------------------------------------------------------
-// WinnerCard
+// WinnerCard with justification
 // ---------------------------------------------------------------------------
 function WinnerCard({
   winner,
@@ -238,13 +243,25 @@ function WinnerCard({
   onViewEntry: (entryId: string) => void;
 }) {
   const navigate = useNavigate();
-  const medal = position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉";
-  const posLabel = position === 1 ? "1st Place" : position === 2 ? "2nd Place" : "3rd Place";
-  const prize = position === 1 ? contest.prize_first : position === 2 ? contest.prize_second : contest.prize_third;
+  const [expanded, setExpanded] = useState(false);
+  const medals = ["🥇", "🥈", "🥉", "🏅", "🏅"];
+  const posLabels = ["1st Place", "2nd Place", "3rd Place", "4th Place", "5th Place"];
+  const medal = medals[position - 1] || "🏅";
+  const posLabel = posLabels[position - 1] || `${position}th Place`;
+  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+  const prize = contest[prizeKeys[position - 1]] || 0;
   const name = (winner.freelancer as any)?.full_name || "Expert";
   const username = (winner.freelancer as any)?.username;
   const avatarUrl = (winner.freelancer as any)?.avatar_url;
   const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  // Get justification from contest.winner_justifications
+  const justifications = contest.winner_justifications || {};
+  const justification = justifications[String(position)] || "";
+  const clientLocation = (contest.client as any)?.state || (contest.client as any)?.city || "";
+
+  const JUSTIFICATION_TRUNCATE = 100;
+  const isTruncated = justification.length > JUSTIFICATION_TRUNCATE;
 
   return (
     <div
@@ -252,10 +269,7 @@ function WinnerCard({
         isLarge ? "scale-105 z-10 border-primary/40 shadow-xl" : ""
       }`}
     >
-      {/* Medal badge */}
       <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-3xl">{medal}</div>
-
-      {/* Avatar overlapping top */}
       <div className="absolute -top-8 left-1/2 -translate-x-1/2">
         <Avatar className={`border-4 border-background shadow-md ${isLarge ? "h-16 w-16" : "h-14 w-14"}`}>
           <AvatarImage src={avatarUrl || undefined} />
@@ -266,19 +280,18 @@ function WinnerCard({
       </div>
 
       <div className="mt-2">
-        <button
-          onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
-          className="hover:underline"
-        >
+        <button onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)} className="hover:underline">
           <p className={`font-bold text-foreground ${isLarge ? "text-lg" : "text-base"}`}>{name}</p>
         </button>
         {username && (
-          <button
-            onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
-            className="hover:underline"
-          >
+          <button onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)} className="hover:underline">
             <p className="text-xs text-muted-foreground">@{username}</p>
           </button>
+        )}
+        {clientLocation && (
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+            <MapPin className="h-3 w-3" /> {clientLocation}
+          </p>
         )}
       </div>
 
@@ -290,13 +303,21 @@ function WinnerCard({
         {formatNaira(prize)}
       </p>
 
+      {justification && (
+        <div className="mt-3 text-left">
+          <p className="text-xs text-muted-foreground italic">
+            "{expanded || !isTruncated ? justification : justification.slice(0, JUSTIFICATION_TRUNCATE) + "..."}"
+          </p>
+          {isTruncated && (
+            <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary hover:underline mt-1">
+              {expanded ? "show less" : "...view more"}
+            </button>
+          )}
+        </div>
+      )}
+
       {isOpen && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="mt-3 text-xs"
-          onClick={() => onViewEntry(winner.id)}
-        >
+        <Button size="sm" variant="ghost" className="mt-3 text-xs" onClick={() => onViewEntry(winner.id)}>
           <Eye className="h-3 w-3 mr-1" /> View Entry
         </Button>
       )}
@@ -329,6 +350,15 @@ export default function ContestDetailPage() {
   const [newDeadline, setNewDeadline] = useState("");
   const [extendingDeadline, setExtendingDeadline] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
+
+  // Justification fields for publish flow
+  const [justifications, setJustifications] = useState<Record<string, string>>({});
+
+  // Edit entry state
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editDesc, setEditDesc] = useState("");
+  const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false);
@@ -398,7 +428,7 @@ export default function ContestDetailPage() {
   const fetchContest = async () => {
     const { data } = (await supabase
       .from("contests" as any)
-      .select("*, client:profiles!contests_client_id_fkey(full_name, avatar_url, username)")
+      .select("*, client:profiles!contests_client_id_fkey(full_name, avatar_url, username, state, city)")
       .eq("id", id)
       .single()) as { data: any };
     setContest(data);
@@ -506,13 +536,11 @@ export default function ContestDetailPage() {
   const isOpen = contest?.visibility === "open";
   const isOwner = contest?.client_id === user?.id;
   const totalPrize = contest
-    ? (contest.prize_first || 0) + (contest.prize_second || 0) + (contest.prize_third || 0)
+    ? (contest.prize_first || 0) + (contest.prize_second || 0) + (contest.prize_third || 0) + (contest.prize_fourth || 0) + (contest.prize_fifth || 0)
     : 0;
   const allEntries = [...entries, ...nominees, ...winners];
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
   const isEnded = contest?.status === "ended" || contest?.status === "completed";
-
-  // Contest is "over" for follow button purposes
   const isContestOver = isEnded || winners.length > 0;
 
   const canExtendDeadline =
@@ -532,7 +560,26 @@ export default function ContestDetailPage() {
     let count = 1;
     if (contest.prize_second > 0) count = 2;
     if (contest.prize_third > 0) count = 3;
+    if (contest.prize_fourth > 0) count = 4;
+    if (contest.prize_fifth > 0) count = 5;
     return count;
+  };
+
+  // Check if a user's entry can be edited
+  const canEditEntry = (entry: any) => {
+    if (entry.freelancer_id !== user?.id) return false;
+    if (isEnded || deadlinePassed) return false;
+    if ((entry.edit_count || 0) >= 2) return false;
+    const createdAt = new Date(entry.last_edited_at || entry.created_at);
+    if (differenceInHours(new Date(), createdAt) > 8) return false;
+    return true;
+  };
+
+  // Check if entry can be deleted
+  const canDeleteEntry = (entry: any) => {
+    if (entry.freelancer_id !== user?.id) return false;
+    if (deadlinePassed || isEnded) return false;
+    return true;
   };
 
   const getStatusLabel = () => {
@@ -595,6 +642,58 @@ export default function ContestDetailPage() {
     setSubmitting(false);
   };
 
+  const handleEditEntry = async () => {
+    if (!editingEntry || !editDesc.trim()) {
+      toast.error("Please add a description");
+      return;
+    }
+    setEditSubmitting(true);
+
+    let newAttachments = editingEntry.attachments || [];
+    if (editFiles.length > 0) {
+      const urls: string[] = [];
+      for (const file of editFiles) {
+        const path = `entries/${user!.id}/${Date.now()}_${file.name}`;
+        const { error } = await supabase.storage.from("contest-banners").upload(path, file);
+        if (!error) {
+          const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
+          urls.push(data.publicUrl);
+        }
+      }
+      newAttachments = urls;
+    }
+
+    const { error } = await supabase
+      .from("contest_entries")
+      .update({
+        description: editDesc.trim(),
+        attachments: newAttachments,
+        edit_count: (editingEntry.edit_count || 0) + 1,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq("id", editingEntry.id);
+
+    if (error) toast.error("Failed to update entry");
+    else {
+      toast.success("Entry updated!");
+      setEditingEntry(null);
+      setEditDesc("");
+      setEditFiles([]);
+      fetchContest();
+    }
+    setEditSubmitting(false);
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!confirm("Are you sure you want to delete this entry?")) return;
+    const { error } = await supabase.from("contest_entries").delete().eq("id", entryId);
+    if (error) toast.error("Failed to delete entry");
+    else {
+      toast.success("Entry deleted");
+      fetchContest();
+    }
+  };
+
   const handleNominate = async (entryId: string) => {
     const maxNominees = getMaxNominees();
     if (nominees.length >= maxNominees) {
@@ -623,13 +722,22 @@ export default function ContestDetailPage() {
   const handlePublishWinners = async () => {
     const requiredWinners = getMaxNominees();
 
-    if (nominees.length !== requiredWinners) {
-      toast.error(
-        `Please nominate exactly ${requiredWinners} winner${requiredWinners === 1 ? "" : "s"} before publishing.`,
-      );
-      return;
+    // Validate justifications
+    for (let i = 1; i <= requiredWinners; i++) {
+      if (!justifications[String(i)]?.trim()) {
+        toast.error(`Please provide a justification for position ${i}`);
+        setPublishingWinners(false);
+        return;
+      }
     }
+
     setPublishingWinners(true);
+
+    // Save justifications to contest first
+    await supabase
+      .from("contests" as any)
+      .update({ winner_justifications: justifications } as any)
+      .eq("id", id);
 
     try {
       const { data, error } = await supabase.functions.invoke("publish-contest-winners", {
@@ -644,6 +752,7 @@ export default function ContestDetailPage() {
 
       toast.success("Winners published! Prize payouts completed.");
       setShowPublishConfirm(false);
+      setJustifications({});
       fetchContest();
     } catch (err: any) {
       toast.error("Failed to publish winners.");
@@ -673,7 +782,6 @@ export default function ContestDetailPage() {
     setExtendingDeadline(false);
   };
 
-  // Navigate to entries tab and scroll to a specific entry
   const handleViewEntry = (entryId: string) => {
     setActiveTab("entries");
     setTimeout(() => {
@@ -903,6 +1011,11 @@ export default function ContestDetailPage() {
     onInsertMention: insertMention,
   };
 
+  // Prize label helpers
+  const prizeLabels = ["🥇 1st Place", "🥈 2nd Place", "🥉 3rd Place", "🏅 4th Place", "🏅 5th Place"];
+  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+  const nomineeEmojis = ["🥇", "🥈", "🥉", "🏅", "🏅"];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -1070,22 +1183,16 @@ export default function ContestDetailPage() {
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">Prize Breakdown</h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between p-3 rounded-lg bg-accent/10">
-                      <span>🥇 1st Place</span>
-                      <span className="font-bold text-primary">{formatNaira(contest.prize_first)}</span>
-                    </div>
-                    {contest.prize_second > 0 && (
-                      <div className="flex justify-between p-3 rounded-lg bg-muted/50">
-                        <span>🥈 2nd Place</span>
-                        <span className="font-semibold">{formatNaira(contest.prize_second)}</span>
-                      </div>
-                    )}
-                    {contest.prize_third > 0 && (
-                      <div className="flex justify-between p-3 rounded-lg bg-muted/50">
-                        <span>🥉 3rd Place</span>
-                        <span className="font-semibold">{formatNaira(contest.prize_third)}</span>
-                      </div>
-                    )}
+                    {prizeKeys.map((key, idx) => {
+                      const prize = contest[key];
+                      if (!prize || prize <= 0) return null;
+                      return (
+                        <div key={key} className={`flex justify-between p-3 rounded-lg ${idx === 0 ? "bg-accent/10" : "bg-muted/50"}`}>
+                          <span>{prizeLabels[idx]}</span>
+                          <span className={idx === 0 ? "font-bold text-primary" : "font-semibold"}>{formatNaira(prize)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1189,78 +1296,122 @@ export default function ContestDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {allEntries.map((entry: any) => (
-                      <div
-                        key={entry.id}
-                        id={`entry-${entry.id}`}
-                        className={`border rounded-lg p-4 transition-all ${(entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-foreground">
-                                {(entry.freelancer as any)?.full_name || "Expert"}
+                    {allEntries.map((entry: any) => {
+                      const isMyEntry = entry.freelancer_id === user?.id;
+                      const editable = canEditEntry(entry);
+                      const deletable = canDeleteEntry(entry);
+                      const editsLeft = 2 - (entry.edit_count || 0);
+
+                      return (
+                        <div
+                          key={entry.id}
+                          id={`entry-${entry.id}`}
+                          className={`border rounded-lg p-4 transition-all ${(entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium text-foreground">
+                                  {(entry.freelancer as any)?.full_name || "Expert"}
+                                </p>
+                                {(entry.freelancer as any)?.username && (
+                                  <span className="text-xs text-muted-foreground">
+                                    @{(entry.freelancer as any).username}
+                                  </span>
+                                )}
+                                {(entry as any).is_nominee && !entry.is_winner && isOwner && (
+                                  <Badge variant="outline" className="text-primary border-primary/50">
+                                    <Star className="h-3 w-3 mr-1" /> Nominee
+                                  </Badge>
+                                )}
+                                {entry.is_winner && (
+                                  <Badge variant="default" className="bg-accent text-accent-foreground">
+                                    <Award className="h-3 w-3 mr-1" />
+                                    {entry.prize_position <= 3
+                                      ? `${entry.prize_position === 1 ? "1st" : entry.prize_position === 2 ? "2nd" : "3rd"} Place`
+                                      : `${entry.prize_position}th Place`}
+                                  </Badge>
+                                )}
+                                {isMyEntry && entry.edit_count > 0 && (
+                                  <span className="text-xs text-muted-foreground">(edited {entry.edit_count}x)</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2 shrink-0">
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(entry.created_at), "MMM d, yyyy")}
                               </p>
-                              {(entry.freelancer as any)?.username && (
-                                <span className="text-xs text-muted-foreground">
-                                  @{(entry.freelancer as any).username}
-                                </span>
-                              )}
-                              {(entry as any).is_nominee && !entry.is_winner && isOwner && (
-                                <Badge variant="outline" className="text-primary border-primary/50">
-                                  <Star className="h-3 w-3 mr-1" /> Nominee
-                                </Badge>
-                              )}
-                              {entry.is_winner && (
-                                <Badge variant="default" className="bg-accent text-accent-foreground">
-                                  <Award className="h-3 w-3 mr-1" />
-                                  {entry.prize_position === 1 ? "1st" : entry.prize_position === 2 ? "2nd" : "3rd"}{" "}
-                                  Place
-                                </Badge>
+                              {/* Owner nomination controls */}
+                              {isOwner &&
+                                !entry.is_winner &&
+                                !isEnded &&
+                                ((entry as any).is_nominee ? (
+                                  <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
+                                    Remove
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleNominate(entry.id)}
+                                    disabled={nominees.length >= maxNominees}
+                                  >
+                                    <Star className="h-3 w-3 mr-1" /> Nominate
+                                  </Button>
+                                ))}
+                              {/* Freelancer edit/delete controls */}
+                              {isMyEntry && !entry.is_winner && (
+                                <div className="flex gap-1">
+                                  {editable && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setEditingEntry(entry);
+                                            setEditDesc(entry.description || "");
+                                          }}
+                                        >
+                                          <Edit3 className="h-3 w-3" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining</TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                  {deletable && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteEntry(entry.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
                           </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(entry.created_at), "MMM d, yyyy")}
-                            </p>
-                            {isOwner &&
-                              !entry.is_winner &&
-                              !isEnded &&
-                              ((entry as any).is_nominee ? (
-                                <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
-                                  Remove
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleNominate(entry.id)}
-                                  disabled={nominees.length >= maxNominees}
+                          {entry.attachments?.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {entry.attachments.map((url: string, i: number) => (
+                                <a
+                                  key={i}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline flex items-center gap-1"
                                 >
-                                  <Star className="h-3 w-3 mr-1" /> Nominate
-                                </Button>
+                                  <Eye className="h-3 w-3" /> Attachment {i + 1}
+                                </a>
                               ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
-                        {entry.attachments?.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {entry.attachments.map((url: string, i: number) => (
-                              <a
-                                key={i}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Eye className="h-3 w-3" /> Attachment {i + 1}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1284,7 +1435,7 @@ export default function ContestDetailPage() {
                           key={n.id}
                           className="flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/20"
                         >
-                          <span className="text-xl">{idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}</span>
+                          <span className="text-xl">{nomineeEmojis[idx] || "🏅"}</span>
                           <div className="flex-1">
                             <p className="font-medium text-foreground">
                               {(n.freelancer as any)?.full_name || "Expert"}
@@ -1310,7 +1461,7 @@ export default function ContestDetailPage() {
                   </div>
                 )}
 
-                {/* Published Winners - Podium Layout */}
+                {/* Published Winners - Adaptive Layout */}
                 {winners.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -1318,43 +1469,28 @@ export default function ContestDetailPage() {
                       {isCompleted ? "No winners were selected." : "Winners will appear here when the contest ends."}
                     </p>
                   </div>
-                ) : winners.length === 3 ? (
-                  /* 3-winner podium layout */
+                ) : winners.length >= 3 ? (
                   <>
-                    {/* Desktop podium */}
+                    {/* Desktop podium: top 3 */}
                     <div className="hidden md:grid grid-cols-3 gap-6 items-end pt-12 pb-4">
-                      {/* 2nd place - left */}
                       <div className="pt-6">
-                        <WinnerCard
-                          winner={winners[1]}
-                          contest={contest}
-                          position={2}
-                          isOpen={isOpen}
-                          onViewEntry={handleViewEntry}
-                        />
+                        <WinnerCard winner={winners[1]} contest={contest} position={2} isOpen={isOpen} onViewEntry={handleViewEntry} />
                       </div>
-                      {/* 1st place - center, larger */}
                       <div className="pt-6">
-                        <WinnerCard
-                          winner={winners[0]}
-                          contest={contest}
-                          position={1}
-                          isLarge
-                          isOpen={isOpen}
-                          onViewEntry={handleViewEntry}
-                        />
+                        <WinnerCard winner={winners[0]} contest={contest} position={1} isLarge isOpen={isOpen} onViewEntry={handleViewEntry} />
                       </div>
-                      {/* 3rd place - right */}
                       <div className="pt-6">
-                        <WinnerCard
-                          winner={winners[2]}
-                          contest={contest}
-                          position={3}
-                          isOpen={isOpen}
-                          onViewEntry={handleViewEntry}
-                        />
+                        <WinnerCard winner={winners[2]} contest={contest} position={3} isOpen={isOpen} onViewEntry={handleViewEntry} />
                       </div>
                     </div>
+                    {/* 4th/5th place below podium on desktop */}
+                    {winners.length > 3 && (
+                      <div className={`hidden md:grid gap-6 mt-6 ${winners.length === 4 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2 max-w-lg mx-auto"}`}>
+                        {winners.slice(3).map((w: any) => (
+                          <WinnerCard key={w.id} winner={w} contest={contest} position={w.prize_position || 4} isOpen={isOpen} onViewEntry={handleViewEntry} />
+                        ))}
+                      </div>
+                    )}
                     {/* Mobile stack */}
                     <div className="md:hidden space-y-8 pt-12">
                       {winners.map((w: any) => (
@@ -1371,7 +1507,6 @@ export default function ContestDetailPage() {
                     </div>
                   </>
                 ) : (
-                  /* 1 or 2 winners - simple cards */
                   <div className={`grid gap-6 pt-12 ${winners.length === 1 ? "max-w-sm mx-auto" : "grid-cols-1 sm:grid-cols-2"}`}>
                     {winners.map((w: any) => (
                       <WinnerCard
@@ -1419,9 +1554,7 @@ export default function ContestDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>Cancel</Button>
             <Button onClick={handleSubmitEntry} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
               Submit
@@ -1430,34 +1563,87 @@ export default function ContestDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Winners — First Confirmation */}
-      <Dialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
+      {/* Edit Entry Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
         <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Entry</DialogTitle>
+            <DialogDescription>
+              You have {2 - (editingEntry?.edit_count || 0)} edit{2 - (editingEntry?.edit_count || 0) !== 1 ? "s" : ""} remaining. Edits allowed within 8 hours of submission.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Textarea
+              placeholder="Describe your entry..."
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              rows={5}
+            />
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Replace attachments (optional)</label>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                onChange={(e) => setEditFiles(Array.from(e.target.files || []).slice(0, 5))}
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
+            <Button onClick={handleEditEntry} disabled={editSubmitting}>
+              {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Edit3 className="h-4 w-4 mr-2" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Winners — First Confirmation with Justifications */}
+      <Dialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Publish Winners</DialogTitle>
             <DialogDescription>
-              Are you sure you want to publish winners and release prize money? This action cannot be undone.
+              Provide a justification for each winner. This will be shown publicly. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
             {nominees.map((n: any, idx: number) => (
-              <div key={n.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <span className="text-lg">{idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}</span>
-                <span className="font-medium">{(n.freelancer as any)?.full_name || "Expert"}</span>
-                <span className="ml-auto font-bold text-primary">
-                  {formatNaira(
-                    idx === 0 ? contest.prize_first : idx === 1 ? contest.prize_second : contest.prize_third,
-                  )}
-                </span>
+              <div key={n.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{nomineeEmojis[idx] || "🏅"}</span>
+                  <span className="font-medium">{(n.freelancer as any)?.full_name || "Expert"}</span>
+                  <span className="ml-auto font-bold text-primary">
+                    {formatNaira(contest[prizeKeys[idx]] || 0)}
+                  </span>
+                </div>
+                <Textarea
+                  placeholder={`Why did you choose this entry for ${prizeLabels[idx]?.replace(/^[^\s]+\s/, "")}? (required, max 300 chars)`}
+                  value={justifications[String(idx + 1)] || ""}
+                  onChange={(e) => setJustifications(prev => ({ ...prev, [String(idx + 1)]: e.target.value }))}
+                  rows={2}
+                  maxLength={300}
+                  className="text-sm"
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {(justifications[String(idx + 1)] || "").length}/300
+                </p>
               </div>
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>Cancel</Button>
             <Button
               onClick={() => {
+                // Validate justifications filled
+                for (let i = 1; i <= nominees.length; i++) {
+                  if (!justifications[String(i)]?.trim()) {
+                    toast.error(`Please provide a justification for position ${i}`);
+                    return;
+                  }
+                }
                 setShowPublishConfirm(false);
                 setShowAuthCode(true);
               }}
@@ -1494,9 +1680,7 @@ export default function ContestDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>Cancel</Button>
             <Button onClick={handleExtendDeadline} disabled={extendingDeadline}>
               {extendingDeadline ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
