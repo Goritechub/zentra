@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -10,11 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Trophy, Upload } from "lucide-react";
+import { cadSkills } from "@/lib/nigerian-data";
+import { formatNaira } from "@/lib/nigerian-data";
+import { Loader2, X, Trophy, Upload, Wallet, AlertTriangle } from "lucide-react";
+import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 
 export default function LaunchContestPage() {
   const navigate = useNavigate();
@@ -36,10 +41,31 @@ export default function LaunchContestPage() {
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
+  // Wallet / insufficient funds state
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [insufficientData, setInsufficientData] = useState({ total: 0, balance: 0, shortfall: 0 });
+  const [showFundWallet, setShowFundWallet] = useState(false);
+
   const categories = [
     "Architectural Drafting", "Mechanical CAD", "Electrical CAD", "3D Modeling",
     "BIM/Revit", "AutoCAD 2D Plans", "SolidWorks", "Fusion 360", "Civil/Structural Drawings"
   ];
+
+  // Fetch wallet balance
+  useEffect(() => {
+    if (!user) return;
+    const fetchWallet = async () => {
+      const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
+      setWalletBalance(data?.balance || 0);
+    };
+    fetchWallet();
+  }, [user]);
+
+  const calcTotalPrize = () => {
+    return (parseInt(prizeFirst) || 0) + (parseInt(prizeSecond) || 0) + (parseInt(prizeThird) || 0) +
+      (parseInt(prizeFourth) || 0) + (parseInt(prizeFifth) || 0);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +75,15 @@ export default function LaunchContestPage() {
       return;
     }
 
+    const totalPrize = calcTotalPrize();
+    if (totalPrize <= 0) {
+      toast.error("Prize pool must be greater than zero");
+      return;
+    }
+
     setLoading(true);
 
+    // Upload banner first if present
     let bannerUrl: string | null = null;
     if (bannerFile) {
       const path = `banners/${user.id}/${Date.now()}_${bannerFile.name}`;
@@ -61,31 +94,70 @@ export default function LaunchContestPage() {
       }
     }
 
-    const { error } = await supabase.from("contests" as any).insert({
-      client_id: user.id,
-      title: title.trim(),
-      description: description.trim(),
-      category: category || null,
-      prize_first: parseInt(prizeFirst),
-      prize_second: prizeSecond ? parseInt(prizeSecond) : 0,
-      prize_third: prizeThird ? parseInt(prizeThird) : 0,
-      prize_fourth: prizeFourth ? parseInt(prizeFourth) : 0,
-      prize_fifth: prizeFifth ? parseInt(prizeFifth) : 0,
-      deadline,
-      required_skills: selectedSkills,
-      visibility,
-      rules: rules.trim() || null,
-      banner_image: bannerUrl,
-      winner_selection_method: "client_selects",
-    } as any);
+    // Call the secure backend function
+    const { data, error } = await supabase.functions.invoke("launch-contest", {
+      body: {
+        title: title.trim(),
+        description: description.trim(),
+        category: category || null,
+        prize_first: parseInt(prizeFirst),
+        prize_second: prizeSecond ? parseInt(prizeSecond) : 0,
+        prize_third: prizeThird ? parseInt(prizeThird) : 0,
+        prize_fourth: prizeFourth ? parseInt(prizeFourth) : 0,
+        prize_fifth: prizeFifth ? parseInt(prizeFifth) : 0,
+        deadline,
+        required_skills: selectedSkills,
+        visibility,
+        rules: rules.trim() || null,
+        banner_image: bannerUrl,
+        winner_selection_method: "client_selects",
+      },
+    });
+
+    setLoading(false);
 
     if (error) {
       toast.error("Failed to launch contest");
-    } else {
-      toast.success("Contest launched!");
+      return;
+    }
+
+    if (data?.error === "insufficient_funds") {
+      setInsufficientData({
+        total: data.total_prize_pool,
+        balance: data.wallet_balance,
+        shortfall: data.shortfall,
+      });
+      setWalletBalance(data.wallet_balance);
+      setShowInsufficientModal(true);
+      return;
+    }
+
+    if (data?.error) {
+      toast.error(data.error);
+      return;
+    }
+
+    if (data?.success) {
+      toast.success("Contest launched! Prize pool moved to escrow.");
       navigate("/dashboard/my-contests");
     }
-    setLoading(false);
+  };
+
+  const handleFundSuccess = async () => {
+    // Refresh wallet balance
+    if (!user) return;
+    const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
+    const newBal = data?.balance || 0;
+    setWalletBalance(newBal);
+    setShowFundWallet(false);
+    // Update insufficient modal data
+    const total = calcTotalPrize();
+    if (newBal >= total) {
+      setShowInsufficientModal(false);
+      toast.success("Wallet funded! You can now launch the contest.");
+    } else {
+      setInsufficientData({ total, balance: newBal, shortfall: total - newBal });
+    }
   };
 
   if (!user || profile?.role !== "client") {
@@ -103,6 +175,8 @@ export default function LaunchContestPage() {
     );
   }
 
+  const totalPrizePreview = calcTotalPrize();
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -110,6 +184,25 @@ export default function LaunchContestPage() {
         <div className="container-tight">
           <h1 className="text-3xl font-bold text-foreground mb-2">Launch a Contest</h1>
           <p className="text-muted-foreground mb-8">Get multiple design submissions and pick the best one.</p>
+
+          {/* Wallet balance indicator */}
+          <div className="bg-card rounded-xl border border-border p-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Wallet className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                <p className="font-semibold text-foreground">{formatNaira(walletBalance / 100)}</p>
+              </div>
+            </div>
+            {totalPrizePreview > 0 && (
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Prize Pool Required</p>
+                <p className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}>
+                  {formatNaira(totalPrizePreview / 100)}
+                </p>
+              </div>
+            )}
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
@@ -165,29 +258,29 @@ export default function LaunchContestPage() {
 
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" />Prize Structure</h2>
-              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required.</p>
+              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required. Prize amounts are in kobo (e.g. 50000 = ₦500).</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>🥇 1st Prize (₦) *</Label>
-                  <Input type="number" placeholder="e.g. 500000" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
+                  <Label>🥇 1st Prize (kobo) *</Label>
+                  <Input type="number" placeholder="e.g. 5000000" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>🥈 2nd Prize (₦)</Label>
+                  <Label>🥈 2nd Prize (kobo)</Label>
                   <Input type="number" placeholder="Optional" value={prizeSecond} onChange={(e) => setPrizeSecond(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>🥉 3rd Prize (₦)</Label>
+                  <Label>🥉 3rd Prize (kobo)</Label>
                   <Input type="number" placeholder="Optional" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>🏅 4th Prize (₦)</Label>
+                  <Label>🏅 4th Prize (kobo)</Label>
                   <Input type="number" placeholder="Optional" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
                   {!prizeThird && <p className="text-xs text-muted-foreground">Set 3rd prize first</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>🏅 5th Prize (₦)</Label>
+                  <Label>🏅 5th Prize (kobo)</Label>
                   <Input type="number" placeholder="Optional" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
                   {!prizeFourth && <p className="text-xs text-muted-foreground">Set 4th prize first</p>}
                 </div>
@@ -223,6 +316,51 @@ export default function LaunchContestPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Insufficient Funds Modal */}
+      <Dialog open={showInsufficientModal} onOpenChange={setShowInsufficientModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Fund Your Wallet to Host This Contest
+            </DialogTitle>
+            <DialogDescription>
+              Your wallet balance is not enough to cover the prize pool. The full prize amount must be available before launching.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-muted rounded-lg p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Total Prize Pool</span>
+                <span className="font-semibold text-foreground">{formatNaira(insufficientData.total / 100)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Your Wallet Balance</span>
+                <span className="font-semibold text-foreground">{formatNaira(insufficientData.balance / 100)}</span>
+              </div>
+              <hr className="border-border" />
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-destructive">Amount Needed</span>
+                <span className="font-bold text-destructive">{formatNaira(insufficientData.shortfall / 100)}</span>
+              </div>
+            </div>
+
+            <Button className="w-full" onClick={() => { setShowInsufficientModal(false); setShowFundWallet(true); }}>
+              <Wallet className="h-4 w-4 mr-2" />
+              Fund Wallet
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fund Wallet Modal */}
+      <FundWalletModal
+        open={showFundWallet}
+        onOpenChange={setShowFundWallet}
+        onSuccess={handleFundSuccess}
+        userEmail={profile?.email}
+      />
     </div>
   );
 }
