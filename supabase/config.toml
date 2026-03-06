@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.publish-contest-winners]
 verify_jwt = false
+
+[functions.launch-contest]
+verify_jwt = false
