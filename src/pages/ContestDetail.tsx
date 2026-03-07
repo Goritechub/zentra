@@ -370,6 +370,7 @@ export default function ContestDetailPage() {
   const [nominees, setNominees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("description");
+  const [trueEntryCount, setTrueEntryCount] = useState<number>(0);
 
   // Submit entry
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
