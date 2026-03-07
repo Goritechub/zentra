@@ -14,6 +14,7 @@ import {
   Eye, Loader2, ArrowRight, Trophy, Send, Heart,
   Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
 } from "lucide-react";
+import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
@@ -124,6 +125,9 @@ export default function DashboardPage() {
               {isFreelancer ? "Manage your profile, view proposals, and track your projects." : "Find talent, manage projects, and track progress."}
             </p>
           </div>
+
+          {/* Expert Stats Banner */}
+          {isFreelancer && <ExpertStatsBanner />}
 
           {/* Platform Notice */}
           <Alert className="mb-6 border-primary/30 bg-primary/5">
