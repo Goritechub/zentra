@@ -69,41 +69,50 @@ serve(async (req) => {
         .single();
 
       if (ref && ref.status === "success") {
-        // Credit wallet if not already done
-        const amountNaira = Math.round(ref.amount / 100);
-        const { data: wallet } = await supabase.from("wallets")
-          .select("*")
+        // Check if already credited (prevent double-credit from check_pending + webhook)
+        const { data: existing } = await supabase.from("wallet_transactions")
+          .select("id")
+          .eq("reference", reference)
           .eq("user_id", ref.user_id)
           .maybeSingle();
 
-        if (wallet) {
-          await supabase.from("wallets").update({
-            balance: wallet.balance + amountNaira,
-          }).eq("user_id", ref.user_id);
-        } else {
-          await supabase.from("wallets").insert({
+        if (!existing) {
+          const amountNaira = Math.round(ref.amount / 100);
+          const channelLabel = ref.channel === "card" ? "Card" : ref.channel === "bank" ? "Bank Transfer" : ref.channel === "ussd" ? "USSD" : "Paystack";
+          const description = `Wallet funded via ${channelLabel}`;
+
+          const { data: wallet } = await supabase.from("wallets")
+            .select("*")
+            .eq("user_id", ref.user_id)
+            .maybeSingle();
+
+          if (wallet) {
+            await supabase.from("wallets").update({
+              balance: wallet.balance + amountNaira,
+            }).eq("user_id", ref.user_id);
+          } else {
+            await supabase.from("wallets").insert({
+              user_id: ref.user_id,
+              balance: amountNaira,
+            });
+          }
+
+          await supabase.from("wallet_transactions").insert({
             user_id: ref.user_id,
-            balance: amountNaira,
+            type: "credit",
+            amount: amountNaira,
+            balance_after: (wallet?.balance || 0) + amountNaira,
+            description,
+            reference,
+          });
+
+          await supabase.from("notifications").insert({
+            user_id: ref.user_id,
+            type: "payment_received",
+            title: "Wallet Funded",
+            message: `₦${amountNaira.toLocaleString()} has been added to your wallet.`,
           });
         }
-
-        // Record wallet transaction
-        await supabase.from("wallet_transactions").insert({
-          user_id: ref.user_id,
-          type: "credit",
-          amount: amountNaira,
-          balance_after: (wallet?.balance || 0) + amountNaira,
-          description: "Wallet funded via Paystack",
-          reference,
-        });
-
-        // Notify user
-        await supabase.from("notifications").insert({
-          user_id: ref.user_id,
-          type: "payment_received",
-          title: "Wallet Funded",
-          message: `₦${amountNaira.toLocaleString()} has been added to your wallet.`,
-        });
       }
     }
 
