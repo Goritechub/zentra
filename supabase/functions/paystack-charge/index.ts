@@ -392,7 +392,7 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     });
   }
 
-  await supabase.from("wallet_transactions").insert({
+  const { error: wtError } = await supabase.from("wallet_transactions").insert({
     user_id: userId,
     type: "credit",
     amount: amountNaira,
@@ -400,8 +400,9 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     description,
     reference,
   });
+  if (wtError) console.error("wallet_transactions insert error:", JSON.stringify(wtError));
 
-  await supabase.from("transactions").insert({
+  const { error: txError } = await supabase.from("transactions").insert({
     user_id: userId,
     type: "credit",
     amount: amountNaira,
@@ -409,4 +410,5 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     description,
     reference,
   });
+  if (txError) console.error("transactions insert error:", JSON.stringify(txError));
 }
