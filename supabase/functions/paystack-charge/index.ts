@@ -346,7 +346,15 @@ async function handleChargeResponse(supabase: any, userId: string, reference: st
   if (internalStatus === "success") {
     const { data: ref } = await supabase.from("paystack_references").select("*").eq("reference", reference).single();
     if (ref) {
-      await creditWallet(supabase, userId, ref.amount, reference, ref.purpose);
+      // Check if already credited (prevent double-credit from webhook + check_pending)
+      const { data: existing } = await supabase.from("wallet_transactions")
+        .select("id")
+        .eq("reference", reference)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!existing) {
+        await creditWallet(supabase, userId, ref.amount, reference, ref.purpose, ref.channel);
+      }
     }
   }
 
@@ -361,8 +369,11 @@ async function handleChargeResponse(supabase: any, userId: string, reference: st
   });
 }
 
-async function creditWallet(supabase: any, userId: string, amountKobo: number, reference: string, purpose?: string) {
+async function creditWallet(supabase: any, userId: string, amountKobo: number, reference: string, purpose?: string, channel?: string) {
   const amountNaira = Math.round(amountKobo / 100);
+
+  const channelLabel = channel === "card" ? "Card" : channel === "bank" ? "Bank Transfer" : channel === "ussd" ? "USSD" : "Paystack";
+  const description = `Wallet funded via ${channelLabel}`;
 
   const { data: wallet } = await supabase
     .from("wallets")
@@ -386,7 +397,7 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     type: "credit",
     amount: amountNaira,
     balance_after: (wallet?.balance || 0) + amountNaira,
-    description: `Wallet funded via Paystack`,
+    description,
     reference,
   });
 
@@ -395,7 +406,7 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     type: "credit",
     amount: amountNaira,
     status: "completed",
-    description: `Wallet funding`,
+    description,
     reference,
   });
 }
