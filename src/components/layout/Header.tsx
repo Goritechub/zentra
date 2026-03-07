@@ -64,9 +64,36 @@ export function Header() {
               </Link>
             )}
             {user && !isClient && (
-              <Link to="/jobs" className={navLinkClass("/jobs")}>
-                Browse Jobs
-              </Link>
+              <div className="relative">
+                <button
+                  onClick={() => setJobsMenuOpen(!jobsMenuOpen)}
+                  onBlur={() => setTimeout(() => setJobsMenuOpen(false), 150)}
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors ${
+                    ["/jobs", "/expert-proposals", "/contracts", "/received-offers"].includes(location.pathname)
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Jobs
+                  <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${jobsMenuOpen ? "rotate-90" : ""}`} />
+                </button>
+                {jobsMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50 animate-fade-in">
+                    <Link to="/jobs" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <Search className="h-3.5 w-3.5" />Browse Jobs
+                    </Link>
+                    <Link to="/expert-proposals" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <FileText className="h-3.5 w-3.5" />View Proposals
+                    </Link>
+                    <Link to="/contracts" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <FolderOpen className="h-3.5 w-3.5" />View Contracts
+                    </Link>
+                    <Link to="/received-offers" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <Mail className="h-3.5 w-3.5" />View Received Offers
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
             {user && (
               <Link to="/messages" className={`relative ${navLinkClass("/messages")}`}>
