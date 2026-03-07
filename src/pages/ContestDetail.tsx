@@ -370,6 +370,7 @@ export default function ContestDetailPage() {
   const [nominees, setNominees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("description");
+  const [trueEntryCount, setTrueEntryCount] = useState<number>(0);
 
   // Submit entry
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
@@ -521,6 +522,10 @@ export default function ContestDetailPage() {
       .eq("id", id)
       .single()) as { data: any };
     setContest(data);
+
+    // Fetch true entry count via SECURITY DEFINER function (bypasses RLS)
+    const { data: countData } = await supabase.rpc("get_contest_entry_count", { _contest_id: id! } as any);
+    setTrueEntryCount(typeof countData === "number" ? countData : 0);
 
     const { data: entriesData } = await supabase
       .from("contest_entries")
@@ -1179,7 +1184,7 @@ export default function ContestDetailPage() {
                 <FileText className="h-4 w-4 mr-1.5" /> Description
               </TabsTrigger>
               <TabsTrigger value="entries">
-                <Users className="h-4 w-4 mr-1.5" /> Entries ({allEntries.length})
+                <Users className="h-4 w-4 mr-1.5" /> Entries ({trueEntryCount})
               </TabsTrigger>
               <TabsTrigger value="winners">
                 <Award className="h-4 w-4 mr-1.5" /> Winners
@@ -1331,7 +1336,7 @@ export default function ContestDetailPage() {
             <TabsContent value="entries">
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-foreground">Entries ({allEntries.length})</h2>
+                  <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
                   {isOwner && !isCompleted && (
                     <p className="text-xs text-muted-foreground">
                       Nominees: {nominees.length}/{maxNominees}
@@ -1339,7 +1344,7 @@ export default function ContestDetailPage() {
                   )}
                 </div>
 
-                {allEntries.length === 0 ? (
+                {trueEntryCount === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No entries yet</p>
@@ -1348,8 +1353,8 @@ export default function ContestDetailPage() {
                   /* Closed contest — blurred ghost list + overlay */
                   <div className="relative">
                     <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
-                      {allEntries.map((entry: any) => (
-                        <div key={entry.id} className="border border-border rounded-lg p-4 bg-muted/30">
+                      {Array.from({ length: trueEntryCount }).map((_, i) => (
+                        <div key={i} className="border border-border rounded-lg p-4 bg-muted/30">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 space-y-2">
                               <div className="h-4 w-32 bg-muted rounded" />
@@ -1364,7 +1369,7 @@ export default function ContestDetailPage() {
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 rounded-lg">
                       <Lock className="h-10 w-10 text-muted-foreground mb-3" />
                       <p className="font-semibold text-foreground">
-                        {allEntries.length} {allEntries.length === 1 ? "entry" : "entries"} submitted
+                        {trueEntryCount} {trueEntryCount === 1 ? "entry" : "entries"} submitted
                       </p>
                       <p className="text-sm text-muted-foreground mt-1 text-center px-8">
                         This is a closed contest. Entry details are only visible to the contest owner.
