@@ -523,6 +523,10 @@ export default function ContestDetailPage() {
       .single()) as { data: any };
     setContest(data);
 
+    // Fetch true entry count via SECURITY DEFINER function (bypasses RLS)
+    const { data: countData } = await supabase.rpc("get_contest_entry_count", { _contest_id: id! } as any);
+    setTrueEntryCount(typeof countData === "number" ? countData : 0);
+
     const { data: entriesData } = await supabase
       .from("contest_entries")
       .select("*, freelancer:profiles!contest_entries_freelancer_id_fkey(full_name, avatar_url, username)")
