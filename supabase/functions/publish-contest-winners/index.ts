@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
         user_id: winnerId,
         type: "contest_winner",
         title: `🏆 You won ${posLabels[i]} place!`,
-        message: `Congratulations! You won ₦${(prizeAmount / 100).toLocaleString()} in "${contest.title}". The prize has been credited to your wallet.`,
+        message: `Congratulations! You won ₦${prizeAmount.toLocaleString()} in "${contest.title}". The prize has been credited to your wallet.`,
         contract_id: null,
       });
     }

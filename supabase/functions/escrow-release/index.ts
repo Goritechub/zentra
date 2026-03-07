@@ -445,7 +445,7 @@ async function attemptPaystackPayout(supabase: any, milestone: any, expertAmount
       },
       body: JSON.stringify({
         source: "balance",
-        amount: expertAmount * 100, // kobo
+        amount: expertAmount * 100, // convert naira to kobo for Paystack API
         recipient: bankDetail.recipient_code,
         reason: `Payment for milestone: ${milestone.title}`,
       }),

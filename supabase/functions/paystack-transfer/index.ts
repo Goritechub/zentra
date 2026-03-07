@@ -167,7 +167,7 @@ serve(async (req) => {
         balance: wallet.balance - amount,
       }).eq("user_id", user.id);
 
-      // Initiate Paystack transfer (amount in kobo)
+      // Initiate Paystack transfer (convert naira to kobo for Paystack API)
       const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
         method: "POST",
         headers: {
@@ -176,7 +176,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           source: "balance",
-          amount: amount * 100, // convert to kobo
+          amount: amount * 100, // convert naira to kobo for Paystack API
           recipient: bankDetail.recipient_code,
           reason: `Withdrawal from platform wallet`,
         }),
@@ -189,7 +189,7 @@ serve(async (req) => {
       // Save withdrawal request
       await supabase.from("withdrawal_requests").insert({
         user_id: user.id,
-        amount: amount * 100, // store in kobo for consistency
+        amount: amount, // store in naira
         bank_detail_id,
         transfer_code: transferCode,
         status,

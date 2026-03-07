@@ -191,14 +191,14 @@ export default function LaunchContestPage() {
               <Wallet className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                <p className="font-semibold text-foreground">{formatNaira(walletBalance / 100)}</p>
+                <p className="font-semibold text-foreground">{formatNaira(walletBalance)}</p>
               </div>
             </div>
             {totalPrizePreview > 0 && (
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Prize Pool Required</p>
                 <p className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}>
-                  {formatNaira(totalPrizePreview / 100)}
+                  {formatNaira(totalPrizePreview)}
                 </p>
               </div>
             )}
@@ -258,29 +258,29 @@ export default function LaunchContestPage() {
 
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
               <h2 className="text-lg font-semibold flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" />Prize Structure</h2>
-              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required. Prize amounts are in kobo (e.g. 50000 = ₦500).</p>
+              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required. Prize amounts are in Naira (₦).</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>🥇 1st Prize (kobo) *</Label>
-                  <Input type="number" placeholder="e.g. 5000000" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
+                  <Label>🥇 1st Prize (₦) *</Label>
+                  <Input type="number" placeholder="e.g. 50000" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>🥈 2nd Prize (kobo)</Label>
+                  <Label>🥈 2nd Prize (₦)</Label>
                   <Input type="number" placeholder="Optional" value={prizeSecond} onChange={(e) => setPrizeSecond(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>🥉 3rd Prize (kobo)</Label>
+                  <Label>🥉 3rd Prize (₦)</Label>
                   <Input type="number" placeholder="Optional" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>🏅 4th Prize (kobo)</Label>
+                  <Label>🏅 4th Prize (₦)</Label>
                   <Input type="number" placeholder="Optional" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
                   {!prizeThird && <p className="text-xs text-muted-foreground">Set 3rd prize first</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>🏅 5th Prize (kobo)</Label>
+                  <Label>🏅 5th Prize (₦)</Label>
                   <Input type="number" placeholder="Optional" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
                   {!prizeFourth && <p className="text-xs text-muted-foreground">Set 4th prize first</p>}
                 </div>
@@ -333,16 +333,16 @@ export default function LaunchContestPage() {
             <div className="bg-muted rounded-lg p-4 space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Total Prize Pool</span>
-                <span className="font-semibold text-foreground">{formatNaira(insufficientData.total / 100)}</span>
+                <span className="font-semibold text-foreground">{formatNaira(insufficientData.total)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Your Wallet Balance</span>
-                <span className="font-semibold text-foreground">{formatNaira(insufficientData.balance / 100)}</span>
+                <span className="font-semibold text-foreground">{formatNaira(insufficientData.balance)}</span>
               </div>
               <hr className="border-border" />
               <div className="flex justify-between">
                 <span className="text-sm font-medium text-destructive">Amount Needed</span>
-                <span className="font-bold text-destructive">{formatNaira(insufficientData.shortfall / 100)}</span>
+                <span className="font-bold text-destructive">{formatNaira(insufficientData.shortfall)}</span>
               </div>
             </div>
 
