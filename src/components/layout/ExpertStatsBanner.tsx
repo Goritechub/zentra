@@ -132,7 +132,7 @@ export function ExpertStatsBanner() {
   if (loading) return null;
 
   return (
-    <div className="container-wide py-2">
+    <div className="mb-6">
       <div className="grid grid-cols-2 gap-3">
         {/* Monthly Earnings Card */}
         <button
