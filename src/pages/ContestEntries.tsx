@@ -84,7 +84,11 @@ export default function ContestEntriesPage() {
           : ("default" as const);
 
     const statusText =
-      derived === "completed" ? "Completed" : derived === "selecting_winners" ? "Selecting Winners" : "Active";
+      derived === "completed"
+        ? "Ended"
+        : derived === "selecting_winners"
+          ? "Selecting Winners"
+          : "Active";
 
     const prizePositionLabel =
       entry.prize_position === 1
@@ -97,8 +101,18 @@ export default function ContestEntriesPage() {
               ? `${entry.prize_position}th Place`
               : "";
 
+    // Prize-position border styles
+    const borderClass =
+      entry.is_winner && entry.prize_position === 1
+        ? "border-2 shadow-[0_0_18px_4px_hsl(40,95%,55%,0.45)] border-[hsl(40,95%,55%)] animate-pulse-glow-gold"
+        : entry.is_winner && entry.prize_position === 2
+          ? "border-2 shadow-[0_0_16px_3px_hsl(0,0%,72%,0.5)] border-[hsl(0,0%,72%)] animate-pulse-glow-silver"
+          : entry.is_winner && entry.prize_position === 3
+            ? "border-2 shadow-[0_0_16px_3px_hsl(25,75%,47%,0.45)] border-[hsl(25,75%,47%)] animate-pulse-glow-copper"
+            : "border border-border";
+
     return (
-      <div className="bg-card rounded-xl border border-border p-6 card-hover">
+      <div className={`bg-card rounded-xl p-6 card-hover ${borderClass}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -118,7 +132,11 @@ export default function ContestEntriesPage() {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                {derived === "active" ? `Ends ${format(new Date(contest.deadline), "MMM d, yyyy")}` : statusText}
+                {derived === "active"
+                  ? `Ends ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                  : derived === "completed"
+                    ? `Ended ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                    : statusText}
               </span>
             </div>
           </div>

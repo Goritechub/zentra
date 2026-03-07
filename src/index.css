@@ -259,3 +259,20 @@
     @apply bg-black/40 backdrop-blur-md border border-white/10;
   }
 }
+
+/* Prize position glow animations */
+@keyframes pulse-glow-gold {
+  0%, 100% { box-shadow: 0 0 14px 3px hsla(40, 95%, 55%, 0.35); }
+  50% { box-shadow: 0 0 24px 8px hsla(40, 95%, 55%, 0.55); }
+}
+@keyframes pulse-glow-silver {
+  0%, 100% { box-shadow: 0 0 14px 3px hsla(0, 0%, 72%, 0.35); }
+  50% { box-shadow: 0 0 22px 7px hsla(0, 0%, 72%, 0.55); }
+}
+@keyframes pulse-glow-copper {
+  0%, 100% { box-shadow: 0 0 14px 3px hsla(25, 75%, 47%, 0.35); }
+  50% { box-shadow: 0 0 22px 7px hsla(25, 75%, 47%, 0.55); }
+}
+.animate-pulse-glow-gold { animation: pulse-glow-gold 2.5s ease-in-out infinite; }
+.animate-pulse-glow-silver { animation: pulse-glow-silver 2.5s ease-in-out infinite; }
+.animate-pulse-glow-copper { animation: pulse-glow-copper 2.5s ease-in-out infinite; }
