@@ -126,6 +126,9 @@ export default function DashboardPage() {
             </p>
           </div>
 
+          {/* Expert Stats Banner */}
+          {isFreelancer && <ExpertStatsBanner />}
+
           {/* Platform Notice */}
           <Alert className="mb-6 border-primary/30 bg-primary/5">
             <ShieldAlert className="h-4 w-4 text-primary" />
