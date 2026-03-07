@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell, Palette } from "lucide-react";
+import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell, Palette, ChevronRight, FileText, FolderOpen, Mail } from "lucide-react";
+import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -19,6 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [jobsMenuOpen, setJobsMenuOpen] = useState(false);
+  const [mobileJobsOpen, setMobileJobsOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +50,7 @@ export function Header() {
     }`;
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-wide">
         <div className="flex h-16 items-center justify-between">
@@ -61,9 +65,36 @@ export function Header() {
               </Link>
             )}
             {user && !isClient && (
-              <Link to="/jobs" className={navLinkClass("/jobs")}>
-                Browse Jobs
-              </Link>
+              <div className="relative">
+                <button
+                  onClick={() => setJobsMenuOpen(!jobsMenuOpen)}
+                  onBlur={() => setTimeout(() => setJobsMenuOpen(false), 150)}
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors ${
+                    ["/jobs", "/expert-proposals", "/contracts", "/received-offers"].includes(location.pathname)
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Jobs
+                  <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${jobsMenuOpen ? "rotate-90" : ""}`} />
+                </button>
+                {jobsMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50 animate-fade-in">
+                    <Link to="/jobs" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <Search className="h-3.5 w-3.5" />Browse Jobs
+                    </Link>
+                    <Link to="/expert-proposals" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <FileText className="h-3.5 w-3.5" />View Proposals
+                    </Link>
+                    <Link to="/contracts" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <FolderOpen className="h-3.5 w-3.5" />View Contracts
+                    </Link>
+                    <Link to="/received-offers" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                      <Mail className="h-3.5 w-3.5" />View Received Offers
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
             {user && (
               <Link to="/messages" className={`relative ${navLinkClass("/messages")}`}>
@@ -187,9 +218,33 @@ export function Header() {
                 </Link>
               )}
               {user && !isClient && (
-                <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
-                  <Briefcase className="h-4 w-4" />Browse Jobs
-                </Link>
+                <>
+                  <button
+                    onClick={() => setMobileJobsOpen(!mobileJobsOpen)}
+                    className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />Jobs
+                    </span>
+                    <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${mobileJobsOpen ? "rotate-90" : ""}`} />
+                  </button>
+                  {mobileJobsOpen && (
+                    <div className="ml-6 flex flex-col gap-1 animate-fade-in">
+                      <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <Search className="h-3.5 w-3.5" />Browse Jobs
+                      </Link>
+                      <Link to="/expert-proposals" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <FileText className="h-3.5 w-3.5" />View Proposals
+                      </Link>
+                      <Link to="/contracts" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <FolderOpen className="h-3.5 w-3.5" />View Contracts
+                      </Link>
+                      <Link to="/received-offers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <Mail className="h-3.5 w-3.5" />View Received Offers
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
               {user && (
                 <Link to="/messages" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
@@ -237,5 +292,7 @@ export function Header() {
         </div>
       )}
     </header>
+    <ExpertStatsBanner />
+    </>
   );
 }
