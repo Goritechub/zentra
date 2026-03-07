@@ -2114,6 +2114,10 @@ export type Database = {
     }
     Functions: {
       delete_user_account: { Args: { _user_id: string }; Returns: Json }
+      get_contest_entry_count: {
+        Args: { _contest_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
