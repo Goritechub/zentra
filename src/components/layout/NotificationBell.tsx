@@ -18,8 +18,14 @@ export function NotificationBell() {
     if (n.contract_id) navigate(`/contract/${n.contract_id}`);
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open && unreadCount > 0) {
+      markAllAsRead();
+    }
+  };
+
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="h-5 w-5" />
