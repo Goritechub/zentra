@@ -119,10 +119,10 @@ Deno.serve(async (req) => {
         .eq("id", nominees[i].id);
     }
 
-    // Update contest status
+    // Update contest status to completed
     await supabaseAdmin
       .from("contests")
-      .update({ status: "ended" })
+      .update({ status: "completed" })
       .eq("id", contest_id);
 
     // Payout prizes
