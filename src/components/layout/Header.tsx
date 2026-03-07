@@ -217,9 +217,33 @@ export function Header() {
                 </Link>
               )}
               {user && !isClient && (
-                <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
-                  <Briefcase className="h-4 w-4" />Browse Jobs
-                </Link>
+                <>
+                  <button
+                    onClick={() => setMobileJobsOpen(!mobileJobsOpen)}
+                    className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />Jobs
+                    </span>
+                    <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${mobileJobsOpen ? "rotate-90" : ""}`} />
+                  </button>
+                  {mobileJobsOpen && (
+                    <div className="ml-6 flex flex-col gap-1 animate-fade-in">
+                      <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <Search className="h-3.5 w-3.5" />Browse Jobs
+                      </Link>
+                      <Link to="/expert-proposals" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <FileText className="h-3.5 w-3.5" />View Proposals
+                      </Link>
+                      <Link to="/contracts" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <FolderOpen className="h-3.5 w-3.5" />View Contracts
+                      </Link>
+                      <Link to="/received-offers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                        <Mail className="h-3.5 w-3.5" />View Received Offers
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
               {user && (
                 <Link to="/messages" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
