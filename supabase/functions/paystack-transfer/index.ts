@@ -189,7 +189,7 @@ serve(async (req) => {
       // Save withdrawal request
       await supabase.from("withdrawal_requests").insert({
         user_id: user.id,
-        amount: amount * 100, // store in kobo for consistency
+        amount: amount, // store in naira
         bank_detail_id,
         transfer_code: transferCode,
         status,
