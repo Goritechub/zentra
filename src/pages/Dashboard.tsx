@@ -13,7 +13,7 @@ import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, Loader2, ArrowRight, Trophy, Send, Heart,
   Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
-} from "lucide-react";
+import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
