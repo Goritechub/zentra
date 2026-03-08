@@ -108,6 +108,7 @@ export default function AdminUsers() {
             <SelectItem value="client">Client</SelectItem>
             <SelectItem value="freelancer">Expert</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="superadmin">Super Admin</SelectItem>
           </SelectContent>
         </Select>
         <Badge variant="secondary">{filtered.length} users</Badge>
