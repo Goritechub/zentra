@@ -626,17 +626,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {completedContract && user && isClient && (
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardContent className="pt-6">
-                    <p className="text-sm font-medium text-foreground mb-1">You've worked together!</p>
-                    <p className="text-xs text-muted-foreground mb-3">Share your experience to help other clients.</p>
-                    <Button size="sm" onClick={() => setShowRateDialog(true)}>
-                      <Star className="h-3.5 w-3.5 mr-1.5" /> Rate This Expert
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
 
               <Card>
                 <CardHeader>
