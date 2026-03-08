@@ -225,19 +225,7 @@ export default function ExpertProfile() {
   };
 
 
-  const handleRequestVerification = async () => {
-    if (!user || !id) return;
-    setRequestingVerification(true);
-    const { error } = await supabase.from("verification_requests").insert({ user_id: id } as any);
-    if (error) {
-      if (error.code === "23505") toast.info("Verification request already submitted");
-      else toast.error("Failed to submit verification request");
-    } else {
-      toast.success("Verification request submitted!");
-      setVerificationStatus("pending");
-    }
-    setRequestingVerification(false);
-  };
+  // Old verification handler removed - now using KYC system
 
   // Export functions
   const handleCopyLink = () => {
