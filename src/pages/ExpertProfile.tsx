@@ -398,6 +398,9 @@ export default function ExpertProfile() {
                 </CardContent>
               </Card>
 
+              {/* KYC Verification Card - owner only */}
+              {isOwner && <KycVerificationCard />}
+
               {freelancerProfile && (
                 <Card>
                   <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
