@@ -49,9 +49,9 @@ export default function HowItWorksPage() {
           <div className="container-wide">
             <div className="text-center mb-16">
               <span className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">For Clients</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Hire CAD Experts in 4 Easy Steps</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Hire Engineers in 4 Easy Steps</h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Find the perfect engineer for your project and get quality work delivered on time.
+                Find the perfect professional for your project and get quality work delivered on time.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
