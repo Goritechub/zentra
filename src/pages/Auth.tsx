@@ -797,6 +797,42 @@ export default function AuthPage() {
                     <div ref={recaptchaContainerRef} />
                   </div>
 
+                  {/* Terms & Conditions checkbox */}
+                  <div className="space-y-1">
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!termsAccepted) {
+                            setTermsModalOpen(true);
+                          }
+                        }}
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                          termsAccepted
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 bg-muted/50"
+                        )}
+                        aria-label="Agree to terms"
+                      >
+                        {termsAccepted && <Check className="h-3 w-3" />}
+                      </button>
+                      <p className="text-sm text-muted-foreground leading-tight">
+                        I agree to the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setTermsModalOpen(true)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Terms and Conditions
+                        </button>
+                      </p>
+                    </div>
+                    {signUpErrors.terms && (
+                      <p className="text-sm text-destructive ml-7">{signUpErrors.terms}</p>
+                    )}
+                  </div>
+
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
                     {loading ? (
                       <>
@@ -808,12 +844,19 @@ export default function AuthPage() {
                     )}
                   </Button>
 
-                  <p className="text-xs text-center text-muted-foreground mt-4">
-                    By signing up, you agree to our{" "}
-                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>{" "}
-                    and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-                  </p>
+                  <TermsModal
+                    open={termsModalOpen}
+                    onOpenChange={setTermsModalOpen}
+                    onAgree={() => {
+                      setTermsAccepted(true);
+                      if (signUpErrors.terms) {
+                        setSignUpErrors((prev) => {
+                          const { terms, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                    }}
+                  />
                 </form>
               </TabsContent>
             </Tabs>
