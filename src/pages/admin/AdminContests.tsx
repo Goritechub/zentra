@@ -266,7 +266,6 @@ export default function AdminContests() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        )
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" title="Delete contest">
