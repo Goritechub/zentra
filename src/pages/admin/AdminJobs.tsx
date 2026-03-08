@@ -44,12 +44,22 @@ export default function AdminJobs() {
   };
 
   const deleteJob = async (jobId: string) => {
-    if (!confirm("Are you sure you want to delete this job?")) return;
-    await supabase.from("jobs").delete().eq("id", jobId);
+    if (!confirm("Are you sure you want to delete this job? This will also remove all proposals and related data.")) return;
+    // Clean up related data first
+    await Promise.all([
+      supabase.from("proposals").delete().eq("job_id", jobId),
+      supabase.from("job_views").delete().eq("job_id", jobId),
+    ]);
+    const { error } = await supabase.from("jobs").delete().eq("id", jobId);
+    if (error) {
+      toast.error("Failed to delete job");
+      return;
+    }
     await supabase.from("admin_activity_log").insert({
       admin_id: user!.id, action: "delete_job", target_type: "job", target_id: jobId, details: {},
     });
     setJobs(prev => prev.filter(j => j.id !== jobId));
+    setSelectedJob(null);
     toast.success("Job deleted");
   };
 
