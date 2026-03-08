@@ -53,6 +53,7 @@ import AdminDisputes from "./pages/admin/AdminDisputes";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminContests from "./pages/admin/AdminContests";
 
 const queryClient = new QueryClient();
 
