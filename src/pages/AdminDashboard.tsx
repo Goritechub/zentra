@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [moderationLogs, setModerationLogs] = useState<any[]>([]);
   const [violators, setViolators] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
+  const [selectedDispute, setSelectedDispute] = useState<any>(null);
 
   useEffect(() => {
     if (!authLoading && user) checkAdminAndFetch();
