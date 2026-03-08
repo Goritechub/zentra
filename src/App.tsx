@@ -57,6 +57,7 @@ import AdminContests from "./pages/admin/AdminContests";
 import AdminManagement from "./pages/admin/AdminManagement";
 import AdminVerification from "./pages/admin/AdminVerification";
 import AdminSupport from "./pages/admin/AdminSupport";
+import AdminPlatformReviews from "./pages/admin/AdminPlatformReviews";
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
@@ -129,6 +130,7 @@ const App = () => (
               <Route path="management" element={<AdminManagement />} />
               <Route path="verification" element={<AdminVerification />} />
               <Route path="support" element={<AdminSupport />} />
+              <Route path="platform-reviews" element={<AdminPlatformReviews />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

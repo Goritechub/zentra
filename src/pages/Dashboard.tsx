@@ -15,6 +15,7 @@ import {
   Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
 } from "lucide-react";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
+import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
@@ -128,6 +129,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <PlatformReviewPrompt />
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
