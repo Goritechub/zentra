@@ -106,6 +106,13 @@ export default function ExpertProposalsPage() {
         <div className="flex flex-col items-end shrink-0 gap-2">
           <p className="text-lg font-bold text-primary">{formatNaira(p.bid_amount)}</p>
           {statusBadge(p.status)}
+          {p.job?.client_id && (
+            <FundingStatusBadge
+              clientId={p.job.client_id}
+              budgetMin={p.job.budget_min}
+              budgetMax={p.job.budget_max}
+            />
+          )}
           {p.status === "interviewing" && interviewContracts[p.id] ? (
             <Button
               size="sm"
