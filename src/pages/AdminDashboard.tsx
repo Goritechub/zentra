@@ -63,8 +63,9 @@ export default function AdminDashboard() {
   };
 
   const updateDisputeStatus = async (disputeId: string, status: string) => {
-    await supabase.from("disputes").update({ status, resolved_at: status.startsWith("resolved") ? new Date().toISOString() : null }).eq("id", disputeId);
-    setDisputes(prev => prev.map(d => d.id === disputeId ? { ...d, status } : d));
+    // Legacy simple resolution - kept for backward compat but new flow uses adjudicator
+    await supabase.from("disputes").update({ status, dispute_status: "resolved", resolved_at: new Date().toISOString() }).eq("id", disputeId);
+    setDisputes(prev => prev.map(d => d.id === disputeId ? { ...d, status, dispute_status: "resolved" } : d));
   };
 
   if (authLoading || loading) {
