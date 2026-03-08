@@ -39,6 +39,7 @@ interface Contest {
   client_id: string;
   profiles: { full_name: string | null; email: string; username: string | null } | null;
   entry_count?: number;
+  winner_count?: number;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
