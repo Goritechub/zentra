@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText, Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText, Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight, LogOut, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
