@@ -13,7 +13,7 @@ const sizeMap = {
   lg: { circle: "h-12 w-12", icon: "h-14 w-14", text: "text-2xl" },
 };
 
-export function ZentraGigLogo({ size = "md", showText = true, className = "" }: ZentraGigLogoProps) {
+export function ZentraGigLogo({ size = "md", showText = true, className = "", textClassName }: ZentraGigLogoProps) {
   const s = sizeMap[size];
 
   return (
