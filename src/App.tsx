@@ -128,6 +128,7 @@ const App = () => (
               <Route path="activity" element={<AdminActivity />} />
               <Route path="management" element={<AdminManagement />} />
               <Route path="verification" element={<AdminVerification />} />
+              <Route path="support" element={<AdminSupport />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
