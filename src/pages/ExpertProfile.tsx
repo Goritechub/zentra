@@ -223,27 +223,6 @@ export default function ExpertProfile() {
         .limit(30);
       setReviews(reviewsData || []);
 
-      if (user && user.id !== id) {
-        const { data: completedContracts } = await supabase
-          .from("contracts")
-          .select("id, job_title, amount")
-          .eq("client_id", user.id)
-          .eq("freelancer_id", id)
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false });
-        
-        if (completedContracts && completedContracts.length > 0) {
-          const { data: existingReviews } = await supabase
-            .from("reviews")
-            .select("contract_id")
-            .eq("reviewer_id", user.id)
-            .in("contract_id", completedContracts.map(c => c.id));
-          
-          const reviewedIds = new Set((existingReviews || []).map(r => r.contract_id));
-          const unreviewedContract = completedContracts.find(c => !reviewedIds.has(c.id));
-          if (unreviewedContract) setCompletedContract(unreviewedContract);
-        }
-      }
 
       setLoading(false);
     };
