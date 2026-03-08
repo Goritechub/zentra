@@ -9,6 +9,7 @@ export interface Notification {
   title: string;
   message: string;
   contract_id: string | null;
+  link_url: string | null;
   is_read: boolean;
   created_at: string;
 }

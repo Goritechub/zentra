@@ -8,6 +8,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getNotificationUrl } from "@/lib/notifications";
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
@@ -15,17 +16,12 @@ export function NotificationBell() {
 
   const handleClick = (n: Notification) => {
     if (!n.is_read) markAsRead(n.id);
-    if (n.contract_id) navigate(`/contract/${n.contract_id}`);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open && unreadCount > 0) {
-      markAllAsRead();
-    }
+    const url = getNotificationUrl(n);
+    if (url) navigate(url);
   };
 
   return (
-    <Popover onOpenChange={handleOpenChange}>
+    <Popover>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="h-5 w-5" />
