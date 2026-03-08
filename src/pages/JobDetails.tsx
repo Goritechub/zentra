@@ -163,20 +163,13 @@ export default function JobDetailsPage() {
                       Assigned — No longer accepting proposals
                     </Badge>
                   )}
-                  {!isAssigned && (() => {
-                    const isNegotiable = !job.budget_min && !job.budget_max;
-                    if (isNegotiable) return (
-                      <Badge variant="outline" className="gap-1">
-                        <DollarSign className="h-3 w-3" />Budget Negotiable
-                      </Badge>
-                    );
-                    return (
-                      <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                      </Badge>
-                    );
-                  })()}
+                  {!isAssigned && (
+                    <FundingStatusBadge
+                      clientId={job.client_id}
+                      budgetMin={job.budget_min}
+                      budgetMax={job.budget_max}
+                    />
+                  )}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
 
