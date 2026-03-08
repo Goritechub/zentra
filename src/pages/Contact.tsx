@@ -75,8 +75,8 @@ export default function ContactPage() {
             </a>
             <a href={`https://wa.me/${settings.support_whatsapp.replace(/[\s+]/g, "")}`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 bg-card rounded-xl border border-border p-4 hover:border-primary transition-colors">
-              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                <MessageCircle className="h-5 w-5 text-green-600" />
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <MessageCircle className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">WhatsApp</p>
