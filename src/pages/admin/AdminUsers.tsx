@@ -179,7 +179,9 @@ export default function AdminUsers() {
                   <h3 className="font-semibold text-lg">{selectedUser.full_name || "—"}</h3>
                   <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
                   <div className="flex gap-2 mt-1">
-                    <Badge variant="outline" className="capitalize">{selectedUser.role === "freelancer" ? "Expert" : selectedUser.role}</Badge>
+                    <Badge variant={selectedUser.display_role === "superadmin" ? "default" : "outline"} className={selectedUser.display_role === "superadmin" ? "bg-primary text-primary-foreground" : "capitalize"}>
+                      {getDisplayRole(selectedUser.display_role)}
+                    </Badge>
                     {selectedUser.is_verified && <Badge className="bg-primary/10 text-primary">Verified</Badge>}
                   </div>
                 </div>
