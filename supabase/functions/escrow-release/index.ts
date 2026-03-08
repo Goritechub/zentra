@@ -51,7 +51,7 @@ serve(async (req) => {
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
     const body = await req.json();
-    const { action, milestone_id, contract_id, reason, evidence_urls, submission_notes, submission_attachments } = body;
+    const { action, milestone_id, contract_id, reason, evidence_urls, submission_notes, submission_attachments, dispute_id, resolution_type, resolution_explanation, split_client, split_freelancer } = body;
 
     // ── FUND MILESTONE ──
     if (action === "fund_milestone") {
