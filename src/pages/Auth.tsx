@@ -35,6 +35,10 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+});
+
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -68,6 +72,11 @@ export default function AuthPage() {
     password: "",
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotErrors, setForgotErrors] = useState<Record<string, string>>({});
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   // Stable callbacks via refs to avoid stale closures
   const recaptchaTokenRef = useRef(recaptchaToken);
@@ -401,6 +410,49 @@ export default function AuthPage() {
     toast.success("Welcome back!");
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrors({});
+
+    const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) errors[err.path[0].toString()] = err.message;
+      });
+      setForgotErrors(errors);
+      return;
+    }
+
+    setForgotLoading(true);
+
+    // Check if email exists
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", forgotEmail.trim().toLowerCase())
+      .maybeSingle();
+
+    if (!profileData) {
+      setForgotErrors({ email: "No account found with this email address" });
+      setForgotLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      setForgotErrors({ email: error.message });
+      setForgotLoading(false);
+      return;
+    }
+
+    setForgotSuccess(true);
+    setForgotLoading(false);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -472,62 +524,131 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="signin">
-                <GoogleButton label="Continue with Google" />
-                <Divider />
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-identifier">Email or Username</Label>
-                    <Input
-                      id="signin-identifier"
-                      type="text"
-                      placeholder="you@example.com or username"
-                      value={signInData.identifier}
-                      onChange={(e) => {
-                        setSignInData({ ...signInData, identifier: e.target.value });
-                        if (signInErrors.identifier) setSignInErrors((prev) => { const { identifier, ...rest } = prev; return rest; });
-                      }}
-                      className={fieldClass("identifier", signInErrors)}
-                    />
-                    {signInErrors.identifier && <p className="text-sm text-destructive">{signInErrors.identifier}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="signin-password"
-                        type={showSignInPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={signInData.password}
-                        onChange={(e) => {
-                          setSignInData({ ...signInData, password: e.target.value });
-                          if (signInErrors.password) setSignInErrors((prev) => { const { password, ...rest } = prev; return rest; });
-                        }}
-                        className={cn("pr-10", fieldClass("password", signInErrors))}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignInPassword(!showSignInPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                {showForgotPassword ? (
+                  forgotSuccess ? (
+                    <div className="text-center py-4 space-y-4">
+                      <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
+                      <h3 className="text-lg font-semibold text-foreground">Check your email</h3>
+                      <p className="text-sm text-muted-foreground">
+                        We've sent a password reset link to <span className="font-medium text-foreground">{forgotEmail}</span>. Please check your inbox and spam folder.
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => { setShowForgotPassword(false); setForgotSuccess(false); setForgotEmail(""); setForgotErrors({}); }}
                       >
-                        {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                        Back to Sign In
+                      </Button>
                     </div>
-                    {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
-                  </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="text-center mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Reset your password</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Enter your email and we'll send you a reset link</p>
+                      </div>
+                      <form onSubmit={handleForgotPassword} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="forgot-email">Email Address</Label>
+                          <Input
+                            id="forgot-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={forgotEmail}
+                            onChange={(e) => {
+                              setForgotEmail(e.target.value);
+                              if (forgotErrors.email) setForgotErrors({});
+                            }}
+                            className={fieldClass("email", forgotErrors)}
+                          />
+                          {forgotErrors.email && <p className="text-sm text-destructive">{forgotErrors.email}</p>}
+                        </div>
+                        <Button type="submit" className="w-full" size="lg" disabled={forgotLoading}>
+                          {forgotLoading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+                          ) : (
+                            "Send Reset Link"
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full text-sm"
+                          onClick={() => { setShowForgotPassword(false); setForgotEmail(""); setForgotErrors({}); }}
+                        >
+                          Back to Sign In
+                        </Button>
+                      </form>
+                    </div>
+                  )
+                ) : (
+                  <>
+                    <GoogleButton label="Continue with Google" />
+                    <Divider />
+                    <form onSubmit={handleSignIn} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="signin-identifier">Email or Username</Label>
+                        <Input
+                          id="signin-identifier"
+                          type="text"
+                          placeholder="you@example.com or username"
+                          value={signInData.identifier}
+                          onChange={(e) => {
+                            setSignInData({ ...signInData, identifier: e.target.value });
+                            if (signInErrors.identifier) setSignInErrors((prev) => { const { identifier, ...rest } = prev; return rest; });
+                          }}
+                          className={fieldClass("identifier", signInErrors)}
+                        />
+                        {signInErrors.identifier && <p className="text-sm text-destructive">{signInErrors.identifier}</p>}
+                      </div>
 
-                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
-                  </Button>
-                </form>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="signin-password">Password</Label>
+                          <button
+                            type="button"
+                            onClick={() => { setShowForgotPassword(true); setSignInErrors({}); }}
+                            className="text-xs text-primary hover:underline font-medium"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Input
+                            id="signin-password"
+                            type={showSignInPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={signInData.password}
+                            onChange={(e) => {
+                              setSignInData({ ...signInData, password: e.target.value });
+                              if (signInErrors.password) setSignInErrors((prev) => { const { password, ...rest } = prev; return rest; });
+                            }}
+                            className={cn("pr-10", fieldClass("password", signInErrors))}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSignInPassword(!showSignInPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                          >
+                            {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
+                      </div>
+
+                      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Signing in...
+                          </>
+                        ) : (
+                          "Sign In"
+                        )}
+                      </Button>
+                    </form>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="signup">
