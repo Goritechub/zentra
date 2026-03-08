@@ -22,6 +22,7 @@ const allNavItems = [
 { label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
 { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
 { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
+{ label: "Verification", icon: ShieldCheck, path: "/admin/verification", permission: "users" },
 { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
 { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" }];
 
