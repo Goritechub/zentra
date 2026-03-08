@@ -58,6 +58,7 @@ import AdminManagement from "./pages/admin/AdminManagement";
 import AdminVerification from "./pages/admin/AdminVerification";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminPlatformReviews from "./pages/admin/AdminPlatformReviews";
+import AdminLegalDocuments from "./pages/admin/AdminLegalDocuments";
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
@@ -132,6 +133,7 @@ const App = () => (
               <Route path="verification" element={<AdminVerification />} />
               <Route path="support" element={<AdminSupport />} />
               <Route path="platform-reviews" element={<AdminPlatformReviews />} />
+              <Route path="legal-documents" element={<AdminLegalDocuments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

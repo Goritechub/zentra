@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale } from
 "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,7 +26,8 @@ const allNavItems = [
 { label: "Support", icon: Headphones, path: "/admin/support", permission: "platform_settings" },
 { label: "Platform Reviews", icon: ThumbsUp, path: "/admin/platform-reviews", permission: "reviews" },
 { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
-{ label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" }];
+{ label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" },
+{ label: "Legal Documents", icon: Scale, path: "/admin/legal-documents", permission: "platform_settings" }];
 
 
 export default function AdminLayout() {

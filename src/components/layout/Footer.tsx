@@ -79,8 +79,10 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-background/10 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-background/60">© {new Date().getFullYear()} ZentraGig. All rights reserved.</p>
           <div className="flex items-center gap-6 text-sm text-background/60">
-            <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link to="/terms?doc=privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
+            <Link to="/terms?doc=escrow-agreement" className="hover:text-primary transition-colors">Escrow Agreement</Link>
+            <Link to="/terms?doc=dispute-resolution-policy" className="hover:text-primary transition-colors">Dispute Policy</Link>
           </div>
         </div>
       </div>
