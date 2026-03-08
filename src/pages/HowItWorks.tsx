@@ -38,7 +38,7 @@ export default function HowItWorksPage() {
           <div className="container-wide text-center">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">How ZentraGig Works</h1>
             <p className="text-white/80 text-lg max-w-2xl mx-auto">
-              Whether you're hiring CAD talent or looking for engineering work, 
+              Whether you're hiring engineering talent or looking for technical work, 
               our platform makes it simple, secure, and professional.
             </p>
           </div>
