@@ -63,21 +63,23 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       toast.error("Please provide an explanation"); return;
     }
 
-    // If no escrow, just close the dispute directly in DB
+    // If no escrow, route through edge function with no_funds type
     if (totalHeld <= 0) {
       setActionLoading(true);
-      const { error } = await supabase.from("disputes").update({
-        dispute_status: "resolved",
-        status: "resolved",
-        resolution_type: "no_funds",
-        resolution_explanation: resolutionExplanation.trim(),
-        resolved_at: new Date().toISOString(),
-        resolved_by: user?.id,
-      }).eq("id", dispute.id);
+      const response = await supabase.functions.invoke("escrow-release", {
+        body: {
+          action: "resolve_dispute",
+          dispute_id: dispute.id,
+          contract_id: dispute.contract_id,
+          resolution_type: "no_funds",
+          resolution_explanation: resolutionExplanation.trim(),
+        },
+      });
 
-      if (error) {
-        console.error("Dispute close error:", error);
-        toast.error("Failed to close dispute: " + error.message);
+      if (response.error || response.data?.error) {
+        console.error("Dispute close error:", response.error || response.data?.error);
+        toast.error(response.data?.error || "Failed to close dispute");
+      } else {
         toast.success("Dispute closed successfully");
         setShowResolve(false);
         onResolved();
