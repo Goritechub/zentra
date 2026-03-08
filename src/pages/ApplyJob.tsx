@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
