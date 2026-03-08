@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight } from "lucide-react";
+import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Stats {
