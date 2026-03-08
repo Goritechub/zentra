@@ -404,7 +404,7 @@ serve(async (req) => {
       if (totalHeld <= 0 || resolution_type === "no_funds") {
         const { error: updateErr, data: updateData, count } = await supabase.from("disputes").update({
           dispute_status: "resolved",
-          status: "resolved",
+          status: "closed",
           resolution_type: "no_funds",
           resolution_explanation,
           resolved_at: new Date().toISOString(),
