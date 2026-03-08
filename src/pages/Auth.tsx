@@ -36,7 +36,7 @@ const signInSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+  identifier: z.string().min(1, "Email or username is required"),
 });
 
 export default function AuthPage() {
