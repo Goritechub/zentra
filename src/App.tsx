@@ -31,6 +31,7 @@ import ExpertProposals from "./pages/ExpertProposals";
 import ContestEntries from "./pages/ContestEntries";
 import AdminDashboard from "./pages/AdminDashboard";
 import ContractDetail from "./pages/ContractDetail";
+import DisputeDetail from "./pages/DisputeDetail";
 import ExpertProfile from "./pages/ExpertProfile";
 import ApplyJob from "./pages/ApplyJob";
 import Contact from "./pages/Contact";
