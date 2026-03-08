@@ -25,6 +25,7 @@ import {
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
   Wallet, History, XCircle
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   interviewing: { variant: "outline", label: "Interviewing" },
@@ -217,9 +218,15 @@ export default function ContractDetail() {
                   {contract.started_at && <p className="text-xs text-muted-foreground">Started {formatDistanceToNow(new Date(contract.started_at), { addSuffix: true })}</p>}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-2xl font-bold text-primary">{formatNaira(contract.amount)}</p>
                 <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+                <FundingStatusBadge
+                  clientId={contract.client_id}
+                  budgetMin={contract.job_budget_min}
+                  budgetMax={contract.job_budget_max}
+                  contractId={contract.id}
+                />
               </div>
             </div>
           </div>

@@ -13,6 +13,7 @@ import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -129,7 +130,7 @@ export default function JobDetailsPage() {
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
-  const paymentReady = wallet && wallet.balance >= (job.budget_max || job.budget_min || 0);
+  
 
   const deliveryLabel = () => {
     const d = job.delivery_days || 0;
@@ -162,20 +163,13 @@ export default function JobDetailsPage() {
                       Assigned — No longer accepting proposals
                     </Badge>
                   )}
-                  {!isAssigned && (() => {
-                    const isNegotiable = !job.budget_min && !job.budget_max;
-                    if (isNegotiable) return (
-                      <Badge variant="outline" className="gap-1">
-                        <DollarSign className="h-3 w-3" />Budget Negotiable
-                      </Badge>
-                    );
-                    return (
-                      <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                      </Badge>
-                    );
-                  })()}
+                  {!isAssigned && (
+                    <FundingStatusBadge
+                      clientId={job.client_id}
+                      budgetMin={job.budget_min}
+                      budgetMax={job.budget_max}
+                    />
+                  )}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
 
@@ -305,20 +299,13 @@ export default function JobDetailsPage() {
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
 
-                {(() => {
-                  const isNegotiable = !job.budget_min && !job.budget_max;
-                  if (isNegotiable) return (
-                    <div className="mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-muted text-muted-foreground">
-                      <DollarSign className="h-4 w-4" />Budget Negotiable
-                    </div>
-                  );
-                  return (
-                    <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
-                      <DollarSign className="h-4 w-4" />
-                      {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                    </div>
-                  );
-                })()}
+                <div className="mt-3">
+                  <FundingStatusBadge
+                    clientId={job.client_id}
+                    budgetMin={job.budget_min}
+                    budgetMax={job.budget_max}
+                  />
+                </div>
 
                 {canApply && (
                   <Button className="w-full mt-4" onClick={() => navigate(`/job/${id}/apply`)}>

@@ -180,10 +180,12 @@ export default function JobsPage() {
                     if (isNegotiable) return (
                       <Badge variant="outline" className="text-xs gap-1">💬 Budget Negotiable</Badge>
                     );
-                    const ready = job._wallet && job._wallet.balance >= (job.budget_max || job.budget_min || 0);
+                    const walletBal = job._wallet?.balance ?? 0;
+                    const target = job.budget_max || job.budget_min || 0;
+                    const ready = walletBal >= target;
                     return (
                       <Badge variant={ready ? "default" : "destructive"} className="text-xs gap-1">
-                        {ready ? "💰 Payment Ready" : "⚠ Payment Unverified"}
+                        {ready ? "💰 Payment Ready" : "⚠ Funding Needed"}
                       </Badge>
                     );
                   })()}

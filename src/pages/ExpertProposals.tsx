@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function ExpertProposalsPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -105,6 +106,13 @@ export default function ExpertProposalsPage() {
         <div className="flex flex-col items-end shrink-0 gap-2">
           <p className="text-lg font-bold text-primary">{formatNaira(p.bid_amount)}</p>
           {statusBadge(p.status)}
+          {p.job?.client_id && (
+            <FundingStatusBadge
+              clientId={p.job.client_id}
+              budgetMin={p.job.budget_min}
+              budgetMax={p.job.budget_max}
+            />
+          )}
           {p.status === "interviewing" && interviewContracts[p.id] ? (
             <Button
               size="sm"
