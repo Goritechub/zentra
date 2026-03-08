@@ -1644,6 +1644,47 @@ export type Database = {
           },
         ]
       }
+      platform_reviews: {
+        Row: {
+          comment: string | null
+          contracts_at_review: number
+          created_at: string
+          id: string
+          is_approved: boolean
+          is_featured: boolean
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          contracts_at_review?: number
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_featured?: boolean
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          contracts_at_review?: number
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_featured?: boolean
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_settings: {
         Row: {
           id: string
