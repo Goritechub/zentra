@@ -9,12 +9,40 @@ const corsHeaders = {
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
-// Updated commission tiers per user spec
-function getCommissionRate(amount: number): number {
-  if (amount <= 300_000) return 0.20;
-  if (amount <= 2_000_000) return 0.15;
-  if (amount <= 10_000_000) return 0.10;
-  return 0.07;
+// Dynamic commission tiers from DB with hardcoded fallback
+interface CommissionTier { max_amount: number | null; rate: number; }
+const DEFAULT_TIERS: CommissionTier[] = [
+  { max_amount: 300_000, rate: 20 },
+  { max_amount: 2_000_000, rate: 15 },
+  { max_amount: 10_000_000, rate: 10 },
+  { max_amount: null, rate: 7 },
+];
+
+let cachedTiers: CommissionTier[] | null = null;
+
+async function loadTiers(supabase: any): Promise<CommissionTier[]> {
+  if (cachedTiers) return cachedTiers;
+  try {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "commission_tiers")
+      .maybeSingle();
+    if (data?.value && Array.isArray(data.value)) {
+      cachedTiers = data.value;
+      return cachedTiers!;
+    }
+  } catch (e) { console.error("Failed to load commission tiers:", e); }
+  return DEFAULT_TIERS;
+}
+
+function getCommissionRateFromTiers(amount: number, tiers: CommissionTier[]): number {
+  for (const tier of tiers) {
+    if (tier.max_amount === null || amount <= tier.max_amount) {
+      return tier.rate / 100;
+    }
+  }
+  return tiers[tiers.length - 1].rate / 100;
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
