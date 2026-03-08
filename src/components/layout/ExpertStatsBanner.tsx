@@ -158,21 +158,21 @@ export function ExpertStatsBanner() {
         </button>
 
         {/* Completed Contracts Card */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 transition-all hover:shadow-md">
+        <button onClick={() => navigate("/dashboard/contracts")} className="relative overflow-hidden rounded-xl border border-border bg-card p-4 text-left transition-all hover:shadow-md hover:border-primary/30 group">
           <div className="absolute bottom-1 right-2 opacity-10">
             <CheckCircle2 className="h-14 w-14 text-primary" strokeWidth={1.2} />
           </div>
           <div className="relative z-10">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Completed this year
+              Contracts completed this year
             </div>
-            <p className="text-xl font-bold text-foreground">{yearlyCompleted}</p>
+            <p className="text-xl font-bold text-foreground">{yearlyCompleted} contract{yearlyCompleted !== 1 ? "s" : ""}</p>
             <p className="text-xs mt-1 text-muted-foreground">
               {monthlyCompleted} in {monthName}
             </p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   );
