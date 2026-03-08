@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
           <div className="container-wide">
             <div className="text-center mb-16">
               <span className="inline-block px-4 py-1 rounded-full bg-accent/10 text-accent-foreground text-sm font-semibold mb-4">For Freelancers</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Start Earning as a CAD Professional</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Start Earning as an Engineering Professional</h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                 Showcase your skills, find quality projects, and grow your engineering career.
               </p>
