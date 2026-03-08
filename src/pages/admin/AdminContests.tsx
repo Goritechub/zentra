@@ -222,7 +222,8 @@ export default function AdminContests() {
               </TableRow>
             ) : (
               filtered.map((contest) => {
-                const cfg = statusConfig[contest.status] || { label: contest.status, variant: "outline" as const };
+                const effectiveStatus = getEffectiveStatus(contest);
+                const cfg = statusConfig[effectiveStatus] || { label: effectiveStatus, variant: "outline" as const };
                 return (
                   <TableRow key={contest.id}>
                     <TableCell>
