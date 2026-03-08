@@ -16,6 +16,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import { ReviewsCarousel } from "@/components/ReviewsCarousel";
+import { VerificationBadges } from "@/components/VerificationBadges";
+import { KycVerificationCard } from "@/components/KycVerificationCard";
+import { useKycVerification } from "@/hooks/useKycVerification";
 import html2canvas from "html2canvas";
 
 function PortfolioCarousel({ images }: { images: string[] }) {
