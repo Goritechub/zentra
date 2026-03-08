@@ -1183,6 +1183,8 @@ export default function JobDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="hire an expert and start a contract" />
     </div>
   );
 }
