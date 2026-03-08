@@ -26,12 +26,18 @@ export default function AdminUsers() {
   useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    setUsers(data || []);
+    const [profilesRes, rolesRes, permsRes] = await Promise.all([
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+      supabase.from("admin_permissions").select("user_id, permission").eq("permission", "admin_management"),
+    ]);
+    const adminIds = new Set((rolesRes.data || []).map((r: any) => r.user_id));
+    const superAdminIds = new Set((permsRes.data || []).map((p: any) => p.user_id));
+    const enriched = (profilesRes.data || []).map((u: any) => ({
+      ...u,
+      display_role: superAdminIds.has(u.id) ? "superadmin" : adminIds.has(u.id) ? "admin" : u.role,
+    }));
+    setUsers(enriched);
     setLoading(false);
   };
 
