@@ -13,6 +13,7 @@ import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
