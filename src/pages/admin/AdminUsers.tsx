@@ -26,12 +26,18 @@ export default function AdminUsers() {
   useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    setUsers(data || []);
+    const [profilesRes, rolesRes, permsRes] = await Promise.all([
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+      supabase.from("admin_permissions").select("user_id, permission").eq("permission", "admin_management"),
+    ]);
+    const adminIds = new Set((rolesRes.data || []).map((r: any) => r.user_id));
+    const superAdminIds = new Set((permsRes.data || []).map((p: any) => p.user_id));
+    const enriched = (profilesRes.data || []).map((u: any) => ({
+      ...u,
+      display_role: superAdminIds.has(u.id) ? "superadmin" : adminIds.has(u.id) ? "admin" : u.role,
+    }));
+    setUsers(enriched);
     setLoading(false);
   };
 
@@ -67,9 +73,18 @@ export default function AdminUsers() {
     });
   };
 
+  const getDisplayRole = (role: string) => {
+    switch (role) {
+      case "superadmin": return "Super Admin";
+      case "admin": return "Admin";
+      case "freelancer": return "Expert";
+      default: return "Client";
+    }
+  };
+
   const filtered = users.filter(u => {
     const matchSearch = !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase());
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
+    const matchRole = roleFilter === "all" || u.display_role === roleFilter;
     return matchSearch && matchRole;
   });
 
@@ -93,6 +108,7 @@ export default function AdminUsers() {
             <SelectItem value="client">Client</SelectItem>
             <SelectItem value="freelancer">Expert</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="superadmin">Super Admin</SelectItem>
           </SelectContent>
         </Select>
         <Badge variant="secondary">{filtered.length} users</Badge>
@@ -125,7 +141,9 @@ export default function AdminUsers() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="capitalize">{u.role === "freelancer" ? "Expert" : u.role}</Badge>
+                  <Badge variant={u.display_role === "superadmin" ? "default" : "outline"} className={u.display_role === "superadmin" ? "bg-primary text-primary-foreground" : "capitalize"}>
+                    {getDisplayRole(u.display_role)}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   {u.is_verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : <span className="text-xs text-muted-foreground">No</span>}
@@ -161,7 +179,9 @@ export default function AdminUsers() {
                   <h3 className="font-semibold text-lg">{selectedUser.full_name || "—"}</h3>
                   <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
                   <div className="flex gap-2 mt-1">
-                    <Badge variant="outline" className="capitalize">{selectedUser.role === "freelancer" ? "Expert" : selectedUser.role}</Badge>
+                    <Badge variant={selectedUser.display_role === "superadmin" ? "default" : "outline"} className={selectedUser.display_role === "superadmin" ? "bg-primary text-primary-foreground" : "capitalize"}>
+                      {getDisplayRole(selectedUser.display_role)}
+                    </Badge>
                     {selectedUser.is_verified && <Badge className="bg-primary/10 text-primary">Verified</Badge>}
                   </div>
                 </div>
