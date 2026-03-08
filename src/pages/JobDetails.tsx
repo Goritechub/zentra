@@ -299,20 +299,13 @@ export default function JobDetailsPage() {
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
 
-                {(() => {
-                  const isNegotiable = !job.budget_min && !job.budget_max;
-                  if (isNegotiable) return (
-                    <div className="mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-muted text-muted-foreground">
-                      <DollarSign className="h-4 w-4" />Budget Negotiable
-                    </div>
-                  );
-                  return (
-                    <div className={`mt-3 p-2 rounded-lg text-sm font-medium flex items-center gap-2 ${paymentReady ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
-                      <DollarSign className="h-4 w-4" />
-                      {paymentReady ? "Payment Ready" : "Payment Unverified"}
-                    </div>
-                  );
-                })()}
+                <div className="mt-3">
+                  <FundingStatusBadge
+                    clientId={job.client_id}
+                    budgetMin={job.budget_min}
+                    budgetMax={job.budget_max}
+                  />
+                </div>
 
                 {canApply && (
                   <Button className="w-full mt-4" onClick={() => navigate(`/job/${id}/apply`)}>
