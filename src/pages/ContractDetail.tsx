@@ -23,7 +23,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
-  Wallet, History, XCircle
+  Wallet, History, XCircle, Star
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
