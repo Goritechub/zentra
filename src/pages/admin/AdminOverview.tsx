@@ -10,6 +10,7 @@ interface Stats {
   totalClients: number;
   totalExperts: number;
   activeJobs: number;
+  activeContests: number;
   activeContracts: number;
   totalEscrow: number;
   totalTransactions: number;
