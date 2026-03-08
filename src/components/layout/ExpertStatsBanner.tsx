@@ -165,9 +165,9 @@ export function ExpertStatsBanner() {
           <div className="relative z-10">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Completed this year
+              Contracts completed this year
             </div>
-            <p className="text-xl font-bold text-foreground">{yearlyCompleted}</p>
+            <p className="text-xl font-bold text-foreground">{yearlyCompleted} contract{yearlyCompleted !== 1 ? "s" : ""}</p>
             <p className="text-xs mt-1 text-muted-foreground">
               {monthlyCompleted} in {monthName}
             </p>
