@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 const freelancerSteps = [
-  { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, CAD software expertise, portfolio items, and set your rates." },
+  { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, software expertise, portfolio items, and set your rates." },
   { icon: Search, title: "Browse & Apply", description: "Find jobs matching your skills. Submit proposals with your bid, timeline, and cover letter." },
   { icon: MessageSquare, title: "Discuss & Collaborate", description: "Chat with clients, clarify requirements, share files, and agree on deliverables." },
   { icon: CreditCard, title: "Get Paid Securely", description: "Complete milestones, get approved, and receive payment through our secure escrow system." },
