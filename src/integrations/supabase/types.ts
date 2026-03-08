@@ -2154,6 +2154,15 @@ export type Database = {
         Args: { _contest_id: string }
         Returns: number
       }
+      get_funding_status: {
+        Args: {
+          _budget_max?: number
+          _budget_min?: number
+          _client_id: string
+          _contract_id?: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
