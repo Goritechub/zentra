@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function ExpertProposalsPage() {
   const { user, profile, loading: authLoading } = useAuth();
