@@ -41,7 +41,7 @@ export function HeroSection() {
               <Button size="xl" variant="hero" asChild>
                 <Link to="/freelancers">
                    <Search className="h-5 w-5 mr-2" />
-                   Find Engineers
+                   Find Skills
                 </Link>
               </Button>
               <Button size="xl" variant="heroOutline" asChild>
