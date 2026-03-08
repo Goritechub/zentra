@@ -44,15 +44,16 @@ export function FundingStatusBadge({ clientId, budgetMin, budgetMax, contractId,
     let cancelled = false;
 
     const compute = async () => {
-      const [walletRes, escrowRes] = await Promise.all([
-        supabase.from("wallets").select("balance").eq("user_id", clientId).maybeSingle(),
-        contractId
-          ? supabase.from("escrow_ledger").select("held_amount, status").eq("contract_id", contractId).eq("status", "held")
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+      const { data } = await supabase.rpc("get_funding_status", {
+        _client_id: clientId,
+        _budget_min: budgetMin ?? null,
+        _budget_max: budgetMax ?? null,
+        _contract_id: contractId ?? null,
+      } as any);
       if (cancelled) return;
-      const walletBalance = walletRes.data?.balance ?? 0;
-      const escrowHeld = (escrowRes.data || []).reduce((s: number, e: any) => s + (e.held_amount || 0), 0);
+      const result = data as any;
+      const walletBalance = result?.wallet_balance ?? 0;
+      const escrowHeld = result?.escrow_held ?? 0;
       setStatus(computeFundingStatus(walletBalance, budgetMin, budgetMax, escrowHeld));
     };
 
