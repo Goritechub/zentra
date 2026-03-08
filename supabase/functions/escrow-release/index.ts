@@ -402,14 +402,26 @@ serve(async (req) => {
 
       // If no funds, just close the dispute
       if (totalHeld <= 0 || resolution_type === "no_funds") {
-        await supabase.from("disputes").update({
+        const { error: updateErr, data: updateData, count } = await supabase.from("disputes").update({
           dispute_status: "resolved",
-          status: "resolved",
+          status: "closed",
           resolution_type: "no_funds",
           resolution_explanation,
           resolved_at: new Date().toISOString(),
           resolved_by: user.id,
-        }).eq("id", dispute_id);
+        }).eq("id", dispute_id).select();
+
+        console.log("Dispute update result:", { updateErr, updateData, count, dispute_id });
+
+        if (updateErr) {
+          console.error("Failed to update dispute:", updateErr);
+          return jsonResponse({ error: "Failed to close dispute: " + updateErr.message }, 500);
+        }
+
+        if (!updateData || updateData.length === 0) {
+          console.error("No rows updated - dispute_id may not exist or RLS blocked:", dispute_id);
+          return jsonResponse({ error: "Dispute not found or update blocked" }, 400);
+        }
 
         // Restore contract status if it was disputed
         if (contract.status === "disputed") {
@@ -528,9 +540,12 @@ serve(async (req) => {
       }
 
       // Update dispute
+      const disputeStatus = resolution_type === "release_to_freelancer" ? "resolved_freelancer" 
+        : resolution_type === "refund_client" ? "resolved_client" 
+        : "closed";
       await supabase.from("disputes").update({
         dispute_status: "resolved",
-        status: `resolved_${resolution_type}`,
+        status: disputeStatus,
         resolution_type,
         resolution_explanation,
         resolution_split_client: split_client || 0,
