@@ -65,7 +65,7 @@ export function Header() {
                 Find Talent
               </Link>
             )}
-            {user && !isClient && (
+            {user && profileLoaded && isFreelancer && (
               <div className="relative">
                 <button
                   onClick={() => setJobsMenuOpen(!jobsMenuOpen)}
