@@ -115,14 +115,6 @@ function ContractsCarousel({ contracts }: { contracts: any[] }) {
   );
 }
 
-const RATING_CATEGORIES = [
-  { key: "rating_skills", label: "Skills" },
-  { key: "rating_quality", label: "Work Quality" },
-  { key: "rating_availability", label: "Availability" },
-  { key: "rating_deadlines", label: "Meet Deadlines" },
-  { key: "rating_communication", label: "Communication" },
-  { key: "rating_cooperation", label: "Cooperation" },
-] as const;
 
 export default function ExpertProfile() {
   const { id } = useParams<{ id: string }>();
@@ -138,12 +130,6 @@ export default function ExpertProfile() {
   const [completedContractCount, setCompletedContractCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
-  const [showRateDialog, setShowRateDialog] = useState(false);
-  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
-  const [categoryHovers, setCategoryHovers] = useState<Record<string, number>>({});
-  const [ratingComment, setRatingComment] = useState("");
-  const [ratingLoading, setRatingLoading] = useState(false);
-  const [completedContract, setCompletedContract] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
 
   // Verification
@@ -229,27 +215,6 @@ export default function ExpertProfile() {
         .limit(30);
       setReviews(reviewsData || []);
 
-      if (user && user.id !== id) {
-        const { data: completedContracts } = await supabase
-          .from("contracts")
-          .select("id, job_title, amount")
-          .eq("client_id", user.id)
-          .eq("freelancer_id", id)
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false });
-        
-        if (completedContracts && completedContracts.length > 0) {
-          const { data: existingReviews } = await supabase
-            .from("reviews")
-            .select("contract_id")
-            .eq("reviewer_id", user.id)
-            .in("contract_id", completedContracts.map(c => c.id));
-          
-          const reviewedIds = new Set((existingReviews || []).map(r => r.contract_id));
-          const unreviewedContract = completedContracts.find(c => !reviewedIds.has(c.id));
-          if (unreviewedContract) setCompletedContract(unreviewedContract);
-        }
-      }
 
       setLoading(false);
     };
@@ -261,48 +226,6 @@ export default function ExpertProfile() {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const handleSubmitRating = async () => {
-    const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
-    if (!allCategoriesFilled || !completedContract || !user) {
-      toast.error("Please rate all categories");
-      return;
-    }
-    setRatingLoading(true);
-    const overallRating = Math.round(
-      RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
-    ) / 10;
-
-    const { error } = await supabase.from("reviews").insert({
-      contract_id: completedContract.id,
-      reviewer_id: user.id,
-      reviewee_id: id!,
-      rating: Math.round(overallRating),
-      comment: ratingComment.trim() || null,
-      rating_skills: categoryRatings.rating_skills,
-      rating_quality: categoryRatings.rating_quality,
-      rating_availability: categoryRatings.rating_availability,
-      rating_deadlines: categoryRatings.rating_deadlines,
-      rating_communication: categoryRatings.rating_communication,
-      rating_cooperation: categoryRatings.rating_cooperation,
-    } as any);
-    if (error) {
-      toast.error("Failed to submit rating");
-    } else {
-      const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", id!);
-      if (allReviews && allReviews.length > 0) {
-        const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
-        if (freelancerProfile?.id) {
-          await supabase.from("freelancer_profiles").update({ rating: Math.round(avg * 10) / 10 }).eq("id", freelancerProfile.id);
-        }
-      }
-      toast.success("Review submitted! Thank you.");
-      setShowRateDialog(false);
-      setCompletedContract(null);
-      setCategoryRatings({});
-      setRatingComment("");
-    }
-    setRatingLoading(false);
-  };
 
   const handleRequestVerification = async () => {
     if (!user || !id) return;
@@ -695,17 +618,6 @@ export default function ExpertProfile() {
                 </Card>
               )}
 
-              {completedContract && user && isClient && (
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardContent className="pt-6">
-                    <p className="text-sm font-medium text-foreground mb-1">You've worked together!</p>
-                    <p className="text-xs text-muted-foreground mb-3">Share your experience to help other clients.</p>
-                    <Button size="sm" onClick={() => setShowRateDialog(true)}>
-                      <Star className="h-3.5 w-3.5 mr-1.5" /> Rate This Expert
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
 
               <Card>
                 <CardHeader>
@@ -763,56 +675,6 @@ export default function ExpertProfile() {
         </DialogContent>
       </Dialog>
 
-      {/* Rate Expert Dialog */}
-      <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Rate {profile?.full_name}</DialogTitle>
-            <DialogDescription>Rate this expert across different categories.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            {RATING_CATEGORIES.map(cat => (
-              <div key={cat.key}>
-                <p className="text-sm font-medium mb-1">{cat.label}</p>
-                <div className="flex gap-1">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onMouseEnter={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: i + 1 }))}
-                      onMouseLeave={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: 0 }))}
-                      onClick={() => setCategoryRatings(prev => ({ ...prev, [cat.key]: i + 1 }))}
-                      className="transition-transform hover:scale-110"
-                    >
-                      <Star className={`h-6 w-6 ${i < ((categoryHovers[cat.key] || 0) || (categoryRatings[cat.key] || 0)) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
-                    </button>
-                  ))}
-                  {categoryRatings[cat.key] && (
-                    <span className="text-xs text-muted-foreground ml-1 self-center">{categoryRatings[cat.key]}/5</span>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Review <span className="text-muted-foreground">(optional)</span></label>
-              <Textarea
-                placeholder="Describe your experience working with this expert..."
-                rows={4}
-                value={ratingComment}
-                onChange={e => setRatingComment(e.target.value)}
-                maxLength={500}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRateDialog(false)}>Cancel</Button>
-            <Button onClick={handleSubmitRating} disabled={ratingLoading}>
-              {ratingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
-              Submit Review
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

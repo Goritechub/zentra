@@ -23,7 +23,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
-  Wallet, History, XCircle
+  Wallet, History, XCircle, Star
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
@@ -81,6 +81,24 @@ export default function ContractDetail() {
   const submissionFileRef = useRef<HTMLInputElement>(null);
   const disputeFileRef = useRef<HTMLInputElement>(null);
 
+  // Rating state
+  const [showRateDialog, setShowRateDialog] = useState(false);
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
+  const [categoryHovers, setCategoryHovers] = useState<Record<string, number>>({});
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [canRate, setCanRate] = useState(false);
+
+  const RATING_CATEGORIES = [
+    { key: "rating_skills", label: "Skills" },
+    { key: "rating_quality", label: "Work Quality" },
+    { key: "rating_availability", label: "Availability" },
+    { key: "rating_deadlines", label: "Meet Deadlines" },
+    { key: "rating_communication", label: "Communication" },
+    { key: "rating_cooperation", label: "Cooperation" },
+  ] as const;
+
   useEffect(() => { if (id) fetchData(); }, [id]);
 
   const fetchData = async () => {
@@ -101,6 +119,20 @@ export default function ContractDetail() {
     setWalletTransactions(txns || []);
     setActivityLog(sysMessages || []);
     setLoading(false);
+
+    // Check if user can rate (completed contract, all milestones paid/approved, no existing review)
+    if (contractData && contractData.status === "completed" && user) {
+      const allMilestonesDone = (ms || []).length > 0 && (ms || []).every((m: any) => m.status === "approved" || m.status === "paid");
+      const revieweeId = contractData.client_id === user.id ? contractData.freelancer_id : contractData.client_id;
+      const { data: existingReview } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("contract_id", id!)
+        .eq("reviewer_id", user.id)
+        .maybeSingle();
+      setHasReviewed(!!existingReview);
+      setCanRate(!existingReview && allMilestonesDone);
+    }
   };
 
   const isClient = contract?.client_id === user?.id;
@@ -185,6 +217,53 @@ export default function ContractDetail() {
     else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeFiles([]); fetchData(); }
     setActionLoading(false);
   };
+
+  const handleSubmitRating = async () => {
+    const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
+    if (!allCategoriesFilled || !contract || !user) {
+      toast.error("Please rate all categories");
+      return;
+    }
+    setRatingLoading(true);
+    const overallRating = Math.round(
+      RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
+    ) / 10;
+    const revieweeId = isClient ? contract.freelancer_id : contract.client_id;
+
+    const { error } = await supabase.from("reviews").insert({
+      contract_id: id!,
+      reviewer_id: user.id,
+      reviewee_id: revieweeId,
+      rating: Math.round(overallRating),
+      comment: ratingComment.trim() || null,
+      rating_skills: categoryRatings.rating_skills,
+      rating_quality: categoryRatings.rating_quality,
+      rating_availability: categoryRatings.rating_availability,
+      rating_deadlines: categoryRatings.rating_deadlines,
+      rating_communication: categoryRatings.rating_communication,
+      rating_cooperation: categoryRatings.rating_cooperation,
+    } as any);
+    if (error) {
+      toast.error("Failed to submit rating");
+    } else {
+      // Update freelancer average rating
+      if (isClient) {
+        const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", revieweeId);
+        if (allReviews && allReviews.length > 0) {
+          const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
+          await supabase.from("freelancer_profiles").update({ rating: Math.round(avg * 10) / 10 }).eq("user_id", revieweeId);
+        }
+      }
+      toast.success("Review submitted! Thank you.");
+      setShowRateDialog(false);
+      setHasReviewed(true);
+      setCanRate(false);
+      setCategoryRatings({});
+      setRatingComment("");
+    }
+    setRatingLoading(false);
+  };
+
 
   if (loading) {
     return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>);
@@ -280,6 +359,24 @@ export default function ContractDetail() {
             {/* OVERVIEW TAB */}
             <TabsContent value="overview">
               <div className="space-y-6">
+                {/* Rate Expert Banner */}
+                {contract.status === "completed" && canRate && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Contract completed! Rate {partner?.full_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Share your experience to help other users on the platform.</p>
+                    </div>
+                    <Button size="sm" onClick={() => setShowRateDialog(true)}>
+                      <Star className="h-3.5 w-3.5 mr-1.5" /> Rate Now
+                    </Button>
+                  </div>
+                )}
+                {contract.status === "completed" && hasReviewed && (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                    <p className="text-sm text-muted-foreground">You've already reviewed this contract. Thank you!</p>
+                  </div>
+                )}
                 {/* Submission Review Banner */}
                 {(() => {
                   const submittedMilestones = milestones.filter(ms => ms.status === "submitted");
@@ -741,6 +838,59 @@ export default function ContractDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDispute(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleRaiseDispute} disabled={actionLoading}>{actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />} Submit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rate Dialog */}
+      <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rate {partner?.full_name}</DialogTitle>
+            <DialogDescription>
+              Rate your experience for "{contract?.job_title || 'this contract'}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {RATING_CATEGORIES.map(cat => (
+              <div key={cat.key}>
+                <p className="text-sm font-medium mb-1">{cat.label}</p>
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseEnter={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      onMouseLeave={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: 0 }))}
+                      onClick={() => setCategoryRatings(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star className={`h-6 w-6 ${i < ((categoryHovers[cat.key] || 0) || (categoryRatings[cat.key] || 0)) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
+                    </button>
+                  ))}
+                  {categoryRatings[cat.key] && (
+                    <span className="text-xs text-muted-foreground ml-1 self-center">{categoryRatings[cat.key]}/5</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Review <span className="text-muted-foreground">(optional)</span></label>
+              <Textarea
+                placeholder="Describe your experience..."
+                rows={4}
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRateDialog(false)}>Cancel</Button>
+            <Button onClick={handleSubmitRating} disabled={ratingLoading}>
+              {ratingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
+              Submit Review
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
