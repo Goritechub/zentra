@@ -410,6 +410,49 @@ export default function AuthPage() {
     toast.success("Welcome back!");
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrors({});
+
+    const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) errors[err.path[0].toString()] = err.message;
+      });
+      setForgotErrors(errors);
+      return;
+    }
+
+    setForgotLoading(true);
+
+    // Check if email exists
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", forgotEmail.trim().toLowerCase())
+      .maybeSingle();
+
+    if (!profileData) {
+      setForgotErrors({ email: "No account found with this email address" });
+      setForgotLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      setForgotErrors({ email: error.message });
+      setForgotLoading(false);
+      return;
+    }
+
+    setForgotSuccess(true);
+    setForgotLoading(false);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
