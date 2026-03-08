@@ -1,24 +1,28 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { useNavigate, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText, Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight, LogOut, Trophy } from "lucide-react";
+import {
+  Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
+  Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
+  LogOut, Trophy, UserCog,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Overview", icon: LayoutDashboard, path: "/admin" },
-  { label: "Users", icon: Users, path: "/admin/users" },
-  { label: "Jobs", icon: Briefcase, path: "/admin/jobs" },
-  { label: "Contests", icon: Trophy, path: "/admin/contests" },
-  { label: "Contracts", icon: FileText, path: "/admin/contracts" },
-  { label: "Payments", icon: Wallet, path: "/admin/payments" },
-  { label: "Disputes", icon: Gavel, path: "/admin/disputes" },
-  { label: "Reviews", icon: Star, path: "/admin/reviews" },
-  { label: "Settings", icon: Settings, path: "/admin/settings" },
-  { label: "Activity Log", icon: Activity, path: "/admin/activity" },
+const allNavItems = [
+  { label: "Overview", icon: LayoutDashboard, path: "/admin", permission: null as string | null },
+  { label: "Users", icon: Users, path: "/admin/users", permission: "users" },
+  { label: "Jobs", icon: Briefcase, path: "/admin/jobs", permission: "jobs" },
+  { label: "Contests", icon: Trophy, path: "/admin/contests", permission: "contests" },
+  { label: "Contracts", icon: FileText, path: "/admin/contracts", permission: "contracts" },
+  { label: "Payments", icon: Wallet, path: "/admin/payments", permission: "payments" },
+  { label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
+  { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
+  { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
+  { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
+  { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" },
 ];
 
 export default function AdminLayout() {
@@ -26,6 +30,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -41,7 +46,44 @@ export default function AdminLayout() {
       .eq("user_id", user!.id)
       .eq("role", "admin")
       .maybeSingle();
-    setIsAdmin(!!data);
+
+    if (!data) {
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
+
+    setIsAdmin(true);
+
+    // Fetch this admin's permissions
+    const { data: perms } = await supabase
+      .from("admin_permissions" as any)
+      .select("permission")
+      .eq("user_id", user!.id);
+
+    if (!perms || perms.length === 0) {
+      // Check if ANY permissions exist globally
+      const { count } = await supabase
+        .from("admin_permissions" as any)
+        .select("id", { count: "exact", head: true });
+
+      if (count === 0) {
+        // First admin ever — bootstrap as super admin
+        try {
+          const { data: bootstrapData } = await supabase.functions.invoke("manage-admin", {
+            body: { action: "bootstrap" },
+          });
+          if (bootstrapData?.permissions) {
+            setPermissions(bootstrapData.permissions);
+          }
+        } catch (err) {
+          console.error("Bootstrap failed:", err);
+        }
+      }
+    } else {
+      setPermissions(perms.map((p: any) => p.permission));
+    }
+
     setLoading(false);
   };
 
@@ -66,6 +108,21 @@ export default function AdminLayout() {
     );
   }
 
+  // Filter nav items by permissions
+  const navItems = allNavItems.filter(
+    (item) => !item.permission || permissions.includes(item.permission),
+  );
+
+  // Block access to pages the admin doesn't have permission for
+  const currentNavItem = allNavItems.find((item) => {
+    if (item.path === "/admin") return location.pathname === "/admin";
+    return location.pathname.startsWith(item.path);
+  });
+
+  if (currentNavItem?.permission && !permissions.includes(currentNavItem.permission)) {
+    return <Navigate to="/admin" replace />;
+  }
+
   const isActive = (path: string) => {
     if (path === "/admin") return location.pathname === "/admin";
     return location.pathname.startsWith(path);
@@ -74,10 +131,12 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen flex bg-muted/30">
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed left-0 top-0 h-full bg-sidebar text-sidebar-foreground z-40 flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
-      )}>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-full bg-sidebar text-sidebar-foreground z-40 flex flex-col transition-all duration-300",
+          collapsed ? "w-16" : "w-64",
+        )}
+      >
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
           {!collapsed && (
@@ -100,7 +159,7 @@ export default function AdminLayout() {
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive(item.path)
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -129,12 +188,14 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className={cn(
-        "flex-1 transition-all duration-300",
-        collapsed ? "ml-16" : "ml-64"
-      )}>
+      <main
+        className={cn(
+          "flex-1 transition-all duration-300",
+          collapsed ? "ml-16" : "ml-64",
+        )}
+      >
         <div className="p-6 max-w-7xl mx-auto">
-          <Outlet />
+          <Outlet context={{ permissions }} />
         </div>
       </main>
     </div>
