@@ -239,7 +239,8 @@ serve(async (req) => {
         ledgerEntry = newLedger;
       }
 
-      const commissionRate = getCommissionRate(milestone.amount);
+      const tiers = await loadTiers(supabase);
+      const commissionRate = getCommissionRateFromTiers(milestone.amount, tiers);
       const platformFee = Math.round(milestone.amount * commissionRate);
       const expertAmount = milestone.amount - platformFee;
 
