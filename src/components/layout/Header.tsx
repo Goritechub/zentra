@@ -213,7 +213,7 @@ export function Header() {
         <div className="md:hidden border-t border-border bg-background">
           <div className="container-wide py-4 space-y-4">
             <nav className="flex flex-col gap-2">
-              {user && !isFreelancer && (
+              {user && profileLoaded && isClient && (
                 <Link to="/freelancers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <Search className="h-4 w-4" />Find Talent
                 </Link>
