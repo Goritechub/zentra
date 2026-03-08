@@ -38,11 +38,12 @@ export default function BrowseServicesPage() {
   }, [user, authLoading]);
 
   const fetchServices = async () => {
-    const { data } = await supabase
-      .from("service_offers" as any)
-      .select("*, freelancer:profiles!service_offers_freelancer_id_fkey(full_name, avatar_url, username), freelancer_profile:freelancer_profiles!service_offers_freelancer_id_fkey(rating)")
+    const { data, error } = await supabase
+      .from("service_offers")
+      .select("*, freelancer:profiles!service_offers_freelancer_id_fkey(full_name, avatar_url, username)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
+    if (error) console.error("Failed to fetch services:", error);
     setServices((data as any[]) || []);
     setLoading(false);
   };
