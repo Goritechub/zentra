@@ -468,7 +468,8 @@ serve(async (req) => {
       if (!resolution_type)
         return jsonResponse({ error: "Missing resolution type" }, 400);
 
-      const commissionRate = getCommissionRate(totalHeld);
+      const disputeTiers = await loadTiers(supabase);
+      const commissionRate = getCommissionRateFromTiers(totalHeld, disputeTiers);
       const now = new Date().toISOString();
 
       if (resolution_type === "release_to_freelancer") {
