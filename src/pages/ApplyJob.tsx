@@ -135,6 +135,8 @@ export default function ApplyJobPage() {
   const [deliveryUnit, setDeliveryUnit] = useState<DurationUnit>("days");
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<File[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
   const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
