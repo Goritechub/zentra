@@ -96,25 +96,28 @@ export function ExpertStatsBanner() {
       }
       setEarningsTrend(trend);
 
-      // Contracts completed this year
-      const { count: yearCount } = await supabase
+      // Contracts completed this year (use completed_at, fallback to created_at)
+      const { data: yearContracts } = await supabase
         .from("contracts")
-        .select("id", { count: "exact", head: true })
+        .select("id, completed_at, created_at")
         .eq("freelancer_id", user.id)
-        .eq("status", "completed")
-        .gte("completed_at", yearStart);
+        .eq("status", "completed");
 
-      setYearlyCompleted(yearCount || 0);
+      const yearStartDate = new Date(now.getFullYear(), 0, 1);
+      const thisMonthStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Contracts completed this month
-      const { count: monthCount } = await supabase
-        .from("contracts")
-        .select("id", { count: "exact", head: true })
-        .eq("freelancer_id", user.id)
-        .eq("status", "completed")
-        .gte("completed_at", thisMonthStart);
+      const completedThisYear = (yearContracts || []).filter(c => {
+        const d = new Date(c.completed_at || c.created_at);
+        return d >= yearStartDate;
+      });
 
-      setMonthlyCompleted(monthCount || 0);
+      const completedThisMonth = completedThisYear.filter(c => {
+        const d = new Date(c.completed_at || c.created_at);
+        return d >= thisMonthStartDate;
+      });
+
+      setYearlyCompleted(completedThisYear.length);
+      setMonthlyCompleted(completedThisMonth.length);
       setLoading(false);
     };
 
