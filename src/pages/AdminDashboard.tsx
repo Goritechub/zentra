@@ -183,32 +183,49 @@ export default function AdminDashboard() {
             </TabsContent>
 
             <TabsContent value="disputes">
-              {disputes.length === 0 ? (
+              {selectedDispute ? (
+                <div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedDispute(null)} className="mb-4">
+                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Disputes List
+                  </Button>
+                  <DisputeAdjudicator dispute={selectedDispute} onResolved={() => { setSelectedDispute(null); checkAdminAndFetch(); }} />
+                </div>
+              ) : disputes.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground"><AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No disputes</p></div>
               ) : (
                 <div className="space-y-3">
-                  {disputes.map(d => (
-                    <div key={d.id} className="bg-card rounded-xl border border-border p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant={d.status === "open" ? "destructive" : "secondary"}>{d.status}</Badge>
-                            <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
+                  {disputes.map(d => {
+                    const dStatus = d.dispute_status || "awaiting_response";
+                    const statusLabel = dStatus === "awaiting_response" ? "Awaiting Response" :
+                      dStatus === "under_review" ? "Under Review" : "Resolved";
+                    const statusVariant = dStatus === "awaiting_response" ? "destructive" as const :
+                      dStatus === "under_review" ? "secondary" as const : "default" as const;
+                    return (
+                      <div key={d.id} className="bg-card rounded-xl border border-border p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={statusVariant}>{statusLabel}</Badge>
+                              <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
+                            </div>
+                            <p className="text-sm font-medium">{d.reason}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {d.contract?.client?.full_name} vs {d.contract?.freelancer?.full_name}
+                            </p>
                           </div>
-                          <p className="text-sm font-medium">{d.reason}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {d.contract?.client?.full_name} vs {d.contract?.freelancer?.full_name}
-                          </p>
+                          {dStatus !== "resolved" ? (
+                            <Button size="sm" onClick={() => setSelectedDispute(d)}>
+                              <Gavel className="h-3 w-3 mr-1" /> Review & Decide
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => setSelectedDispute(d)}>
+                              <Eye className="h-3 w-3 mr-1" /> View Decision
+                            </Button>
+                          )}
                         </div>
-                        {d.status === "open" && (
-                          <div className="flex gap-1">
-                            <Button size="sm" onClick={() => updateDisputeStatus(d.id, "resolved_client")}>Favor Client</Button>
-                            <Button size="sm" variant="outline" onClick={() => updateDisputeStatus(d.id, "resolved_freelancer")}>Favor Expert</Button>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
