@@ -96,6 +96,7 @@ function applyTheme(theme: ColorTheme) {
   root.style.setProperty("--gradient-hero", config.gradientHero);
 }
 
+interface ThemeContextType {
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
 }
