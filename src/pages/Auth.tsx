@@ -414,7 +414,7 @@ export default function AuthPage() {
     e.preventDefault();
     setForgotErrors({});
 
-    const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
+    const result = forgotPasswordSchema.safeParse({ identifier: forgotEmail });
     if (!result.success) {
       const errors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
@@ -426,25 +426,44 @@ export default function AuthPage() {
 
     setForgotLoading(true);
 
-    // Check if email exists
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", forgotEmail.trim().toLowerCase())
-      .maybeSingle();
+    const input = forgotEmail.trim();
+    let email = input;
 
-    if (!profileData) {
-      setForgotErrors({ email: "No account found with this email address" });
-      setForgotLoading(false);
-      return;
+    // If input doesn't look like an email, treat as username
+    if (!input.includes("@")) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", input)
+        .maybeSingle();
+
+      if (!profileData) {
+        setForgotErrors({ identifier: "No account found with this username" });
+        setForgotLoading(false);
+        return;
+      }
+      email = profileData.email;
+    } else {
+      // Verify email exists
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", input.toLowerCase())
+        .maybeSingle();
+
+      if (!profileData) {
+        setForgotErrors({ identifier: "No account found with this email address" });
+        setForgotLoading(false);
+        return;
+      }
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
-      setForgotErrors({ email: error.message });
+      setForgotErrors({ identifier: error.message });
       setForgotLoading(false);
       return;
     }
