@@ -114,6 +114,7 @@ const App = () => (
               <Route index element={<AdminOverview />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="jobs" element={<AdminJobs />} />
+              <Route path="contests" element={<AdminContests />} />
               <Route path="contracts" element={<AdminContracts />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="disputes" element={<AdminDisputes />} />

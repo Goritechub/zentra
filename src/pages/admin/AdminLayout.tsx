@@ -12,6 +12,7 @@ const navItems = [
   { label: "Overview", icon: LayoutDashboard, path: "/admin" },
   { label: "Users", icon: Users, path: "/admin/users" },
   { label: "Jobs", icon: Briefcase, path: "/admin/jobs" },
+  { label: "Contests", icon: Trophy, path: "/admin/contests" },
   { label: "Contracts", icon: FileText, path: "/admin/contracts" },
   { label: "Payments", icon: Wallet, path: "/admin/payments" },
   { label: "Disputes", icon: Gavel, path: "/admin/disputes" },
