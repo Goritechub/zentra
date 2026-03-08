@@ -4,6 +4,7 @@ interface ZentraGigLogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
   className?: string;
+  textClassName?: string;
 }
 
 const sizeMap = {
