@@ -57,9 +57,20 @@ export default function AdminDisputes() {
               {d.contract?.client?.full_name} vs {d.contract?.freelancer?.full_name}
             </p>
             {dStatus === "resolved" && d.resolution_type && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Resolution: {d.resolution_type === "release_to_freelancer" ? "Released to Expert" : d.resolution_type === "refund_client" ? "Refunded to Client" : d.resolution_type === "partial_split" ? "Partial Split" : "Closed (No Funds)"}
-              </p>
+              <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-medium text-foreground">
+                  Resolution: {d.resolution_type === "release_to_freelancer" ? "Released to Expert" : d.resolution_type === "refund_client" ? "Refunded to Client" : d.resolution_type === "partial_split" ? "Partial Split" : "Closed (No Funds)"}
+                </p>
+                {d.resolution_explanation && (
+                  <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{d.resolution_explanation}</p>
+                )}
+                {d.admin_notes && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">Admin notes: {d.admin_notes}</p>
+                )}
+                {d.resolved_at && (
+                  <p className="text-xs text-muted-foreground mt-1">Resolved {formatDistanceToNow(new Date(d.resolved_at), { addSuffix: true })}</p>
+                )}
+              </div>
             )}
           </div>
           <Button size="sm" variant={dStatus !== "resolved" ? "default" : "outline"} onClick={() => setSelectedDispute(d)} className="w-full sm:w-auto shrink-0">
