@@ -64,12 +64,7 @@ export default function JobsPage() {
     });
 
     const clientIds = [...new Set(jobData.map((j: any) => j.client_id))];
-    let walletMap: Record<string, any> = {};
-    if (clientIds.length > 0) {
-      const { data: wallets } = await supabase.from("wallets").select("user_id, balance").in("user_id", clientIds);
-      (wallets || []).forEach((w: any) => { walletMap[w.user_id] = w; });
-    }
-    setJobs(jobData.map((j: any) => ({ ...j, _wallet: walletMap[j.client_id] })));
+    setJobs(jobData);
     setLoading(false);
   };
 
