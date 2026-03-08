@@ -223,7 +223,7 @@ export default function PostJobPage() {
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-tight">
           <h1 className="text-3xl font-bold text-foreground mb-2">Post a New Job</h1>
-          <p className="text-muted-foreground mb-8">Describe your CAD project and find the right expert.</p>
+          <p className="text-muted-foreground mb-8">Describe your engineering project and find the right expert.</p>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">

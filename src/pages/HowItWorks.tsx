@@ -8,14 +8,14 @@ import {
 } from "lucide-react";
 
 const freelancerSteps = [
-  { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, CAD software expertise, portfolio items, and set your rates." },
+  { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, software expertise, portfolio items, and set your rates." },
   { icon: Search, title: "Browse & Apply", description: "Find jobs matching your skills. Submit proposals with your bid, timeline, and cover letter." },
   { icon: MessageSquare, title: "Discuss & Collaborate", description: "Chat with clients, clarify requirements, share files, and agree on deliverables." },
   { icon: CreditCard, title: "Get Paid Securely", description: "Complete milestones, get approved, and receive payment through our secure escrow system." },
 ];
 
 const clientSteps = [
-  { icon: FileText, title: "Post a Job or Contest", description: "Describe your CAD project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions." },
+  { icon: FileText, title: "Post a Job or Contest", description: "Describe your engineering project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions." },
   { icon: Search, title: "Review Proposals", description: "Browse proposals from qualified engineers. Check portfolios, ratings, and reviews." },
   { icon: Handshake, title: "Hire & Collaborate", description: "Select your expert, set milestones, and work together with built-in messaging and file sharing." },
   { icon: CheckCircle2, title: "Approve & Pay", description: "Review deliverables, request revisions if needed, and release payment when satisfied." },
@@ -24,7 +24,7 @@ const clientSteps = [
 const benefits = [
   { icon: Star, title: "Verified Nigerian Experts", description: "All freelancers are verified professionals with real portfolios and reviews." },
   { icon: Trophy, title: "Contest Mode", description: "Launch design contests to receive multiple submissions and pick the best one." },
-  { icon: Upload, title: "Portfolio Showcase", description: "Freelancers showcase their best CAD work with detailed project galleries." },
+  { icon: Upload, title: "Portfolio Showcase", description: "Freelancers showcase their best engineering work with detailed project galleries." },
   { icon: Briefcase, title: "Escrow Protection", description: "Funds are held securely until you approve the work. No risk for either party." },
 ];
 
@@ -38,7 +38,7 @@ export default function HowItWorksPage() {
           <div className="container-wide text-center">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">How ZentraGig Works</h1>
             <p className="text-white/80 text-lg max-w-2xl mx-auto">
-              Whether you're hiring CAD talent or looking for engineering work, 
+              Whether you're hiring engineering talent or looking for technical work, 
               our platform makes it simple, secure, and professional.
             </p>
           </div>
@@ -49,9 +49,9 @@ export default function HowItWorksPage() {
           <div className="container-wide">
             <div className="text-center mb-16">
               <span className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">For Clients</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Hire CAD Experts in 4 Easy Steps</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Hire Engineers in 4 Easy Steps</h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Find the perfect engineer for your project and get quality work delivered on time.
+                Find the perfect professional for your project and get quality work delivered on time.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
           <div className="container-wide">
             <div className="text-center mb-16">
               <span className="inline-block px-4 py-1 rounded-full bg-accent/10 text-accent-foreground text-sm font-semibold mb-4">For Freelancers</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Start Earning as a CAD Professional</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Start Earning as an Engineering Professional</h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                 Showcase your skills, find quality projects, and grow your engineering career.
               </p>
@@ -108,7 +108,7 @@ export default function HowItWorksPage() {
         <section className="section-padding">
           <div className="container-wide">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose CADGigs?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose ZentraGig?</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {benefits.map((b, i) => (

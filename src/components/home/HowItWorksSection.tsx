@@ -4,7 +4,7 @@ const steps = [
   {
     icon: Search,
     title: "Find Your Expert",
-    description: "Browse verified CAD professionals by skill, location, and budget. View portfolios and reviews.",
+    description: "Browse verified engineering professionals by skill, location, and budget. View portfolios and reviews.",
   },
   {
     icon: MessageSquare,
@@ -29,10 +29,10 @@ export function HowItWorksSection() {
       <div className="container-wide">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            How CADGigs Works
+            How ZentraGig Works
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Hiring CAD talent has never been easier. Get started in minutes.
+            Hiring engineering talent has never been easier. Get started in minutes.
           </p>
         </div>
 

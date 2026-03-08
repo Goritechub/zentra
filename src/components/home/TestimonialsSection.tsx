@@ -9,7 +9,7 @@ const testimonials = [
     location: "Lagos",
     avatar: null,
     rating: 5,
-    content: "ZentraGig connected me with an amazing architect who delivered detailed floor plans for my 12-unit apartment project in just 5 days. The quality was outstanding and saved us weeks of work.",
+    content: "ZentraGig connected me with an amazing engineer who delivered detailed floor plans for my 12-unit apartment project in just 5 days. The quality was outstanding and saved us weeks of work.",
   },
   {
     name: "Ngozi Okafor",
@@ -18,7 +18,7 @@ const testimonials = [
     location: "Ogun",
     avatar: null,
     rating: 5,
-    content: "Finding skilled SolidWorks designers in Nigeria was challenging until I discovered ZentraGig. The freelancer we hired produced production-ready drawings that our factory could use immediately.",
+    content: "Finding skilled engineering professionals in Nigeria was challenging until I discovered ZentraGig. The expert we hired produced production-ready technical drawings that our factory could use immediately.",
   },
   {
     name: "Ibrahim Yusuf",

@@ -21,7 +21,7 @@ export function CTASection() {
               </div>
               <h3 className="text-2xl font-bold mb-3">Looking to Hire?</h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Post your CAD project and receive proposals from verified Nigerian experts within hours.
+                Post your engineering project and receive proposals from verified Nigerian experts within hours.
               </p>
               <Button size="lg" variant="hero" asChild className="w-full sm:w-auto">
                 <Link to="/post-job">
@@ -36,9 +36,9 @@ export function CTASection() {
               <div className="w-14 h-14 rounded-xl bg-accent/80 flex items-center justify-center mb-6">
                 <Users className="h-7 w-7 text-accent-foreground" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">Are You a CAD Expert?</h3>
+              <h3 className="text-2xl font-bold mb-3">Are You an Engineer?</h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Join Nigeria's fastest-growing CAD marketplace. Set your rates, build your portfolio, and grow your career.
+                Join Nigeria's fastest-growing engineering marketplace. Set your rates, build your portfolio, and grow your career.
               </p>
               <Button size="lg" variant="heroOutline" asChild className="w-full sm:w-auto">
                 <Link to="/auth?tab=signup&role=freelancer">

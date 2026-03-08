@@ -13,8 +13,8 @@ export function Footer() {
               <ZentraGigLogo size="md" />
             </Link>
             <p className="text-sm text-background/70">
-              Nigeria's premier marketplace for CAD professionals. Connect with verified engineers, 
-              architects, and designers across the country.
+              Nigeria's premier marketplace for engineering projects and technical work. Connect with verified 
+              engineers and technical professionals across the country.
             </p>
             <div className="flex items-center gap-4 text-background/70">
               <MapPin className="h-4 w-4 text-primary" />
@@ -26,7 +26,7 @@ export function Footer() {
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">For Clients</h4>
             <ul className="space-y-2 text-sm text-background/70">
-              <li><Link to="/freelancers" className="hover:text-primary transition-colors">Find CAD Experts</Link></li>
+              <li><Link to="/freelancers" className="hover:text-primary transition-colors">Find Engineers</Link></li>
               <li><Link to="/post-job" className="hover:text-primary transition-colors">Post a Project</Link></li>
               <li><Link to="/how-it-works" className="hover:text-primary transition-colors">How It Works</Link></li>
               <li><Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
