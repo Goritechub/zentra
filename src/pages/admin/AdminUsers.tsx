@@ -1,0 +1,220 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatNaira } from "@/lib/nigerian-data";
+import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+export default function AdminUsers() {
+  const { user } = useAuth();
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [userWallet, setUserWallet] = useState<any>(null);
+  const [userViolations, setUserViolations] = useState<any>(null);
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const fetchUsers = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setUsers(data || []);
+    setLoading(false);
+  };
+
+  const viewUser = async (u: any) => {
+    setSelectedUser(u);
+    const [walletRes, violRes] = await Promise.all([
+      supabase.from("wallets").select("*").eq("user_id", u.id).maybeSingle(),
+      supabase.from("user_violation_counts").select("*").eq("user_id", u.id).maybeSingle(),
+    ]);
+    setUserWallet(walletRes.data);
+    setUserViolations(violRes.data);
+  };
+
+  const toggleVerification = async (userId: string, current: boolean) => {
+    await supabase.from("profiles").update({ is_verified: !current }).eq("id", userId);
+    await logAction("toggle_verification", "user", userId, { verified: !current });
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !current } : u));
+    setSelectedUser((prev: any) => prev ? { ...prev, is_verified: !current } : prev);
+    toast.success(current ? "User unverified" : "User verified");
+  };
+
+  const toggleSuspension = async (userId: string, isSuspended: boolean) => {
+    await supabase.from("user_violation_counts")
+      .upsert({ user_id: userId, is_suspended: !isSuspended, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    await logAction("toggle_suspension", "user", userId, { suspended: !isSuspended });
+    setUserViolations((prev: any) => prev ? { ...prev, is_suspended: !isSuspended } : { user_id: userId, is_suspended: !isSuspended, total_violations: 0 });
+    toast.success(isSuspended ? "User unsuspended" : "User suspended");
+  };
+
+  const logAction = async (action: string, targetType: string, targetId: string, details: any) => {
+    await supabase.from("admin_activity_log").insert({
+      admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
+    });
+  };
+
+  const filtered = users.filter(u => {
+    const matchSearch = !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase());
+    const matchRole = roleFilter === "all" || u.role === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Users Management</h1>
+
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by name, email, username..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="client">Client</SelectItem>
+            <SelectItem value="freelancer">Expert</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+          </SelectContent>
+        </Select>
+        <Badge variant="secondary">{filtered.length} users</Badge>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Verified</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(u => (
+              <TableRow key={u.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={u.avatar_url} />
+                      <AvatarFallback>{(u.full_name || u.email || "U")[0]}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-sm">{u.full_name || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">{u.role === "freelancer" ? "Expert" : u.role}</Badge>
+                </TableCell>
+                <TableCell>
+                  {u.is_verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : <span className="text-xs text-muted-foreground">No</span>}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="ghost" onClick={() => viewUser(u)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* User Detail Dialog */}
+      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={selectedUser.avatar_url} />
+                  <AvatarFallback className="text-lg">{(selectedUser.full_name || "U")[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedUser.full_name || "—"}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                  <div className="flex gap-2 mt-1">
+                    <Badge variant="outline" className="capitalize">{selectedUser.role === "freelancer" ? "Expert" : selectedUser.role}</Badge>
+                    {selectedUser.is_verified && <Badge className="bg-primary/10 text-primary">Verified</Badge>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Username:</span> <span className="font-medium">{selectedUser.username || "—"}</span></div>
+                <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{selectedUser.phone || "—"}</span></div>
+                <div><span className="text-muted-foreground">Location:</span> <span className="font-medium">{[selectedUser.city, selectedUser.state].filter(Boolean).join(", ") || "—"}</span></div>
+                <div><span className="text-muted-foreground">WhatsApp:</span> <span className="font-medium">{selectedUser.whatsapp || "—"}</span></div>
+              </div>
+
+              {/* Wallet */}
+              {userWallet && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">Wallet</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Balance: <span className="font-bold text-primary">{formatNaira(userWallet.balance)}</span></div>
+                    <div>Escrow: <span className="font-bold text-amber-500">{formatNaira(userWallet.escrow_balance)}</span></div>
+                    <div>Total Earned: <span className="font-medium">{formatNaira(userWallet.total_earned)}</span></div>
+                    <div>Total Spent: <span className="font-medium">{formatNaira(userWallet.total_spent)}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Violations */}
+              {userViolations && userViolations.total_violations > 0 && (
+                <div className="bg-destructive/5 rounded-lg p-4 border border-destructive/20">
+                  <p className="text-sm font-medium text-destructive">{userViolations.total_violations} violation(s)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {userViolations.is_suspended ? "Currently suspended" : "Account active"}
+                  </p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button size="sm" variant={selectedUser.is_verified ? "outline" : "default"} onClick={() => toggleVerification(selectedUser.id, selectedUser.is_verified)}>
+                  <UserCheck className="h-4 w-4 mr-1" />
+                  {selectedUser.is_verified ? "Unverify" : "Verify"}
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => toggleSuspension(selectedUser.id, userViolations?.is_suspended || false)}>
+                  <Ban className="h-4 w-4 mr-1" />
+                  {userViolations?.is_suspended ? "Unsuspend" : "Suspend"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
