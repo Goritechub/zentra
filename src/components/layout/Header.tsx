@@ -82,13 +82,13 @@ export function Header() {
                     <Link to="/jobs" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
                       <Search className="h-3.5 w-3.5" />Browse Jobs
                     </Link>
-                    <Link to="/expert-proposals" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                    <Link to="/dashboard/expert-proposals" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
                       <FileText className="h-3.5 w-3.5" />View Proposals
                     </Link>
-                    <Link to="/contracts" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                    <Link to="/dashboard/contracts" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
                       <FolderOpen className="h-3.5 w-3.5" />View Contracts
                     </Link>
-                    <Link to="/received-offers" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
+                    <Link to="/dashboard/received-offers" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
                       <Mail className="h-3.5 w-3.5" />View Received Offers
                     </Link>
                   </div>
@@ -232,13 +232,13 @@ export function Header() {
                       <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
                         <Search className="h-3.5 w-3.5" />Browse Jobs
                       </Link>
-                      <Link to="/expert-proposals" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/dashboard/expert-proposals" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
                         <FileText className="h-3.5 w-3.5" />View Proposals
                       </Link>
-                      <Link to="/contracts" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/dashboard/contracts" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
                         <FolderOpen className="h-3.5 w-3.5" />View Contracts
                       </Link>
-                      <Link to="/received-offers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/dashboard/received-offers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
                         <Mail className="h-3.5 w-3.5" />View Received Offers
                       </Link>
                     </div>
