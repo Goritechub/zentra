@@ -218,7 +218,7 @@ export function Header() {
                   <Search className="h-4 w-4" />Find Talent
                 </Link>
               )}
-              {user && !isClient && (
+              {user && profileLoaded && isFreelancer && (
                 <>
                   <button
                     onClick={() => setMobileJobsOpen(!mobileJobsOpen)}
