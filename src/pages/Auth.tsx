@@ -67,6 +67,8 @@ export default function AuthPage() {
   });
   const [signUpErrors, setSignUpErrors] = useState<Record<string, string>>({});
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
 
   const [signInData, setSignInData] = useState({
     identifier: "",
