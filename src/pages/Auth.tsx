@@ -481,7 +481,9 @@ export default function AuthPage() {
     setForgotLoading(false);
   };
 
-  if (authLoading) {
+  // Only show loading spinner if we already have a user (redirecting)
+  // Unauthenticated users should see the form immediately
+  if (authLoading && user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
