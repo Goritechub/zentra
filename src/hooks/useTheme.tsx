@@ -84,6 +84,18 @@ const themeConfigs: Record<ColorTheme, {
   },
 };
 
+function applyTheme(theme: ColorTheme) {
+  const config = themeConfigs[theme];
+  const root = document.documentElement;
+  root.style.setProperty("--primary", config.primary);
+  root.style.setProperty("--primary-foreground", config.primaryForeground);
+  root.style.setProperty("--ring", config.ring);
+  root.style.setProperty("--sidebar-background", config.sidebarBg);
+  root.style.setProperty("--sidebar-accent", config.sidebarAccent);
+  root.style.setProperty("--sidebar-border", config.sidebarBorder);
+  root.style.setProperty("--gradient-hero", config.gradientHero);
+}
+
 interface ThemeContextType {
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
@@ -97,22 +109,11 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return (saved as ColorTheme) || "green";
+    const theme = (saved as ColorTheme) || "green";
+    // Apply immediately to avoid flash of default theme on reload
+    applyTheme(theme);
+    return theme;
   });
-
-  const applyTheme = (theme: ColorTheme) => {
-    const config = themeConfigs[theme];
-    const root = document.documentElement;
-
-    // Light mode
-    root.style.setProperty("--primary", config.primary);
-    root.style.setProperty("--primary-foreground", config.primaryForeground);
-    root.style.setProperty("--ring", config.ring);
-    root.style.setProperty("--sidebar-background", config.sidebarBg);
-    root.style.setProperty("--sidebar-accent", config.sidebarAccent);
-    root.style.setProperty("--sidebar-border", config.sidebarBorder);
-    root.style.setProperty("--gradient-hero", config.gradientHero);
-  };
 
   useEffect(() => {
     applyTheme(colorTheme);
