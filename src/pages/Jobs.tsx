@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import {
   Search, MapPin, Clock, Briefcase, Calendar, X, Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck, Wrench
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
@@ -64,12 +65,7 @@ export default function JobsPage() {
     });
 
     const clientIds = [...new Set(jobData.map((j: any) => j.client_id))];
-    let walletMap: Record<string, any> = {};
-    if (clientIds.length > 0) {
-      const { data: wallets } = await supabase.from("wallets").select("user_id, balance").in("user_id", clientIds);
-      (wallets || []).forEach((w: any) => { walletMap[w.user_id] = w; });
-    }
-    setJobs(jobData.map((j: any) => ({ ...j, _wallet: walletMap[j.client_id] })));
+    setJobs(jobData);
     setLoading(false);
   };
 
@@ -175,20 +171,11 @@ export default function JobsPage() {
                   {job.invited_expert_ids?.length > 0 && job.visibility === "public" && <Badge variant="outline" className="text-xs">{job.invited_expert_ids.length} invited</Badge>}
                   <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
                   <Badge variant="outline" className="text-xs">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
-                  {(() => {
-                    const isNegotiable = !job.budget_min && !job.budget_max;
-                    if (isNegotiable) return (
-                      <Badge variant="outline" className="text-xs gap-1">💬 Budget Negotiable</Badge>
-                    );
-                    const walletBal = job._wallet?.balance ?? 0;
-                    const target = job.budget_max || job.budget_min || 0;
-                    const ready = walletBal >= target;
-                    return (
-                      <Badge variant={ready ? "default" : "destructive"} className="text-xs gap-1">
-                        {ready ? "💰 Payment Ready" : "⚠ Funding Needed"}
-                      </Badge>
-                    );
-                  })()}
+                  <FundingStatusBadge
+                    clientId={job.client_id}
+                    budgetMin={job.budget_min}
+                    budgetMax={job.budget_max}
+                  />
                 </div>
               </Link>
               <div className="md:text-right flex md:flex-col items-center md:items-end gap-2">
