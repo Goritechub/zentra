@@ -124,6 +124,7 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="activity" element={<AdminActivity />} />
               <Route path="management" element={<AdminManagement />} />
+              <Route path="verification" element={<AdminVerification />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
