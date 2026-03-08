@@ -107,17 +107,6 @@ serve(async (req) => {
           });
           if (wtErr) console.error("webhook wallet_transactions insert error:", JSON.stringify(wtErr));
 
-          // Also insert into global transactions table
-          const { error: txErr } = await supabase.from("transactions").insert({
-            user_id: ref.user_id,
-            type: "credit",
-            amount: amountNaira,
-            status: "completed",
-            description,
-            reference,
-          });
-          if (txErr) console.error("webhook transactions insert error:", JSON.stringify(txErr));
-
           await supabase.from("notifications").insert({
             user_id: ref.user_id,
             type: "payment_received",

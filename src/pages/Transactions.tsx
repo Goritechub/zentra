@@ -50,32 +50,14 @@ export default function TransactionsPage() {
   }, [user, authLoading]);
 
   const fetchData = async () => {
-    const [walletRes, walletTxRes, txRes] = await Promise.all([
+    const [walletRes, walletTxRes] = await Promise.all([
       supabase.from("wallets").select("*").eq("user_id", user!.id).maybeSingle(),
-      supabase.from("wallet_transactions" as any).select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
-      supabase.from("transactions").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("wallet_transactions").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
     ]);
     setWallet(walletRes.data);
 
-    // Merge wallet_transactions and transactions, deduplicating by reference
     const walletTx = ((walletTxRes.data as any[]) || []).filter(tx => !hiddenTypes.includes(tx.type));
-    const globalTx = ((txRes.data as any[]) || []);
-
-    // Use wallet_transactions as primary, add any transactions entries missing by reference
-    const existingRefs = new Set(walletTx.map((tx: any) => tx.reference).filter(Boolean));
-    const missingTx = globalTx.filter((tx: any) => tx.reference && !existingRefs.has(tx.reference));
-
-    // Normalize missing transactions to match wallet_transactions shape
-    const normalizedMissing = missingTx.map((tx: any) => ({
-      ...tx,
-      balance_after: null,
-    }));
-
-    const merged = [...walletTx, ...normalizedMissing].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ).slice(0, 50);
-
-    setTransactions(merged);
+    setTransactions(walletTx);
     setLoading(false);
   };
 

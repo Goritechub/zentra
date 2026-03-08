@@ -205,16 +205,6 @@ serve(async (req) => {
         description: `Withdrawal to ${bankDetail.bank_name} - ${bankDetail.account_number}`,
       });
 
-      // Record in transactions table
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        type: "debit",
-        amount,
-        status: status === "processing" ? "pending" : "failed",
-        description: `Withdrawal to ${bankDetail.bank_name}`,
-        reference: transferCode,
-      });
-
       if (!transferData.status) {
         // Refund wallet on failure
         await supabase.from("wallets").update({

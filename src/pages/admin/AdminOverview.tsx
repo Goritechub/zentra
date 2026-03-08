@@ -35,7 +35,7 @@ export default function AdminOverview() {
       supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "open"),
       supabase.from("contracts").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("wallets").select("escrow_balance"),
-      supabase.from("transactions").select("id", { count: "exact", head: true }),
+      supabase.from("wallet_transactions").select("id", { count: "exact", head: true }),
       supabase.from("disputes").select("id", { count: "exact", head: true }).eq("status", "open"),
       supabase.from("platform_revenue").select("commission_amount"),
     ]);
