@@ -42,7 +42,7 @@ import MyContests from "./pages/MyContests";
 import MyServices from "./pages/MyServices";
 import BrowseServices from "./pages/BrowseServices";
 
-// Admin pages
+import ResetPassword from "./pages/ResetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminUsers from "./pages/admin/AdminUsers";
