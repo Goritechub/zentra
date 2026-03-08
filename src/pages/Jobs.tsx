@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import {
   Search, MapPin, Clock, Briefcase, Calendar, X, Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck, Wrench
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
