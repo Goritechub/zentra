@@ -58,6 +58,7 @@ import AdminManagement from "./pages/admin/AdminManagement";
 import AdminVerification from "./pages/admin/AdminVerification";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminPlatformReviews from "./pages/admin/AdminPlatformReviews";
+import AdminLegalDocuments from "./pages/admin/AdminLegalDocuments";
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
