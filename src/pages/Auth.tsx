@@ -95,8 +95,9 @@ export default function AuthPage() {
     setRecaptchaToken(null);
   }, []);
 
-  // Load reCAPTCHA script once
+  // Load reCAPTCHA script only when signup tab is active
   useEffect(() => {
+    if (activeTab !== "signup") return;
     if (recaptchaScriptLoaded.current) return;
     if (document.getElementById("recaptcha-v2-script")) {
       recaptchaScriptLoaded.current = true;
@@ -115,7 +116,7 @@ export default function AuthPage() {
       console.error("[reCAPTCHA] Script failed to load");
     };
     document.head.appendChild(script);
-  }, []);
+  }, [activeTab]);
 
   // Render reCAPTCHA widget when signup tab is active
   useEffect(() => {
@@ -481,7 +482,9 @@ export default function AuthPage() {
     setForgotLoading(false);
   };
 
-  if (authLoading) {
+  // Only show loading spinner if we already have a user (redirecting)
+  // Unauthenticated users should see the form immediately
+  if (authLoading && user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
