@@ -11,7 +11,7 @@ export default function AdminDisputes() {
   const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("open");
 
   useEffect(() => { fetchDisputes(); }, []);
 
@@ -27,6 +27,7 @@ export default function AdminDisputes() {
 
   const filtered = disputes.filter(d => {
     if (statusFilter === "all") return true;
+    if (statusFilter === "open") return d.dispute_status !== "resolved";
     return d.dispute_status === statusFilter;
   });
 
@@ -45,14 +46,15 @@ export default function AdminDisputes() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">Disputes Management</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6">Disputes Management</h1>
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="open">Open Disputes</SelectItem>
             <SelectItem value="all">All Disputes</SelectItem>
             <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
             <SelectItem value="under_review">Under Review</SelectItem>
@@ -74,19 +76,19 @@ export default function AdminDisputes() {
             const statusVariant = dStatus === "awaiting_response" ? "destructive" : dStatus === "under_review" ? "secondary" : "default";
             const statusLabel = dStatus === "awaiting_response" ? "Awaiting Response" : dStatus === "under_review" ? "Under Review" : "Resolved";
             return (
-              <div key={d.id} className="bg-card rounded-xl border border-border p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+              <div key={d.id} className="bg-card rounded-xl border border-border p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <Badge variant={statusVariant as any}>{statusLabel}</Badge>
                       <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
                     </div>
-                    <p className="text-sm font-medium">{d.reason}</p>
+                    <p className="text-sm font-medium truncate">{d.reason}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {d.contract?.client?.full_name} vs {d.contract?.freelancer?.full_name}
                     </p>
                   </div>
-                  <Button size="sm" variant={dStatus !== "resolved" ? "default" : "outline"} onClick={() => setSelectedDispute(d)}>
+                  <Button size="sm" variant={dStatus !== "resolved" ? "default" : "outline"} onClick={() => setSelectedDispute(d)} className="w-full sm:w-auto shrink-0">
                     {dStatus !== "resolved" ? <><Gavel className="h-3 w-3 mr-1" /> Review</> : <><Eye className="h-3 w-3 mr-1" /> View</>}
                   </Button>
                 </div>
