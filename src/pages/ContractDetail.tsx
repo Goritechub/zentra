@@ -25,6 +25,7 @@ import {
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
   Wallet, History, XCircle
 } from "lucide-react";
+import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   interviewing: { variant: "outline", label: "Interviewing" },
