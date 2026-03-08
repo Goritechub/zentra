@@ -5,6 +5,7 @@ import { DollarSign, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export type FundingStatus = "escrow_funded" | "payment_ready" | "funding_needed" | "negotiable";
 
+
 interface FundingStatusBadgeProps {
   clientId: string;
   budgetMin?: number | null;
