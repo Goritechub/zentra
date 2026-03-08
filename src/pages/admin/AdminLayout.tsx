@@ -24,7 +24,7 @@ const allNavItems = [
 { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
 { label: "Verification", icon: ShieldCheck, path: "/admin/verification", permission: "users" },
 { label: "Support", icon: Headphones, path: "/admin/support", permission: "platform_settings" },
-{ label: "Platform Reviews", icon: MessageSquareStar, path: "/admin/platform-reviews", permission: "reviews" },
+{ label: "Platform Reviews", icon: ThumbsUp, path: "/admin/platform-reviews", permission: "reviews" },
 { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
 { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" }];
 
