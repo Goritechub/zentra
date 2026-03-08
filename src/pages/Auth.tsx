@@ -11,10 +11,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
@@ -66,6 +67,8 @@ export default function AuthPage() {
   });
   const [signUpErrors, setSignUpErrors] = useState<Record<string, string>>({});
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
 
   const [signInData, setSignInData] = useState({
     identifier: "",
@@ -292,7 +295,13 @@ export default function AuthPage() {
       result.error.errors.forEach((err) => {
         if (err.path[0]) errors[err.path[0].toString()] = err.message;
       });
+      if (!termsAccepted) errors.terms = "You must agree to the Terms and Conditions";
       setSignUpErrors(errors);
+      return;
+    }
+
+    if (!termsAccepted) {
+      setSignUpErrors({ terms: "You must agree to the Terms and Conditions" });
       return;
     }
 
@@ -788,6 +797,42 @@ export default function AuthPage() {
                     <div ref={recaptchaContainerRef} />
                   </div>
 
+                  {/* Terms & Conditions checkbox */}
+                  <div className="space-y-1">
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!termsAccepted) {
+                            setTermsModalOpen(true);
+                          }
+                        }}
+                        className={cn(
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                          termsAccepted
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 bg-muted/50"
+                        )}
+                        aria-label="Agree to terms"
+                      >
+                        {termsAccepted && <Check className="h-3 w-3" />}
+                      </button>
+                      <p className="text-sm text-muted-foreground leading-tight">
+                        I agree to the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setTermsModalOpen(true)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Terms and Conditions
+                        </button>
+                      </p>
+                    </div>
+                    {signUpErrors.terms && (
+                      <p className="text-sm text-destructive ml-7">{signUpErrors.terms}</p>
+                    )}
+                  </div>
+
                   <Button type="submit" className="w-full" size="lg" disabled={loading}>
                     {loading ? (
                       <>
@@ -799,12 +844,19 @@ export default function AuthPage() {
                     )}
                   </Button>
 
-                  <p className="text-xs text-center text-muted-foreground mt-4">
-                    By signing up, you agree to our{" "}
-                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>{" "}
-                    and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-                  </p>
+                  <TermsModal
+                    open={termsModalOpen}
+                    onOpenChange={setTermsModalOpen}
+                    onAgree={() => {
+                      setTermsAccepted(true);
+                      if (signUpErrors.terms) {
+                        setSignUpErrors((prev) => {
+                          const { terms, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                    }}
+                  />
                 </form>
               </TabsContent>
             </Tabs>

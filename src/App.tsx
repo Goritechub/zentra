@@ -41,7 +41,7 @@ import ContestDetailPage from "./pages/ContestDetail";
 import MyContests from "./pages/MyContests";
 import MyServices from "./pages/MyServices";
 import BrowseServices from "./pages/BrowseServices";
-
+import Terms from "./pages/Terms";
 import ResetPassword from "./pages/ResetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
@@ -78,6 +78,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/expert/:id" element={<ExpertProfile />} />
             <Route path="/expert/:id/profile" element={<ExpertProfile />} />
 

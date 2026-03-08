@@ -80,7 +80,7 @@ export function Footer() {
           <p className="text-sm text-background/60">© {new Date().getFullYear()} ZentraGig. All rights reserved.</p>
           <div className="flex items-center gap-6 text-sm text-background/60">
             <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
           </div>
         </div>
       </div>
