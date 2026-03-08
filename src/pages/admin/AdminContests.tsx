@@ -266,16 +266,7 @@ export default function AdminContests() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {effectiveStatus === "active" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => updateContestStatus(contest.id, "cancelled")}
-                            title="Cancel contest"
-                          >
-                            <Ban className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                        )
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" title="Delete contest">
