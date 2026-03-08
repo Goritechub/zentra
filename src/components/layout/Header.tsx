@@ -31,6 +31,8 @@ export function Header() {
 
   const isClient = profile?.role === "client";
   const isFreelancer = profile?.role === "freelancer";
+  const isAdmin = profile?.role === "admin";
+  const profileLoaded = !!profile;
 
   const handleSignOut = async () => {
     await signOut();
