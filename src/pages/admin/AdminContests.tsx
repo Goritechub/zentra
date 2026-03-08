@@ -153,7 +153,7 @@ export default function AdminContests() {
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.profiles?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       c.profiles?.username?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || getEffectiveStatus(c) === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
