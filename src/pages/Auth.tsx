@@ -35,6 +35,10 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+});
+
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
