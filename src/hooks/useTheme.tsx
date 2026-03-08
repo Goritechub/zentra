@@ -84,7 +84,18 @@ const themeConfigs: Record<ColorTheme, {
   },
 };
 
-interface ThemeContextType {
+function applyTheme(theme: ColorTheme) {
+  const config = themeConfigs[theme];
+  const root = document.documentElement;
+  root.style.setProperty("--primary", config.primary);
+  root.style.setProperty("--primary-foreground", config.primaryForeground);
+  root.style.setProperty("--ring", config.ring);
+  root.style.setProperty("--sidebar-background", config.sidebarBg);
+  root.style.setProperty("--sidebar-accent", config.sidebarAccent);
+  root.style.setProperty("--sidebar-border", config.sidebarBorder);
+  root.style.setProperty("--gradient-hero", config.gradientHero);
+}
+
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
 }
