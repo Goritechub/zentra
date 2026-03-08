@@ -378,7 +378,7 @@ serve(async (req) => {
 
     // ── RESOLVE DISPUTE (Admin/Adjudicator) ──
     if (action === "resolve_dispute") {
-      if (!dispute_id || !contract_id || !resolution_type || !resolution_explanation)
+      if (!dispute_id || !contract_id || !resolution_explanation)
         return jsonResponse({ error: "Missing required fields" }, 400);
 
       // Verify admin role
@@ -400,8 +400,32 @@ serve(async (req) => {
         .select("*").eq("contract_id", contract_id).eq("status", "held");
       const totalHeld = (heldEntries || []).reduce((s: number, e: any) => s + e.held_amount, 0);
 
-      if (totalHeld <= 0)
-        return jsonResponse({ error: "No escrow funds to distribute" }, 400);
+      // If no funds, just close the dispute
+      if (totalHeld <= 0 || resolution_type === "no_funds") {
+        await supabase.from("disputes").update({
+          dispute_status: "resolved",
+          status: "resolved",
+          resolution_type: "no_funds",
+          resolution_explanation,
+          resolved_at: new Date().toISOString(),
+          resolved_by: user.id,
+        }).eq("id", dispute_id);
+
+        // Restore contract status if it was disputed
+        if (contract.status === "disputed") {
+          await supabase.from("contracts").update({ status: "completed" }).eq("id", contract_id);
+        }
+
+        await notify(supabase, contract.client_id, "dispute_resolved", "Dispute Closed",
+          `Dispute has been closed by admin. Decision: ${resolution_explanation.substring(0, 100)}`, contract_id);
+        await notify(supabase, contract.freelancer_id, "dispute_resolved", "Dispute Closed",
+          `Dispute has been closed by admin. Decision: ${resolution_explanation.substring(0, 100)}`, contract_id);
+
+        return jsonResponse({ success: true, resolution: "no_funds" });
+      }
+
+      if (!resolution_type)
+        return jsonResponse({ error: "Missing resolution type" }, 400);
 
       const commissionRate = getCommissionRate(totalHeld);
       const now = new Date().toISOString();
