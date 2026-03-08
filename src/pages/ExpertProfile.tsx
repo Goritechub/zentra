@@ -135,9 +135,8 @@ export default function ExpertProfile() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
 
-  // Verification
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
-  const [requestingVerification, setRequestingVerification] = useState(false);
+  // KYC Verification
+  const { isVerified: kycVerified, isZentraVerified, loading: kycLoading } = useKycVerification(id);
 
   // Export
   const [showShareMenu, setShowShareMenu] = useState(false);
