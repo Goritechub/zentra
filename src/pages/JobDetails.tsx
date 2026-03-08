@@ -130,7 +130,7 @@ export default function JobDetailsPage() {
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
-  const paymentReady = wallet && wallet.balance >= (job.budget_max || job.budget_min || 0);
+  
 
   const deliveryLabel = () => {
     const d = job.delivery_days || 0;
