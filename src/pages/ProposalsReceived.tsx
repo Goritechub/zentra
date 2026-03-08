@@ -51,6 +51,8 @@ export default function ProposalsReceivedPage() {
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");

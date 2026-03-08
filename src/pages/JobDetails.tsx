@@ -57,6 +57,8 @@ export default function JobDetailsPage() {
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
   const [jobAssigned, setJobAssigned] = useState(false);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
