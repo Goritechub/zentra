@@ -108,7 +108,7 @@ export default function HowItWorksPage() {
         <section className="section-padding">
           <div className="container-wide">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose CADGigs?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose ZentraGig?</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {benefits.map((b, i) => (
