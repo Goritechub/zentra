@@ -29,7 +29,6 @@ import ManageSkills from "./pages/ManageSkills";
 import ManagePortfolio from "./pages/ManagePortfolio";
 import ExpertProposals from "./pages/ExpertProposals";
 import ContestEntries from "./pages/ContestEntries";
-import AdminDashboard from "./pages/AdminDashboard";
 import ContractDetail from "./pages/ContractDetail";
 import DisputeDetail from "./pages/DisputeDetail";
 import ExpertProfile from "./pages/ExpertProfile";
@@ -42,6 +41,18 @@ import ContestDetailPage from "./pages/ContestDetail";
 import MyContests from "./pages/MyContests";
 import MyServices from "./pages/MyServices";
 import BrowseServices from "./pages/BrowseServices";
+
+// Admin pages
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminOverview from "./pages/admin/AdminOverview";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminJobs from "./pages/admin/AdminJobs";
+import AdminContracts from "./pages/admin/AdminContracts";
+import AdminPayments from "./pages/admin/AdminPayments";
+import AdminDisputes from "./pages/admin/AdminDisputes";
+import AdminReviews from "./pages/admin/AdminReviews";
+import AdminSettings from "./pages/admin/AdminSettings";
+import AdminActivity from "./pages/admin/AdminActivity";
 
 const queryClient = new QueryClient();
 
@@ -84,7 +95,6 @@ const App = () => (
             <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ContestEntries /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
-            <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
             <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
             <Route path="/contact" element={<Contact />} />
 
@@ -96,6 +106,19 @@ const App = () => (
             {/* Services */}
             <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><MyServices /></RoleGuard></AuthGuard>} />
             <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><BrowseServices /></RoleGuard></AuthGuard>} />
+
+            {/* Admin Panel */}
+            <Route path="/admin" element={<AuthGuard><AdminLayout /></AuthGuard>}>
+              <Route index element={<AdminOverview />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="jobs" element={<AdminJobs />} />
+              <Route path="contracts" element={<AdminContracts />} />
+              <Route path="payments" element={<AdminPayments />} />
+              <Route path="disputes" element={<AdminDisputes />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="activity" element={<AdminActivity />} />
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
