@@ -176,8 +176,7 @@ export default function AdminLayout() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
             
             <LogOut className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>
-</span>}
+            {!collapsed && <span>Admin Logout</span>}
           </button>
           <button onClick={() => setCollapsed(!collapsed)}
           className="w-full flex items-center justify-center py-2 rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">
