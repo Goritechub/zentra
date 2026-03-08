@@ -326,9 +326,14 @@ export default function AdminContests() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant={statusConfig[selectedContest.status]?.variant || "outline"}>
-                    {statusConfig[selectedContest.status]?.label || selectedContest.status}
-                  </Badge>
+                  {(() => {
+                    const es = getEffectiveStatus(selectedContest);
+                    return (
+                      <Badge variant={statusConfig[es]?.variant || "outline"}>
+                        {statusConfig[es]?.label || es}
+                      </Badge>
+                    );
+                  })()}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Entries</p>
