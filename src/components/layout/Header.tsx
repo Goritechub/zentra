@@ -60,7 +60,7 @@ export function Header() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            {user && !isFreelancer && (
+            {user && profileLoaded && isClient && (
               <Link to="/freelancers" className={navLinkClass("/freelancers")}>
                 Find Talent
               </Link>
