@@ -283,8 +283,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       <Dialog open={showResolve} onOpenChange={setShowResolve}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> Render Dispute Decision</DialogTitle>
-            <DialogDescription>Choose an outcome for this dispute. Escrow: {formatNaira(totalHeld)}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> {totalHeld > 0 ? "Render Dispute Decision" : "Close Dispute"}</DialogTitle>
+            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Escrow: ${formatNaira(totalHeld)}` : "No escrow funds to distribute. Provide a closing note."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
