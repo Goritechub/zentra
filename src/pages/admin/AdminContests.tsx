@@ -39,6 +39,7 @@ interface Contest {
   client_id: string;
   profiles: { full_name: string | null; email: string; username: string | null } | null;
   entry_count?: number;
+  winner_count?: number;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -48,11 +49,13 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
-// Compute effective status: if DB says "active" but deadline has passed, it's really "selecting_winners"
-const getEffectiveStatus = (contest: { status: string; deadline: string }) => {
-  if (contest.status === "active" && new Date(contest.deadline) < new Date()) {
-    return "selecting_winners";
-  }
+// Compute effective status based on deadline and winners
+const getEffectiveStatus = (contest: { status: string; deadline: string; winner_count?: number }) => {
+  if (contest.status === "completed" || contest.status === "cancelled") return contest.status;
+  const deadlinePassed = new Date(contest.deadline) < new Date();
+  const hasWinners = (contest.winner_count || 0) > 0;
+  if (hasWinners) return "completed";
+  if (deadlinePassed) return "selecting_winners";
   return contest.status;
 };
 
@@ -81,11 +84,14 @@ export default function AdminContests() {
       return;
     }
 
-    // Fetch entry counts
+    // Fetch entry counts and winner counts
     const withCounts = await Promise.all(
       (data || []).map(async (c: any) => {
-        const { data: countData } = await supabase.rpc("get_contest_entry_count", { _contest_id: c.id });
-        return { ...c, entry_count: countData || 0 };
+        const [{ data: countData }, { count: winnerCount }] = await Promise.all([
+          supabase.rpc("get_contest_entry_count", { _contest_id: c.id }),
+          supabase.from("contest_entries").select("id", { count: "exact", head: true }).eq("contest_id", c.id).eq("is_winner", true),
+        ]);
+        return { ...c, entry_count: countData || 0, winner_count: winnerCount || 0 };
       })
     );
 
