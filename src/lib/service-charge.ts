@@ -23,11 +23,11 @@ export async function getCommissionTiers(): Promise<CommissionTier[]> {
   if (cachedTiers && Date.now() - cacheTime < CACHE_TTL) return cachedTiers;
 
   try {
-    const { data } = await supabase
+    const { data } = await (supabase
       .from("platform_settings" as any)
       .select("value")
       .eq("key", "commission_tiers")
-      .maybeSingle();
+      .maybeSingle() as any);
 
     if (data?.value && Array.isArray(data.value)) {
       cachedTiers = data.value as CommissionTier[];

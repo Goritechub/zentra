@@ -30,7 +30,7 @@ export default function AdminSettings() {
   const fetchAll = async () => {
     const [catRes, settingsRes] = await Promise.all([
       supabase.from("categories").select("*").order("name"),
-      supabase.from("platform_settings" as any).select("*").eq("key", "commission_tiers").maybeSingle(),
+      (supabase.from("platform_settings" as any).select("*").eq("key", "commission_tiers").maybeSingle() as any),
     ]);
     setCategories(catRes.data || []);
     if (settingsRes.data?.value && Array.isArray(settingsRes.data.value)) {
