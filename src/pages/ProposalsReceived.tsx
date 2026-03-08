@@ -16,6 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
