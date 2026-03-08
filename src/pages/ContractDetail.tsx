@@ -218,7 +218,53 @@ export default function ContractDetail() {
     setActionLoading(false);
   };
 
-  if (loading) {
+  const handleSubmitRating = async () => {
+    const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
+    if (!allCategoriesFilled || !contract || !user) {
+      toast.error("Please rate all categories");
+      return;
+    }
+    setRatingLoading(true);
+    const overallRating = Math.round(
+      RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
+    ) / 10;
+    const revieweeId = isClient ? contract.freelancer_id : contract.client_id;
+
+    const { error } = await supabase.from("reviews").insert({
+      contract_id: id!,
+      reviewer_id: user.id,
+      reviewee_id: revieweeId,
+      rating: Math.round(overallRating),
+      comment: ratingComment.trim() || null,
+      rating_skills: categoryRatings.rating_skills,
+      rating_quality: categoryRatings.rating_quality,
+      rating_availability: categoryRatings.rating_availability,
+      rating_deadlines: categoryRatings.rating_deadlines,
+      rating_communication: categoryRatings.rating_communication,
+      rating_cooperation: categoryRatings.rating_cooperation,
+    } as any);
+    if (error) {
+      toast.error("Failed to submit rating");
+    } else {
+      // Update freelancer average rating
+      if (isClient) {
+        const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", revieweeId);
+        if (allReviews && allReviews.length > 0) {
+          const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
+          await supabase.from("freelancer_profiles").update({ rating: Math.round(avg * 10) / 10 }).eq("user_id", revieweeId);
+        }
+      }
+      toast.success("Review submitted! Thank you.");
+      setShowRateDialog(false);
+      setHasReviewed(true);
+      setCanRate(false);
+      setCategoryRatings({});
+      setRatingComment("");
+    }
+    setRatingLoading(false);
+  };
+
+
     return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>);
   }
   if (!contract) {
