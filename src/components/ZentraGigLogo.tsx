@@ -23,7 +23,7 @@ export function ZentraGigLogo({ size = "md", showText = true, className = "", te
       </span>
       {showText && (
         <span className={`${s.text} font-bold`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-          <span className="text-foreground">Zentra</span>
+          <span className={textClassName || "text-foreground"}>Zentra</span>
           <span className="text-primary">Gig</span>
         </span>
       )}
