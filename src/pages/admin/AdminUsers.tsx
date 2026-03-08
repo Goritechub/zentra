@@ -140,7 +140,9 @@ export default function AdminUsers() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="capitalize">{u.role === "freelancer" ? "Expert" : u.role}</Badge>
+                  <Badge variant={u.display_role === "superadmin" ? "default" : "outline"} className={u.display_role === "superadmin" ? "bg-primary text-primary-foreground" : "capitalize"}>
+                    {getDisplayRole(u.display_role)}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   {u.is_verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : <span className="text-xs text-muted-foreground">No</span>}
