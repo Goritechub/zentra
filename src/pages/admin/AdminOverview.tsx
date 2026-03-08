@@ -69,6 +69,7 @@ export default function AdminOverview() {
     { label: "Clients", value: stats!.totalClients, icon: UserCheck, color: "text-blue-500", route: "/admin/users" },
     { label: "Experts", value: stats!.totalExperts, icon: Users, color: "text-emerald-500", route: "/admin/users" },
     { label: "Active Jobs", value: stats!.activeJobs, icon: Briefcase, color: "text-amber-500", route: "/admin/jobs" },
+    { label: "Active Contests", value: stats!.activeContests, icon: Trophy, color: "text-orange-500", route: "/admin/contests" },
     { label: "Active Contracts", value: stats!.activeContracts, icon: FileText, color: "text-purple-500", route: "/admin/contracts" },
     { label: "Escrow Held", value: formatNaira(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
     { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-indigo-500", route: "/admin/payments" },
