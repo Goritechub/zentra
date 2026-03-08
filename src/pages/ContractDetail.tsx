@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -592,30 +592,31 @@ export default function ContractDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {disputes.map((d: any) => (
-                      <div key={d.id} className="border border-border rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant={d.status === "open" ? "destructive" : "secondary"}>{d.status}</Badge>
-                          <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{d.reason}</p>
-                        {d.evidence_urls?.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {d.evidence_urls.map((url: string, i: number) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                                <FileText className="h-3 w-3" /> Evidence {i+1}
-                              </a>
-                            ))}
+                    {disputes.map((d: any) => {
+                      const dStatus = d.dispute_status || (d.status === "open" ? "awaiting_response" : "resolved");
+                      const statusLabel = dStatus === "awaiting_response" ? "Awaiting Response" :
+                        dStatus === "under_review" ? "Under Review" : "Resolved";
+                      const statusVariant = dStatus === "awaiting_response" ? "destructive" as const :
+                        dStatus === "under_review" ? "secondary" as const : "default" as const;
+                      return (
+                        <Link key={d.id} to={`/dispute/${d.id}`} className="block border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant={statusVariant}>{statusLabel}</Badge>
+                            <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
                           </div>
-                        )}
-                        {d.admin_notes && (
-                          <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Admin Notes</p>
-                            <p className="text-sm">{d.admin_notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-2">{d.reason}</p>
+                          {d.evidence_urls?.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">{d.evidence_urls.length} evidence file(s)</p>
+                          )}
+                          {d.resolution_explanation && (
+                            <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Adjudicator Decision</p>
+                              <p className="text-sm line-clamp-2">{d.resolution_explanation}</p>
+                            </div>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

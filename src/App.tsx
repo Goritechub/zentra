@@ -31,6 +31,7 @@ import ExpertProposals from "./pages/ExpertProposals";
 import ContestEntries from "./pages/ContestEntries";
 import AdminDashboard from "./pages/AdminDashboard";
 import ContractDetail from "./pages/ContractDetail";
+import DisputeDetail from "./pages/DisputeDetail";
 import ExpertProfile from "./pages/ExpertProfile";
 import ApplyJob from "./pages/ApplyJob";
 import Contact from "./pages/Contact";
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/dashboard/offers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard></AuthGuard>} />
             <Route path="/dashboard/contracts" element={<AuthGuard><ContractsPage /></AuthGuard>} />
             <Route path="/contract/:id" element={<AuthGuard><ContractDetail /></AuthGuard>} />
+            <Route path="/dispute/:disputeId" element={<AuthGuard><DisputeDetail /></AuthGuard>} />
             <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
             <Route path="/my-profile" element={<AuthGuard><MyProfile /></AuthGuard>} />
             <Route path="/post-job" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard></AuthGuard>} />

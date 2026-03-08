@@ -612,41 +612,77 @@ export type Database = {
       }
       disputes: {
         Row: {
+          adjudicator_assigned_at: string | null
+          adjudicator_id: string | null
           admin_notes: string | null
           contract_id: string
           created_at: string
+          dispute_status: string
           evidence_urls: string[] | null
           id: string
           milestone_id: string | null
           raised_by: string
           reason: string
+          resolution_explanation: string | null
+          resolution_split_client: number | null
+          resolution_split_freelancer: number | null
+          resolution_type: string | null
           resolved_at: string | null
+          resolved_by: string | null
+          respondent_evidence_urls: string[] | null
+          respondent_explanation: string | null
+          respondent_id: string | null
+          response_deadline: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          adjudicator_assigned_at?: string | null
+          adjudicator_id?: string | null
           admin_notes?: string | null
           contract_id: string
           created_at?: string
+          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           milestone_id?: string | null
           raised_by: string
           reason: string
+          resolution_explanation?: string | null
+          resolution_split_client?: number | null
+          resolution_split_freelancer?: number | null
+          resolution_type?: string | null
           resolved_at?: string | null
+          resolved_by?: string | null
+          respondent_evidence_urls?: string[] | null
+          respondent_explanation?: string | null
+          respondent_id?: string | null
+          response_deadline?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          adjudicator_assigned_at?: string | null
+          adjudicator_id?: string | null
           admin_notes?: string | null
           contract_id?: string
           created_at?: string
+          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           milestone_id?: string | null
           raised_by?: string
           reason?: string
+          resolution_explanation?: string | null
+          resolution_split_client?: number | null
+          resolution_split_freelancer?: number | null
+          resolution_type?: string | null
           resolved_at?: string | null
+          resolved_by?: string | null
+          respondent_evidence_urls?: string[] | null
+          respondent_explanation?: string | null
+          respondent_id?: string | null
+          response_deadline?: string | null
           status?: string
           updated_at?: string
         }

@@ -51,7 +51,7 @@ serve(async (req) => {
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
     const body = await req.json();
-    const { action, milestone_id, contract_id, reason, evidence_urls, submission_notes, submission_attachments } = body;
+    const { action, milestone_id, contract_id, reason, evidence_urls, submission_notes, submission_attachments, dispute_id, resolution_type, resolution_explanation, split_client, split_freelancer } = body;
 
     // ── FUND MILESTONE ──
     if (action === "fund_milestone") {
@@ -347,28 +347,199 @@ serve(async (req) => {
         await supabase.from("milestones").update({ status: "disputed" }).eq("id", milestone_id);
       }
 
+      const respondent = contract.client_id === user.id ? contract.freelancer_id : contract.client_id;
+      const responseDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
       const { data: dispute } = await supabase.from("disputes").insert({
         contract_id,
         milestone_id: milestone_id || null,
         raised_by: user.id,
+        respondent_id: respondent,
         reason,
         evidence_urls: evidence_urls || [],
+        dispute_status: "awaiting_response",
+        response_deadline: responseDeadline,
       }).select().single();
 
-      // Notify the other party
-      const otherParty = contract.client_id === user.id ? contract.freelancer_id : contract.client_id;
-      await notify(supabase, otherParty, "dispute_opened",
-        "Dispute Raised", `A dispute has been raised on the contract. Reason: ${reason.substring(0, 100)}...`, contract_id);
+      await notify(supabase, respondent, "dispute_opened",
+        "Dispute Raised — Response Required",
+        `A dispute has been raised. You have 48 hours to respond with your explanation and evidence. Reason: ${reason.substring(0, 100)}...`,
+        contract_id);
 
-      // System message
       await supabase.from("contract_messages").insert({
         contract_id,
         sender_id: user.id,
-        content: `⚠️ Dispute raised. Funds are frozen until resolved. Reason: ${reason}`,
+        content: `⚠️ Dispute raised. Funds are frozen until resolved. The other party has 48 hours to respond. Reason: ${reason}`,
         is_system_message: true,
       });
 
       return jsonResponse({ success: true, dispute });
+    }
+
+    // ── RESOLVE DISPUTE (Admin/Adjudicator) ──
+    if (action === "resolve_dispute") {
+      if (!dispute_id || !contract_id || !resolution_type || !resolution_explanation)
+        return jsonResponse({ error: "Missing required fields" }, 400);
+
+      // Verify admin role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!roleData)
+        return jsonResponse({ error: "Only adjudicators can resolve disputes" }, 403);
+
+      const { data: contract } = await supabase.from("contracts").select("*").eq("id", contract_id).single();
+      if (!contract) return jsonResponse({ error: "Contract not found" }, 404);
+
+      // Get held escrow
+      const { data: heldEntries } = await supabase.from("escrow_ledger")
+        .select("*").eq("contract_id", contract_id).eq("status", "held");
+      const totalHeld = (heldEntries || []).reduce((s: number, e: any) => s + e.held_amount, 0);
+
+      if (totalHeld <= 0)
+        return jsonResponse({ error: "No escrow funds to distribute" }, 400);
+
+      const commissionRate = getCommissionRate(totalHeld);
+      const now = new Date().toISOString();
+
+      if (resolution_type === "release_to_freelancer") {
+        const platformFee = Math.round(totalHeld * commissionRate);
+        const expertAmount = totalHeld - platformFee;
+
+        // Release from client escrow
+        const { data: clientWallet } = await supabase.from("wallets").select("*").eq("user_id", contract.client_id).single();
+        if (clientWallet) {
+          await supabase.from("wallets").update({
+            escrow_balance: Math.max(0, clientWallet.escrow_balance - totalHeld),
+          }).eq("user_id", contract.client_id);
+        }
+
+        // Credit freelancer
+        const { data: flWallet } = await supabase.from("wallets").select("*").eq("user_id", contract.freelancer_id).maybeSingle();
+        if (flWallet) {
+          await supabase.from("wallets").update({
+            balance: flWallet.balance + expertAmount,
+            total_earned: flWallet.total_earned + expertAmount,
+          }).eq("user_id", contract.freelancer_id);
+        } else {
+          await supabase.from("wallets").insert({
+            user_id: contract.freelancer_id, balance: expertAmount, total_earned: expertAmount,
+          });
+        }
+
+        // Update escrow ledger entries
+        for (const entry of (heldEntries || [])) {
+          await supabase.from("escrow_ledger").update({
+            released_amount: entry.held_amount, platform_fee: Math.round(entry.held_amount * commissionRate),
+            expert_amount: entry.held_amount - Math.round(entry.held_amount * commissionRate),
+            status: "released", updated_at: now,
+          }).eq("id", entry.id);
+        }
+
+        await supabase.from("platform_revenue").insert({
+          contract_id, gross_amount: totalHeld, commission_rate: commissionRate,
+          commission_amount: platformFee, net_to_freelancer: expertAmount,
+        });
+
+      } else if (resolution_type === "refund_client") {
+        // Refund client
+        const { data: clientWallet } = await supabase.from("wallets").select("*").eq("user_id", contract.client_id).single();
+        if (clientWallet) {
+          await supabase.from("wallets").update({
+            balance: clientWallet.balance + totalHeld,
+            escrow_balance: Math.max(0, clientWallet.escrow_balance - totalHeld),
+          }).eq("user_id", contract.client_id);
+        }
+
+        for (const entry of (heldEntries || [])) {
+          await supabase.from("escrow_ledger").update({
+            released_amount: entry.held_amount, status: "refunded", updated_at: now,
+          }).eq("id", entry.id);
+        }
+
+      } else if (resolution_type === "partial_split") {
+        const clientAmount = split_client || 0;
+        const freelancerGross = split_freelancer || 0;
+        const platformFee = Math.round(freelancerGross * commissionRate);
+        const expertNet = freelancerGross - platformFee;
+
+        // Refund client portion
+        const { data: clientWallet } = await supabase.from("wallets").select("*").eq("user_id", contract.client_id).single();
+        if (clientWallet) {
+          await supabase.from("wallets").update({
+            balance: clientWallet.balance + clientAmount,
+            escrow_balance: Math.max(0, clientWallet.escrow_balance - totalHeld),
+          }).eq("user_id", contract.client_id);
+        }
+
+        // Pay freelancer portion
+        const { data: flWallet } = await supabase.from("wallets").select("*").eq("user_id", contract.freelancer_id).maybeSingle();
+        if (flWallet) {
+          await supabase.from("wallets").update({
+            balance: flWallet.balance + expertNet,
+            total_earned: flWallet.total_earned + expertNet,
+          }).eq("user_id", contract.freelancer_id);
+        } else {
+          await supabase.from("wallets").insert({
+            user_id: contract.freelancer_id, balance: expertNet, total_earned: expertNet,
+          });
+        }
+
+        for (const entry of (heldEntries || [])) {
+          await supabase.from("escrow_ledger").update({
+            released_amount: entry.held_amount, status: "released", updated_at: now,
+          }).eq("id", entry.id);
+        }
+
+        if (freelancerGross > 0) {
+          await supabase.from("platform_revenue").insert({
+            contract_id, gross_amount: freelancerGross, commission_rate: commissionRate,
+            commission_amount: platformFee, net_to_freelancer: expertNet,
+          });
+        }
+      }
+
+      // Update dispute
+      await supabase.from("disputes").update({
+        dispute_status: "resolved",
+        status: `resolved_${resolution_type}`,
+        resolution_type,
+        resolution_explanation,
+        resolution_split_client: split_client || 0,
+        resolution_split_freelancer: split_freelancer || 0,
+        adjudicator_id: user.id,
+        resolved_by: user.id,
+        resolved_at: now,
+        updated_at: now,
+      }).eq("id", dispute_id);
+
+      // Update contract status
+      await supabase.from("contracts").update({ status: "completed", completed_at: now }).eq("id", contract_id);
+
+      // Reset disputed milestones
+      await supabase.from("milestones").update({ status: "approved" })
+        .eq("contract_id", contract_id).eq("status", "disputed");
+
+      // Notify both parties
+      const resLabel = resolution_type === "release_to_freelancer" ? "Funds released to expert" :
+        resolution_type === "refund_client" ? "Funds refunded to client" : "Funds split between parties";
+
+      await notify(supabase, contract.client_id, "dispute_resolved",
+        "Dispute Resolved", `Decision: ${resLabel}. ${resolution_explanation.substring(0, 150)}`, contract_id);
+      await notify(supabase, contract.freelancer_id, "dispute_resolved",
+        "Dispute Resolved", `Decision: ${resLabel}. ${resolution_explanation.substring(0, 150)}`, contract_id);
+
+      await supabase.from("contract_messages").insert({
+        contract_id, sender_id: user.id,
+        content: `⚖️ Dispute resolved by ZentraGig adjudicator. Decision: ${resLabel}.`,
+        is_system_message: true,
+      });
+
+      return jsonResponse({ success: true });
     }
 
     // ── REJECT MILESTONE ──
