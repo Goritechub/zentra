@@ -73,9 +73,18 @@ export default function AdminUsers() {
     });
   };
 
+  const getDisplayRole = (role: string) => {
+    switch (role) {
+      case "superadmin": return "Super Admin";
+      case "admin": return "Admin";
+      case "freelancer": return "Expert";
+      default: return "Client";
+    }
+  };
+
   const filtered = users.filter(u => {
     const matchSearch = !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase());
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
+    const matchRole = roleFilter === "all" || u.display_role === roleFilter;
     return matchSearch && matchRole;
   });
 
