@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones } from
 "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +23,7 @@ const allNavItems = [
 { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
 { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
 { label: "Verification", icon: ShieldCheck, path: "/admin/verification", permission: "users" },
+{ label: "Support", icon: Headphones, path: "/admin/support", permission: "platform_settings" },
 { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
 { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" }];
 

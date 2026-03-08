@@ -56,6 +56,9 @@ import AdminActivity from "./pages/admin/AdminActivity";
 import AdminContests from "./pages/admin/AdminContests";
 import AdminManagement from "./pages/admin/AdminManagement";
 import AdminVerification from "./pages/admin/AdminVerification";
+import AdminSupport from "./pages/admin/AdminSupport";
+
+import { FloatingSupport } from "./components/support/FloatingSupport";
 
 const queryClient = new QueryClient();
 
@@ -125,10 +128,12 @@ const App = () => (
               <Route path="activity" element={<AdminActivity />} />
               <Route path="management" element={<AdminManagement />} />
               <Route path="verification" element={<AdminVerification />} />
+              <Route path="support" element={<AdminSupport />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <FloatingSupport />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
