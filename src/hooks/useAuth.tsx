@@ -123,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    window.location.href = "/auth";
   };
 
   const refreshProfile = async () => {
