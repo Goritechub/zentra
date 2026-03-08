@@ -11,7 +11,7 @@ export default function AdminDisputes() {
   const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("open");
 
   useEffect(() => { fetchDisputes(); }, []);
 
