@@ -32,7 +32,7 @@ export function computeFundingStatus(
 const STATUS_MAP: Record<FundingStatus, { variant: "default" | "destructive" | "outline" | "secondary"; icon: typeof DollarSign; label: string; emoji: string }> = {
   escrow_funded: { variant: "default", icon: ShieldCheck, label: "Escrow Funded", emoji: "🔒" },
   payment_ready: { variant: "default", icon: DollarSign, label: "Payment Ready", emoji: "💰" },
-  funding_needed: { variant: "destructive", icon: AlertTriangle, label: "Funding Needed", emoji: "⚠" },
+  funding_needed: { variant: "destructive", icon: AlertTriangle, label: "Payment Not Ready", emoji: "⚠" },
   negotiable: { variant: "outline", icon: DollarSign, label: "Budget Negotiable", emoji: "💬" },
 };
 
