@@ -13,7 +13,7 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="inline-block">
-              <ZentraGigLogo size="md" />
+              <ZentraGigLogo size="md" textClassName="text-white" />
             </Link>
             <p className="text-sm text-background/70">
               Nigeria's premier marketplace for engineering projects and technical work. Connect with verified 

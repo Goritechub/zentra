@@ -4,6 +4,7 @@ interface ZentraGigLogoProps {
   size?: "sm" | "md" | "lg";
   showText?: boolean;
   className?: string;
+  textClassName?: string;
 }
 
 const sizeMap = {
@@ -12,7 +13,7 @@ const sizeMap = {
   lg: { circle: "h-12 w-12", icon: "h-14 w-14", text: "text-2xl" },
 };
 
-export function ZentraGigLogo({ size = "md", showText = true, className = "" }: ZentraGigLogoProps) {
+export function ZentraGigLogo({ size = "md", showText = true, className = "", textClassName }: ZentraGigLogoProps) {
   const s = sizeMap[size];
 
   return (
@@ -22,7 +23,7 @@ export function ZentraGigLogo({ size = "md", showText = true, className = "" }: 
       </span>
       {showText && (
         <span className={`${s.text} font-bold`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-          <span className="text-foreground">Zentra</span>
+          <span className={textClassName || "text-foreground"}>Zentra</span>
           <span className="text-primary">Gig</span>
         </span>
       )}
