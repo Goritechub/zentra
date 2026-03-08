@@ -81,6 +81,24 @@ export default function ContractDetail() {
   const submissionFileRef = useRef<HTMLInputElement>(null);
   const disputeFileRef = useRef<HTMLInputElement>(null);
 
+  // Rating state
+  const [showRateDialog, setShowRateDialog] = useState(false);
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
+  const [categoryHovers, setCategoryHovers] = useState<Record<string, number>>({});
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [canRate, setCanRate] = useState(false);
+
+  const RATING_CATEGORIES = [
+    { key: "rating_skills", label: "Skills" },
+    { key: "rating_quality", label: "Work Quality" },
+    { key: "rating_availability", label: "Availability" },
+    { key: "rating_deadlines", label: "Meet Deadlines" },
+    { key: "rating_communication", label: "Communication" },
+    { key: "rating_cooperation", label: "Cooperation" },
+  ] as const;
+
   useEffect(() => { if (id) fetchData(); }, [id]);
 
   const fetchData = async () => {
