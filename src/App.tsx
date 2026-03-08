@@ -57,6 +57,7 @@ import AdminContests from "./pages/admin/AdminContests";
 import AdminManagement from "./pages/admin/AdminManagement";
 import AdminVerification from "./pages/admin/AdminVerification";
 import AdminSupport from "./pages/admin/AdminSupport";
+import AdminPlatformReviews from "./pages/admin/AdminPlatformReviews";
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
