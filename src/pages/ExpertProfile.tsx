@@ -361,44 +361,15 @@ export default function ExpertProfile() {
                     <MapPin className="h-3.5 w-3.5" />
                     {profile.city && `${profile.city}, `}{profile.state || "Nigeria"}
                   </div>
-                  {profile.is_verified && (
-                    <Badge className="mt-3 bg-primary/10 text-primary border-primary/20">
-                      <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
-                    </Badge>
+                  {(kycVerified || profile.is_verified) && (
+                    <div className="mt-3">
+                      <VerificationBadges isVerified={kycVerified || profile.is_verified} isZentraVerified={isZentraVerified} />
+                    </div>
                   )}
 
                   <div className="mt-3 flex justify-center">
                     <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </div>
-
-                  {/* Verification badge request - owner only */}
-                  {isOwner && !profile.is_verified && (
-                    <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border text-left">
-                      {verificationStatus === null && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-2">Get a verification badge to build trust.</p>
-                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
-                            {requestingVerification ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
-                            Request Verification
-                          </Button>
-                        </div>
-                      )}
-                      {verificationStatus === "pending" && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4 text-accent" />
-                          <span>Verification pending review</span>
-                        </div>
-                      )}
-                      {verificationStatus === "rejected" && (
-                        <div>
-                          <p className="text-xs text-destructive mb-1">Verification request was not approved.</p>
-                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
-                            <ShieldCheck className="h-3 w-3 mr-1" /> Request Again
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {user && user.id === id && (
                     <Button className="w-full mt-4" variant="outline" onClick={() => navigate("/my-profile")}>
