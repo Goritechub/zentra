@@ -11,10 +11,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
