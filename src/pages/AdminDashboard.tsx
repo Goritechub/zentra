@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { DisputeAdjudicator } from "@/components/admin/DisputeAdjudicator";
 import {
-  ArrowLeft, Loader2, ShieldAlert, UserX, Eye, Flag, Users, AlertTriangle
+  ArrowLeft, Loader2, ShieldAlert, UserX, Eye, Flag, Users, AlertTriangle, Gavel
 } from "lucide-react";
 
 export default function AdminDashboard() {
