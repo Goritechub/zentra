@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { MapPin, Mail, Phone, MessageCircle } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
+import { useSupportSettings } from "@/hooks/useSupportSettings";
 
 export function Footer() {
+  const { settings, loading } = useSupportSettings();
+
   return (
     <footer className="bg-foreground text-background">
       <div className="container-wide section-padding">
@@ -50,17 +53,26 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-background/70">
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:hello@zentragig.com" className="hover:text-primary transition-colors">hello@zentragig.com</a>
+                <a href={`mailto:${settings.support_email}`} className="hover:text-primary transition-colors">
+                  {loading ? "..." : settings.support_email}
+                </a>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-4 w-4 text-primary" />
-                <a href="tel:+2348012345678" className="hover:text-primary transition-colors">+234 801 234 5678</a>
+                <a href={`tel:${settings.support_phone.replace(/\s/g, "")}`} className="hover:text-primary transition-colors">
+                  {loading ? "..." : settings.support_phone}
+                </a>
               </li>
               <li className="flex items-center gap-3">
                 <MessageCircle className="h-4 w-4 text-primary" />
-                <a href="https://wa.me/2348012345678" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">WhatsApp Support</a>
+                <a href={`https://wa.me/${settings.support_whatsapp.replace(/[\s+]/g, "")}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                  WhatsApp Support
+                </a>
               </li>
             </ul>
+            <Link to="/contact" className="inline-block text-sm text-primary hover:underline mt-2">
+              Contact Support →
+            </Link>
           </div>
         </div>
 
