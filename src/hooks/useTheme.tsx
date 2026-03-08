@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type ColorTheme = "green" | "purple" | "black" | "silverblue" | "rose";
 
@@ -96,6 +97,11 @@ function applyTheme(theme: ColorTheme) {
   root.style.setProperty("--gradient-hero", config.gradientHero);
 }
 
+const validThemes: ColorTheme[] = ["green", "purple", "black", "silverblue", "rose"];
+function isValidTheme(v: string | null | undefined): v is ColorTheme {
+  return !!v && validThemes.includes(v as ColorTheme);
+}
+
 interface ThemeContextType {
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
@@ -109,20 +115,47 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    const theme = (saved as ColorTheme) || "green";
-    // Apply immediately to avoid flash of default theme on reload
+    const theme = isValidTheme(saved) ? saved : "green";
     applyTheme(theme);
     return theme;
   });
 
+  // On auth state change (login), load theme from DB
   useEffect(() => {
-    applyTheme(colorTheme);
-  }, [colorTheme]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("theme_preference")
+          .eq("id", session.user.id)
+          .maybeSingle();
 
-  const setColorTheme = (theme: ColorTheme) => {
+        const dbTheme = data?.theme_preference;
+        if (isValidTheme(dbTheme) && dbTheme !== colorTheme) {
+          localStorage.setItem(THEME_STORAGE_KEY, dbTheme);
+          setColorThemeState(dbTheme);
+          applyTheme(dbTheme);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // intentionally no colorTheme dep to avoid re-subscribing
+
+  const setColorTheme = useCallback(async (theme: ColorTheme) => {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     setColorThemeState(theme);
-  };
+    applyTheme(theme);
+
+    // Persist to DB if logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase
+        .from("profiles")
+        .update({ theme_preference: theme } as any)
+        .eq("id", session.user.id);
+    }
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ colorTheme, setColorTheme }}>
