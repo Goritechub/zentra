@@ -24,7 +24,7 @@ const clientSteps = [
 const benefits = [
   { icon: Star, title: "Verified Nigerian Experts", description: "All freelancers are verified professionals with real portfolios and reviews." },
   { icon: Trophy, title: "Contest Mode", description: "Launch design contests to receive multiple submissions and pick the best one." },
-  { icon: Upload, title: "Portfolio Showcase", description: "Freelancers showcase their best CAD work with detailed project galleries." },
+  { icon: Upload, title: "Portfolio Showcase", description: "Freelancers showcase their best engineering work with detailed project galleries." },
   { icon: Briefcase, title: "Escrow Protection", description: "Funds are held securely until you approve the work. No risk for either party." },
 ];
 
