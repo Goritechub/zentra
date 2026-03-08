@@ -53,6 +53,7 @@ import AdminDisputes from "./pages/admin/AdminDisputes";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminContests from "./pages/admin/AdminContests";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,7 @@ const App = () => (
               <Route index element={<AdminOverview />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="jobs" element={<AdminJobs />} />
+              <Route path="contests" element={<AdminContests />} />
               <Route path="contracts" element={<AdminContracts />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="disputes" element={<AdminDisputes />} />

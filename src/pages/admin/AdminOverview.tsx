@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight } from "lucide-react";
+import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Stats {
@@ -10,6 +10,7 @@ interface Stats {
   totalClients: number;
   totalExperts: number;
   activeJobs: number;
+  activeContests: number;
   activeContracts: number;
   totalEscrow: number;
   totalTransactions: number;
@@ -28,13 +29,14 @@ export default function AdminOverview() {
 
   const fetchStats = async () => {
     const [
-      profilesRes, clientsRes, expertsRes, jobsRes, contractsRes,
+      profilesRes, clientsRes, expertsRes, jobsRes, contestsRes, contractsRes,
       walletsRes, txRes, disputesRes, revenueRes
     ] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "client"),
       supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "freelancer"),
       supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "open"),
+      supabase.from("contests").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("contracts").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("wallets").select("escrow_balance"),
       supabase.from("wallet_transactions").select("id", { count: "exact", head: true }),
@@ -50,6 +52,7 @@ export default function AdminOverview() {
       totalClients: clientsRes.count || 0,
       totalExperts: expertsRes.count || 0,
       activeJobs: jobsRes.count || 0,
+      activeContests: contestsRes.count || 0,
       activeContracts: contractsRes.count || 0,
       totalEscrow,
       totalTransactions: txRes.count || 0,
@@ -66,6 +69,7 @@ export default function AdminOverview() {
     { label: "Clients", value: stats!.totalClients, icon: UserCheck, color: "text-blue-500", route: "/admin/users" },
     { label: "Experts", value: stats!.totalExperts, icon: Users, color: "text-emerald-500", route: "/admin/users" },
     { label: "Active Jobs", value: stats!.activeJobs, icon: Briefcase, color: "text-amber-500", route: "/admin/jobs" },
+    { label: "Active Contests", value: stats!.activeContests, icon: Trophy, color: "text-orange-500", route: "/admin/contests" },
     { label: "Active Contracts", value: stats!.activeContracts, icon: FileText, color: "text-purple-500", route: "/admin/contracts" },
     { label: "Escrow Held", value: formatNaira(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
     { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-indigo-500", route: "/admin/payments" },
