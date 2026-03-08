@@ -1796,6 +1796,7 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           state: string | null
+          theme_preference: string | null
           updated_at: string | null
           username: string | null
           whatsapp: string | null
@@ -1812,6 +1813,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
+          theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
           whatsapp?: string | null
@@ -1828,6 +1830,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
+          theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
           whatsapp?: string | null
