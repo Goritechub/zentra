@@ -170,11 +170,7 @@ export default function ExpertProfile() {
         setPortfolio(pData || []);
       }
 
-      // Verification status
-      if (user?.id === id) {
-        const { data: vr } = await supabase.from("verification_requests").select("status").eq("user_id", id).maybeSingle();
-        setVerificationStatus(vr?.status || null);
-      }
+      // No longer using old verification_requests
 
       const { data: contractsData, count: completedCount } = await supabase
         .from("contracts")
