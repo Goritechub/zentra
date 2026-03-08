@@ -163,11 +163,24 @@ export default function AuthPage() {
       const redirect = searchParams.get("redirect");
       if (redirect) {
         navigate(redirect);
-      } else if (profile.role === "freelancer") {
-        navigate("/jobs");
-      } else {
-        navigate("/dashboard");
+        return;
       }
+      // Check if user is admin via user_roles table
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle()
+        .then(({ data: roleData }) => {
+          if (roleData) {
+            navigate("/admin");
+          } else if (profile.role === "freelancer") {
+            navigate("/jobs");
+          } else {
+            navigate("/dashboard");
+          }
+        });
     }
   }, [user, authLoading, profile, navigate, searchParams]);
 

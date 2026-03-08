@@ -26,7 +26,22 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
-    if (user) fetchStats();
+    if (user) {
+      // Check if admin and redirect
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle()
+        .then(({ data: roleData }) => {
+          if (roleData) {
+            navigate("/admin", { replace: true });
+          } else {
+            fetchStats();
+          }
+        });
+    }
   }, [user, loading, navigate]);
 
   const fetchStats = async () => {
