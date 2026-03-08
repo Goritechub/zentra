@@ -540,9 +540,12 @@ serve(async (req) => {
       }
 
       // Update dispute
+      const disputeStatus = resolution_type === "release_to_freelancer" ? "resolved_freelancer" 
+        : resolution_type === "refund_client" ? "resolved_client" 
+        : "closed";
       await supabase.from("disputes").update({
         dispute_status: "resolved",
-        status: `resolved_${resolution_type}`,
+        status: disputeStatus,
         resolution_type,
         resolution_explanation,
         resolution_split_client: split_client || 0,
