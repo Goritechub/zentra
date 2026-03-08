@@ -173,7 +173,11 @@ export default function AdminLayout() {
         {/* Footer */}
         <div className="p-2 border-t border-sidebar-border space-y-1">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={async () => {
+              await supabase.auth.signOut();
+              toast.success("Logged out successfully");
+              navigate("/auth");
+            }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
             
             <LogOut className="h-5 w-5 shrink-0" />
