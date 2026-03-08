@@ -234,48 +234,6 @@ export default function ExpertProfile() {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const handleSubmitRating = async () => {
-    const allCategoriesFilled = RATING_CATEGORIES.every(c => categoryRatings[c.key] && categoryRatings[c.key] > 0);
-    if (!allCategoriesFilled || !completedContract || !user) {
-      toast.error("Please rate all categories");
-      return;
-    }
-    setRatingLoading(true);
-    const overallRating = Math.round(
-      RATING_CATEGORIES.reduce((sum, c) => sum + (categoryRatings[c.key] || 0), 0) / RATING_CATEGORIES.length * 10
-    ) / 10;
-
-    const { error } = await supabase.from("reviews").insert({
-      contract_id: completedContract.id,
-      reviewer_id: user.id,
-      reviewee_id: id!,
-      rating: Math.round(overallRating),
-      comment: ratingComment.trim() || null,
-      rating_skills: categoryRatings.rating_skills,
-      rating_quality: categoryRatings.rating_quality,
-      rating_availability: categoryRatings.rating_availability,
-      rating_deadlines: categoryRatings.rating_deadlines,
-      rating_communication: categoryRatings.rating_communication,
-      rating_cooperation: categoryRatings.rating_cooperation,
-    } as any);
-    if (error) {
-      toast.error("Failed to submit rating");
-    } else {
-      const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", id!);
-      if (allReviews && allReviews.length > 0) {
-        const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
-        if (freelancerProfile?.id) {
-          await supabase.from("freelancer_profiles").update({ rating: Math.round(avg * 10) / 10 }).eq("id", freelancerProfile.id);
-        }
-      }
-      toast.success("Review submitted! Thank you.");
-      setShowRateDialog(false);
-      setCompletedContract(null);
-      setCategoryRatings({});
-      setRatingComment("");
-    }
-    setRatingLoading(false);
-  };
 
   const handleRequestVerification = async () => {
     if (!user || !id) return;
