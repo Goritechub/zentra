@@ -59,8 +59,35 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
   const totalHeld = escrowLedger.filter(e => e.status === "held").reduce((s, e) => s + e.held_amount, 0);
 
   const handleResolve = async () => {
-    if (!resolutionType || !resolutionExplanation.trim()) {
-      toast.error("Please select an outcome and provide explanation"); return;
+    if (!resolutionExplanation.trim()) {
+      toast.error("Please provide an explanation"); return;
+    }
+
+    // If no escrow, just close the dispute directly in DB
+    if (totalHeld <= 0) {
+      setActionLoading(true);
+      const { error } = await supabase.from("disputes").update({
+        dispute_status: "resolved",
+        status: "resolved",
+        resolution_type: "no_funds",
+        resolution_explanation: resolutionExplanation.trim(),
+        resolved_at: new Date().toISOString(),
+        resolved_by: user?.id,
+      }).eq("id", dispute.id);
+
+      if (error) {
+        toast.error("Failed to close dispute");
+      } else {
+        toast.success("Dispute closed successfully");
+        setShowResolve(false);
+        onResolved();
+      }
+      setActionLoading(false);
+      return;
+    }
+
+    if (!resolutionType) {
+      toast.error("Please select an outcome"); return;
     }
     if (resolutionType === "partial_split") {
       const cAmt = parseInt(splitClient) || 0;
@@ -239,9 +266,15 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
 
       {/* Action Buttons */}
       {dispute.dispute_status !== "resolved" && (
-        <div className="flex justify-end">
-          <Button onClick={() => setShowResolve(true)}>
-            <Gavel className="h-4 w-4 mr-2" /> Render Decision
+        <div className="flex items-center justify-between">
+          {totalHeld <= 0 && (
+            <p className="text-sm text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" />
+              No escrow funds held — funds were already released or contract completed.
+            </p>
+          )}
+          <Button onClick={() => setShowResolve(true)} className="ml-auto">
+            <Gavel className="h-4 w-4 mr-2" /> {totalHeld > 0 ? "Render Decision" : "Close Dispute"}
           </Button>
         </div>
       )}
@@ -250,35 +283,37 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       <Dialog open={showResolve} onOpenChange={setShowResolve}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> Render Dispute Decision</DialogTitle>
-            <DialogDescription>Choose an outcome for this dispute. Escrow: {formatNaira(totalHeld)}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> {totalHeld > 0 ? "Render Dispute Decision" : "Close Dispute"}</DialogTitle>
+            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Escrow: ${formatNaira(totalHeld)}` : "No escrow funds to distribute. Provide a closing note."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Outcome *</Label>
-              <div className="grid grid-cols-1 gap-2">
-                {[
-                  { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
-                  { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
-                  { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split escrow between both parties" },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setResolutionType(opt.value)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
-                      resolutionType === opt.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <opt.icon className={`h-4 w-4 ${resolutionType === opt.value ? "text-primary" : "text-muted-foreground"}`} />
-                    <div>
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                    </div>
-                  </button>
-                ))}
+            {totalHeld > 0 && (
+              <div className="space-y-2">
+                <Label>Outcome *</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
+                    { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
+                    { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split escrow between both parties" },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setResolutionType(opt.value)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                        resolutionType === opt.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <opt.icon className={`h-4 w-4 ${resolutionType === opt.value ? "text-primary" : "text-muted-foreground"}`} />
+                      <div>
+                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {resolutionType === "partial_split" && (
               <div className="grid grid-cols-2 gap-3">
