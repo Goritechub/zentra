@@ -35,8 +35,8 @@ export function Header() {
   const profileLoaded = !!profile;
 
   const handleSignOut = async () => {
+    setMobileMenuOpen(false);
     await signOut();
-    navigate("/");
   };
 
   const getInitials = (name: string | null) => {
