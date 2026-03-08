@@ -51,7 +51,8 @@ export default function BrowseServicesPage() {
     if (categoryFilter && categoryFilter !== "all" && svc.category !== categoryFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return svc.title.toLowerCase().includes(q) || svc.description?.toLowerCase().includes(q) || svc.skills?.some((s: string) => s.toLowerCase().includes(q));
+      const nameMatch = (svc.freelancer as any)?.full_name?.toLowerCase().includes(q) || (svc.freelancer as any)?.username?.toLowerCase().includes(q);
+      return nameMatch || svc.title.toLowerCase().includes(q) || svc.description?.toLowerCase().includes(q) || svc.skills?.some((s: string) => s.toLowerCase().includes(q));
     }
     return true;
   });
@@ -84,7 +85,7 @@ export default function BrowseServicesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search services..."
+                placeholder="Search by name, skill, or keyword..."
                 className="pl-10"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
