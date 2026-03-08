@@ -40,8 +40,8 @@ export function HeroSection() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up animation-delay-200">
               <Button size="xl" variant="hero" asChild>
                 <Link to="/freelancers">
-                  <Search className="h-5 w-5 mr-2" />
-                  Find CAD Experts
+                   <Search className="h-5 w-5 mr-2" />
+                   Find Engineers
                 </Link>
               </Button>
               <Button size="xl" variant="heroOutline" asChild>
