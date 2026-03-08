@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getNotificationUrl } from "@/lib/notifications";
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
@@ -52,7 +53,8 @@ export default function NotificationsPage() {
                   key={n.id}
                   onClick={() => {
                     if (!n.is_read) markAsRead(n.id);
-                    if (n.contract_id) navigate(`/contract/${n.contract_id}`);
+                    const url = getNotificationUrl(n);
+                    if (url) navigate(url);
                   }}
                   className={cn(
                     "w-full text-left bg-card rounded-xl border border-border p-4 hover:border-primary transition-colors",
