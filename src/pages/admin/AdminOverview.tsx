@@ -52,6 +52,7 @@ export default function AdminOverview() {
       totalClients: clientsRes.count || 0,
       totalExperts: expertsRes.count || 0,
       activeJobs: jobsRes.count || 0,
+      activeContests: contestsRes.count || 0,
       activeContracts: contractsRes.count || 0,
       totalEscrow,
       totalTransactions: txRes.count || 0,
