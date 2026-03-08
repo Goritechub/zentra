@@ -16,6 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
@@ -55,6 +57,8 @@ export default function JobDetailsPage() {
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
   const [jobAssigned, setJobAssigned] = useState(false);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
@@ -290,6 +294,13 @@ export default function JobDetailsPage() {
   const handleAcceptAndAssign = async () => {
     const proposal = assignDialog.proposal;
     if (!proposal || !user) return;
+
+    // KYC gating
+    if (!kycVerified) {
+      setAssignDialog({ open: false, proposal: null });
+      setShowKycModal(true);
+      return;
+    }
 
     const requiredAmount = getRequiredAmount(proposal);
     const fundNow = fundingChoice === "now";
@@ -1172,6 +1183,8 @@ export default function JobDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="hire an expert and start a contract" />
     </div>
   );
 }

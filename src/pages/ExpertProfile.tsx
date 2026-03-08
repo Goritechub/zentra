@@ -16,6 +16,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import { ReviewsCarousel } from "@/components/ReviewsCarousel";
+import { VerificationBadges } from "@/components/VerificationBadges";
+import { KycVerificationCard } from "@/components/KycVerificationCard";
+import { useKycVerification } from "@/hooks/useKycVerification";
 import html2canvas from "html2canvas";
 
 function PortfolioCarousel({ images }: { images: string[] }) {
@@ -132,9 +135,8 @@ export default function ExpertProfile() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
 
-  // Verification
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
-  const [requestingVerification, setRequestingVerification] = useState(false);
+  // KYC Verification
+  const { isVerified: kycVerified, isZentraVerified, loading: kycLoading } = useKycVerification(id);
 
   // Export
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -168,11 +170,7 @@ export default function ExpertProfile() {
         setPortfolio(pData || []);
       }
 
-      // Verification status
-      if (user?.id === id) {
-        const { data: vr } = await supabase.from("verification_requests").select("status").eq("user_id", id).maybeSingle();
-        setVerificationStatus(vr?.status || null);
-      }
+      // No longer using old verification_requests
 
       const { data: contractsData, count: completedCount } = await supabase
         .from("contracts")
@@ -227,19 +225,7 @@ export default function ExpertProfile() {
   };
 
 
-  const handleRequestVerification = async () => {
-    if (!user || !id) return;
-    setRequestingVerification(true);
-    const { error } = await supabase.from("verification_requests").insert({ user_id: id } as any);
-    if (error) {
-      if (error.code === "23505") toast.info("Verification request already submitted");
-      else toast.error("Failed to submit verification request");
-    } else {
-      toast.success("Verification request submitted!");
-      setVerificationStatus("pending");
-    }
-    setRequestingVerification(false);
-  };
+  // Old verification handler removed - now using KYC system
 
   // Export functions
   const handleCopyLink = () => {
@@ -375,44 +361,15 @@ export default function ExpertProfile() {
                     <MapPin className="h-3.5 w-3.5" />
                     {profile.city && `${profile.city}, `}{profile.state || "Nigeria"}
                   </div>
-                  {profile.is_verified && (
-                    <Badge className="mt-3 bg-primary/10 text-primary border-primary/20">
-                      <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
-                    </Badge>
+                  {(kycVerified || profile.is_verified) && (
+                    <div className="mt-3">
+                      <VerificationBadges isVerified={kycVerified || profile.is_verified} isZentraVerified={isZentraVerified} />
+                    </div>
                   )}
 
                   <div className="mt-3 flex justify-center">
                     <RatingDisplay rating={dynamicRating} reviewCount={reviews.length} />
                   </div>
-
-                  {/* Verification badge request - owner only */}
-                  {isOwner && !profile.is_verified && (
-                    <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border text-left">
-                      {verificationStatus === null && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-2">Get a verification badge to build trust.</p>
-                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
-                            {requestingVerification ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
-                            Request Verification
-                          </Button>
-                        </div>
-                      )}
-                      {verificationStatus === "pending" && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4 text-accent" />
-                          <span>Verification pending review</span>
-                        </div>
-                      )}
-                      {verificationStatus === "rejected" && (
-                        <div>
-                          <p className="text-xs text-destructive mb-1">Verification request was not approved.</p>
-                          <Button size="sm" variant="outline" onClick={handleRequestVerification} disabled={requestingVerification}>
-                            <ShieldCheck className="h-3 w-3 mr-1" /> Request Again
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {user && user.id === id && (
                     <Button className="w-full mt-4" variant="outline" onClick={() => navigate("/my-profile")}>
@@ -440,6 +397,9 @@ export default function ExpertProfile() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* KYC Verification Card - owner only */}
+              {isOwner && <KycVerificationCard />}
 
               {freelancerProfile && (
                 <Card>

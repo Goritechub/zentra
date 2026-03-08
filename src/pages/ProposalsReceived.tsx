@@ -16,6 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -49,6 +51,8 @@ export default function ProposalsReceivedPage() {
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -249,6 +253,13 @@ export default function ProposalsReceivedPage() {
   const handleAcceptAndAssign = async () => {
     const proposal = assignDialog.proposal;
     if (!proposal || !user) return;
+
+    // KYC gating
+    if (!kycVerified) {
+      setAssignDialog({ open: false, proposal: null });
+      setShowKycModal(true);
+      return;
+    }
 
     const requiredAmount = getRequiredAmount(proposal);
     const fundNow = fundingChoice === "now";
@@ -918,6 +929,8 @@ export default function ProposalsReceivedPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="hire an expert and start a contract" />
     </div>
   );
 }

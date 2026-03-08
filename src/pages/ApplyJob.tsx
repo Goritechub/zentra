@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
@@ -133,6 +135,8 @@ export default function ApplyJobPage() {
   const [deliveryUnit, setDeliveryUnit] = useState<DurationUnit>("days");
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<File[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
   const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
@@ -246,6 +250,12 @@ export default function ApplyJobPage() {
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
+
+    // KYC gating for experts
+    if (!kycVerified) {
+      setShowKycModal(true);
+      return;
+    }
 
     if (paymentType === "project") {
       const amount = parseCommaNumber(bidAmountFormatted);
@@ -939,6 +949,7 @@ export default function ApplyJobPage() {
         </div>
       </main>
       <Footer />
+      <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="submit a proposal" />
     </div>
   );
 }

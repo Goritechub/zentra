@@ -55,6 +55,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminContests from "./pages/admin/AdminContests";
 import AdminManagement from "./pages/admin/AdminManagement";
+import AdminVerification from "./pages/admin/AdminVerification";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,7 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="activity" element={<AdminActivity />} />
               <Route path="management" element={<AdminManagement />} />
+              <Route path="verification" element={<AdminVerification />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
