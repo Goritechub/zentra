@@ -16,8 +16,7 @@ export function KycVerificationCard() {
     try {
       const result = await startVerification();
       if (result?.verification_url) {
-        window.open(result.verification_url, "_blank");
-        toast.success("Verification session started. Complete the process in the new tab.");
+        window.location.href = result.verification_url;
       } else {
         toast.error("Failed to get verification URL");
       }
