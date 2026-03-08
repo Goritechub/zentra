@@ -41,7 +41,7 @@ import ContestDetailPage from "./pages/ContestDetail";
 import MyContests from "./pages/MyContests";
 import MyServices from "./pages/MyServices";
 import BrowseServices from "./pages/BrowseServices";
-
+import Terms from "./pages/Terms";
 import ResetPassword from "./pages/ResetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
