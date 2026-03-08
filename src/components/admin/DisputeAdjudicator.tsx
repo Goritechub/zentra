@@ -288,30 +288,32 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           </DialogHeader>
           <div className="space-y-4 py-4">
             {totalHeld > 0 && (
-              <Label>Outcome *</Label>
-              <div className="grid grid-cols-1 gap-2">
-                {[
-                  { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
-                  { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
-                  { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split escrow between both parties" },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setResolutionType(opt.value)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
-                      resolutionType === opt.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <opt.icon className={`h-4 w-4 ${resolutionType === opt.value ? "text-primary" : "text-muted-foreground"}`} />
-                    <div>
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                    </div>
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <Label>Outcome *</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
+                    { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
+                    { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split escrow between both parties" },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setResolutionType(opt.value)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                        resolutionType === opt.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <opt.icon className={`h-4 w-4 ${resolutionType === opt.value ? "text-primary" : "text-muted-foreground"}`} />
+                      <div>
+                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {resolutionType === "partial_split" && (
               <div className="grid grid-cols-2 gap-3">
