@@ -295,7 +295,13 @@ export default function AuthPage() {
       result.error.errors.forEach((err) => {
         if (err.path[0]) errors[err.path[0].toString()] = err.message;
       });
+      if (!termsAccepted) errors.terms = "You must agree to the Terms and Conditions";
       setSignUpErrors(errors);
+      return;
+    }
+
+    if (!termsAccepted) {
+      setSignUpErrors({ terms: "You must agree to the Terms and Conditions" });
       return;
     }
 
