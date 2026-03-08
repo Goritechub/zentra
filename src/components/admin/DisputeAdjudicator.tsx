@@ -59,8 +59,35 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
   const totalHeld = escrowLedger.filter(e => e.status === "held").reduce((s, e) => s + e.held_amount, 0);
 
   const handleResolve = async () => {
-    if (!resolutionType || !resolutionExplanation.trim()) {
-      toast.error("Please select an outcome and provide explanation"); return;
+    if (!resolutionExplanation.trim()) {
+      toast.error("Please provide an explanation"); return;
+    }
+
+    // If no escrow, just close the dispute directly in DB
+    if (totalHeld <= 0) {
+      setActionLoading(true);
+      const { error } = await supabase.from("disputes").update({
+        dispute_status: "resolved",
+        status: "resolved",
+        resolution_type: "no_funds",
+        resolution_explanation: resolutionExplanation.trim(),
+        resolved_at: new Date().toISOString(),
+        resolved_by: user?.id,
+      }).eq("id", dispute.id);
+
+      if (error) {
+        toast.error("Failed to close dispute");
+      } else {
+        toast.success("Dispute closed successfully");
+        setShowResolve(false);
+        onResolved();
+      }
+      setActionLoading(false);
+      return;
+    }
+
+    if (!resolutionType) {
+      toast.error("Please select an outcome"); return;
     }
     if (resolutionType === "partial_split") {
       const cAmt = parseInt(splitClient) || 0;
