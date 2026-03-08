@@ -95,7 +95,12 @@ export default function ContractsPage() {
                 ) : (
                   <div className="space-y-4">
                     {filterByStatus(status).map((contract: any) => {
-                      const cfg = statusConfig[contract.status] || statusConfig.active;
+                      // Show "Job Assigned" instead of "Cancelled" when the job was assigned to someone else
+                      const isJobAssigned = contract.status === "cancelled" && 
+                        contract.job?.status && ["in_progress", "completed"].includes(contract.job.status);
+                      const cfg = isJobAssigned
+                        ? { variant: "outline" as const, icon: CheckCircle2, label: "Job Assigned" }
+                        : (statusConfig[contract.status] || statusConfig.active);
                       const Icon = cfg.icon;
                       const partner = isClient ? contract.freelancer : contract.client;
 
