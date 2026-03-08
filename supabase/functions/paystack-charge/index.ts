@@ -401,14 +401,4 @@ async function creditWallet(supabase: any, userId: string, amountKobo: number, r
     reference,
   });
   if (wtError) console.error("wallet_transactions insert error:", JSON.stringify(wtError));
-
-  const { error: txError } = await supabase.from("transactions").insert({
-    user_id: userId,
-    type: "credit",
-    amount: amountNaira,
-    status: "completed",
-    description,
-    reference,
-  });
-  if (txError) console.error("transactions insert error:", JSON.stringify(txError));
 }

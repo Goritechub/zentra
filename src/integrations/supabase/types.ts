@@ -1850,57 +1850,6 @@ export type Database = {
           },
         ]
       }
-      transactions: {
-        Row: {
-          amount: number
-          contract_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          reference: string | null
-          status: string
-          type: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          contract_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          reference?: string | null
-          status?: string
-          type: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          contract_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          reference?: string | null
-          status?: string
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: false
-            referencedRelation: "contracts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -1997,6 +1946,7 @@ export type Database = {
           id: string
           milestone_id: string | null
           reference: string | null
+          status: string
           type: string
           user_id: string
         }
@@ -2009,6 +1959,7 @@ export type Database = {
           id?: string
           milestone_id?: string | null
           reference?: string | null
+          status?: string
           type: string
           user_id: string
         }
@@ -2021,6 +1972,7 @@ export type Database = {
           id?: string
           milestone_id?: string | null
           reference?: string | null
+          status?: string
           type?: string
           user_id?: string
         }
