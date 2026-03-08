@@ -138,12 +138,6 @@ export default function ExpertProfile() {
   const [completedContractCount, setCompletedContractCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
-  const [showRateDialog, setShowRateDialog] = useState(false);
-  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
-  const [categoryHovers, setCategoryHovers] = useState<Record<string, number>>({});
-  const [ratingComment, setRatingComment] = useState("");
-  const [ratingLoading, setRatingLoading] = useState(false);
-  const [completedContract, setCompletedContract] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
 
   // Verification
