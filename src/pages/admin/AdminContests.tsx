@@ -381,26 +381,33 @@ export default function AdminContests() {
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-2">Change Status</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedContest.status !== "active" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "active"); setSelectedContest(null); }}>
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Set Active
-                    </Button>
-                  )}
-                  {selectedContest.status !== "selecting_winners" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "selecting_winners"); setSelectedContest(null); }}>
-                      <Clock className="h-4 w-4 mr-1" /> Selecting Winners
-                    </Button>
-                  )}
-                  {selectedContest.status !== "completed" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "completed"); setSelectedContest(null); }}>
-                      <Trophy className="h-4 w-4 mr-1" /> Complete
-                    </Button>
-                  )}
-                  {selectedContest.status !== "cancelled" && (
-                    <Button size="sm" variant="destructive" onClick={() => { updateContestStatus(selectedContest.id, "cancelled"); setSelectedContest(null); }}>
-                      <Ban className="h-4 w-4 mr-1" /> Cancel
-                    </Button>
-                  )}
+                  {(() => {
+                    const es = getEffectiveStatus(selectedContest);
+                    return (
+                      <>
+                        {es !== "active" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "active"); setSelectedContest(null); }}>
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Set Active
+                          </Button>
+                        )}
+                        {es !== "selecting_winners" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "selecting_winners"); setSelectedContest(null); }}>
+                            <Clock className="h-4 w-4 mr-1" /> Selecting Winners
+                          </Button>
+                        )}
+                        {es !== "completed" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "completed"); setSelectedContest(null); }}>
+                            <Trophy className="h-4 w-4 mr-1" /> Complete
+                          </Button>
+                        )}
+                        {es !== "cancelled" && (
+                          <Button size="sm" variant="destructive" onClick={() => { updateContestStatus(selectedContest.id, "cancelled"); setSelectedContest(null); }}>
+                            <Ban className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
