@@ -15,6 +15,7 @@ import {
   Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
 } from "lucide-react";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
+import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
