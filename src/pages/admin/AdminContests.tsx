@@ -260,7 +260,7 @@ export default function AdminContests() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {contest.status === "active" && (
+                        {effectiveStatus === "active" && (
                           <Button
                             variant="ghost"
                             size="icon"
