@@ -72,6 +72,11 @@ export default function AuthPage() {
     password: "",
   });
   const [signInErrors, setSignInErrors] = useState<Record<string, string>>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotErrors, setForgotErrors] = useState<Record<string, string>>({});
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   // Stable callbacks via refs to avoid stale closures
   const recaptchaTokenRef = useRef(recaptchaToken);
