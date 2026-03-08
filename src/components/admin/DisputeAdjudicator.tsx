@@ -239,9 +239,15 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
 
       {/* Action Buttons */}
       {dispute.dispute_status !== "resolved" && (
-        <div className="flex justify-end">
-          <Button onClick={() => setShowResolve(true)}>
-            <Gavel className="h-4 w-4 mr-2" /> Render Decision
+        <div className="flex items-center justify-between">
+          {totalHeld <= 0 && (
+            <p className="text-sm text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" />
+              No escrow funds held — funds were already released or contract completed.
+            </p>
+          )}
+          <Button onClick={() => setShowResolve(true)} className="ml-auto">
+            <Gavel className="h-4 w-4 mr-2" /> {totalHeld > 0 ? "Render Decision" : "Close Dispute"}
           </Button>
         </div>
       )}
