@@ -86,7 +86,7 @@ export function FeaturedFreelancers() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Featured CAD Experts
+              Featured Engineers
             </h2>
             <p className="text-muted-foreground text-lg">
               Top-rated professionals ready to work on your project

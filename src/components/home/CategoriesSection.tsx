@@ -86,7 +86,7 @@ export function CategoriesSection() {
             Browse by Category
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Find specialized CAD professionals for your specific project needs
+            Find specialized engineering professionals for your specific project needs
           </p>
         </div>
 

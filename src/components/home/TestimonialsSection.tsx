@@ -18,7 +18,7 @@ const testimonials = [
     location: "Ogun",
     avatar: null,
     rating: 5,
-    content: "Finding skilled SolidWorks designers in Nigeria was challenging until I discovered ZentraGig. The freelancer we hired produced production-ready drawings that our factory could use immediately.",
+    content: "Finding skilled engineering professionals in Nigeria was challenging until I discovered ZentraGig. The expert we hired produced production-ready technical drawings that our factory could use immediately.",
   },
   {
     name: "Ibrahim Yusuf",

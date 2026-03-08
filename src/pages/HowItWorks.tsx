@@ -15,7 +15,7 @@ const freelancerSteps = [
 ];
 
 const clientSteps = [
-  { icon: FileText, title: "Post a Job or Contest", description: "Describe your CAD project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions." },
+  { icon: FileText, title: "Post a Job or Contest", description: "Describe your engineering project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions." },
   { icon: Search, title: "Review Proposals", description: "Browse proposals from qualified engineers. Check portfolios, ratings, and reviews." },
   { icon: Handshake, title: "Hire & Collaborate", description: "Select your expert, set milestones, and work together with built-in messaging and file sharing." },
   { icon: CheckCircle2, title: "Approve & Pay", description: "Review deliverables, request revisions if needed, and release payment when satisfied." },

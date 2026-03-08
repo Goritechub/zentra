@@ -60,7 +60,7 @@ export function HeroSection() {
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-accent" />
-                <span>500+ CAD Experts</span>
+                <span>500+ Engineers</span>
               </div>
               <div className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4 text-accent" />
