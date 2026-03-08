@@ -115,14 +115,6 @@ function ContractsCarousel({ contracts }: { contracts: any[] }) {
   );
 }
 
-const RATING_CATEGORIES = [
-  { key: "rating_skills", label: "Skills" },
-  { key: "rating_quality", label: "Work Quality" },
-  { key: "rating_availability", label: "Availability" },
-  { key: "rating_deadlines", label: "Meet Deadlines" },
-  { key: "rating_communication", label: "Communication" },
-  { key: "rating_cooperation", label: "Cooperation" },
-] as const;
 
 export default function ExpertProfile() {
   const { id } = useParams<{ id: string }>();
