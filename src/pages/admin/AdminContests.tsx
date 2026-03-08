@@ -48,6 +48,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
+// Compute effective status: if DB says "active" but deadline has passed, it's really "selecting_winners"
+const getEffectiveStatus = (contest: { status: string; deadline: string }) => {
+  if (contest.status === "active" && new Date(contest.deadline) < new Date()) {
+    return "selecting_winners";
+  }
+  return contest.status;
+};
+
 export default function AdminContests() {
   const { user } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
@@ -145,7 +153,7 @@ export default function AdminContests() {
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.profiles?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       c.profiles?.username?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || getEffectiveStatus(c) === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -214,7 +222,8 @@ export default function AdminContests() {
               </TableRow>
             ) : (
               filtered.map((contest) => {
-                const cfg = statusConfig[contest.status] || { label: contest.status, variant: "outline" as const };
+                const effectiveStatus = getEffectiveStatus(contest);
+                const cfg = statusConfig[effectiveStatus] || { label: effectiveStatus, variant: "outline" as const };
                 return (
                   <TableRow key={contest.id}>
                     <TableCell>
@@ -251,7 +260,7 @@ export default function AdminContests() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {contest.status === "active" && (
+                        {effectiveStatus === "active" && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -317,9 +326,14 @@ export default function AdminContests() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant={statusConfig[selectedContest.status]?.variant || "outline"}>
-                    {statusConfig[selectedContest.status]?.label || selectedContest.status}
-                  </Badge>
+                  {(() => {
+                    const es = getEffectiveStatus(selectedContest);
+                    return (
+                      <Badge variant={statusConfig[es]?.variant || "outline"}>
+                        {statusConfig[es]?.label || es}
+                      </Badge>
+                    );
+                  })()}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Entries</p>
@@ -367,26 +381,33 @@ export default function AdminContests() {
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-2">Change Status</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedContest.status !== "active" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "active"); setSelectedContest(null); }}>
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Set Active
-                    </Button>
-                  )}
-                  {selectedContest.status !== "selecting_winners" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "selecting_winners"); setSelectedContest(null); }}>
-                      <Clock className="h-4 w-4 mr-1" /> Selecting Winners
-                    </Button>
-                  )}
-                  {selectedContest.status !== "completed" && (
-                    <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "completed"); setSelectedContest(null); }}>
-                      <Trophy className="h-4 w-4 mr-1" /> Complete
-                    </Button>
-                  )}
-                  {selectedContest.status !== "cancelled" && (
-                    <Button size="sm" variant="destructive" onClick={() => { updateContestStatus(selectedContest.id, "cancelled"); setSelectedContest(null); }}>
-                      <Ban className="h-4 w-4 mr-1" /> Cancel
-                    </Button>
-                  )}
+                  {(() => {
+                    const es = getEffectiveStatus(selectedContest);
+                    return (
+                      <>
+                        {es !== "active" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "active"); setSelectedContest(null); }}>
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Set Active
+                          </Button>
+                        )}
+                        {es !== "selecting_winners" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "selecting_winners"); setSelectedContest(null); }}>
+                            <Clock className="h-4 w-4 mr-1" /> Selecting Winners
+                          </Button>
+                        )}
+                        {es !== "completed" && (
+                          <Button size="sm" variant="outline" onClick={() => { updateContestStatus(selectedContest.id, "completed"); setSelectedContest(null); }}>
+                            <Trophy className="h-4 w-4 mr-1" /> Complete
+                          </Button>
+                        )}
+                        {es !== "cancelled" && (
+                          <Button size="sm" variant="destructive" onClick={() => { updateContestStatus(selectedContest.id, "cancelled"); setSelectedContest(null); }}>
+                            <Ban className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
