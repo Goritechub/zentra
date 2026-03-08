@@ -84,11 +84,14 @@ export default function AdminContests() {
       return;
     }
 
-    // Fetch entry counts
+    // Fetch entry counts and winner counts
     const withCounts = await Promise.all(
       (data || []).map(async (c: any) => {
-        const { data: countData } = await supabase.rpc("get_contest_entry_count", { _contest_id: c.id });
-        return { ...c, entry_count: countData || 0 };
+        const [{ data: countData }, { count: winnerCount }] = await Promise.all([
+          supabase.rpc("get_contest_entry_count", { _contest_id: c.id }),
+          supabase.from("contest_entries").select("id", { count: "exact", head: true }).eq("contest_id", c.id).eq("is_winner", true),
+        ]);
+        return { ...c, entry_count: countData || 0, winner_count: winnerCount || 0 };
       })
     );
 
