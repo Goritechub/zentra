@@ -251,6 +251,12 @@ export default function ApplyJobPage() {
     e.preventDefault();
     if (!user || !id) return;
 
+    // KYC gating for experts
+    if (!kycVerified) {
+      setShowKycModal(true);
+      return;
+    }
+
     if (paymentType === "project") {
       const amount = parseCommaNumber(bidAmountFormatted);
       const durVal = parseInt(deliveryValue);
