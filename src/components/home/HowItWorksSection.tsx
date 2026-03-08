@@ -4,7 +4,7 @@ const steps = [
   {
     icon: Search,
     title: "Find Your Expert",
-    description: "Browse verified CAD professionals by skill, location, and budget. View portfolios and reviews.",
+    description: "Browse verified engineering professionals by skill, location, and budget. View portfolios and reviews.",
   },
   {
     icon: MessageSquare,
