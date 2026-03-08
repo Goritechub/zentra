@@ -5,25 +5,25 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog,
-} from "lucide-react";
+  LogOut, Trophy, UserCog } from
+"lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const allNavItems = [
-  { label: "Overview", icon: LayoutDashboard, path: "/admin", permission: null as string | null },
-  { label: "Users", icon: Users, path: "/admin/users", permission: "users" },
-  { label: "Jobs", icon: Briefcase, path: "/admin/jobs", permission: "jobs" },
-  { label: "Contests", icon: Trophy, path: "/admin/contests", permission: "contests" },
-  { label: "Contracts", icon: FileText, path: "/admin/contracts", permission: "contracts" },
-  { label: "Payments", icon: Wallet, path: "/admin/payments", permission: "payments" },
-  { label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
-  { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
-  { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
-  { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
-  { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" },
-];
+{ label: "Overview", icon: LayoutDashboard, path: "/admin", permission: null as string | null },
+{ label: "Users", icon: Users, path: "/admin/users", permission: "users" },
+{ label: "Jobs", icon: Briefcase, path: "/admin/jobs", permission: "jobs" },
+{ label: "Contests", icon: Trophy, path: "/admin/contests", permission: "contests" },
+{ label: "Contracts", icon: FileText, path: "/admin/contracts", permission: "contracts" },
+{ label: "Payments", icon: Wallet, path: "/admin/payments", permission: "payments" },
+{ label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
+{ label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
+{ label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
+{ label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
+{ label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" }];
+
 
 export default function AdminLayout() {
   const { user, loading: authLoading } = useAuth();
@@ -40,12 +40,12 @@ export default function AdminLayout() {
   }, [user, authLoading]);
 
   const checkAdmin = async () => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user!.id)
-      .eq("role", "admin")
-      .maybeSingle();
+    const { data } = await supabase.
+    from("user_roles").
+    select("role").
+    eq("user_id", user!.id).
+    eq("role", "admin").
+    maybeSingle();
 
     if (!data) {
       setIsAdmin(false);
@@ -56,22 +56,22 @@ export default function AdminLayout() {
     setIsAdmin(true);
 
     // Fetch this admin's permissions
-    const { data: perms } = await supabase
-      .from("admin_permissions" as any)
-      .select("permission")
-      .eq("user_id", user!.id);
+    const { data: perms } = await supabase.
+    from("admin_permissions" as any).
+    select("permission").
+    eq("user_id", user!.id);
 
     if (!perms || perms.length === 0) {
       // Check if ANY permissions exist globally
-      const { count } = await supabase
-        .from("admin_permissions" as any)
-        .select("id", { count: "exact", head: true });
+      const { count } = await supabase.
+      from("admin_permissions" as any).
+      select("id", { count: "exact", head: true });
 
       if (count === 0) {
         // First admin ever — bootstrap as super admin
         try {
           const { data: bootstrapData } = await supabase.functions.invoke("manage-admin", {
-            body: { action: "bootstrap" },
+            body: { action: "bootstrap" }
           });
           if (bootstrapData?.permissions) {
             setPermissions(bootstrapData.permissions);
@@ -91,8 +91,8 @@ export default function AdminLayout() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>);
+
   }
 
   if (!isAdmin) {
@@ -104,13 +104,13 @@ export default function AdminLayout() {
           <p className="text-muted-foreground mb-4">You don't have admin privileges.</p>
           <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   // Filter nav items by permissions
   const navItems = allNavItems.filter(
-    (item) => !item.permission || permissions.includes(item.permission),
+    (item) => !item.permission || permissions.includes(item.permission)
   );
 
   // Block access to pages the admin doesn't have permission for
@@ -134,38 +134,38 @@ export default function AdminLayout() {
       <aside
         className={cn(
           "fixed left-0 top-0 h-full bg-sidebar text-sidebar-foreground z-40 flex flex-col transition-all duration-300",
-          collapsed ? "w-16" : "w-64",
-        )}
-      >
+          collapsed ? "w-16" : "w-64"
+        )}>
+        
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
+          {!collapsed &&
+          <div className="flex items-center gap-2">
               <ShieldAlert className="h-6 w-6 text-sidebar-primary" />
               <span className="font-bold text-lg">ZentraGig Admin</span>
             </div>
-          )}
+          }
           {collapsed && <ShieldAlert className="h-6 w-6 text-sidebar-primary mx-auto" />}
         </div>
 
         {/* Nav */}
         <ScrollArea className="flex-1 py-4">
           <nav className="space-y-1 px-2">
-            {navItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive(item.path)
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                )}
-              >
+            {navItems.map((item) =>
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                isActive(item.path) ?
+                "bg-sidebar-accent text-sidebar-accent-foreground" :
+                "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              )}>
+              
                 <item.icon className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </button>
-            ))}
+            )}
           </nav>
         </ScrollArea>
 
@@ -173,15 +173,15 @@ export default function AdminLayout() {
         <div className="p-2 border-t border-sidebar-border space-y-1">
           <button
             onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors"
-          >
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
+            
             <LogOut className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Back to App</span>}
+            {!collapsed && <span>
+</span>}
           </button>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-2 rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
-          >
+          <button onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-center py-2 rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">
+            
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
@@ -191,13 +191,13 @@ export default function AdminLayout() {
       <main
         className={cn(
           "flex-1 transition-all duration-300",
-          collapsed ? "ml-16" : "ml-64",
-        )}
-      >
+          collapsed ? "ml-16" : "ml-64"
+        )}>
+        
         <div className="p-6 max-w-7xl mx-auto">
           <Outlet context={{ permissions }} />
         </div>
       </main>
-    </div>
-  );
+    </div>);
+
 }
