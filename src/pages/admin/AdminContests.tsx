@@ -48,6 +48,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
+// Compute effective status: if DB says "active" but deadline has passed, it's really "selecting_winners"
+const getEffectiveStatus = (contest: { status: string; deadline: string }) => {
+  if (contest.status === "active" && new Date(contest.deadline) < new Date()) {
+    return "selecting_winners";
+  }
+  return contest.status;
+};
+
 export default function AdminContests() {
   const { user } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
