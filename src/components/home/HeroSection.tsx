@@ -26,8 +26,8 @@ export function HeroSection() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in-up">
-              Hire Verified <span className="text-accent">CAD Engineers</span>
-              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Design. Deliver. Get Paid.</span>
+              Hire Verified <span className="text-accent">Engineers</span>
+              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Design. Build. Deliver.</span>
             </h1>
 
             {/* Subheadline */}
