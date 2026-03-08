@@ -1068,6 +1068,69 @@ export type Database = {
           },
         ]
       }
+      kyc_verifications: {
+        Row: {
+          admin_notes: string | null
+          country: string | null
+          created_at: string
+          date_of_birth: string | null
+          didit_session_id: string | null
+          document_type: string | null
+          full_name_on_id: string | null
+          id: string
+          kyc_provider_result: Json | null
+          kyc_provider_status: string | null
+          kyc_status: string
+          updated_at: string
+          user_id: string
+          verification_level: string
+          verification_url: string | null
+          zentra_verified: boolean
+          zentra_verified_at: string | null
+          zentra_verified_by: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          country?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          didit_session_id?: string | null
+          document_type?: string | null
+          full_name_on_id?: string | null
+          id?: string
+          kyc_provider_result?: Json | null
+          kyc_provider_status?: string | null
+          kyc_status?: string
+          updated_at?: string
+          user_id: string
+          verification_level?: string
+          verification_url?: string | null
+          zentra_verified?: boolean
+          zentra_verified_at?: string | null
+          zentra_verified_by?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          country?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          didit_session_id?: string | null
+          document_type?: string | null
+          full_name_on_id?: string | null
+          id?: string
+          kyc_provider_result?: Json | null
+          kyc_provider_status?: string | null
+          kyc_status?: string
+          updated_at?: string
+          user_id?: string
+          verification_level?: string
+          verification_url?: string | null
+          zentra_verified?: boolean
+          zentra_verified_at?: string | null
+          zentra_verified_by?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           attachments: string[] | null
