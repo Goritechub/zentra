@@ -361,6 +361,37 @@ export default function ProposalsReceivedPage() {
     // Update job to in_progress
     await supabase.from("jobs").update({ status: "in_progress" }).eq("id", proposal.job_id);
 
+    // Close all other interviewing contracts for this job
+    const { data: otherInterviews } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("job_id", proposal.job_id)
+      .eq("status", "interviewing" as any)
+      .neq("id", contractData.id);
+
+    if (otherInterviews?.length) {
+      for (const oc of otherInterviews) {
+        await supabase
+          .from("contracts")
+          .update({ status: "cancelled" as any } as any)
+          .eq("id", oc.id);
+        await supabase.from("contract_messages").insert({
+          contract_id: oc.id,
+          sender_id: user.id,
+          content: `📋 This job has been assigned to another expert. This interview is now closed.`,
+          is_system_message: true,
+        } as any);
+      }
+    }
+
+    // Reject other pending proposals for this job
+    await supabase
+      .from("proposals")
+      .update({ status: "rejected" } as any)
+      .eq("job_id", proposal.job_id)
+      .neq("id", proposal.id)
+      .in("status", ["pending", "interviewing"]);
+
     // Create milestones in DB if milestone-based
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
       const milestoneInserts = proposal.milestones.map((ms: any, idx: number) => ({
