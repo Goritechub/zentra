@@ -76,8 +76,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       }).eq("id", dispute.id);
 
       if (error) {
-        toast.error("Failed to close dispute");
-      } else {
+        console.error("Dispute close error:", error);
+        toast.error("Failed to close dispute: " + error.message);
         toast.success("Dispute closed successfully");
         setShowResolve(false);
         onResolved();
