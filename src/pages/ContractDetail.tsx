@@ -841,6 +841,59 @@ export default function ContractDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Rate Dialog */}
+      <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rate {partner?.full_name}</DialogTitle>
+            <DialogDescription>
+              Rate your experience for "{contract?.job_title || 'this contract'}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {RATING_CATEGORIES.map(cat => (
+              <div key={cat.key}>
+                <p className="text-sm font-medium mb-1">{cat.label}</p>
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseEnter={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      onMouseLeave={() => setCategoryHovers(prev => ({ ...prev, [cat.key]: 0 }))}
+                      onClick={() => setCategoryRatings(prev => ({ ...prev, [cat.key]: i + 1 }))}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star className={`h-6 w-6 ${i < ((categoryHovers[cat.key] || 0) || (categoryRatings[cat.key] || 0)) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
+                    </button>
+                  ))}
+                  {categoryRatings[cat.key] && (
+                    <span className="text-xs text-muted-foreground ml-1 self-center">{categoryRatings[cat.key]}/5</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Review <span className="text-muted-foreground">(optional)</span></label>
+              <Textarea
+                placeholder="Describe your experience..."
+                rows={4}
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRateDialog(false)}>Cancel</Button>
+            <Button onClick={handleSubmitRating} disabled={ratingLoading}>
+              {ratingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
+              Submit Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
