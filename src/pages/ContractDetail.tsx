@@ -359,6 +359,24 @@ export default function ContractDetail() {
             {/* OVERVIEW TAB */}
             <TabsContent value="overview">
               <div className="space-y-6">
+                {/* Rate Expert Banner */}
+                {contract.status === "completed" && canRate && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Contract completed! Rate {partner?.full_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Share your experience to help other users on the platform.</p>
+                    </div>
+                    <Button size="sm" onClick={() => setShowRateDialog(true)}>
+                      <Star className="h-3.5 w-3.5 mr-1.5" /> Rate Now
+                    </Button>
+                  </div>
+                )}
+                {contract.status === "completed" && hasReviewed && (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                    <p className="text-sm text-muted-foreground">You've already reviewed this contract. Thank you!</p>
+                  </div>
+                )}
                 {/* Submission Review Banner */}
                 {(() => {
                   const submittedMilestones = milestones.filter(ms => ms.status === "submitted");
