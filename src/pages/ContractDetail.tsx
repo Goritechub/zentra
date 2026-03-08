@@ -119,6 +119,20 @@ export default function ContractDetail() {
     setWalletTransactions(txns || []);
     setActivityLog(sysMessages || []);
     setLoading(false);
+
+    // Check if user can rate (completed contract, all milestones paid/approved, no existing review)
+    if (contractData && contractData.status === "completed" && user) {
+      const allMilestonesDone = (ms || []).length > 0 && (ms || []).every((m: any) => m.status === "approved" || m.status === "paid");
+      const revieweeId = contractData.client_id === user.id ? contractData.freelancer_id : contractData.client_id;
+      const { data: existingReview } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("contract_id", id!)
+        .eq("reviewer_id", user.id)
+        .maybeSingle();
+      setHasReviewed(!!existingReview);
+      setCanRate(!existingReview && allMilestonesDone);
+    }
   };
 
   const isClient = contract?.client_id === user?.id;
