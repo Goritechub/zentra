@@ -949,6 +949,7 @@ export default function ApplyJobPage() {
         </div>
       </main>
       <Footer />
+      <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="submit a proposal" />
     </div>
   );
 }
