@@ -287,7 +287,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
             <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Escrow: ${formatNaira(totalHeld)}` : "No escrow funds to distribute. Provide a closing note."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            {totalHeld > 0 && (
               <Label>Outcome *</Label>
               <div className="grid grid-cols-1 gap-2">
                 {[
