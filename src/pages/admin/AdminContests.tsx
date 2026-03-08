@@ -49,11 +49,13 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
-// Compute effective status: if DB says "active" but deadline has passed, it's really "selecting_winners"
-const getEffectiveStatus = (contest: { status: string; deadline: string }) => {
-  if (contest.status === "active" && new Date(contest.deadline) < new Date()) {
-    return "selecting_winners";
-  }
+// Compute effective status based on deadline and winners
+const getEffectiveStatus = (contest: { status: string; deadline: string; winner_count?: number }) => {
+  if (contest.status === "completed" || contest.status === "cancelled") return contest.status;
+  const deadlinePassed = new Date(contest.deadline) < new Date();
+  const hasWinners = (contest.winner_count || 0) > 0;
+  if (hasWinners) return "completed";
+  if (deadlinePassed) return "selecting_winners";
   return contest.status;
 };
 
