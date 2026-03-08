@@ -36,7 +36,7 @@ const signInSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+  identifier: z.string().min(1, "Email or username is required"),
 });
 
 export default function AuthPage() {
@@ -414,7 +414,7 @@ export default function AuthPage() {
     e.preventDefault();
     setForgotErrors({});
 
-    const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
+    const result = forgotPasswordSchema.safeParse({ identifier: forgotEmail });
     if (!result.success) {
       const errors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
@@ -426,25 +426,44 @@ export default function AuthPage() {
 
     setForgotLoading(true);
 
-    // Check if email exists
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", forgotEmail.trim().toLowerCase())
-      .maybeSingle();
+    const input = forgotEmail.trim();
+    let email = input;
 
-    if (!profileData) {
-      setForgotErrors({ email: "No account found with this email address" });
-      setForgotLoading(false);
-      return;
+    // If input doesn't look like an email, treat as username
+    if (!input.includes("@")) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", input)
+        .maybeSingle();
+
+      if (!profileData) {
+        setForgotErrors({ identifier: "No account found with this username" });
+        setForgotLoading(false);
+        return;
+      }
+      email = profileData.email;
+    } else {
+      // Verify email exists
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", input.toLowerCase())
+        .maybeSingle();
+
+      if (!profileData) {
+        setForgotErrors({ identifier: "No account found with this email address" });
+        setForgotLoading(false);
+        return;
+      }
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
-      setForgotErrors({ email: error.message });
+      setForgotErrors({ identifier: error.message });
       setForgotLoading(false);
       return;
     }
@@ -544,23 +563,23 @@ export default function AuthPage() {
                     <div className="space-y-4">
                       <div className="text-center mb-2">
                         <h3 className="text-lg font-semibold text-foreground">Reset your password</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Enter your email and we'll send you a reset link</p>
+                        <p className="text-sm text-muted-foreground mt-1">Enter your email or username and we'll send you a reset link</p>
                       </div>
                       <form onSubmit={handleForgotPassword} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="forgot-email">Email Address</Label>
+                          <Label htmlFor="forgot-identifier">Email or Username</Label>
                           <Input
-                            id="forgot-email"
-                            type="email"
-                            placeholder="you@example.com"
+                            id="forgot-identifier"
+                            type="text"
+                            placeholder="you@example.com or username"
                             value={forgotEmail}
                             onChange={(e) => {
                               setForgotEmail(e.target.value);
-                              if (forgotErrors.email) setForgotErrors({});
+                              if (forgotErrors.identifier) setForgotErrors({});
                             }}
-                            className={fieldClass("email", forgotErrors)}
+                            className={fieldClass("identifier", forgotErrors)}
                           />
-                          {forgotErrors.email && <p className="text-sm text-destructive">{forgotErrors.email}</p>}
+                          {forgotErrors.identifier && <p className="text-sm text-destructive">{forgotErrors.identifier}</p>}
                         </div>
                         <Button type="submit" className="w-full" size="lg" disabled={forgotLoading}>
                           {forgotLoading ? (
