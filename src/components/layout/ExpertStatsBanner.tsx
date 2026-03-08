@@ -172,7 +172,7 @@ export function ExpertStatsBanner() {
               {monthlyCompleted} in {monthName}
             </p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   );
