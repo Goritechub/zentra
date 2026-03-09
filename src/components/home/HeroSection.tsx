@@ -55,7 +55,7 @@ export function HeroSection() {
             <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-white/70 animate-fade-in-up animation-delay-300">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-accent" />
-                <span>Verified Professionals</span>
+                <span>Verified Professionals and Makers</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-accent" />
