@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    let initialized = false;
 
     // Atomically load user + profile together before updating state
     const loadUserAndProfile = async (s: Session | null) => {
