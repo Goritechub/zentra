@@ -779,7 +779,7 @@ export default function JobDetailsPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="font-semibold text-foreground">{contract.freelancer?.full_name || "Expert"}</p>
+                                  <Link to={`/expert/${contract.freelancer?.id || contract.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">{contract.freelancer?.full_name || "Expert"}</Link>
                                   {contract.freelancer?.state && (
                                     <p className="text-xs text-muted-foreground">
                                       {contract.freelancer.city ? `${contract.freelancer.city}, ` : ""}{contract.freelancer.state}
