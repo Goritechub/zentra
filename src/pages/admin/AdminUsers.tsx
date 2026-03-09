@@ -23,6 +23,9 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userWallet, setUserWallet] = useState<any>(null);
   const [userViolations, setUserViolations] = useState<any>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closingAccount, setClosingAccount] = useState(false);
+  const [notifyingUser, setNotifyingUser] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
