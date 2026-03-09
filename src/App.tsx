@@ -84,11 +84,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
+      <PlatformFreezeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <PlatformFrozenBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
