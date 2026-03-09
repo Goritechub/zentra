@@ -29,7 +29,7 @@ export default function ContractsPage() {
     const isClient = profile?.role === "client";
     const { data } = await supabase
       .from("contracts")
-      .select("*, job:jobs!contracts_job_id_fkey(title, status), client:profiles!contracts_client_id_fkey(id, full_name, avatar_url), freelancer:profiles!contracts_freelancer_id_fkey(id, full_name, avatar_url)")
+      .select("*, job:jobs!contracts_job_id_fkey(title, status), client:profiles!contracts_client_id_fkey(full_name, avatar_url), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url)")
       .or(`client_id.eq.${user!.id},freelancer_id.eq.${user!.id}`)
       .order("created_at", { ascending: false });
 
@@ -119,7 +119,7 @@ export default function ContractsPage() {
                                   {contract.job?.title || "Contract"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  with <Link to={`/expert/${partner?.id}/profile`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{partner?.full_name || "User"}</Link>
+                                  with {partner?.full_name || "User"}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Started {formatDistanceToNow(new Date(contract.started_at || contract.created_at), { addSuffix: true })}

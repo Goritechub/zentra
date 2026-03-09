@@ -56,50 +56,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let initialized = false;
 
     // Atomically load user + profile together before updating state
     const loadUserAndProfile = async (s: Session | null) => {
       if (!mounted) return;
-      console.log("[Auth] loadUserAndProfile called, hasSession:", !!s);
       if (s?.user) {
         try {
           const profileData = await fetchProfile(s.user.id);
           if (!mounted) return;
-          console.log("[Auth] Profile loaded:", !!profileData, "setting user+profile+session");
           // Set all three together so components never see user without profile
           setSession(s);
           setUser(s.user);
           setProfile(profileData);
-        } catch (err) {
-          console.error("[Auth] Profile fetch failed:", err);
+        } catch {
           if (!mounted) return;
           setSession(s);
           setUser(s.user);
           setProfile(null);
         }
       } else {
-        console.log("[Auth] No session, clearing state");
         setSession(null);
         setUser(null);
         setProfile(null);
       }
-      if (mounted) {
-        console.log("[Auth] Setting loading=false");
-        setLoading(false);
-      }
+      if (mounted) setLoading(false);
     };
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        // Always process auth events — loading state handles UI
+        // Skip events until initial getSession completes to avoid double-fire race
+        if (!initialized) return;
+        setLoading(true);
         loadUserAndProfile(newSession);
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      loadUserAndProfile(existingSession);
+      loadUserAndProfile(existingSession).then(() => {
+        initialized = true;
+      });
     });
 
     return () => {

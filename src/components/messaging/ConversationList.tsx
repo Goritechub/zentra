@@ -72,9 +72,9 @@
              </Avatar>
              <div className="flex-1 min-w-0">
                <div className="flex items-center justify-between gap-2">
-                  <a href={`/expert/${conversation.participant.id}/profile`} onClick={(e) => e.stopPropagation()} className="font-medium truncate hover:underline hover:text-primary transition-colors">
-                    {conversation.participant.full_name || "Unknown User"}
-                  </a>
+                 <span className="font-medium truncate">
+                   {conversation.participant.full_name || "Unknown User"}
+                 </span>
                  {conversation.unreadCount > 0 && (
                    <Badge variant="default" className="h-5 min-w-[20px] flex items-center justify-center">
                      {conversation.unreadCount}

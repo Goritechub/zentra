@@ -190,10 +190,8 @@ export default function FreelancersPage() {
                           {p?.is_verified && <div className="verified-badge"><CheckCircle2 className="h-3 w-3" />Verified</div>}
                         </div>
                       </div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        <Link to={`/expert/${f.user_id}/profile`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p?.full_name}</Link>
-                      </h3>
-                      {p?.username && <p className="text-xs text-muted-foreground"><Link to={`/expert/${f.user_id}/profile`} onClick={(e) => e.stopPropagation()} className="hover:underline">@{p.username}</Link></p>}
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{p?.full_name}</h3>
+                      {p?.username && <p className="text-xs text-muted-foreground">@{p.username}</p>}
                       <p className="text-sm text-muted-foreground mt-1">{f.title || "CAD Professional"}</p>
                       {p?.state && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">

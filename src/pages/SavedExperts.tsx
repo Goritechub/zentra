@@ -107,9 +107,7 @@ export default function SavedExpertsPage() {
                         </Button>
                       </div>
                     </div>
-                    <h3 className="font-semibold text-foreground">
-                      <Link to={`/expert/${item.freelancer_id}/profile`} onClick={(e) => e.stopPropagation()} className="hover:underline hover:text-primary transition-colors">{f.full_name}</Link>
-                    </h3>
+                    <h3 className="font-semibold text-foreground">{f.full_name}</h3>
                     {fp?.title && (
                       <p className="text-sm text-primary font-medium mt-0.5">{fp.title}</p>
                     )}

@@ -692,7 +692,7 @@ export default function JobDetailsPage() {
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
+                                    <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}`} className="font-semibold text-foreground hover:text-primary transition-colors">
                                       {proposal.freelancer?.full_name || "Expert"}
                                     </Link>
                                     {proposal.freelancer?.state && (
@@ -779,7 +779,7 @@ export default function JobDetailsPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <Link to={`/expert/${contract.freelancer?.id || contract.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">{contract.freelancer?.full_name || "Expert"}</Link>
+                                  <p className="font-semibold text-foreground">{contract.freelancer?.full_name || "Expert"}</p>
                                   {contract.freelancer?.state && (
                                     <p className="text-xs text-muted-foreground">
                                       {contract.freelancer.city ? `${contract.freelancer.city}, ` : ""}{contract.freelancer.state}
@@ -923,7 +923,7 @@ export default function JobDetailsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <Link to={`/expert/${client.id}/profile`} className="font-medium text-foreground hover:text-primary hover:underline transition-colors">{client.full_name}</Link>
+                        <p className="font-medium text-foreground">{client.full_name}</p>
                         {client.state && (
                           <p className="text-sm text-muted-foreground">
                             {client.city ? `${client.city}, ` : ""}{client.state}
@@ -1078,7 +1078,7 @@ export default function JobDetailsPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <Link to={`/expert/${detailDialog.proposal.freelancer?.id || detailDialog.proposal.freelancer_id}/profile`} className="font-semibold text-foreground text-lg hover:text-primary hover:underline transition-colors">{detailDialog.proposal.freelancer?.full_name || "Expert"}</Link>
+                    <p className="font-semibold text-foreground text-lg">{detailDialog.proposal.freelancer?.full_name || "Expert"}</p>
                     {detailDialog.proposal.freelancer?.state && (
                       <p className="text-sm text-muted-foreground">
                         {detailDialog.proposal.freelancer.city ? `${detailDialog.proposal.freelancer.city}, ` : ""}{detailDialog.proposal.freelancer.state}
