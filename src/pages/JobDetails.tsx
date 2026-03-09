@@ -692,7 +692,7 @@ export default function JobDetailsPage() {
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+                                    <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
                                       {proposal.freelancer?.full_name || "Expert"}
                                     </Link>
                                     {proposal.freelancer?.state && (
