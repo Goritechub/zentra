@@ -286,7 +286,7 @@ export default function AdminUsers() {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <Button size="sm" variant={selectedUser.is_verified ? "outline" : "default"} onClick={() => toggleVerification(selectedUser.id, selectedUser.is_verified)}>
                   <UserCheck className="h-4 w-4 mr-1" />
                   {selectedUser.is_verified ? "Unverify" : "Verify"}
@@ -295,6 +295,21 @@ export default function AdminUsers() {
                   <Ban className="h-4 w-4 mr-1" />
                   {userViolations?.is_suspended ? "Unsuspend" : "Suspend"}
                 </Button>
+                {selectedUser.display_role !== "superadmin" && (
+                  <>
+                    {userWallet && (userWallet.balance > 0 || userWallet.escrow_balance > 0) ? (
+                      <Button size="sm" variant="outline" className="border-amber-500 text-amber-600" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
+                        {notifyingUser ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-1" />}
+                        Send Withdraw Reminder
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="destructive" className="bg-destructive/90" onClick={() => setShowCloseConfirm(true)}>
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Close Account
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
