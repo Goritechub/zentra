@@ -210,8 +210,9 @@ export default function DisputeDetail() {
               <Avatar className="h-8 w-8">
                 <AvatarImage src={respondentProfile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary">{(respondentProfile?.full_name || "U")[0]}</AvatarFallback>
-          <Link to={`/expert/${respondentProfile?.id}/profile`} className="hover:text-primary hover:underline transition-colors">{respondentProfile?.full_name}</Link>iv className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{respondentProfile?.full_name} <Badge variant="outline" className="ml-1 text-xs">Respondent</Badge></p>
+              </Avatar>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground"><Link to={`/expert/${respondentProfile?.id}/profile`} className="hover:text-primary hover:underline transition-colors">{respondentProfile?.full_name}</Link> <Badge variant="outline" className="ml-1 text-xs">Respondent</Badge></p>
                 {dispute.response_deadline && !dispute.respondent_explanation && (
                   <p className={`text-xs ${deadlineExpired ? "text-destructive font-medium" : "text-amber-500"}`}>
                     {deadlineExpired ? "⚠ Response deadline expired" : `Deadline: ${format(new Date(dispute.response_deadline), "PPp")}`}
