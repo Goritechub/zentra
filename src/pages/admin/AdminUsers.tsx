@@ -77,6 +77,67 @@ export default function AdminUsers() {
     });
   };
 
+  const closeAccount = async (targetUser: any) => {
+    setClosingAccount(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_close_user_account", {
+        _admin_id: user!.id,
+        _target_user_id: targetUser.id,
+      });
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) {
+        if (result.code === "has_funds") {
+          toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Escrow ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
+        } else if (result.code === "has_active_contracts") {
+          toast.error(`User has ${result.active_contracts} active contract(s). Cannot close account.`);
+        } else {
+          toast.error(result.error);
+        }
+        setShowCloseConfirm(false);
+        setClosingAccount(false);
+        return;
+      }
+      setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+      setSelectedUser(null);
+      setShowCloseConfirm(false);
+      toast.success("Account permanently closed and deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to close account");
+    } finally {
+      setClosingAccount(false);
+    }
+  };
+
+  const sendWithdrawReminder = async (targetUser: any) => {
+    setNotifyingUser(true);
+    try {
+      const walletBalance = userWallet?.balance || 0;
+      const escrowBalance = userWallet?.escrow_balance || 0;
+      const totalFunds = walletBalance + escrowBalance;
+
+      // Send in-app notification
+      await supabase.from("notifications").insert({
+        user_id: targetUser.id,
+        title: "Action Required: Withdraw Your Funds",
+        message: `Your account has been flagged for closure. You currently have ${formatNaira(totalFunds)} in your wallet. Please withdraw all funds immediately to avoid any issues. Contact support if you need assistance.`,
+        type: "platform_announcement",
+        link_url: "/dashboard",
+      });
+
+      await logAction("send_withdraw_reminder", "user", targetUser.id, {
+        wallet_balance: walletBalance,
+        escrow_balance: escrowBalance,
+      });
+
+      toast.success("Withdrawal reminder notification sent to user");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reminder");
+    } finally {
+      setNotifyingUser(false);
+    }
+  };
+
   const getDisplayRole = (role: string) => {
     switch (role) {
       case "superadmin": return "Super Admin";
