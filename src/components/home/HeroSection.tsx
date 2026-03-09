@@ -26,13 +26,14 @@ export function HeroSection() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in-up">
-              Hire <span className="text-accent">Engineers</span> & Makers.
-              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Build Real Things.</span>
+              Hire Verified <span className="text-accent">Engineers</span>
+              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Design. Build. Deliver.</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
-              The marketplace for engineering, hardware, and technical projects.
+              Connect with skilled engineers, architects, and technical professionals across Nigeria.
+              Find the perfect expert for your engineering projects.
             </p>
 
             {/* CTA Buttons */}
