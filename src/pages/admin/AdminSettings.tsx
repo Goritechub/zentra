@@ -9,6 +9,7 @@ import { Loader2, Plus, Save, Settings, Pencil, X, Trash2 } from "lucide-react";
 import { formatNaira } from "@/lib/nigerian-data";
 import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
+import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 
 export default function AdminSettings() {
   const { user } = useAuth();
