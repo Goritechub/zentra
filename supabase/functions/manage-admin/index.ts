@@ -11,6 +11,14 @@ const ALL_PERMISSIONS = [
   "disputes", "reviews", "platform_settings", "activity_log", "admin_management",
 ];
 
+async function hashCode(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,6 +50,17 @@ Deno.serve(async (req) => {
 
     const { action, ...params } = await req.json();
 
+    // Helper: check super admin
+    const verifySuperAdmin = async () => {
+      const { data: hasPerm } = await supabaseAdmin
+        .from("admin_permissions")
+        .select("id")
+        .eq("user_id", caller.id)
+        .eq("permission", "admin_management")
+        .maybeSingle();
+      if (!hasPerm) throw new Error("No admin_management permission");
+    };
+
     switch (action) {
       case "bootstrap": {
         const { count } = await supabaseAdmin
@@ -59,6 +78,12 @@ Deno.serve(async (req) => {
         }));
 
         await supabaseAdmin.from("admin_permissions").insert(permRows);
+
+        // Create admin_status entry
+        await supabaseAdmin.from("admin_status").upsert({
+          user_id: caller.id,
+          is_suspended: false,
+        });
 
         await supabaseAdmin.from("admin_activity_log").insert({
           admin_id: caller.id,
@@ -98,12 +123,19 @@ Deno.serve(async (req) => {
           .select("user_id, permission")
           .in("user_id", adminIds);
 
+        const { data: statuses } = await supabaseAdmin
+          .from("admin_status")
+          .select("user_id, is_suspended, suspended_at")
+          .in("user_id", adminIds);
+
         const admins = profiles?.map((p: any) => ({
           ...p,
           permissions: permissions
             ?.filter((perm: any) => perm.user_id === p.id)
             .map((perm: any) => perm.permission) || [],
           is_current_user: p.id === caller.id,
+          is_suspended: statuses?.find((s: any) => s.user_id === p.id)?.is_suspended || false,
+          suspended_at: statuses?.find((s: any) => s.user_id === p.id)?.suspended_at || null,
         })) || [];
 
         return new Response(
@@ -113,18 +145,13 @@ Deno.serve(async (req) => {
       }
 
       case "create_admin": {
-        // Verify super admin permission
-        const { data: hasPerm } = await supabaseAdmin
-          .from("admin_permissions")
-          .select("id")
-          .eq("user_id", caller.id)
-          .eq("permission", "admin_management")
-          .maybeSingle();
+        await verifySuperAdmin();
 
-        if (!hasPerm) throw new Error("No admin_management permission");
-
-        const { email, password, fullName, permissions } = params;
+        const { email, password, fullName, permissions, authCode } = params;
         if (!email || !password || !fullName) throw new Error("Missing required fields");
+        if (!authCode || authCode.length !== 6 || !/^\d{6}$/.test(authCode)) {
+          throw new Error("A valid 6-digit authentication code is required for the new admin");
+        }
 
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email,
@@ -139,6 +166,19 @@ Deno.serve(async (req) => {
         await supabaseAdmin.from("user_roles").insert({
           user_id: newUser.user.id,
           role: "admin",
+        });
+
+        // Set the auth code hash on profile
+        const hashedCode = await hashCode(authCode);
+        await supabaseAdmin
+          .from("profiles")
+          .update({ auth_code_hash: hashedCode })
+          .eq("id", newUser.user.id);
+
+        // Create admin_status entry
+        await supabaseAdmin.from("admin_status").insert({
+          user_id: newUser.user.id,
+          is_suspended: false,
         });
 
         // Add permissions
@@ -166,14 +206,7 @@ Deno.serve(async (req) => {
       }
 
       case "update_permissions": {
-        const { data: hasPerm } = await supabaseAdmin
-          .from("admin_permissions")
-          .select("id")
-          .eq("user_id", caller.id)
-          .eq("permission", "admin_management")
-          .maybeSingle();
-
-        if (!hasPerm) throw new Error("No admin_management permission");
+        await verifySuperAdmin();
 
         const { targetUserId, permissions } = params;
         if (!targetUserId) throw new Error("Missing target user");
@@ -209,15 +242,88 @@ Deno.serve(async (req) => {
         );
       }
 
-      case "remove_admin": {
-        const { data: hasPerm } = await supabaseAdmin
+      case "reset_admin_code": {
+        await verifySuperAdmin();
+
+        const { targetUserId, newCode } = params;
+        if (!targetUserId) throw new Error("Missing target user");
+        if (targetUserId === caller.id) throw new Error("Use the change action for your own code");
+        if (!newCode || newCode.length !== 6 || !/^\d{6}$/.test(newCode)) {
+          throw new Error("A valid 6-digit code is required");
+        }
+
+        const hashedCode = await hashCode(newCode);
+        await supabaseAdmin
+          .from("profiles")
+          .update({ auth_code_hash: hashedCode })
+          .eq("id", targetUserId);
+
+        await supabaseAdmin.from("admin_activity_log").insert({
+          admin_id: caller.id,
+          action: "reset_admin_auth_code",
+          target_type: "user",
+          target_id: targetUserId,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      case "suspend_admin": {
+        await verifySuperAdmin();
+
+        const { targetUserId, suspend } = params;
+        if (!targetUserId) throw new Error("Missing target user");
+        if (targetUserId === caller.id) throw new Error("Cannot suspend yourself");
+
+        // Prevent suspending other super admins
+        const { data: targetSuperPerm } = await supabaseAdmin
           .from("admin_permissions")
           .select("id")
-          .eq("user_id", caller.id)
+          .eq("user_id", targetUserId)
           .eq("permission", "admin_management")
           .maybeSingle();
 
-        if (!hasPerm) throw new Error("No admin_management permission");
+        if (targetSuperPerm) throw new Error("Cannot suspend a Super Admin");
+
+        await supabaseAdmin.from("admin_status").upsert({
+          user_id: targetUserId,
+          is_suspended: !!suspend,
+          suspended_at: suspend ? new Date().toISOString() : null,
+          suspended_by: suspend ? caller.id : null,
+          updated_at: new Date().toISOString(),
+        });
+
+        await supabaseAdmin.from("admin_activity_log").insert({
+          admin_id: caller.id,
+          action: suspend ? "suspend_admin" : "unsuspend_admin",
+          target_type: "user",
+          target_id: targetUserId,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      case "check_suspended": {
+        const { data: status } = await supabaseAdmin
+          .from("admin_status")
+          .select("is_suspended")
+          .eq("user_id", caller.id)
+          .maybeSingle();
+
+        return new Response(
+          JSON.stringify({ is_suspended: status?.is_suspended || false }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      case "remove_admin": {
+        await verifySuperAdmin();
 
         const { targetUserId } = params;
         if (!targetUserId) throw new Error("Missing target user");
@@ -225,6 +331,7 @@ Deno.serve(async (req) => {
 
         await supabaseAdmin.from("admin_permissions").delete().eq("user_id", targetUserId);
         await supabaseAdmin.from("user_roles").delete().eq("user_id", targetUserId).eq("role", "admin");
+        await supabaseAdmin.from("admin_status").delete().eq("user_id", targetUserId);
         await supabaseAdmin.from("profiles").update({ role: "client" }).eq("id", targetUserId);
 
         await supabaseAdmin.from("admin_activity_log").insert({
