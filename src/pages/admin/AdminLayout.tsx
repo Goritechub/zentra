@@ -179,6 +179,38 @@ export default function AdminLayout() {
 
         {/* Footer */}
         <div className="p-2 border-t border-sidebar-border space-y-1">
+          {/* Theme Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
+                <Palette className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Theme</span>}
+                {!collapsed && (
+                  <span
+                    className="ml-auto h-4 w-4 rounded-full border border-sidebar-border shrink-0"
+                    style={{ backgroundColor: THEME_OPTIONS.find(t => t.value === colorTheme)?.color }}
+                  />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="end" className="w-44 p-2">
+              <p className="text-xs font-medium text-muted-foreground px-2 pb-1">Select Theme</p>
+              {THEME_OPTIONS.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setColorTheme(t.value)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors",
+                    colorTheme === t.value ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                  )}
+                >
+                  <span className="h-3.5 w-3.5 rounded-full shrink-0 border border-border" style={{ backgroundColor: t.color }} />
+                  {t.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+
           <button
             onClick={async () => {
               await supabase.auth.signOut();
