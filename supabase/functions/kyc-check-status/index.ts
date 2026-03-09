@@ -95,6 +95,57 @@ Deno.serve(async (req) => {
         verification_level: newLevel,
       };
 
+      // Extract document data if available
+      if (decision.document) {
+        if (decision.document.full_name) updateData.full_name_on_id = decision.document.full_name;
+        if (decision.document.date_of_birth) updateData.date_of_birth = decision.document.date_of_birth;
+        if (decision.document.country) updateData.country = decision.document.country;
+        if (decision.document.document_type) updateData.document_type = decision.document.document_type;
+      }
+
+      // If approved by Didit, validate name match and age
+      if (newStatus === "verified") {
+        const { data: profileData } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+
+        const profileName = (profileData?.full_name || "").toLowerCase().trim();
+        const idName = (decision.document?.full_name || "").toLowerCase().trim();
+
+        if (profileName && idName) {
+          const profileParts = profileName.split(/\s+/).filter((p: string) => p.length > 1);
+          const idParts = idName.split(/\s+/).filter((p: string) => p.length > 1);
+          const matchCount = profileParts.filter((p: string) => idParts.includes(p)).length;
+
+          if (matchCount < Math.min(2, profileParts.length)) {
+            newStatus = "failed";
+            newLevel = "basic";
+            updateData.kyc_status = newStatus;
+            updateData.verification_level = newLevel;
+            updateData.admin_notes = `Auto-rejected: Name mismatch. Profile: "${profileData?.full_name}", ID: "${decision.document?.full_name}"`;
+          }
+        }
+
+        if (newStatus === "verified" && decision.document?.date_of_birth) {
+          const dob = new Date(decision.document.date_of_birth);
+          const today = new Date();
+          let age = today.getFullYear() - dob.getFullYear();
+          const monthDiff = today.getMonth() - dob.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+            age--;
+          }
+          if (age < 18) {
+            newStatus = "failed";
+            newLevel = "basic";
+            updateData.kyc_status = newStatus;
+            updateData.verification_level = newLevel;
+            updateData.admin_notes = `Auto-rejected: Underage (${age} years old)`;
+          }
+        }
+      }
+
       await supabaseAdmin
         .from("kyc_verifications")
         .update(updateData)
