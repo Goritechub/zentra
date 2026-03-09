@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
+import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
 import {
