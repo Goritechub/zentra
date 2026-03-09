@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { Button } from "@/components/ui/button";
