@@ -10,6 +10,8 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
+import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
+import { broadcastNotification } from "@/lib/broadcast";
 
 export default function AdminSettings() {
   const { user } = useAuth();
