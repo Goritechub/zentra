@@ -203,10 +203,21 @@ export default function AuthPage() {
         .eq("user_id", user.id)
         .eq("role", "admin")
         .maybeSingle()
-        .then(({ data: roleData }) => {
+        .then(({ data: roleData, error }) => {
+          if (error) {
+            console.error("Role check error:", error);
+          }
           if (roleData) {
             navigate("/admin");
           } else if (profile.role === "freelancer") {
+            navigate("/jobs");
+          } else {
+            navigate("/dashboard");
+          }
+        })
+        .catch(() => {
+          // Fallback navigation if role check fails
+          if (profile.role === "freelancer") {
             navigate("/jobs");
           } else {
             navigate("/dashboard");
