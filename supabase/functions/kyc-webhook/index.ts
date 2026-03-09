@@ -53,6 +53,55 @@ Deno.serve(async (req) => {
       if (payload.document.document_type) updateData.document_type = payload.document.document_type;
     }
 
+    // If Didit approved, verify name match and age before auto-approving
+    let failReason = "";
+    if (kycStatus === "verified" && vendorData) {
+      // Fetch profile full_name
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", vendorData)
+        .single();
+
+      const profileName = (profileData?.full_name || "").toLowerCase().trim();
+      const idName = (payload.document?.full_name || "").toLowerCase().trim();
+
+      // Name matching: check that all parts of the profile name appear in the ID name (or vice versa)
+      if (profileName && idName) {
+        const profileParts = profileName.split(/\s+/).filter((p: string) => p.length > 1);
+        const idParts = idName.split(/\s+/).filter((p: string) => p.length > 1);
+        const matchCount = profileParts.filter((p: string) => idParts.includes(p)).length;
+        
+        if (matchCount < Math.min(2, profileParts.length)) {
+          kycStatus = "failed";
+          verificationLevel = "basic";
+          failReason = "Name on ID does not match your profile name. Please ensure your profile name matches your government-issued ID.";
+          updateData.kyc_status = kycStatus;
+          updateData.verification_level = verificationLevel;
+          updateData.admin_notes = `Auto-rejected: Name mismatch. Profile: "${profileData?.full_name}", ID: "${payload.document?.full_name}"`;
+        }
+      }
+
+      // Age check: must be 18+
+      if (kycStatus === "verified" && payload.document?.date_of_birth) {
+        const dob = new Date(payload.document.date_of_birth);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          kycStatus = "failed";
+          verificationLevel = "basic";
+          failReason = "You must be at least 18 years old to use this platform.";
+          updateData.kyc_status = kycStatus;
+          updateData.verification_level = verificationLevel;
+          updateData.admin_notes = `Auto-rejected: Underage (${age} years old). DOB: ${payload.document.date_of_birth}`;
+        }
+      }
+    }
+
     const { error } = await supabase
       .from("kyc_verifications")
       .update(updateData)
@@ -63,14 +112,13 @@ Deno.serve(async (req) => {
       throw new Error(`DB update failed: ${error.message}`);
     }
 
-    // If verified, also update profiles.is_verified
+    // If verified (passed all checks), update profile
     if (kycStatus === "verified" && vendorData) {
       await supabase
         .from("profiles")
         .update({ is_verified: true })
         .eq("id", vendorData);
 
-      // Send notification
       await supabase.from("notifications").insert({
         user_id: vendorData,
         title: "Identity Verified ✓",
@@ -81,7 +129,7 @@ Deno.serve(async (req) => {
       await supabase.from("notifications").insert({
         user_id: vendorData,
         title: "Verification Failed",
-        message: "Your identity verification could not be completed. Please try again with valid documents.",
+        message: failReason || "Your identity verification could not be completed. Please try again with valid documents.",
         type: "verification",
       });
     }
