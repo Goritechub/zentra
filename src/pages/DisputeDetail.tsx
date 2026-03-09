@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
-import { ContractChat } from "@/components/contract/ContractChat";
+import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format, addHours, isPast } from "date-fns";
 import { toast } from "sonner";
 import {
