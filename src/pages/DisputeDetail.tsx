@@ -301,6 +301,27 @@ export default function DisputeDetail() {
               <p className="text-xs text-muted-foreground mt-2">Escrow funds remain locked until a decision is made.</p>
             </div>
           )}
+
+          {/* Adjudicator Chat - allows adjudicator to communicate with parties */}
+          {isAdjudicator && disputeActive && (
+            <div className="bg-card rounded-xl border border-border p-6 mt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Contract Chat</h3>
+                  <p className="text-xs text-muted-foreground">Communicate with both parties to gather more information</p>
+                </div>
+              </div>
+              <ContractChat
+                contractId={contract.id}
+                partnerName="Dispute Parties"
+                partnerAvatar={null}
+                contractStatus="active"
+              />
+            </div>
+          )}
         </div>
       </main>
       <Footer />
