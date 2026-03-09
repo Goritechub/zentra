@@ -254,15 +254,22 @@ export default function MyProfilePage() {
     setSaving(true);
 
     try {
+      const profileUpdate: any = {
+        phone: phone.trim() || null,
+        whatsapp: whatsapp.trim() || null,
+        state: state || null,
+        city: city || null,
+      };
+
+      // Only allow full_name update if not yet edited (or if it was empty)
+      if (!fullNameEdited && fullName.trim()) {
+        profileUpdate.full_name = fullName.trim();
+        profileUpdate.full_name_edited = true;
+      }
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName.trim() || null,
-          phone: phone.trim() || null,
-          whatsapp: whatsapp.trim() || null,
-          state: state || null,
-          city: city || null,
-        })
+        .update(profileUpdate)
         .eq("id", user.id);
 
       if (profileError) throw profileError;
