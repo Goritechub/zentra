@@ -47,6 +47,7 @@ export default function AdminLayout() {
   const [codeVerified, setCodeVerified] = useState(false);
   const [authCode, setAuthCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) checkAdmin();
