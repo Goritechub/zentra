@@ -119,6 +119,17 @@ export default function AdminLayout() {
       return;
     }
 
+    // Check suspension status
+    const { data: suspData } = await supabase.functions.invoke("manage-admin", {
+      body: { action: "check_suspended" },
+    });
+
+    if (suspData?.is_suspended) {
+      setIsSuspended(true);
+      setVerifying(false);
+      return;
+    }
+
     setCodeVerified(true);
     toast.success("Admin access granted");
   };
