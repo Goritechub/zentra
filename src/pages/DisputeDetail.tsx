@@ -13,11 +13,12 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { ContractChat } from "@/components/contract/ContractChat";
 import { formatDistanceToNow, format, addHours, isPast } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, AlertTriangle, ShieldCheck, Clock, FileText,
-  Download, Paperclip, X, Send, CheckCircle2, Scale, User, Gavel
+  Download, Paperclip, X, Send, CheckCircle2, Scale, User, Gavel, MessageSquare
 } from "lucide-react";
 
 const DISPUTE_STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; color: string }> = {
