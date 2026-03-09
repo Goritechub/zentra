@@ -278,6 +278,9 @@ export default function AdminSettings() {
             <p className="text-sm text-muted-foreground">Respondents have <span className="font-bold text-foreground">48 hours</span> to submit their response after a dispute is opened.</p>
           </CardContent>
         </Card>
+
+        {/* Authentication Code */}
+        <ChangeAuthCodeCard />
       </div>
     </div>
   );

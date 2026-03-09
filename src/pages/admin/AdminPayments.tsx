@@ -59,6 +59,11 @@ export default function AdminPayments() {
         </CardContent></Card>
       </div>
 
+      {/* Revenue Withdrawal - Super Admin only */}
+      <div className="mb-6">
+        <RevenueWithdrawCard />
+      </div>
+
       <Tabs defaultValue="wallets">
         <TabsList>
           <TabsTrigger value="wallets">Wallets</TabsTrigger>
