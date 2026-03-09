@@ -21,8 +21,7 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 animate-fade-in">
               <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse-soft" />
-              <span className="text-sm font-medium">
-</span>
+              <span className="text-sm font-medium">Where hardware and engineering projects get built</span>
             </div>
 
             {/* Headline */}
