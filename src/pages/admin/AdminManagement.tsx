@@ -10,10 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Pencil, Trash2, ShieldCheck, Shield } from "lucide-react";
+import { Loader2, UserPlus, Pencil, Trash2, ShieldCheck, Shield, Ban, CheckCircle, KeyRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useOutletContext } from "react-router-dom";
+import { AuthCodeInput } from "@/components/AuthCodeInput";
 
 interface Admin {
   id: string;
@@ -23,6 +24,8 @@ interface Admin {
   created_at: string;
   permissions: string[];
   is_current_user: boolean;
+  is_suspended: boolean;
+  suspended_at: string | null;
 }
 
 export default function AdminManagement() {
@@ -36,9 +39,14 @@ export default function AdminManagement() {
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
   const [newPermissions, setNewPermissions] = useState<string[]>([]);
+  const [newAuthCode, setNewAuthCode] = useState("");
 
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
+
+  // Reset auth code dialog
+  const [resetCodeAdmin, setResetCodeAdmin] = useState<Admin | null>(null);
+  const [resetCode, setResetCode] = useState("");
 
   const isSuperAdmin = myPermissions.includes("admin_management");
 
@@ -70,6 +78,10 @@ export default function AdminManagement() {
       toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
       return;
     }
+    if (newAuthCode.length !== 6 || !/^\d{6}$/.test(newAuthCode)) {
+      toast({ title: "Error", description: "A 6-digit authentication code is required", variant: "destructive" });
+      return;
+    }
     setActionLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-admin", {
@@ -79,16 +91,18 @@ export default function AdminManagement() {
           password: newPassword,
           fullName: newFullName,
           permissions: newPermissions,
+          authCode: newAuthCode,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Admin Created", description: `${newFullName} has been added as an admin.` });
+      toast({ title: "Admin Created", description: `${newFullName} has been added as an admin. Share their auth code securely.` });
       setShowCreate(false);
       setNewEmail("");
       setNewPassword("");
       setNewFullName("");
       setNewPermissions([]);
+      setNewAuthCode("");
       fetchAdmins();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -131,6 +145,48 @@ export default function AdminManagement() {
       if (data?.error) throw new Error(data.error);
       toast({ title: "Admin Removed", description: "Admin access has been revoked." });
       fetchAdmins();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSuspendToggle = async (admin: Admin) => {
+    const willSuspend = !admin.is_suspended;
+    if (!confirm(`${willSuspend ? "Suspend" : "Unsuspend"} ${admin.full_name || admin.email}?`)) return;
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-admin", {
+        body: { action: "suspend_admin", targetUserId: admin.id, suspend: willSuspend },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: willSuspend ? "Admin Suspended" : "Admin Unsuspended", description: `${admin.full_name || admin.email} has been ${willSuspend ? "suspended" : "restored"}.` });
+      fetchAdmins();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetCode = async () => {
+    if (!resetCodeAdmin) return;
+    if (resetCode.length !== 6 || !/^\d{6}$/.test(resetCode)) {
+      toast({ title: "Error", description: "Enter a valid 6-digit code", variant: "destructive" });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-admin", {
+        body: { action: "reset_admin_code", targetUserId: resetCodeAdmin.id, newCode: resetCode },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Auth Code Reset", description: `Auth code for ${resetCodeAdmin.full_name || resetCodeAdmin.email} has been reset. Share the new code securely.` });
+      setResetCodeAdmin(null);
+      setResetCode("");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -213,7 +269,7 @@ export default function AdminManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Admin Management</h1>
-          <p className="text-muted-foreground">Manage admin accounts and their permissions</p>
+          <p className="text-muted-foreground">Manage admin accounts, permissions, and suspension</p>
         </div>
         {isSuperAdmin && (
           <Button onClick={() => setShowCreate(true)}>
@@ -226,7 +282,7 @@ export default function AdminManagement() {
       <Card>
         <CardHeader>
           <CardTitle>Admin Accounts ({admins.length})</CardTitle>
-          <CardDescription>All administrators with their assigned permissions</CardDescription>
+          <CardDescription>All administrators with their assigned permissions and status</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -234,6 +290,7 @@ export default function AdminManagement() {
               <TableRow>
                 <TableHead>Admin</TableHead>
                 <TableHead>Role Type</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Permissions</TableHead>
                 <TableHead>Added</TableHead>
                 {isSuperAdmin && <TableHead className="text-right">Actions</TableHead>}
@@ -241,7 +298,7 @@ export default function AdminManagement() {
             </TableHeader>
             <TableBody>
               {admins.map((admin) => (
-                <TableRow key={admin.id}>
+                <TableRow key={admin.id} className={admin.is_suspended ? "opacity-60" : ""}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -279,6 +336,17 @@ export default function AdminManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    {admin.is_suspended ? (
+                      <Badge variant="destructive" className="text-xs">
+                        <Ban className="h-3 w-3 mr-1" /> Suspended
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                        <CheckCircle className="h-3 w-3 mr-1" /> Active
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-xs">
                       {admin.permissions.length === ALL_ADMIN_PERMISSIONS.length ? (
                         <Badge variant="outline" className="text-xs">
@@ -312,12 +380,36 @@ export default function AdminManagement() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
+                              setResetCodeAdmin(admin);
+                              setResetCode("");
+                            }}
+                            title="Reset auth code"
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
                               setEditingAdmin(admin);
                               setEditPermissions([...admin.permissions]);
                             }}
                             title="Edit permissions"
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleSuspendToggle(admin)}
+                            title={admin.is_suspended ? "Unsuspend" : "Suspend"}
+                            disabled={admin.permissions.includes("admin_management")}
+                          >
+                            {admin.is_suspended ? (
+                              <CheckCircle className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <Ban className="h-4 w-4 text-amber-500" />
+                            )}
                           </Button>
                           <Button
                             variant="ghost"
@@ -335,7 +427,7 @@ export default function AdminManagement() {
               ))}
               {admins.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No admin accounts found
                   </TableCell>
                 </TableRow>
@@ -382,7 +474,7 @@ export default function AdminManagement() {
           <DialogHeader>
             <DialogTitle>Create Admin Account</DialogTitle>
             <DialogDescription>
-              Create a new admin account and assign permissions
+              Create a new admin account with login credentials and authentication code
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -412,6 +504,18 @@ export default function AdminManagement() {
                 placeholder="Min 6 characters"
               />
             </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" />
+                Authentication Code
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Set a 6-digit code for this admin. Share it securely — they'll need it to access the admin panel.
+              </p>
+              <AuthCodeInput value={newAuthCode} onChange={setNewAuthCode} />
+            </div>
+            <Separator />
             <div className="space-y-2">
               <Label>Permissions</Label>
               <PermissionCheckboxes perms={newPermissions} setPerms={setNewPermissions} />
@@ -446,6 +550,34 @@ export default function AdminManagement() {
             <Button onClick={handleUpdatePermissions} disabled={actionLoading}>
               {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Permissions
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Auth Code Dialog */}
+      <Dialog open={!!resetCodeAdmin} onOpenChange={() => { setResetCodeAdmin(null); setResetCode(""); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" />
+              Reset Auth Code
+            </DialogTitle>
+            <DialogDescription>
+              Set a new 6-digit authentication code for {resetCodeAdmin?.full_name || resetCodeAdmin?.email}. Share the new code with them securely.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <Label>New 6-digit code</Label>
+            <AuthCodeInput value={resetCode} onChange={setResetCode} disabled={actionLoading} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetCodeAdmin(null); setResetCode(""); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleResetCode} disabled={actionLoading || resetCode.length !== 6}>
+              {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reset Code
             </Button>
           </DialogFooter>
         </DialogContent>
