@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
+import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
 import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check, ShieldCheck } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
@@ -59,6 +60,7 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, profile, signUp, signIn, loading: authLoading, refreshProfile } = useAuth();
+  const { signupsPaused, platformFrozen } = usePlatformFreeze();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
@@ -304,6 +306,10 @@ export default function AuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signupsPaused || platformFrozen) {
+      toast.error(platformFrozen ? "The platform is currently under maintenance." : "New registrations are temporarily paused.");
+      return;
+    }
     setSignUpErrors({});
 
     const result = signUpSchema.safeParse(signUpData);
@@ -752,6 +758,21 @@ export default function AuthPage() {
                       }}
                     >
                       Go to Sign In
+                    </Button>
+                  </div>
+                ) : (signupsPaused || platformFrozen) ? (
+                  <div className="text-center py-8 space-y-3">
+                    <ShieldCheck className="h-12 w-12 mx-auto text-destructive" />
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {platformFrozen ? "Platform Under Maintenance" : "Registrations Paused"}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {platformFrozen
+                        ? "The platform is temporarily under maintenance. Please check back later."
+                        : "New account registrations are temporarily paused. Please check back later."}
+                    </p>
+                    <Button variant="outline" onClick={() => setActiveTab("signin")}>
+                      Sign In Instead
                     </Button>
                   </div>
                 ) : (

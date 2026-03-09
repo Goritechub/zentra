@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { PlatformFreezeProvider } from "@/hooks/usePlatformFreeze";
+import { PlatformFrozenBanner } from "@/components/PlatformFrozenBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AuthCodeSetupGuard } from "@/components/AuthCodeSetupGuard";
@@ -82,11 +84,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
+      <PlatformFreezeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <PlatformFrozenBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
@@ -157,6 +161,7 @@ const App = () => (
           <FloatingSupport />
         </BrowserRouter>
       </TooltipProvider>
+      </PlatformFreezeProvider>
     </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
