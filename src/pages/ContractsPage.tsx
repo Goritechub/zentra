@@ -119,7 +119,7 @@ export default function ContractsPage() {
                                   {contract.job?.title || "Contract"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  with {partner?.full_name || "User"}
+                                  with <Link to={`/expert/${partner?.id}/profile`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{partner?.full_name || "User"}</Link>
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Started {formatDistanceToNow(new Date(contract.started_at || contract.created_at), { addSuffix: true })}
