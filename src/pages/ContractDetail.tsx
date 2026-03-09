@@ -293,7 +293,7 @@ export default function ContractDetail() {
                 </Avatar>
                 <div>
                   <h1 className="text-xl font-bold text-foreground">{contract.job_title || "Contract"}</h1>
-                  <p className="text-sm text-muted-foreground">with <span className="text-primary hover:underline cursor-pointer" onClick={() => navigate(`/expert/${partner?.id}/profile`)}>{partner?.full_name || "User"}</span></p>
+                  <p className="text-sm text-muted-foreground">with <Link to={`/expert/${partner?.id}/profile`} className="text-primary hover:underline">{partner?.full_name || "User"}</Link></p>
                   {contract.started_at && <p className="text-xs text-muted-foreground">Started {formatDistanceToNow(new Date(contract.started_at), { addSuffix: true })}</p>}
                 </div>
               </div>

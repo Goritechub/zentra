@@ -609,9 +609,9 @@ export default function ProposalsReceivedPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="font-semibold text-foreground">
+                                <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
                                   {proposal.freelancer?.full_name || "Expert"}
-                                </p>
+                                </Link>
                                 {proposal.freelancer?.state && (
                                   <p className="text-xs text-muted-foreground">
                                     {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
@@ -814,7 +814,7 @@ export default function ProposalsReceivedPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-foreground text-lg">{detailDialog.proposal.freelancer?.full_name || "Expert"}</p>
+                    <Link to={`/expert/${detailDialog.proposal.freelancer_id}/profile`} className="font-semibold text-foreground text-lg hover:text-primary hover:underline transition-colors">{detailDialog.proposal.freelancer?.full_name || "Expert"}</Link>
                     {detailDialog.proposal.freelancer?.state && (
                       <p className="text-sm text-muted-foreground">
                         {detailDialog.proposal.freelancer.city ? `${detailDialog.proposal.freelancer.city}, ` : ""}{detailDialog.proposal.freelancer.state}
