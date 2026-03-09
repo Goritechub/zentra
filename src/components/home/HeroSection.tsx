@@ -26,13 +26,13 @@ export function HeroSection() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in-up">
-              Where <span className="text-accent">hardware</span> and engineering
-              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">projects get built.</span>
+              Hire <span className="text-accent">Engineers</span> & Makers.
+              <span className="block text-2xl md:text-3xl lg:text-4xl mt-3 font-semibold text-white/90">Build Real Things.</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
-              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real-world engineering projects.
+              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real engineering projects.
             </p>
 
             {/* CTA Buttons */}
