@@ -11,8 +11,14 @@ import {
   Send, Loader2, Paperclip, X, FileText, ShieldAlert, MessageSquare, Bot, ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  FILE_SIZE_LIMIT,
+  FILE_SIZE_LIMIT_LABEL,
+  LARGE_FILE_MESSAGE,
+  isGoogleDriveLink,
+  quickValidateGDriveLink,
+} from "@/lib/google-drive-validator";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/gif",
   "application/pdf",
@@ -84,6 +90,21 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
 
   const handleSend = async () => {
     if ((!content.trim() && files.length === 0) || sending) return;
+
+    // Validate Google Drive links
+    if (content.trim()) {
+      const urls = content.match(/https?:\/\/[^\s]+/g) || [];
+      for (const url of urls) {
+        if (isGoogleDriveLink(url)) {
+          const check = quickValidateGDriveLink(url);
+          if (!check.valid) {
+            toast.error(check.reason || "Google Drive link must be set to public access.");
+            return;
+          }
+        }
+      }
+    }
+
     const success = await sendMessage(content, files.length > 0 ? files : undefined);
     if (success) {
       setContent("");
@@ -98,7 +119,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     for (const file of selected) {
-      if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} exceeds 5MB`); continue; }
+      if (file.size > FILE_SIZE_LIMIT) { toast.error(LARGE_FILE_MESSAGE, { duration: 8000 }); continue; }
       if (!ALLOWED_TYPES.includes(file.type)) { toast.error(`${file.name}: unsupported type`); continue; }
       setFiles(prev => [...prev, file]);
     }

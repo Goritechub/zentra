@@ -2,12 +2,19 @@ import { useState, useRef, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Send, Loader2, ShieldAlert, Paperclip, X, FileText } from "lucide-react";
+import { Send, Loader2, ShieldAlert, Paperclip, X, FileText, Link2 } from "lucide-react";
 import { filterMessageContent } from "@/lib/message-filters";
 import { vetAttachmentName } from "@/lib/content-vetting";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  FILE_SIZE_LIMIT,
+  FILE_SIZE_LIMIT_LABEL,
+  LARGE_FILE_MESSAGE,
+  isGoogleDriveLink,
+  quickValidateGDriveLink,
+} from "@/lib/google-drive-validator";
 
 interface MessageInputProps {
   onSend: (content: string, attachments?: string[]) => Promise<boolean>;
@@ -15,7 +22,6 @@ interface MessageInputProps {
   sending?: boolean;
 }
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/gif",
   "application/pdf",
@@ -40,6 +46,18 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
       if (result.blocked) {
         setFilterError(result.reason);
         return;
+      }
+
+      // Validate Google Drive links in the message
+      const urls = content.match(/https?:\/\/[^\s]+/g) || [];
+      for (const url of urls) {
+        if (isGoogleDriveLink(url)) {
+          const check = quickValidateGDriveLink(url);
+          if (!check.valid) {
+            setFilterError(check.reason || "Google Drive link must be set to public access.");
+            return;
+          }
+        }
       }
     }
 
@@ -91,8 +109,8 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds 5MB limit`);
+      if (file.size > FILE_SIZE_LIMIT) {
+        toast.error(LARGE_FILE_MESSAGE, { duration: 8000 });
         continue;
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
@@ -178,7 +196,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        ⚠️ Sharing private contact or financial information is strictly prohibited and will be blocked.
+        ⚠️ Max file size: {FILE_SIZE_LIMIT_LABEL}. For larger files, use Google Drive with public link sharing.
       </p>
     </div>
   );
