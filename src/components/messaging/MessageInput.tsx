@@ -196,7 +196,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        ⚠️ Sharing private contact or financial information is strictly prohibited and will be blocked.
+        ⚠️ Max file size: {FILE_SIZE_LIMIT_LABEL}. For larger files, use Google Drive with public link sharing.
       </p>
     </div>
   );

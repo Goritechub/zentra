@@ -119,7 +119,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     for (const file of selected) {
-      if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} exceeds 5MB`); continue; }
+      if (file.size > FILE_SIZE_LIMIT) { toast.error(LARGE_FILE_MESSAGE, { duration: 8000 }); continue; }
       if (!ALLOWED_TYPES.includes(file.type)) { toast.error(`${file.name}: unsupported type`); continue; }
       setFiles(prev => [...prev, file]);
     }
