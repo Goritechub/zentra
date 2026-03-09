@@ -306,6 +306,10 @@ export default function AuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signupsPaused || platformFrozen) {
+      toast.error(platformFrozen ? "The platform is currently under maintenance." : "New registrations are temporarily paused.");
+      return;
+    }
     setSignUpErrors({});
 
     const result = signUpSchema.safeParse(signUpData);
