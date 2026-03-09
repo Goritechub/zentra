@@ -60,6 +60,7 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, profile, signUp, signIn, loading: authLoading, refreshProfile } = useAuth();
+  const { signupsPaused, platformFrozen } = usePlatformFreeze();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
