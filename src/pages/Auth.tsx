@@ -380,7 +380,7 @@ export default function AuthPage() {
       return;
     }
 
-    toast.success("Account created! Please check your email to verify your account.");
+    setSignUpSuccess(true);
     const grecaptcha = (window as any).grecaptcha;
     if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
       grecaptcha.reset(recaptchaWidgetIdRef.current);
