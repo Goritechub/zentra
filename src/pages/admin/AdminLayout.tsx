@@ -153,6 +153,28 @@ export default function AdminLayout() {
       </div>);
   }
 
+  // Suspended screen
+  if (isSuspended) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-full max-w-sm mx-auto text-center">
+          <div className="bg-card border border-destructive/30 rounded-xl shadow-lg p-8 space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <ShieldAlert className="h-7 w-7 text-destructive" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground">Account Suspended</h2>
+            <p className="text-sm text-muted-foreground">
+              Your admin access has been suspended by a Super Admin. Contact your administrator for assistance.
+            </p>
+            <Button variant="outline" className="w-full" onClick={() => navigate("/dashboard")}>
+              Go to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Admin auth code gate
   if (!codeVerified) {
     return (
