@@ -216,7 +216,35 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           </div>
         </TabsContent>
 
-        {/* Chat History Tab */}
+        {/* Dispute Chat Tab - Live chat with parties */}
+        <TabsContent value="dispute-chat" className="mt-4">
+          <DisputeChat
+            disputeId={dispute.id}
+            parties={[
+              {
+                id: contract.client?.id,
+                name: contract.client?.full_name || "Client",
+                avatar: contract.client?.avatar_url,
+                role: "complainant" as const,
+              },
+              {
+                id: contract.freelancer?.id,
+                name: contract.freelancer?.full_name || "Expert",
+                avatar: contract.freelancer?.avatar_url,
+                role: "respondent" as const,
+              },
+              ...(dispute.adjudicator_id ? [{
+                id: dispute.adjudicator_id,
+                name: "You (Adjudicator)",
+                avatar: null,
+                role: "adjudicator" as const,
+              }] : []),
+            ]}
+            isActive={["awaiting_response", "under_review"].includes(dispute.dispute_status)}
+          />
+        </TabsContent>
+
+        {/* Contract Chat History Tab */}
         <TabsContent value="chat" className="mt-4">
           <div className="max-h-96 overflow-y-auto space-y-2 border border-border rounded-lg p-3">
             {chatHistory.length === 0 ? (
