@@ -70,6 +70,7 @@ const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminPlatformReviews = lazy(() => import("./pages/admin/AdminPlatformReviews"));
 const AdminLegalDocuments = lazy(() => import("./pages/admin/AdminLegalDocuments"));
 const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
+const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyControls"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
