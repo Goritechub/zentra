@@ -439,6 +439,10 @@ export default function AuthPage() {
       return;
     }
 
+    // Sign-in succeeded — the auth state listener will update user/profile
+    // and the useEffect will navigate. Reset local loading so the form
+    // doesn't stay stuck if navigation takes a moment.
+    setLoading(false);
     toast.success("Welcome back!");
   };
 
