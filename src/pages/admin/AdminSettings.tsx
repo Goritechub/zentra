@@ -299,6 +299,9 @@ export default function AdminSettings() {
 
         {/* Broadcast Notifications */}
         <BroadcastNotificationCard />
+
+        {/* Emergency Controls */}
+        <PlatformFreezeCard />
       </div>
     </div>
   );

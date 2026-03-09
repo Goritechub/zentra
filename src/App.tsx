@@ -161,6 +161,7 @@ const App = () => (
           <FloatingSupport />
         </BrowserRouter>
       </TooltipProvider>
+      </PlatformFreezeProvider>
     </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
