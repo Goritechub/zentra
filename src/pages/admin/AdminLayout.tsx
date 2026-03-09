@@ -31,7 +31,8 @@ const allNavItems = [
 { label: "Platform Reviews", icon: ThumbsUp, path: "/admin/platform-reviews", permission: "reviews" },
 { label: "Activity Log", icon: Activity, path: "/admin/activity", permission: "activity_log" },
 { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" },
-{ label: "Legal Documents", icon: Scale, path: "/admin/legal-documents", permission: "platform_settings" }];
+{ label: "Legal Documents", icon: Scale, path: "/admin/legal-documents", permission: "platform_settings" },
+{ label: "Emergency Controls", icon: ShieldAlert, path: "/admin/emergency", permission: "platform_settings" }];
 
 
 export default function AdminLayout() {
