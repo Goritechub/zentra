@@ -43,6 +43,11 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { colorTheme, setColorTheme } = useColorTheme();
 
+  // Admin auth code gate - per session
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [authCode, setAuthCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
   useEffect(() => {
     if (!authLoading && user) checkAdmin();
     if (!authLoading && !user) navigate("/auth");
@@ -96,12 +101,32 @@ export default function AdminLayout() {
     setLoading(false);
   };
 
+  const handleVerifyCode = async () => {
+    if (authCode.length !== 6) {
+      toast.error("Please enter all 6 digits");
+      return;
+    }
+    setVerifying(true);
+    const { data, error } = await supabase.functions.invoke("auth-code", {
+      body: { action: "verify", code: authCode },
+    });
+    setVerifying(false);
+
+    if (error || !data?.success) {
+      toast.error(data?.error || "Invalid authentication code");
+      setAuthCode("");
+      return;
+    }
+
+    setCodeVerified(true);
+    toast.success("Admin access granted");
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>);
-
   }
 
   if (!isAdmin) {
@@ -114,7 +139,48 @@ export default function AdminLayout() {
           <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
         </div>
       </div>);
+  }
 
+  // Admin auth code gate
+  if (!codeVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-full max-w-sm mx-auto">
+          <div className="bg-card border border-border rounded-xl shadow-lg p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Lock className="h-7 w-7 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold text-foreground">Admin Verification</h2>
+              <p className="text-sm text-muted-foreground">
+                Enter your 6-digit authentication code to access the admin panel.
+              </p>
+            </div>
+
+            <div>
+              <AuthCodeInput value={authCode} onChange={setAuthCode} disabled={verifying} />
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleVerifyCode}
+              disabled={verifying || authCode.length !== 6}
+            >
+              {verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Verify &amp; Continue
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              onClick={() => navigate("/dashboard")}
+            >
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Filter nav items by permissions
