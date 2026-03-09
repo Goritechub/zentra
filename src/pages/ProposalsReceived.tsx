@@ -609,9 +609,9 @@ export default function ProposalsReceivedPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="font-semibold text-foreground">
+                                <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
                                   {proposal.freelancer?.full_name || "Expert"}
-                                </p>
+                                </Link>
                                 {proposal.freelancer?.state && (
                                   <p className="text-xs text-muted-foreground">
                                     {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
