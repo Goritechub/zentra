@@ -55,19 +55,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let initialLoad = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer profile fetch with setTimeout to avoid deadlock
         if (session?.user) {
+          // On subsequent auth changes (not initial load), reset loading
+          if (!initialLoad) {
+            setLoading(true);
+          }
+          // Defer profile fetch with setTimeout to avoid deadlock
           setTimeout(() => {
-            fetchProfile(session.user.id).then(setProfile);
+            fetchProfile(session.user.id).then((profileData) => {
+              setProfile(profileData);
+              setLoading(false);
+            }).catch(() => {
+              setProfile(null);
+              setLoading(false);
+            });
           }, 0);
         } else {
           setProfile(null);
+          if (!initialLoad) {
+            setLoading(false);
+          }
         }
       }
     );
@@ -81,9 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchProfile(session.user.id).then((profileData) => {
           setProfile(profileData);
           setLoading(false);
+          initialLoad = false;
+        }).catch(() => {
+          setProfile(null);
+          setLoading(false);
+          initialLoad = false;
         });
       } else {
         setLoading(false);
+        initialLoad = false;
       }
     });
 
