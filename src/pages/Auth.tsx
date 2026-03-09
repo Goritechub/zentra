@@ -189,6 +189,17 @@ export default function AuthPage() {
     }
   }, [activeTab]);
 
+  // Fallback: if user exists but profile is null after auth completes, retry profile fetch
+  useEffect(() => {
+    if (user && !authLoading && !profile) {
+      console.log("[Auth] User exists but profile is null, retrying profile fetch...");
+      const timer = setTimeout(() => {
+        refreshProfile();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, authLoading, profile, refreshProfile]);
+
   useEffect(() => {
     if (user && !authLoading && profile) {
       const redirect = searchParams.get("redirect");
@@ -214,7 +225,6 @@ export default function AuthPage() {
             navigate("/dashboard");
           }
         } catch {
-          // Fallback navigation if role check fails
           if (profile.role === "freelancer") {
             navigate("/jobs");
           } else {
