@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useColorTheme, THEME_OPTIONS } from "@/hooks/useTheme";
 
 const allNavItems = [
 { label: "Overview", icon: LayoutDashboard, path: "/admin", permission: null as string | null },
