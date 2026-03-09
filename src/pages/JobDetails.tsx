@@ -923,7 +923,7 @@ export default function JobDetailsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-foreground">{client.full_name}</p>
+                        <Link to={`/expert/${client.id}/profile`} className="font-medium text-foreground hover:text-primary hover:underline transition-colors">{client.full_name}</Link>
                         {client.state && (
                           <p className="text-sm text-muted-foreground">
                             {client.city ? `${client.city}, ` : ""}{client.state}
