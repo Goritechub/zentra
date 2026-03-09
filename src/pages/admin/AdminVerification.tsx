@@ -268,6 +268,32 @@ export default function AdminVerification() {
                 </div>
               </div>
 
+              {/* Name mismatch warning */}
+              {selectedKyc.full_name_on_id && selectedKyc.profile?.full_name && (() => {
+                const profileName = selectedKyc.profile.full_name.toLowerCase().trim();
+                const idName = selectedKyc.full_name_on_id.toLowerCase().trim();
+                const profileParts = profileName.split(/\s+/);
+                const idParts = idName.split(/\s+/);
+                const hasMatch = profileParts.some((p: string) => idParts.includes(p));
+                const isExactMatch = profileName === idName;
+                if (!isExactMatch) {
+                  return (
+                    <div className={`p-3 rounded-lg border flex items-start gap-2 text-sm ${hasMatch ? "bg-accent/10 border-accent/30" : "bg-destructive/10 border-destructive/30"}`}>
+                      <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${hasMatch ? "text-accent" : "text-destructive"}`} />
+                      <div>
+                        <p className={`font-medium ${hasMatch ? "text-accent" : "text-destructive"}`}>
+                          {hasMatch ? "Partial name mismatch" : "Name mismatch detected!"}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Profile: <strong>{selectedKyc.profile.full_name}</strong> — ID: <strong>{selectedKyc.full_name_on_id}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-muted-foreground">KYC Status:</span>{" "}

@@ -487,9 +487,26 @@ export default function MyProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} placeholder="Your full name" />
+                  <Input 
+                    id="fullName" 
+                    value={fullName} 
+                    onChange={(e) => setFullName(e.target.value)} 
+                    maxLength={100} 
+                    placeholder="Your full name" 
+                    disabled={fullNameEdited && !!profile?.full_name}
+                  />
+                  {fullNameEdited && !!profile?.full_name && (
+                    <p className="text-xs text-muted-foreground">Full name can only be set once. Contact support to change it.</p>
+                  )}
                 </div>
-                <div />
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input 
+                    value={profile?.username || ""} 
+                    disabled 
+                  />
+                  <p className="text-xs text-muted-foreground">Username cannot be changed after registration.</p>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
