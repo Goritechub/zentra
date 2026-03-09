@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check } from "lucide-react";
+import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check, ShieldCheck } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
@@ -19,15 +19,30 @@ import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
+const fullNameValidator = z.string()
+  .min(4, "Full name is too short")
+  .max(100, "Full name is too long")
+  .refine((val) => {
+    const parts = val.trim().split(/\s+/).filter(p => p.length >= 2);
+    return parts.length >= 2;
+  }, "Please enter your first and last name (e.g. Adewale Okonkwo)")
+  .refine((val) => /^[a-zA-ZÀ-ÿ\s'-]+$/.test(val.trim()), "Name should only contain letters, hyphens, and apostrophes");
+
 const signUpSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
+  fullName: fullNameValidator,
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
     .max(30)
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
   email: z.string().email("Please enter a valid email").max(255),
-  password: z.string().min(6, "Password must be at least 6 characters").max(72),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72)
+    .regex(/[A-Z]/, "Must include at least one uppercase letter")
+    .regex(/[a-z]/, "Must include at least one lowercase letter")
+    .regex(/[0-9]/, "Must include at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must include at least one special character"),
   role: z.enum(["client", "freelancer"]),
 });
 
@@ -69,6 +84,7 @@ export default function AuthPage() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   const [signInData, setSignInData] = useState({
     identifier: "",
@@ -364,7 +380,7 @@ export default function AuthPage() {
       return;
     }
 
-    toast.success("Account created! Please check your email to verify your account.");
+    setSignUpSuccess(true);
     const grecaptcha = (window as any).grecaptcha;
     if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
       grecaptcha.reset(recaptchaWidgetIdRef.current);
@@ -514,6 +530,24 @@ export default function AuthPage() {
       {label}
     </Button>
   );
+
+  // Password strength calculator
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    
+    if (score <= 2) return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
+    if (score <= 3) return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
+    if (score <= 4) return { label: "Good", color: "bg-accent", width: "w-3/4" };
+    return { label: "Strong", color: "bg-primary", width: "w-full" };
+  };
+
+  const passwordStrength = getPasswordStrength(signUpData.password);
 
   const Divider = () => (
     <div className="relative my-5">
@@ -683,184 +717,257 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="signup">
-                <GoogleButton label="Continue with Google" />
-                <Divider />
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-3">
-                    <Label>I want to...</Label>
-                    <RadioGroup
-                      value={signUpData.role}
-                      onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value })}
-                      className="grid grid-cols-2 gap-3"
-                    >
-                      <label
-                        htmlFor="role-client"
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "client"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      >
-                        <RadioGroupItem value="client" id="role-client" className="sr-only" />
-                        <Briefcase className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>Hire Talent</span>
-                        <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
-                      </label>
-                      <label
-                        htmlFor="role-freelancer"
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          signUpData.role === "freelancer"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      >
-                        <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
-                        <Users className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`} />
-                        <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>Find Work</span>
-                        <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
-                      </label>
-                    </RadioGroup>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      placeholder="Adewale Okonkwo"
-                      value={signUpData.fullName}
-                      onChange={(e) => {
-                        setSignUpData({ ...signUpData, fullName: e.target.value });
-                        if (signUpErrors.fullName) setSignUpErrors((prev) => { const { fullName, ...rest } = prev; return rest; });
-                      }}
-                      className={fieldClass("fullName", signUpErrors)}
-                    />
-                    {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-username">Username</Label>
-                    <Input
-                      id="signup-username"
-                      placeholder="adewale_cad"
-                      value={signUpData.username}
-                      onChange={(e) => {
-                        setSignUpData({ ...signUpData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") });
-                        if (signUpErrors.username) setSignUpErrors((prev) => { const { username, ...rest } = prev; return rest; });
-                      }}
-                      maxLength={30}
-                      className={fieldClass("username", signUpErrors)}
-                    />
-                    <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only</p>
-                    {signUpErrors.username && <p className="text-sm text-destructive">{signUpErrors.username}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={signUpData.email}
-                      onChange={(e) => {
-                        setSignUpData({ ...signUpData, email: e.target.value });
-                        if (signUpErrors.email) setSignUpErrors((prev) => { const { email, ...rest } = prev; return rest; });
-                      }}
-                      className={fieldClass("email", signUpErrors)}
-                    />
-                    {signUpErrors.email && <p className="text-sm text-destructive">{signUpErrors.email}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showSignUpPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={signUpData.password}
-                        onChange={(e) => {
-                          setSignUpData({ ...signUpData, password: e.target.value });
-                          if (signUpErrors.password) setSignUpErrors((prev) => { const { password, ...rest } = prev; return rest; });
-                        }}
-                        className={cn("pr-10", fieldClass("password", signUpErrors))}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignUpPassword(!showSignUpPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showSignUpPassword ? "Hide password" : "Show password"}
-                      >
-                        {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
-                  </div>
-
-                  <div className="flex justify-center">
-                    <div ref={recaptchaContainerRef} />
-                  </div>
-
-                  {/* Terms & Conditions checkbox */}
-                  <div className="space-y-1">
-                    <div className="flex items-start gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!termsAccepted) {
-                            setTermsModalOpen(true);
-                          }
-                        }}
-                        className={cn(
-                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
-                          termsAccepted
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/40 bg-muted/50"
-                        )}
-                        aria-label="Agree to terms"
-                      >
-                        {termsAccepted && <Check className="h-3 w-3" />}
-                      </button>
-                      <p className="text-sm text-muted-foreground leading-tight">
-                        I agree to the{" "}
-                        <button
-                          type="button"
-                          onClick={() => setTermsModalOpen(true)}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          Terms and Conditions
-                        </button>
+                {signUpSuccess ? (
+                  <div className="text-center py-6 space-y-5">
+                    <CheckCircle2 className="h-14 w-14 mx-auto text-primary" />
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">Account Created!</h3>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Please check your email at <span className="font-medium text-foreground">{signUpData.email}</span> to verify your account.
                       </p>
                     </div>
-                    {signUpErrors.terms && (
-                      <p className="text-sm text-destructive ml-7">{signUpErrors.terms}</p>
-                    )}
+
+                    <div className="bg-muted/50 rounded-xl border border-border p-5 text-left space-y-3">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        <h4 className="font-semibold text-foreground">Set Up Transaction Security</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        After verifying your email and signing in, go to <span className="font-medium text-foreground">Edit Profile</span> to set your <span className="font-medium text-foreground">6-digit authentication code</span>. This code is required for:
+                      </p>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-1">
+                        <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Funding milestones & escrow</li>
+                        <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Wallet withdrawals</li>
+                        <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Publishing contest winners</li>
+                        <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Deleting your account</li>
+                      </ul>
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => {
+                        setSignUpSuccess(false);
+                        setActiveTab("signin");
+                      }}
+                    >
+                      Go to Sign In
+                    </Button>
                   </div>
+                ) : (
+                  <>
+                    <GoogleButton label="Continue with Google" />
+                    <Divider />
+                    <form onSubmit={handleSignUp} className="space-y-4">
+                      <div className="space-y-3">
+                        <Label>I want to...</Label>
+                        <RadioGroup
+                          value={signUpData.role}
+                          onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value })}
+                          className="grid grid-cols-2 gap-3"
+                        >
+                          <label
+                            htmlFor="role-client"
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              signUpData.role === "client"
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground"
+                            }`}
+                          >
+                            <RadioGroupItem value="client" id="role-client" className="sr-only" />
+                            <Briefcase className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`} />
+                            <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>Hire Talent</span>
+                            <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
+                          </label>
+                          <label
+                            htmlFor="role-freelancer"
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              signUpData.role === "freelancer"
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground"
+                            }`}
+                          >
+                            <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
+                            <Users className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`} />
+                            <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>Find Work</span>
+                            <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
+                          </label>
+                        </RadioGroup>
+                      </div>
 
-                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating account...
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
-                  </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-name">Full Name</Label>
+                        <Input
+                          id="signup-name"
+                          placeholder="Adewale Okonkwo"
+                          value={signUpData.fullName}
+                          onChange={(e) => {
+                            setSignUpData({ ...signUpData, fullName: e.target.value });
+                            if (signUpErrors.fullName) setSignUpErrors((prev) => { const { fullName, ...rest } = prev; return rest; });
+                          }}
+                          className={fieldClass("fullName", signUpErrors)}
+                        />
+                        <p className="text-xs text-muted-foreground">Enter your full legal name (first and last name)</p>
+                        {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
+                      </div>
 
-                  <TermsModal
-                    open={termsModalOpen}
-                    onOpenChange={setTermsModalOpen}
-                    onAgree={() => {
-                      setTermsAccepted(true);
-                      if (signUpErrors.terms) {
-                        setSignUpErrors((prev) => {
-                          const { terms, ...rest } = prev;
-                          return rest;
-                        });
-                      }
-                    }}
-                  />
-                </form>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-username">Username</Label>
+                        <Input
+                          id="signup-username"
+                          placeholder="adewale_cad"
+                          value={signUpData.username}
+                          onChange={(e) => {
+                            setSignUpData({ ...signUpData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") });
+                            if (signUpErrors.username) setSignUpErrors((prev) => { const { username, ...rest } = prev; return rest; });
+                          }}
+                          maxLength={30}
+                          className={fieldClass("username", signUpErrors)}
+                        />
+                        <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only. Cannot be changed later.</p>
+                        {signUpErrors.username && <p className="text-sm text-destructive">{signUpErrors.username}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-email">Email</Label>
+                        <Input
+                          id="signup-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={signUpData.email}
+                          onChange={(e) => {
+                            setSignUpData({ ...signUpData, email: e.target.value });
+                            if (signUpErrors.email) setSignUpErrors((prev) => { const { email, ...rest } = prev; return rest; });
+                          }}
+                          className={fieldClass("email", signUpErrors)}
+                        />
+                        {signUpErrors.email && <p className="text-sm text-destructive">{signUpErrors.email}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-password">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="signup-password"
+                            type={showSignUpPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={signUpData.password}
+                            onChange={(e) => {
+                              setSignUpData({ ...signUpData, password: e.target.value });
+                              if (signUpErrors.password) setSignUpErrors((prev) => { const { password, ...rest } = prev; return rest; });
+                            }}
+                            className={cn("pr-10", fieldClass("password", signUpErrors))}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                          >
+                            {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {signUpData.password && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className={cn("h-full rounded-full transition-all duration-300", passwordStrength.color, passwordStrength.width)} />
+                              </div>
+                              <span className={cn("text-xs font-medium", 
+                                passwordStrength.label === "Weak" ? "text-destructive" : 
+                                passwordStrength.label === "Fair" ? "text-amber-500" : 
+                                passwordStrength.label === "Good" ? "text-accent" : "text-primary"
+                              )}>{passwordStrength.label}</span>
+                            </div>
+                            <ul className="text-xs text-muted-foreground space-y-0.5">
+                              <li className={signUpData.password.length >= 8 ? "text-primary" : ""}>
+                                {signUpData.password.length >= 8 ? "✓" : "○"} At least 8 characters
+                              </li>
+                              <li className={/[A-Z]/.test(signUpData.password) ? "text-primary" : ""}>
+                                {/[A-Z]/.test(signUpData.password) ? "✓" : "○"} One uppercase letter
+                              </li>
+                              <li className={/[a-z]/.test(signUpData.password) ? "text-primary" : ""}>
+                                {/[a-z]/.test(signUpData.password) ? "✓" : "○"} One lowercase letter
+                              </li>
+                              <li className={/[0-9]/.test(signUpData.password) ? "text-primary" : ""}>
+                                {/[0-9]/.test(signUpData.password) ? "✓" : "○"} One number
+                              </li>
+                              <li className={/[^A-Za-z0-9]/.test(signUpData.password) ? "text-primary" : ""}>
+                                {/[^A-Za-z0-9]/.test(signUpData.password) ? "✓" : "○"} One special character
+                              </li>
+                            </ul>
+                          </div>
+                        )}
+                        {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
+                      </div>
+
+                      <div className="flex justify-center">
+                        <div ref={recaptchaContainerRef} />
+                      </div>
+
+                      {/* Terms & Conditions checkbox */}
+                      <div className="space-y-1">
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!termsAccepted) {
+                                setTermsModalOpen(true);
+                              }
+                            }}
+                            className={cn(
+                              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                              termsAccepted
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/40 bg-muted/50"
+                            )}
+                            aria-label="Agree to terms"
+                          >
+                            {termsAccepted && <Check className="h-3 w-3" />}
+                          </button>
+                          <p className="text-sm text-muted-foreground leading-tight">
+                            I agree to the{" "}
+                            <button
+                              type="button"
+                              onClick={() => setTermsModalOpen(true)}
+                              className="text-primary hover:underline font-medium"
+                            >
+                              Terms and Conditions
+                            </button>
+                          </p>
+                        </div>
+                        {signUpErrors.terms && (
+                          <p className="text-sm text-destructive ml-7">{signUpErrors.terms}</p>
+                        )}
+                      </div>
+
+                      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Creating account...
+                          </>
+                        ) : (
+                          "Create Account"
+                        )}
+                      </Button>
+
+                      <TermsModal
+                        open={termsModalOpen}
+                        onOpenChange={setTermsModalOpen}
+                        onAgree={() => {
+                          setTermsAccepted(true);
+                          if (signUpErrors.terms) {
+                            setSignUpErrors((prev) => {
+                              const { terms, ...rest } = prev;
+                              return rest;
+                            });
+                          }
+                        }}
+                      />
+                    </form>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </div>
