@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { filterMessageContent } from "@/lib/message-filters";
 import { vetAttachmentName } from "@/lib/content-vetting";
+import { FILE_SIZE_LIMIT, LARGE_FILE_MESSAGE } from "@/lib/google-drive-validator";
 import { toast } from "sonner";
 
 export interface ContractMessage {
