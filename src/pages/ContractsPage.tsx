@@ -29,7 +29,7 @@ export default function ContractsPage() {
     const isClient = profile?.role === "client";
     const { data } = await supabase
       .from("contracts")
-      .select("*, job:jobs!contracts_job_id_fkey(title, status), client:profiles!contracts_client_id_fkey(full_name, avatar_url), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url)")
+      .select("*, job:jobs!contracts_job_id_fkey(title, status), client:profiles!contracts_client_id_fkey(id, full_name, avatar_url), freelancer:profiles!contracts_freelancer_id_fkey(id, full_name, avatar_url)")
       .or(`client_id.eq.${user!.id},freelancer_id.eq.${user!.id}`)
       .order("created_at", { ascending: false });
 
