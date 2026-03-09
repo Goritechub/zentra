@@ -97,8 +97,8 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds 5MB limit`);
+      if (file.size > FILE_SIZE_LIMIT) {
+        toast.error(LARGE_FILE_MESSAGE, { duration: 8000 });
         continue;
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
