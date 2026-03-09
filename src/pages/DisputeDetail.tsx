@@ -302,23 +302,46 @@ export default function DisputeDetail() {
             </div>
           )}
 
-          {/* Adjudicator Chat - allows adjudicator to communicate with parties */}
-          {isAdjudicator && disputeActive && (
+          {/* Dispute Chat - all parties + adjudicator can communicate */}
+          {disputeActive && (
             <div className="bg-card rounded-xl border border-border p-6 mt-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <MessageSquare className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Contract Chat</h3>
-                  <p className="text-xs text-muted-foreground">Communicate with both parties to gather more information</p>
+                  <h3 className="text-sm font-semibold text-foreground">Dispute Chat</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isAdjudicator
+                      ? "Communicate with both parties to gather more information"
+                      : "Communicate with the adjudicator and the other party"
+                    }
+                  </p>
                 </div>
               </div>
-              <ContractChat
-                contractId={contract.id}
-                partnerName="Dispute Parties"
-                partnerAvatar={null}
-                contractStatus="active"
+              <DisputeChat
+                disputeId={dispute.id}
+                parties={[
+                  {
+                    id: raiserProfile?.id,
+                    name: raiserProfile?.full_name || "Complainant",
+                    avatar: raiserProfile?.avatar_url,
+                    role: "complainant" as const,
+                  },
+                  {
+                    id: respondentProfile?.id,
+                    name: respondentProfile?.full_name || "Respondent",
+                    avatar: respondentProfile?.avatar_url,
+                    role: "respondent" as const,
+                  },
+                  ...(dispute.adjudicator_id ? [{
+                    id: dispute.adjudicator_id,
+                    name: "ZentraGig Adjudicator",
+                    avatar: null,
+                    role: "adjudicator" as const,
+                  }] : []),
+                ]}
+                isActive={disputeActive}
               />
             </div>
           )}
