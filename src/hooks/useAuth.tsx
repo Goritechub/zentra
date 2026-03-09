@@ -55,60 +55,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let initialLoad = true;
+    let mounted = true;
+    let initialized = false;
+
+    // Atomically load user + profile together before updating state
+    const loadUserAndProfile = async (s: Session | null) => {
+      if (!mounted) return;
+      if (s?.user) {
+        try {
+          const profileData = await fetchProfile(s.user.id);
+          if (!mounted) return;
+          // Set all three together so components never see user without profile
+          setSession(s);
+          setUser(s.user);
+          setProfile(profileData);
+        } catch {
+          if (!mounted) return;
+          setSession(s);
+          setUser(s.user);
+          setProfile(null);
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      }
+      if (mounted) setLoading(false);
+    };
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // On subsequent auth changes (not initial load), reset loading
-          if (!initialLoad) {
-            setLoading(true);
-          }
-          // Defer profile fetch with setTimeout to avoid deadlock
-          setTimeout(() => {
-            fetchProfile(session.user.id).then((profileData) => {
-              setProfile(profileData);
-              setLoading(false);
-            }).catch(() => {
-              setProfile(null);
-              setLoading(false);
-            });
-          }, 0);
-        } else {
-          setProfile(null);
-          if (!initialLoad) {
-            setLoading(false);
-          }
-        }
+      (_event, newSession) => {
+        // Skip events until initial getSession completes to avoid double-fire race
+        if (!initialized) return;
+        setLoading(true);
+        loadUserAndProfile(newSession);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id).then((profileData) => {
-          setProfile(profileData);
-          setLoading(false);
-          initialLoad = false;
-        }).catch(() => {
-          setProfile(null);
-          setLoading(false);
-          initialLoad = false;
-        });
-      } else {
-        setLoading(false);
-        initialLoad = false;
-      }
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      loadUserAndProfile(existingSession).then(() => {
+        initialized = true;
+      });
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string, username: string) => {
