@@ -11,6 +11,7 @@ import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge"
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
+import { PlatformFreezeCard } from "@/components/admin/PlatformFreezeCard";
 import { broadcastNotification } from "@/lib/broadcast";
 
 export default function AdminSettings() {
