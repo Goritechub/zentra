@@ -21,8 +21,7 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 animate-fade-in">
               <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse-soft" />
-              <span className="text-sm font-medium">
-</span>
+              <span className="text-sm font-medium">Where hardware and engineering projects get built</span>
             </div>
 
             {/* Headline */}
@@ -33,7 +32,7 @@ export function HeroSection() {
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
-              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real engineering projects.
+              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real-world engineering projects.
             </p>
 
             {/* CTA Buttons */}
@@ -41,7 +40,7 @@ export function HeroSection() {
               <Button size="xl" variant="hero" asChild>
                 <Link to="/freelancers">
                    <Search className="h-5 w-5 mr-2" />
-                   Find Skills
+                   Find Experts
                 </Link>
               </Button>
               <Button size="xl" variant="heroOutline" asChild>
@@ -56,7 +55,7 @@ export function HeroSection() {
             <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-white/70 animate-fade-in-up animation-delay-300">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-accent" />
-                <span>Verified Professionals</span>
+                <span>Verified Professionals and Makers</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-accent" />
