@@ -91,6 +91,8 @@ export default function MyProfilePage() {
   const [authCode, setAuthCode] = useState("");
   const [hasAuthCode, setHasAuthCode] = useState(false);
   const [savingAuthCode, setSavingAuthCode] = useState(false);
+  const [fullNameEdited, setFullNameEdited] = useState(false);
+  const [usernameEdited, setUsernameEdited] = useState(false);
 
   // Skill input
   const [skillSearch, setSkillSearch] = useState("");
@@ -155,6 +157,17 @@ export default function MyProfilePage() {
     } finally {
       setLoading(false);
     }
+  }, [user]);
+
+  // Fetch edit-once flags
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("full_name_edited, username_edited").eq("id", user.id).single().then(({ data }) => {
+      if (data) {
+        setFullNameEdited((data as any).full_name_edited || false);
+        setUsernameEdited((data as any).username_edited || false);
+      }
+    });
   }, [user]);
 
   useEffect(() => {
@@ -241,15 +254,22 @@ export default function MyProfilePage() {
     setSaving(true);
 
     try {
+      const profileUpdate: any = {
+        phone: phone.trim() || null,
+        whatsapp: whatsapp.trim() || null,
+        state: state || null,
+        city: city || null,
+      };
+
+      // Only allow full_name update if not yet edited (or if it was empty)
+      if (!fullNameEdited && fullName.trim()) {
+        profileUpdate.full_name = fullName.trim();
+        profileUpdate.full_name_edited = true;
+      }
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          full_name: fullName.trim() || null,
-          phone: phone.trim() || null,
-          whatsapp: whatsapp.trim() || null,
-          state: state || null,
-          city: city || null,
-        })
+        .update(profileUpdate)
         .eq("id", user.id);
 
       if (profileError) throw profileError;
@@ -467,9 +487,26 @@ export default function MyProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} placeholder="Your full name" />
+                  <Input 
+                    id="fullName" 
+                    value={fullName} 
+                    onChange={(e) => setFullName(e.target.value)} 
+                    maxLength={100} 
+                    placeholder="Your full name" 
+                    disabled={fullNameEdited && !!profile?.full_name}
+                  />
+                  {fullNameEdited && !!profile?.full_name && (
+                    <p className="text-xs text-muted-foreground">Full name can only be set once. Contact support to change it.</p>
+                  )}
                 </div>
-                <div />
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input 
+                    value={profile?.username || ""} 
+                    disabled 
+                  />
+                  <p className="text-xs text-muted-foreground">Username cannot be changed after registration.</p>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">

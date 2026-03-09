@@ -1791,6 +1791,7 @@ export type Database = {
           created_at: string | null
           email: string
           full_name: string | null
+          full_name_edited: boolean
           id: string
           is_verified: boolean | null
           phone: string | null
@@ -1799,6 +1800,7 @@ export type Database = {
           theme_preference: string | null
           updated_at: string | null
           username: string | null
+          username_edited: boolean
           whatsapp: string | null
         }
         Insert: {
@@ -1808,6 +1810,7 @@ export type Database = {
           created_at?: string | null
           email: string
           full_name?: string | null
+          full_name_edited?: boolean
           id: string
           is_verified?: boolean | null
           phone?: string | null
@@ -1816,6 +1819,7 @@ export type Database = {
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
+          username_edited?: boolean
           whatsapp?: string | null
         }
         Update: {
@@ -1825,6 +1829,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           full_name?: string | null
+          full_name_edited?: boolean
           id?: string
           is_verified?: boolean | null
           phone?: string | null
@@ -1833,6 +1838,7 @@ export type Database = {
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
+          username_edited?: boolean
           whatsapp?: string | null
         }
         Relationships: []
