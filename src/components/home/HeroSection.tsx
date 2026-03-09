@@ -32,8 +32,7 @@ export function HeroSection() {
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
-              Connect with skilled engineers, architects, and technical professionals across Nigeria.
-              Find the perfect expert for your engineering projects.
+              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real engineering projects.
             </p>
 
             {/* CTA Buttons */}
