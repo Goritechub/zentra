@@ -2,12 +2,19 @@ import { useState, useRef, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Send, Loader2, ShieldAlert, Paperclip, X, FileText } from "lucide-react";
+import { Send, Loader2, ShieldAlert, Paperclip, X, FileText, Link2 } from "lucide-react";
 import { filterMessageContent } from "@/lib/message-filters";
 import { vetAttachmentName } from "@/lib/content-vetting";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  FILE_SIZE_LIMIT,
+  FILE_SIZE_LIMIT_LABEL,
+  LARGE_FILE_MESSAGE,
+  isGoogleDriveLink,
+  quickValidateGDriveLink,
+} from "@/lib/google-drive-validator";
 
 interface MessageInputProps {
   onSend: (content: string, attachments?: string[]) => Promise<boolean>;
@@ -15,7 +22,6 @@ interface MessageInputProps {
   sending?: boolean;
 }
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/gif",
   "application/pdf",
