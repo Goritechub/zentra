@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import { AuthCodeSetupGuard } from "@/components/AuthCodeSetupGuard";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface AuthGuardProps {
 /**
  * Wraps any route that requires authentication.
  * Guests are redirected to /auth with a ?redirect back.
+ * Authenticated users without an auth code are forced to set one.
  */
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
@@ -26,5 +28,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  return <>{children}</>;
+  return <AuthCodeSetupGuard>{children}</AuthCodeSetupGuard>;
 }
