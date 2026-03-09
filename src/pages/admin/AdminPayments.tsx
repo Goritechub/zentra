@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Search, Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp } from "lucide-react";
+import { RevenueWithdrawCard } from "@/components/admin/RevenueWithdrawCard";
 
 export default function AdminPayments() {
   const [wallets, setWallets] = useState<any[]>([]);
