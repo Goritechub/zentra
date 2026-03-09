@@ -21,7 +21,8 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 animate-fade-in">
               <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse-soft" />
-              <span className="text-sm font-medium">The Freelance Marketplace for Engineers & Makers</span>
+              <span className="text-sm font-medium">
+</span>
             </div>
 
             {/* Headline */}
@@ -73,9 +74,8 @@ export function HeroSection() {
       {/* Bottom wave */}
       <div className="absolute bottom-0 left-0 right-0">
         <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
-          <path
-            d="M0 100V50C240 83.3333 480 100 720 100C960 100 1200 83.3333 1440 50V100H0Z"
-            fill="hsl(var(--background))" />
+          <path d="M0 100V50C240 83.3333 480 100 720 100C960 100 1200 83.3333 1440 50V100H0Z"
+          fill="hsl(var(--background))" />
 
         </svg>
       </div>
