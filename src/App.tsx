@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { PlatformFreezeProvider } from "@/hooks/usePlatformFreeze";
+import { PlatformFrozenBanner } from "@/components/PlatformFrozenBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AuthCodeSetupGuard } from "@/components/AuthCodeSetupGuard";
