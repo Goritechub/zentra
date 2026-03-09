@@ -56,35 +56,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    // Track the latest call so stale/overlapping fetches are discarded
+    let latestCallId = 0;
 
-    // Atomically load user + profile together before updating state
     const loadUserAndProfile = async (s: Session | null) => {
       if (!mounted) return;
-      console.log("[Auth] loadUserAndProfile called, hasSession:", !!s);
+      const callId = ++latestCallId;
+      console.log("[Auth] loadUserAndProfile called, hasSession:", !!s, "callId:", callId);
+
       if (s?.user) {
-        try {
-          const profileData = await fetchProfile(s.user.id);
-          if (!mounted) return;
-          console.log("[Auth] Profile loaded:", !!profileData, "setting user+profile+session");
-          // Set all three together so components never see user without profile
-          setSession(s);
-          setUser(s.user);
-          setProfile(profileData);
-        } catch (err) {
-          console.error("[Auth] Profile fetch failed:", err);
-          if (!mounted) return;
-          setSession(s);
-          setUser(s.user);
-          setProfile(null);
+        // Retry profile fetch up to 2 times on failure (handles AbortError from concurrent calls)
+        let profileData: Profile | null = null;
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (!mounted || callId !== latestCallId) return; // stale call, abort
+          try {
+            profileData = await fetchProfile(s.user.id);
+            lastErr = null;
+            break;
+          } catch (err) {
+            lastErr = err;
+            console.warn("[Auth] Profile fetch attempt", attempt + 1, "failed:", err);
+            if (attempt < 2) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+          }
         }
+
+        if (!mounted || callId !== latestCallId) return; // stale call, abort
+
+        if (lastErr) {
+          console.error("[Auth] Profile fetch failed after retries:", lastErr);
+        }
+
+        console.log("[Auth] Profile loaded:", !!profileData, "setting user+profile+session, callId:", callId);
+        setSession(s);
+        setUser(s.user);
+        setProfile(profileData);
       } else {
         console.log("[Auth] No session, clearing state");
         setSession(null);
         setUser(null);
         setProfile(null);
       }
-      if (mounted) {
-        console.log("[Auth] Setting loading=false");
+      if (mounted && callId === latestCallId) {
+        console.log("[Auth] Setting loading=false, callId:", callId);
         setLoading(false);
       }
     };
@@ -92,7 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        // Always process auth events — loading state handles UI
         loadUserAndProfile(newSession);
       }
     );
@@ -104,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      latestCallId++; // invalidate any in-flight calls
       subscription.unsubscribe();
     };
   }, []);
