@@ -1078,7 +1078,7 @@ export default function JobDetailsPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-foreground text-lg">{detailDialog.proposal.freelancer?.full_name || "Expert"}</p>
+                    <Link to={`/expert/${detailDialog.proposal.freelancer?.id || detailDialog.proposal.freelancer_id}/profile`} className="font-semibold text-foreground text-lg hover:text-primary hover:underline transition-colors">{detailDialog.proposal.freelancer?.full_name || "Expert"}</Link>
                     {detailDialog.proposal.freelancer?.state && (
                       <p className="text-sm text-muted-foreground">
                         {detailDialog.proposal.freelancer.city ? `${detailDialog.proposal.freelancer.city}, ` : ""}{detailDialog.proposal.freelancer.state}
