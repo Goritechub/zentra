@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet } from "lucide-react";
+import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet, Trash2, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function AdminUsers() {
@@ -22,6 +23,9 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userWallet, setUserWallet] = useState<any>(null);
   const [userViolations, setUserViolations] = useState<any>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closingAccount, setClosingAccount] = useState(false);
+  const [notifyingUser, setNotifyingUser] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -71,6 +75,67 @@ export default function AdminUsers() {
     await supabase.from("admin_activity_log").insert({
       admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
     });
+  };
+
+  const closeAccount = async (targetUser: any) => {
+    setClosingAccount(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_close_user_account", {
+        _admin_id: user!.id,
+        _target_user_id: targetUser.id,
+      });
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) {
+        if (result.code === "has_funds") {
+          toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Escrow ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
+        } else if (result.code === "has_active_contracts") {
+          toast.error(`User has ${result.active_contracts} active contract(s). Cannot close account.`);
+        } else {
+          toast.error(result.error);
+        }
+        setShowCloseConfirm(false);
+        setClosingAccount(false);
+        return;
+      }
+      setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+      setSelectedUser(null);
+      setShowCloseConfirm(false);
+      toast.success("Account permanently closed and deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to close account");
+    } finally {
+      setClosingAccount(false);
+    }
+  };
+
+  const sendWithdrawReminder = async (targetUser: any) => {
+    setNotifyingUser(true);
+    try {
+      const walletBalance = userWallet?.balance || 0;
+      const escrowBalance = userWallet?.escrow_balance || 0;
+      const totalFunds = walletBalance + escrowBalance;
+
+      // Send in-app notification
+      await supabase.from("notifications").insert({
+        user_id: targetUser.id,
+        title: "Action Required: Withdraw Your Funds",
+        message: `Your account has been flagged for closure. You currently have ${formatNaira(totalFunds)} in your wallet. Please withdraw all funds immediately to avoid any issues. Contact support if you need assistance.`,
+        type: "platform_announcement",
+        link_url: "/dashboard",
+      });
+
+      await logAction("send_withdraw_reminder", "user", targetUser.id, {
+        wallet_balance: walletBalance,
+        escrow_balance: escrowBalance,
+      });
+
+      toast.success("Withdrawal reminder notification sent to user");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reminder");
+    } finally {
+      setNotifyingUser(false);
+    }
   };
 
   const getDisplayRole = (role: string) => {
@@ -221,7 +286,7 @@ export default function AdminUsers() {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <Button size="sm" variant={selectedUser.is_verified ? "outline" : "default"} onClick={() => toggleVerification(selectedUser.id, selectedUser.is_verified)}>
                   <UserCheck className="h-4 w-4 mr-1" />
                   {selectedUser.is_verified ? "Unverify" : "Verify"}
@@ -230,11 +295,55 @@ export default function AdminUsers() {
                   <Ban className="h-4 w-4 mr-1" />
                   {userViolations?.is_suspended ? "Unsuspend" : "Suspend"}
                 </Button>
+                {selectedUser.display_role !== "superadmin" && (
+                  <>
+                    {userWallet && (userWallet.balance > 0 || userWallet.escrow_balance > 0) ? (
+                      <Button size="sm" variant="outline" className="border-amber-500 text-amber-600" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
+                        {notifyingUser ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-1" />}
+                        Send Withdraw Reminder
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="destructive" className="bg-destructive/90" onClick={() => setShowCloseConfirm(true)}>
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Close Account
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Close Account Confirmation */}
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Permanently Close Account
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-semibold text-foreground">{selectedUser?.full_name || selectedUser?.email}</span>'s account and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closingAccount}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={closingAccount}
+              onClick={(e) => {
+                e.preventDefault();
+                if (selectedUser) closeAccount(selectedUser);
+              }}
+            >
+              {closingAccount ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

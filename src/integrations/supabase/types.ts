@@ -2497,6 +2497,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_close_user_account: {
+        Args: { _admin_id: string; _target_user_id: string }
+        Returns: Json
+      }
       delete_user_account: { Args: { _user_id: string }; Returns: Json }
       get_contest_entry_count: {
         Args: { _contest_id: string }
