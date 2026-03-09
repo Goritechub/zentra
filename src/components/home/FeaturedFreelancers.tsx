@@ -123,7 +123,9 @@ export function FeaturedFreelancers() {
               </div>
 
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                {expert.full_name || "Expert"}
+                <Link to={user ? `/expert/${expert.id}/profile` : `/auth?redirect=${encodeURIComponent(`/expert/${expert.id}/profile`)}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                  {expert.full_name || "Expert"}
+                </Link>
               </h3>
               {expert.title && (
                 <p className="text-sm text-muted-foreground mt-1">{expert.title}</p>
