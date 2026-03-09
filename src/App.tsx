@@ -147,6 +147,7 @@ const App = () => (
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="disputes" element={<AdminDisputes />} />
                 <Route path="reviews" element={<AdminReviews />} />
+                <Route path="broadcast" element={<AdminBroadcast />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="activity" element={<AdminActivity />} />
                 <Route path="management" element={<AdminManagement />} />
