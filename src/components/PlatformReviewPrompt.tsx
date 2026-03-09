@@ -139,13 +139,14 @@ export function PlatformReviewPrompt() {
         />
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button variant="link" size="sm" className="text-muted-foreground text-xs" onClick={handleNeverAsk}>Never ask again</Button>
+          <Button variant="link" size="sm" className="text-muted-foreground text-xs" onClick={handleNeverAsk} disabled={loading}>Never ask again</Button>
           <div className="flex gap-2 ml-auto">
             <Button variant="ghost" onClick={handleDismiss}>Maybe Later</Button>
-          <Button onClick={handleSubmit} disabled={loading || rating === 0}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
-            Submit
-          </Button>
+            <Button onClick={handleSubmit} disabled={loading || rating === 0}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Star className="h-4 w-4 mr-2" />}
+              Submit
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
