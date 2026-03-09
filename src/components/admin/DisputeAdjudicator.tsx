@@ -164,7 +164,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       <Tabs defaultValue="submissions" className="w-full">
         <TabsList className="w-full">
           <TabsTrigger value="submissions" className="flex-1">Submissions</TabsTrigger>
-          <TabsTrigger value="chat" className="flex-1">Chat History ({chatHistory.length})</TabsTrigger>
+          <TabsTrigger value="dispute-chat" className="flex-1">Dispute Chat</TabsTrigger>
+          <TabsTrigger value="chat" className="flex-1">Contract History ({chatHistory.length})</TabsTrigger>
           <TabsTrigger value="milestones" className="flex-1">Milestones</TabsTrigger>
           <TabsTrigger value="contract" className="flex-1">Contract Terms</TabsTrigger>
         </TabsList>
