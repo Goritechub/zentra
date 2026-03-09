@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ const allNavItems = [
 { label: "Payments", icon: Wallet, path: "/admin/payments", permission: "payments" },
 { label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
 { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
+{ label: "Broadcast", icon: Megaphone, path: "/admin/broadcast", permission: "platform_settings" },
 { label: "Settings", icon: Settings, path: "/admin/settings", permission: "platform_settings" },
 { label: "Verification", icon: ShieldCheck, path: "/admin/verification", permission: "users" },
 { label: "Support", icon: Headphones, path: "/admin/support", permission: "platform_settings" },

@@ -69,6 +69,7 @@ const AdminVerification = lazy(() => import("./pages/admin/AdminVerification"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminPlatformReviews = lazy(() => import("./pages/admin/AdminPlatformReviews"));
 const AdminLegalDocuments = lazy(() => import("./pages/admin/AdminLegalDocuments"));
+const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 
@@ -146,6 +147,7 @@ const App = () => (
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="disputes" element={<AdminDisputes />} />
                 <Route path="reviews" element={<AdminReviews />} />
+                <Route path="broadcast" element={<AdminBroadcast />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="activity" element={<AdminActivity />} />
                 <Route path="management" element={<AdminManagement />} />
