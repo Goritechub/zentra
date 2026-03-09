@@ -47,6 +47,18 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
         setFilterError(result.reason);
         return;
       }
+
+      // Validate Google Drive links in the message
+      const urls = content.match(/https?:\/\/[^\s]+/g) || [];
+      for (const url of urls) {
+        if (isGoogleDriveLink(url)) {
+          const check = quickValidateGDriveLink(url);
+          if (!check.valid) {
+            setFilterError(check.reason || "Google Drive link must be set to public access.");
+            return;
+          }
+        }
+      }
     }
 
     setFilterError(null);
