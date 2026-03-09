@@ -40,6 +40,7 @@ export default function AdminLayout() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const { colorTheme, setColorTheme } = useColorTheme();
 
   useEffect(() => {
     if (!authLoading && user) checkAdmin();
