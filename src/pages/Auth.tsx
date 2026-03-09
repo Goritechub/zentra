@@ -760,6 +760,21 @@ export default function AuthPage() {
                       Go to Sign In
                     </Button>
                   </div>
+                ) : (signupsPaused || platformFrozen) ? (
+                  <div className="text-center py-8 space-y-3">
+                    <ShieldCheck className="h-12 w-12 mx-auto text-destructive" />
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {platformFrozen ? "Platform Under Maintenance" : "Registrations Paused"}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {platformFrozen
+                        ? "The platform is temporarily under maintenance. Please check back later."
+                        : "New account registrations are temporarily paused. Please check back later."}
+                    </p>
+                    <Button variant="outline" onClick={() => setActiveTab("signin")}>
+                      Sign In Instead
+                    </Button>
+                  </div>
                 ) : (
                   <>
                     <GoogleButton label="Continue with Google" />
