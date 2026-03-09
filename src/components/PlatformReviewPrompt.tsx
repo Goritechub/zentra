@@ -63,6 +63,19 @@ export function PlatformReviewPrompt() {
     setShow(false);
   };
 
+  const handleNeverAsk = async () => {
+    if (!user) return;
+    setLoading(true);
+    await supabase.from("platform_reviews").insert({
+      user_id: user.id,
+      rating: 0,
+      comment: "__never_ask__",
+      contracts_at_review: completedCount,
+    } as any);
+    setShow(false);
+    setLoading(false);
+  };
+
   const handleSubmit = async () => {
     if (!user || rating === 0) {
       toast.error("Please select a rating");
