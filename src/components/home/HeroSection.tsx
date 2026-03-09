@@ -32,7 +32,7 @@ export function HeroSection() {
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto animate-fade-in-up animation-delay-100">
-              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real engineering projects.
+              ZentraGig connects companies with verified engineers, makers, and technical experts to deliver real-world engineering projects.
             </p>
 
             {/* CTA Buttons */}
