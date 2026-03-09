@@ -13,11 +13,12 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
+import { ContractChat } from "@/components/contract/ContractChat";
 import { formatDistanceToNow, format, addHours, isPast } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, AlertTriangle, ShieldCheck, Clock, FileText,
-  Download, Paperclip, X, Send, CheckCircle2, Scale, User, Gavel
+  Download, Paperclip, X, Send, CheckCircle2, Scale, User, Gavel, MessageSquare
 } from "lucide-react";
 
 const DISPUTE_STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; color: string }> = {
@@ -63,9 +64,12 @@ export default function DisputeDetail() {
   const isRaisedBy = dispute?.raised_by === user?.id;
   const isRespondent = dispute?.respondent_id === user?.id;
   const isParticipant = contract && (contract.client_id === user?.id || contract.freelancer_id === user?.id);
+  const isAdjudicator = dispute?.adjudicator_id === user?.id;
+  const hasAccess = isParticipant || isAdjudicator;
   const raiserProfile = contract?.client?.id === dispute?.raised_by ? contract?.client : contract?.freelancer;
   const respondentProfile = contract?.client?.id === dispute?.respondent_id ? contract?.client : contract?.freelancer;
   const deadlineExpired = dispute?.response_deadline && isPast(new Date(dispute.response_deadline));
+  const disputeActive = dispute?.dispute_status && ["awaiting_response", "under_review"].includes(dispute.dispute_status);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5);
@@ -118,7 +122,7 @@ export default function DisputeDetail() {
     return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>);
   }
 
-  if (!dispute || !contract || !isParticipant) {
+  if (!dispute || !contract || !hasAccess) {
     return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><p className="text-muted-foreground">Dispute not found or access denied.</p></div><Footer /></div>);
   }
 
@@ -129,8 +133,8 @@ export default function DisputeDetail() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
-          <Button variant="ghost" onClick={() => navigate(`/contract/${contract.id}?tab=disputes`)} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Contract
+          <Button variant="ghost" onClick={() => navigate(isAdjudicator ? "/admin/disputes" : `/contract/${contract.id}?tab=disputes`)} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> {isAdjudicator ? "Back to Disputes" : "Back to Contract"}
           </Button>
 
           {/* Header */}
@@ -295,6 +299,27 @@ export default function DisputeDetail() {
               <h3 className="text-base font-semibold text-foreground mb-1">Under Review</h3>
               <p className="text-sm text-muted-foreground">Both parties have submitted their cases. A ZentraGig adjudicator will review the evidence and make a decision.</p>
               <p className="text-xs text-muted-foreground mt-2">Escrow funds remain locked until a decision is made.</p>
+            </div>
+          )}
+
+          {/* Adjudicator Chat - allows adjudicator to communicate with parties */}
+          {isAdjudicator && disputeActive && (
+            <div className="bg-card rounded-xl border border-border p-6 mt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Contract Chat</h3>
+                  <p className="text-xs text-muted-foreground">Communicate with both parties to gather more information</p>
+                </div>
+              </div>
+              <ContractChat
+                contractId={contract.id}
+                partnerName="Dispute Parties"
+                partnerAvatar={null}
+                contractStatus="active"
+              />
             </div>
           )}
         </div>
