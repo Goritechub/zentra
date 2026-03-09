@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
+import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -163,7 +164,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       <Tabs defaultValue="submissions" className="w-full">
         <TabsList className="w-full">
           <TabsTrigger value="submissions" className="flex-1">Submissions</TabsTrigger>
-          <TabsTrigger value="chat" className="flex-1">Chat History ({chatHistory.length})</TabsTrigger>
+          <TabsTrigger value="dispute-chat" className="flex-1">Dispute Chat</TabsTrigger>
+          <TabsTrigger value="chat" className="flex-1">Contract History ({chatHistory.length})</TabsTrigger>
           <TabsTrigger value="milestones" className="flex-1">Milestones</TabsTrigger>
           <TabsTrigger value="contract" className="flex-1">Contract Terms</TabsTrigger>
         </TabsList>
@@ -214,7 +216,35 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           </div>
         </TabsContent>
 
-        {/* Chat History Tab */}
+        {/* Dispute Chat Tab - Live chat with parties */}
+        <TabsContent value="dispute-chat" className="mt-4">
+          <DisputeChat
+            disputeId={dispute.id}
+            parties={[
+              {
+                id: contract.client?.id,
+                name: contract.client?.full_name || "Client",
+                avatar: contract.client?.avatar_url,
+                role: "complainant" as const,
+              },
+              {
+                id: contract.freelancer?.id,
+                name: contract.freelancer?.full_name || "Expert",
+                avatar: contract.freelancer?.avatar_url,
+                role: "respondent" as const,
+              },
+              ...(dispute.adjudicator_id ? [{
+                id: dispute.adjudicator_id,
+                name: "You (Adjudicator)",
+                avatar: null,
+                role: "adjudicator" as const,
+              }] : []),
+            ]}
+            isActive={["awaiting_response", "under_review"].includes(dispute.dispute_status)}
+          />
+        </TabsContent>
+
+        {/* Contract Chat History Tab */}
         <TabsContent value="chat" className="mt-4">
           <div className="max-h-96 overflow-y-auto space-y-2 border border-border rounded-lg p-3">
             {chatHistory.length === 0 ? (

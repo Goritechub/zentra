@@ -703,6 +703,44 @@ export type Database = {
           },
         ]
       }
+      dispute_messages: {
+        Row: {
+          content: string
+          created_at: string
+          dispute_id: string
+          id: string
+          is_read: boolean
+          is_system_message: boolean
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          dispute_id: string
+          id?: string
+          is_read?: boolean
+          is_system_message?: boolean
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          dispute_id?: string
+          id?: string
+          is_read?: boolean
+          is_system_message?: boolean
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_messages_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disputes: {
         Row: {
           adjudicator_assigned_at: string | null
