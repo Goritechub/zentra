@@ -159,6 +159,17 @@ export default function MyProfilePage() {
     }
   }, [user]);
 
+  // Fetch edit-once flags
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("full_name_edited, username_edited").eq("id", user.id).single().then(({ data }) => {
+      if (data) {
+        setFullNameEdited((data as any).full_name_edited || false);
+        setUsernameEdited((data as any).username_edited || false);
+      }
+    });
+  }, [user]);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
