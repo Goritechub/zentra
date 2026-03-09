@@ -90,6 +90,21 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
 
   const handleSend = async () => {
     if ((!content.trim() && files.length === 0) || sending) return;
+
+    // Validate Google Drive links
+    if (content.trim()) {
+      const urls = content.match(/https?:\/\/[^\s]+/g) || [];
+      for (const url of urls) {
+        if (isGoogleDriveLink(url)) {
+          const check = quickValidateGDriveLink(url);
+          if (!check.valid) {
+            toast.error(check.reason || "Google Drive link must be set to public access.");
+            return;
+          }
+        }
+      }
+    }
+
     const success = await sendMessage(content, files.length > 0 ? files : undefined);
     if (success) {
       setContent("");
