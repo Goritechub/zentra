@@ -91,6 +91,8 @@ export default function MyProfilePage() {
   const [authCode, setAuthCode] = useState("");
   const [hasAuthCode, setHasAuthCode] = useState(false);
   const [savingAuthCode, setSavingAuthCode] = useState(false);
+  const [fullNameEdited, setFullNameEdited] = useState(false);
+  const [usernameEdited, setUsernameEdited] = useState(false);
 
   // Skill input
   const [skillSearch, setSkillSearch] = useState("");
