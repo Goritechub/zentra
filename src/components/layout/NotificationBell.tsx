@@ -51,10 +51,16 @@ export function NotificationBell() {
                   key={n.id}
                   onClick={() => handleClick(n)}
                   className={cn(
-                    "w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors",
+                    "relative w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors",
                     !n.is_read && "bg-primary/5"
                   )}
                 >
+                  {!n.is_read && (
+                    <span className="absolute top-2 right-2 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                    </span>
+                  )}
                   <p className="text-sm font-medium text-foreground">{n.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
