@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Save, FileText, Trash2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { broadcastNotification } from "@/lib/broadcast";
 
 interface LegalDocument {
   id: string;
