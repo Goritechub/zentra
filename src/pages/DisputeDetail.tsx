@@ -133,8 +133,8 @@ export default function DisputeDetail() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
-          <Button variant="ghost" onClick={() => navigate(`/contract/${contract.id}?tab=disputes`)} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Contract
+          <Button variant="ghost" onClick={() => navigate(isAdjudicator ? "/admin/disputes" : `/contract/${contract.id}?tab=disputes`)} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> {isAdjudicator ? "Back to Disputes" : "Back to Contract"}
           </Button>
 
           {/* Header */}
