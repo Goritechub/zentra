@@ -196,14 +196,16 @@ export default function AuthPage() {
         navigate(redirect);
         return;
       }
-      // Check if user is admin via user_roles table
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle()
-        .then(({ data: roleData }) => {
+
+      const doRedirect = async () => {
+        try {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .eq("role", "admin")
+            .maybeSingle();
+
           if (roleData) {
             navigate("/admin");
           } else if (profile.role === "freelancer") {
@@ -211,7 +213,16 @@ export default function AuthPage() {
           } else {
             navigate("/dashboard");
           }
-        });
+        } catch {
+          // Fallback navigation if role check fails
+          if (profile.role === "freelancer") {
+            navigate("/jobs");
+          } else {
+            navigate("/dashboard");
+          }
+        }
+      };
+      doRedirect();
     }
   }, [user, authLoading, profile, navigate, searchParams]);
 
@@ -439,6 +450,10 @@ export default function AuthPage() {
       return;
     }
 
+    // Sign-in succeeded — the auth state listener will update user/profile
+    // and the useEffect will navigate. Reset local loading so the form
+    // doesn't stay stuck if navigation takes a moment.
+    setLoading(false);
     toast.success("Welcome back!");
   };
 
