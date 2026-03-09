@@ -10,6 +10,8 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
+import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
+import { broadcastNotification } from "@/lib/broadcast";
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -132,6 +134,18 @@ export default function AdminSettings() {
       setTiers(finalTiers);
       invalidateCommissionCache();
       setEditingTiers(false);
+
+      // Auto-notify all users about commission change
+      try {
+        await broadcastNotification({
+          title: "Commission Structure Updated",
+          message: "The platform commission rates have been updated. The new rates apply to all future milestone releases.",
+          type: "policy_update",
+          link_url: "/terms",
+        });
+      } catch (e) {
+        console.error("Failed to broadcast commission update:", e);
+      }
     }
     setSavingTiers(false);
   };
@@ -281,6 +295,9 @@ export default function AdminSettings() {
 
         {/* Authentication Code */}
         <ChangeAuthCodeCard />
+
+        {/* Broadcast Notifications */}
+        <BroadcastNotificationCard />
       </div>
     </div>
   );
