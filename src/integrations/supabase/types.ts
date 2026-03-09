@@ -68,6 +68,33 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_status: {
+        Row: {
+          created_at: string
+          is_suspended: boolean
+          suspended_at: string | null
+          suspended_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_suspended?: boolean
+          suspended_at?: string | null
+          suspended_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_suspended?: boolean
+          suspended_at?: string | null
+          suspended_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_details: {
         Row: {
           account_name: string
