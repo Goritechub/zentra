@@ -64,9 +64,12 @@ export default function DisputeDetail() {
   const isRaisedBy = dispute?.raised_by === user?.id;
   const isRespondent = dispute?.respondent_id === user?.id;
   const isParticipant = contract && (contract.client_id === user?.id || contract.freelancer_id === user?.id);
+  const isAdjudicator = dispute?.adjudicator_id === user?.id;
+  const hasAccess = isParticipant || isAdjudicator;
   const raiserProfile = contract?.client?.id === dispute?.raised_by ? contract?.client : contract?.freelancer;
   const respondentProfile = contract?.client?.id === dispute?.respondent_id ? contract?.client : contract?.freelancer;
   const deadlineExpired = dispute?.response_deadline && isPast(new Date(dispute.response_deadline));
+  const disputeActive = dispute?.dispute_status && ["awaiting_response", "under_review"].includes(dispute.dispute_status);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5);
