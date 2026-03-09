@@ -295,6 +295,9 @@ export default function AdminSettings() {
 
         {/* Authentication Code */}
         <ChangeAuthCodeCard />
+
+        {/* Broadcast Notifications */}
+        <BroadcastNotificationCard />
       </div>
     </div>
   );
