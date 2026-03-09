@@ -84,6 +84,7 @@ export default function AuthPage() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   const [signInData, setSignInData] = useState({
     identifier: "",
