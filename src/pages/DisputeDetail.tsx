@@ -185,7 +185,7 @@ export default function DisputeDetail() {
                 <AvatarFallback className="bg-destructive/10 text-destructive">{(raiserProfile?.full_name || "U")[0]}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-semibold text-foreground">{raiserProfile?.full_name} <Badge variant="outline" className="ml-1 text-xs">Complainant</Badge></p>
+                <p className="text-sm font-semibold text-foreground"><Link to={`/expert/${raiserProfile?.id}/profile`} className="hover:text-primary hover:underline transition-colors">{raiserProfile?.full_name}</Link> <Badge variant="outline" className="ml-1 text-xs">Complainant</Badge></p>
                 <p className="text-xs text-muted-foreground">Filed {formatDistanceToNow(new Date(dispute.created_at), { addSuffix: true })}</p>
               </div>
             </div>
