@@ -19,15 +19,30 @@ import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
 
+const fullNameValidator = z.string()
+  .min(4, "Full name is too short")
+  .max(100, "Full name is too long")
+  .refine((val) => {
+    const parts = val.trim().split(/\s+/).filter(p => p.length >= 2);
+    return parts.length >= 2;
+  }, "Please enter your first and last name (e.g. Adewale Okonkwo)")
+  .refine((val) => /^[a-zA-ZÀ-ÿ\s'-]+$/.test(val.trim()), "Name should only contain letters, hyphens, and apostrophes");
+
 const signUpSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
+  fullName: fullNameValidator,
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
     .max(30)
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
   email: z.string().email("Please enter a valid email").max(255),
-  password: z.string().min(6, "Password must be at least 6 characters").max(72),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72)
+    .regex(/[A-Z]/, "Must include at least one uppercase letter")
+    .regex(/[a-z]/, "Must include at least one lowercase letter")
+    .regex(/[0-9]/, "Must include at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must include at least one special character"),
   role: z.enum(["client", "freelancer"]),
 });
 
