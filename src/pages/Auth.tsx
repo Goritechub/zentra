@@ -827,6 +827,37 @@ export default function AuthPage() {
                         {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {signUpData.password && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full transition-all duration-300", passwordStrength.color, passwordStrength.width)} />
+                          </div>
+                          <span className={cn("text-xs font-medium", 
+                            passwordStrength.label === "Weak" ? "text-destructive" : 
+                            passwordStrength.label === "Fair" ? "text-amber-500" : 
+                            passwordStrength.label === "Good" ? "text-accent" : "text-primary"
+                          )}>{passwordStrength.label}</span>
+                        </div>
+                        <ul className="text-xs text-muted-foreground space-y-0.5">
+                          <li className={signUpData.password.length >= 8 ? "text-primary" : ""}>
+                            {signUpData.password.length >= 8 ? "✓" : "○"} At least 8 characters
+                          </li>
+                          <li className={/[A-Z]/.test(signUpData.password) ? "text-primary" : ""}>
+                            {/[A-Z]/.test(signUpData.password) ? "✓" : "○"} One uppercase letter
+                          </li>
+                          <li className={/[a-z]/.test(signUpData.password) ? "text-primary" : ""}>
+                            {/[a-z]/.test(signUpData.password) ? "✓" : "○"} One lowercase letter
+                          </li>
+                          <li className={/[0-9]/.test(signUpData.password) ? "text-primary" : ""}>
+                            {/[0-9]/.test(signUpData.password) ? "✓" : "○"} One number
+                          </li>
+                          <li className={/[^A-Za-z0-9]/.test(signUpData.password) ? "text-primary" : ""}>
+                            {/[^A-Za-z0-9]/.test(signUpData.password) ? "✓" : "○"} One special character
+                          </li>
+                        </ul>
+                      </div>
+                    )}
                     {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
                   </div>
 
