@@ -11,8 +11,14 @@ import {
   Send, Loader2, Paperclip, X, FileText, ShieldAlert, MessageSquare, Bot, ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  FILE_SIZE_LIMIT,
+  FILE_SIZE_LIMIT_LABEL,
+  LARGE_FILE_MESSAGE,
+  isGoogleDriveLink,
+  quickValidateGDriveLink,
+} from "@/lib/google-drive-validator";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/gif",
   "application/pdf",
