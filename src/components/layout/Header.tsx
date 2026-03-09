@@ -134,16 +134,16 @@ export function Header() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {user ? (
+            {user && profile ? (
               <>
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "User"} />
+                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || "User"} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(profile?.full_name)}
+                        {getInitials(profile.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -151,14 +151,14 @@ export function Header() {
                 <DropdownMenuContent className="w-56" align="end">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || undefined} />
+                      <AvatarImage src={profile.avatar_url || undefined} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {getInitials(profile?.full_name)}
+                        {getInitials(profile.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <p className="text-sm font-medium">{profile?.full_name || "User"}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
+                      <p className="text-sm font-medium">{profile.full_name || "User"}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
@@ -188,6 +188,8 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
               </>
+            ) : user && !profile ? (
+              <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
             ) : (
               <>
                 <Button variant="ghost" asChild>
