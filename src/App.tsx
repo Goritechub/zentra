@@ -105,38 +105,38 @@ const App = () => (
               <Route path="/expert/:id/profile" element={<ExpertProfile />} />
 
               {/* Authenticated routes */}
-              <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><Freelancers /></RoleGuard></AuthGuard>} />
-              <Route path="/jobs" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><Jobs /></RoleGuard></AuthGuard>} />
+              <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><Freelancers /></RoleGuard></AuthGuard>} />
+              <Route path="/jobs" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><Jobs /></RoleGuard></AuthGuard>} />
               <Route path="/job/:id" element={<AuthGuard><JobDetails /></AuthGuard>} />
-              <Route path="/job/:id/apply" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ApplyJob /></RoleGuard></AuthGuard>} />
+              <Route path="/job/:id/apply" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ApplyJob /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-              <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ClientJobs /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/offers" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><SentOffers /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><ClientJobs /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/offers" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><SentOffers /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard/contracts" element={<AuthGuard><ContractsPage /></AuthGuard>} />
               <Route path="/contract/:id" element={<AuthGuard><ContractDetail /></AuthGuard>} />
               <Route path="/dispute/:disputeId" element={<AuthGuard><DisputeDetail /></AuthGuard>} />
               <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
               <Route path="/my-profile" element={<AuthGuard><MyProfile /></AuthGuard>} />
-              <Route path="/post-job" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><PostJob /></RoleGuard></AuthGuard>} />
-              <Route path="/launch-contest" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><LaunchContest /></RoleGuard></AuthGuard>} />
+              <Route path="/post-job" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><PostJob /></RoleGuard></AuthGuard>} />
+              <Route path="/launch-contest" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><LaunchContest /></RoleGuard></AuthGuard>} />
               <Route path="/transactions" element={<AuthGuard><Transactions /></AuthGuard>} />
-              <Route path="/manage-skills" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ManageSkills /></RoleGuard></AuthGuard>} />
-              <Route path="/manage-portfolio" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ManagePortfolio /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ContestEntries /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
+              <Route path="/manage-skills" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ManageSkills /></RoleGuard></AuthGuard>} />
+              <Route path="/manage-portfolio" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ManagePortfolio /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ContestEntries /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
               <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
               <Route path="/contact" element={<Contact />} />
 
               {/* Contests */}
               <Route path="/contests" element={<AuthGuard><BrowseContests /></AuthGuard>} />
               <Route path="/contest/:id" element={<AuthGuard><ContestDetailPage /></AuthGuard>} />
-              <Route path="/dashboard/my-contests" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><MyContests /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/my-contests" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><MyContests /></RoleGuard></AuthGuard>} />
 
               {/* Services */}
-              <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><MyServices /></RoleGuard></AuthGuard>} />
-              <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><BrowseServices /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><MyServices /></RoleGuard></AuthGuard>} />
+              <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><BrowseServices /></RoleGuard></AuthGuard>} />
 
               {/* Admin Panel */}
               <Route path="/admin" element={<AuthGuard><AdminLayout /></AuthGuard>}>

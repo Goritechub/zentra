@@ -13,7 +13,7 @@ interface AuthGuardProps {
  * Authenticated users without an auth code are forced to set one.
  */
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,6 +26,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (!user) {
     return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  }
+
+  // Admin users can only access admin routes
+  if (profile?.role === "admin" && !location.pathname.startsWith("/admin")) {
+    return <Navigate to="/admin" replace />;
   }
 
   return <AuthCodeSetupGuard>{children}</AuthCodeSetupGuard>;
