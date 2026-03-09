@@ -62,11 +62,17 @@ export default function NotificationsPage() {
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">{n.title}</p>
-                        {!n.is_read && <Badge variant="default" className="text-xs px-1.5 py-0">New</Badge>}
-                      </div>
+                     {!n.is_read && (
+                       <span className="relative flex h-3 w-3 shrink-0 mt-1.5">
+                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                         <span className="relative inline-flex rounded-full h-3 w-3 bg-primary" />
+                       </span>
+                     )}
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2">
+                         <p className="font-semibold text-foreground">{n.title}</p>
+                         {!n.is_read && <Badge variant="default" className="text-xs px-1.5 py-0">New</Badge>}
+                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                     </div>
                     <span className="text-xs text-muted-foreground shrink-0">
