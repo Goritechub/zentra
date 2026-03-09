@@ -223,6 +223,117 @@ serve(async (req) => {
       });
     }
 
+    // ── ADMIN REVENUE WITHDRAWAL (Super Admin only) ──
+    if (action === "admin_withdraw_revenue") {
+      const { amount, bank_detail_id } = body;
+
+      // Verify super admin
+      const { data: isSuperAdmin } = await supabase.rpc("is_super_admin", { _user_id: user.id });
+      if (!isSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Only Super Admins can withdraw revenue" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!amount || amount <= 0) {
+        return new Response(JSON.stringify({ error: "Invalid amount" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Calculate total available revenue (sum of all commission_amount)
+      const { data: revData } = await supabase
+        .from("platform_revenue")
+        .select("commission_amount");
+      const totalRevenue = (revData || []).reduce((sum: number, r: any) => sum + (r.commission_amount || 0), 0);
+
+      // Get previously withdrawn amount from platform_settings
+      const { data: withdrawnSetting } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "total_revenue_withdrawn")
+        .maybeSingle();
+      const totalWithdrawn = withdrawnSetting?.value ? Number(withdrawnSetting.value) : 0;
+      const availableRevenue = totalRevenue - totalWithdrawn;
+
+      if (amount > availableRevenue) {
+        return new Response(JSON.stringify({ error: `Insufficient revenue. Available: ${availableRevenue}` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get bank details
+      const { data: bankDetail } = await supabase
+        .from("bank_details")
+        .select("*")
+        .eq("id", bank_detail_id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!bankDetail?.recipient_code) {
+        return new Response(JSON.stringify({ error: "Bank details not found. Please add bank details first." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Initiate Paystack transfer
+      const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source: "balance",
+          amount: amount * 100, // naira to kobo
+          recipient: bankDetail.recipient_code,
+          reason: "Platform revenue withdrawal",
+        }),
+      });
+      const transferData = await transferRes.json();
+
+      if (!transferData.status) {
+        return new Response(JSON.stringify({ error: transferData.message || "Transfer failed" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update withdrawn total
+      const newWithdrawn = totalWithdrawn + amount;
+      if (withdrawnSetting) {
+        await supabase
+          .from("platform_settings")
+          .update({ value: newWithdrawn as any, updated_at: new Date().toISOString(), updated_by: user.id })
+          .eq("key", "total_revenue_withdrawn");
+      } else {
+        await supabase
+          .from("platform_settings")
+          .insert({ key: "total_revenue_withdrawn", value: newWithdrawn as any, updated_by: user.id });
+      }
+
+      // Log admin activity
+      await supabase.from("admin_activity_log").insert({
+        admin_id: user.id,
+        action: "revenue_withdrawal",
+        target_type: "platform_revenue",
+        details: { amount, transfer_code: transferData.data?.transfer_code, bank: bankDetail.bank_name },
+      });
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        transfer_code: transferData.data?.transfer_code,
+        available_after: availableRevenue - amount 
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

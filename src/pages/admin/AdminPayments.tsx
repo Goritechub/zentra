@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Search, Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp } from "lucide-react";
+import { RevenueWithdrawCard } from "@/components/admin/RevenueWithdrawCard";
 
 export default function AdminPayments() {
   const [wallets, setWallets] = useState<any[]>([]);
@@ -56,6 +57,11 @@ export default function AdminPayments() {
           <div><p className="text-sm text-muted-foreground">Platform Revenue</p><p className="text-xl font-bold text-emerald-500">{formatNaira(totalRev)}</p></div>
           <TrendingUp className="h-8 w-8 text-emerald-500" />
         </CardContent></Card>
+      </div>
+
+      {/* Revenue Withdrawal - Super Admin only */}
+      <div className="mb-6">
+        <RevenueWithdrawCard />
       </div>
 
       <Tabs defaultValue="wallets">

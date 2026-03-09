@@ -9,6 +9,7 @@ import { Loader2, Plus, Save, Settings, Pencil, X, Trash2 } from "lucide-react";
 import { formatNaira } from "@/lib/nigerian-data";
 import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
+import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -277,6 +278,9 @@ export default function AdminSettings() {
             <p className="text-sm text-muted-foreground">Respondents have <span className="font-bold text-foreground">48 hours</span> to submit their response after a dispute is opened.</p>
           </CardContent>
         </Card>
+
+        {/* Authentication Code */}
+        <ChangeAuthCodeCard />
       </div>
     </div>
   );

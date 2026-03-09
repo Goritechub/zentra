@@ -13,6 +13,35 @@ async function hashCode(code: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
+  if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+    return { strong: false, reason: "Code must be exactly 6 digits" };
+  }
+  // Reject all same digits (111111, 000000)
+  if (/^(\d)\1{5}$/.test(code)) {
+    return { strong: false, reason: "Code cannot be all the same digit" };
+  }
+  // Reject sequential ascending (123456)
+  const ascending = "0123456789";
+  if (ascending.includes(code)) {
+    return { strong: false, reason: "Code cannot be a sequential sequence" };
+  }
+  // Reject sequential descending (654321)
+  const descending = "9876543210";
+  if (descending.includes(code)) {
+    return { strong: false, reason: "Code cannot be a sequential sequence" };
+  }
+  // Reject repeating pairs (121212, 787878)
+  if (/^(\d{2})\1{2}$/.test(code)) {
+    return { strong: false, reason: "Code cannot be a repeating pair pattern" };
+  }
+  // Reject repeating triplets (123123)
+  if (/^(\d{3})\1$/.test(code)) {
+    return { strong: false, reason: "Code cannot be a repeating triplet pattern" };
+  }
+  return { strong: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -41,7 +70,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, code } = await req.json();
+    const body = await req.json();
+    const { action, code, current_code, new_code } = body;
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -49,14 +79,14 @@ Deno.serve(async (req) => {
     );
 
     if (action === "set") {
-      if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
-        return new Response(JSON.stringify({ error: "Code must be exactly 6 digits" }), {
+      const strength = checkCodeStrength(code);
+      if (!strength.strong) {
+        return new Response(JSON.stringify({ error: strength.reason }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Check if user already has a code set
       const { data: profile } = await adminClient
         .from("profiles")
         .select("auth_code_hash")
@@ -111,11 +141,57 @@ Deno.serve(async (req) => {
     }
 
     if (action === "change") {
-      const { current_code, new_code } = await req.json().catch(() => ({ current_code: null, new_code: null }));
-      // Re-parse since we already consumed body - use code field for current, and accept new_code from body
-      // Actually the body was already parsed above, so let's use what we got
-      return new Response(JSON.stringify({ error: "Use set action for initial setup" }), {
-        status: 400,
+      if (!current_code || current_code.length !== 6 || !/^\d{6}$/.test(current_code)) {
+        return new Response(JSON.stringify({ error: "Current code is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const strength = checkCodeStrength(new_code);
+      if (!strength.strong) {
+        return new Response(JSON.stringify({ error: strength.reason }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("auth_code_hash")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.auth_code_hash) {
+        return new Response(JSON.stringify({ error: "No auth code set" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const currentHashed = await hashCode(current_code);
+      if (currentHashed !== profile.auth_code_hash) {
+        return new Response(JSON.stringify({ error: "Current code is incorrect" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Ensure new code differs from current
+      const newHashed = await hashCode(new_code);
+      if (newHashed === profile.auth_code_hash) {
+        return new Response(JSON.stringify({ error: "New code must be different from current code" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await adminClient
+        .from("profiles")
+        .update({ auth_code_hash: newHashed })
+        .eq("id", user.id);
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -132,8 +208,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "check_strength") {
+      const strength = checkCodeStrength(code);
+      return new Response(JSON.stringify(strength), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "reset") {
-      // Requires current code verification first
       if (!code || code.length !== 6) {
         return new Response(JSON.stringify({ error: "Current code required" }), {
           status: 400,
@@ -162,7 +244,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Clear the code so they can set a new one
       await adminClient
         .from("profiles")
         .update({ auth_code_hash: null })
