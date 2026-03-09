@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
+import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
 import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check, ShieldCheck } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
