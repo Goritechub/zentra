@@ -135,8 +135,8 @@ const App = () => (
               <Route path="/dashboard/my-contests" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><MyContests /></RoleGuard></AuthGuard>} />
 
               {/* Services */}
-              <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer", "admin"]}><MyServices /></RoleGuard></AuthGuard>} />
-              <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client", "admin"]}><BrowseServices /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><MyServices /></RoleGuard></AuthGuard>} />
+              <Route path="/browse-services" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><BrowseServices /></RoleGuard></AuthGuard>} />
 
               {/* Admin Panel */}
               <Route path="/admin" element={<AuthGuard><AdminLayout /></AuthGuard>}>
