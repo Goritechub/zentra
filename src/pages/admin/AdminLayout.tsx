@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette } from
 "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
