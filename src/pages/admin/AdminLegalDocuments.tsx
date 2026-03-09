@@ -117,6 +117,20 @@ export default function AdminLegalDocuments() {
         toast.error("Failed to save changes");
       } else {
         toast.success("Document saved");
+        // Auto-notify all users about policy update
+        if (editPublished) {
+          try {
+            await broadcastNotification({
+              title: `${editTitle.trim()} Updated`,
+              message: `Our "${editTitle.trim()}" has been updated. Please review the latest changes.`,
+              type: "policy_update",
+              link_url: `/terms?doc=${slug}`,
+            });
+            toast.success("All users have been notified");
+          } catch (e) {
+            console.error("Failed to broadcast policy update:", e);
+          }
+        }
       }
     }
 
