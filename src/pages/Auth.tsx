@@ -1062,6 +1062,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-email">Email</Label>
                         <Input
                           id="signup-email"
+                          name="email"
+                          autoComplete="email"
                           type="email"
                           placeholder="you@example.com"
                           value={signUpData.email}
