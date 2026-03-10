@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
+import { categoryNames } from "@/lib/categories";
 import { formatNaira } from "@/lib/nigerian-data";
 import { Loader2, X, Trophy, Upload, Wallet, AlertTriangle } from "lucide-react";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
