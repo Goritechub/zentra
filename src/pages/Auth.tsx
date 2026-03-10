@@ -917,7 +917,7 @@ export default function AuthPage() {
                     <Divider />
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="space-y-3">
-                        <Label>I want to...</Label>
+                        <Label id="role-label">I want to...</Label>
                         <RadioGroup
                           value={signUpData.role}
                           onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value, occupation: "", occupationOther: "" })}
