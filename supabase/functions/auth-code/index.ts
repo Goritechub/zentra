@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,11 +7,11 @@ const corsHeaders = {
 };
 
 async function hashCode(code: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(code);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return await bcrypt.hash(code);
+}
+
+async function verifyCode(code: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(code, hash);
 }
 
 function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
@@ -82,7 +83,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check if code already exists in auth_codes table
       const { data: existing } = await adminClient
         .from("auth_codes")
         .select("user_id")
@@ -127,8 +127,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const hashed = await hashCode(code);
-      const valid = hashed === authCode.auth_code_hash;
+      const valid = await verifyCode(code, authCode.auth_code_hash);
 
       return new Response(JSON.stringify({ success: valid, error: valid ? null : "Invalid code" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -164,21 +163,23 @@ Deno.serve(async (req) => {
         });
       }
 
-      const currentHashed = await hashCode(current_code);
-      if (currentHashed !== authCode.auth_code_hash) {
+      const currentValid = await verifyCode(current_code, authCode.auth_code_hash);
+      if (!currentValid) {
         return new Response(JSON.stringify({ error: "Current code is incorrect" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const newHashed = await hashCode(new_code);
-      if (newHashed === authCode.auth_code_hash) {
+      // Ensure new code is different (compare plaintext since bcrypt hashes differ each time)
+      if (current_code === new_code) {
         return new Response(JSON.stringify({ error: "New code must be different from current code" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      const newHashed = await hashCode(new_code);
 
       await adminClient
         .from("auth_codes")
@@ -230,8 +231,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const hashed = await hashCode(code);
-      if (hashed !== authCode.auth_code_hash) {
+      const valid = await verifyCode(code, authCode.auth_code_hash);
+      if (!valid) {
         return new Response(JSON.stringify({ error: "Invalid current code" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
