@@ -202,29 +202,19 @@ export default function AuthPage() {
     }
   }, [user, authLoading, profile, refreshProfile]);
 
-  // Apply pending primary category for freelancers on first login
+  // Apply pending occupation on first login
   useEffect(() => {
-    if (!user || !profile || profile.role !== "freelancer") return;
-    const pendingCategory = localStorage.getItem("pending_primary_category");
-    if (!pendingCategory) return;
+    if (!user || !profile) return;
+    const pendingOccupation = localStorage.getItem("pending_occupation");
+    if (!pendingOccupation) return;
 
-    const applyCategory = async () => {
-      // Upsert freelancer profile with primary_category
-      const { data: existing } = await supabase
-        .from("freelancer_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase.from("freelancer_profiles").update({ primary_category: pendingCategory } as any).eq("user_id", user.id);
-      } else {
-        await supabase.from("freelancer_profiles").insert({ user_id: user.id, primary_category: pendingCategory } as any);
-      }
-      localStorage.removeItem("pending_primary_category");
+    const apply = async () => {
+      await supabase.from("profiles").update({ occupation: pendingOccupation } as any).eq("id", user.id);
+      localStorage.removeItem("pending_occupation");
+      refreshProfile();
     };
-    applyCategory();
-  }, [user, profile]);
+    apply();
+  }, [user, profile, refreshProfile]);
 
   useEffect(() => {
     if (user && !authLoading && profile) {
