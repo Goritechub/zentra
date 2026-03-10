@@ -1871,6 +1871,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_code_dismissed_at: string | null
           avatar_url: string | null
           city: string | null
           created_at: string | null
@@ -1890,6 +1891,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          auth_code_dismissed_at?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
@@ -1909,6 +1911,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          auth_code_dismissed_at?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
