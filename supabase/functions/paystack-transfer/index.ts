@@ -9,6 +9,13 @@ const corsHeaders = {
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
+function jsonRes(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -17,10 +24,7 @@ serve(async (req) => {
   try {
     const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!PAYSTACK_SECRET_KEY) {
-      return new Response(JSON.stringify({ error: "Paystack not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Paystack not configured" }, 500);
     }
 
     const supabase = createClient(
@@ -29,20 +33,11 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) return jsonRes({ error: "Missing authorization" }, 401);
+
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (authError || !user) return jsonRes({ error: "Unauthorized" }, 401);
 
     const body = await req.json();
     const { action } = body;
@@ -53,10 +48,7 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
       });
       const data = await res.json();
-      return new Response(JSON.stringify({ success: true, banks: data.data }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ success: true, banks: data.data });
     }
 
     // ── RESOLVE ACCOUNT ──
@@ -67,17 +59,13 @@ serve(async (req) => {
         { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` } }
       );
       const data = await res.json();
-      return new Response(JSON.stringify({ success: data.status, data: data.data }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ success: data.status, data: data.data });
     }
 
-    // ── CREATE TRANSFER RECIPIENT & SAVE BANK DETAILS ──
+    // ── SAVE BANK DETAILS ──
     if (action === "save_bank") {
       const { account_number, bank_code, bank_name, account_name } = body;
 
-      // Create Paystack transfer recipient
       const recipientRes = await fetch(`${PAYSTACK_BASE}/transferrecipient`, {
         method: "POST",
         headers: {
@@ -85,202 +73,46 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "nuban",
-          name: account_name,
-          account_number,
-          bank_code,
-          currency: "NGN",
+          type: "nuban", name: account_name, account_number, bank_code, currency: "NGN",
         }),
       });
       const recipientData = await recipientRes.json();
 
       if (!recipientData.status) {
-        return new Response(JSON.stringify({ error: recipientData.message || "Failed to create recipient" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonRes({ error: recipientData.message || "Failed to create recipient" }, 400);
       }
 
-      // Unset other defaults
       await supabase.from("bank_details").update({ is_default: false }).eq("user_id", user.id);
 
-      // Save to DB
       const { data: bankDetail, error } = await supabase.from("bank_details").upsert({
-        user_id: user.id,
-        bank_code,
-        bank_name,
-        account_number,
-        account_name,
-        recipient_code: recipientData.data.recipient_code,
-        is_default: true,
+        user_id: user.id, bank_code, bank_name, account_number, account_name,
+        recipient_code: recipientData.data.recipient_code, is_default: true,
       }, { onConflict: "user_id,bank_code,account_number" }).select().single();
 
-      if (error) {
-        return new Response(JSON.stringify({ error: "Failed to save bank details" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ success: true, bank_detail: bankDetail }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (error) return jsonRes({ error: "Failed to save bank details" }, 500);
+      return jsonRes({ success: true, bank_detail: bankDetail });
     }
 
-    // ── INITIATE WITHDRAWAL ──
+    // ── INITIATE WITHDRAWAL (atomic RPC) ──
     if (action === "withdraw") {
       const { amount, bank_detail_id } = body;
-      // amount in Naira from frontend
 
-      // Check wallet balance
-      const { data: wallet } = await supabase
-        .from("wallets")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!wallet || wallet.balance < amount) {
-        return new Response(JSON.stringify({ error: "Insufficient balance" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Get bank details
-      const { data: bankDetail } = await supabase
-        .from("bank_details")
-        .select("*")
-        .eq("id", bank_detail_id)
-        .eq("user_id", user.id)
-        .single();
-
-      if (!bankDetail?.recipient_code) {
-        return new Response(JSON.stringify({ error: "Bank details not found or invalid" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Debit wallet first
-      await supabase.from("wallets").update({
-        balance: wallet.balance - amount,
-      }).eq("user_id", user.id);
-
-      // Initiate Paystack transfer (convert naira to kobo for Paystack API)
-      const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          source: "balance",
-          amount: amount * 100, // convert naira to kobo for Paystack API
-          recipient: bankDetail.recipient_code,
-          reason: `Withdrawal from platform wallet`,
-        }),
-      });
-      const transferData = await transferRes.json();
-
-      const status = transferData.status ? "processing" : "failed";
-      const transferCode = transferData.data?.transfer_code || null;
-
-      // Save withdrawal request
-      await supabase.from("withdrawal_requests").insert({
-        user_id: user.id,
-        amount: amount, // store in naira
-        bank_detail_id,
-        transfer_code: transferCode,
-        status,
-        reason: !transferData.status ? (transferData.message || "Transfer failed") : null,
+      // Step 1: Atomic debit via RPC
+      const { data: result, error: rpcError } = await supabase.rpc("withdraw_wallet_atomic", {
+        _user_id: user.id,
+        _amount: amount,
+        _bank_detail_id: bank_detail_id,
       });
 
-      // Record wallet transaction
-      await supabase.from("wallet_transactions").insert({
-        user_id: user.id,
-        type: "withdrawal",
-        amount,
-        balance_after: wallet.balance - amount,
-        description: `Withdrawal to ${bankDetail.bank_name} - ${bankDetail.account_number}`,
-      });
-
-      if (!transferData.status) {
-        // Refund wallet on failure
-        await supabase.from("wallets").update({
-          balance: wallet.balance,
-        }).eq("user_id", user.id);
-
-        return new Response(JSON.stringify({ error: transferData.message || "Transfer failed" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (rpcError) {
+        console.error("withdraw_wallet_atomic error:", rpcError);
+        return jsonRes({ error: rpcError.message }, 500);
+      }
+      if (!result?.success) {
+        return jsonRes({ error: result?.error || "Withdrawal failed" }, 400);
       }
 
-      return new Response(JSON.stringify({ success: true, transfer_code: transferCode }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── ADMIN REVENUE WITHDRAWAL (Super Admin only) ──
-    if (action === "admin_withdraw_revenue") {
-      const { amount, bank_detail_id } = body;
-
-      // Verify super admin
-      const { data: isSuperAdmin } = await supabase.rpc("is_super_admin", { _user_id: user.id });
-      if (!isSuperAdmin) {
-        return new Response(JSON.stringify({ error: "Only Super Admins can withdraw revenue" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (!amount || amount <= 0) {
-        return new Response(JSON.stringify({ error: "Invalid amount" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Calculate total available revenue (sum of all commission_amount)
-      const { data: revData } = await supabase
-        .from("platform_revenue")
-        .select("commission_amount");
-      const totalRevenue = (revData || []).reduce((sum: number, r: any) => sum + (r.commission_amount || 0), 0);
-
-      // Get previously withdrawn amount from platform_settings
-      const { data: withdrawnSetting } = await supabase
-        .from("platform_settings")
-        .select("value")
-        .eq("key", "total_revenue_withdrawn")
-        .maybeSingle();
-      const totalWithdrawn = withdrawnSetting?.value ? Number(withdrawnSetting.value) : 0;
-      const availableRevenue = totalRevenue - totalWithdrawn;
-
-      if (amount > availableRevenue) {
-        return new Response(JSON.stringify({ error: `Insufficient revenue. Available: ${availableRevenue}` }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Get bank details
-      const { data: bankDetail } = await supabase
-        .from("bank_details")
-        .select("*")
-        .eq("id", bank_detail_id)
-        .eq("user_id", user.id)
-        .single();
-
-      if (!bankDetail?.recipient_code) {
-        return new Response(JSON.stringify({ error: "Bank details not found. Please add bank details first." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Initiate Paystack transfer
+      // Step 2: Call Paystack
       const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
         method: "POST",
         headers: {
@@ -290,59 +122,102 @@ serve(async (req) => {
         body: JSON.stringify({
           source: "balance",
           amount: amount * 100, // naira to kobo
-          recipient: bankDetail.recipient_code,
-          reason: "Platform revenue withdrawal",
+          recipient: result.recipient_code,
+          reason: "Withdrawal from platform wallet",
         }),
       });
       const transferData = await transferRes.json();
 
       if (!transferData.status) {
-        return new Response(JSON.stringify({ error: transferData.message || "Transfer failed" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        // Step 3: Paystack failed — atomic reversal
+        const { error: revError } = await supabase.rpc("reverse_withdrawal_atomic", {
+          _user_id: user.id,
+          _withdrawal_id: result.withdrawal_id,
+          _reference: result.reference,
+          _reason: transferData.message || "Transfer failed",
         });
+        if (revError) console.error("reverse_withdrawal_atomic error:", revError);
+
+        return jsonRes({ error: transferData.message || "Transfer failed" }, 400);
       }
 
-      // Update withdrawn total
+      // Update withdrawal request with transfer code
+      await supabase.from("withdrawal_requests").update({
+        transfer_code: transferData.data?.transfer_code || null,
+        status: "processing",
+      }).eq("id", result.withdrawal_id);
+
+      return jsonRes({ success: true, transfer_code: transferData.data?.transfer_code });
+    }
+
+    // ── ADMIN REVENUE WITHDRAWAL ──
+    if (action === "admin_withdraw_revenue") {
+      const { amount, bank_detail_id } = body;
+
+      const { data: isSuperAdmin } = await supabase.rpc("is_super_admin", { _user_id: user.id });
+      if (!isSuperAdmin) return jsonRes({ error: "Only Super Admins can withdraw revenue" }, 403);
+      if (!amount || amount <= 0) return jsonRes({ error: "Invalid amount" }, 400);
+
+      const { data: revData } = await supabase.from("platform_revenue").select("commission_amount");
+      const totalRevenue = (revData || []).reduce((sum: number, r: any) => sum + (r.commission_amount || 0), 0);
+
+      const { data: withdrawnSetting } = await supabase
+        .from("platform_settings").select("value").eq("key", "total_revenue_withdrawn").maybeSingle();
+      const totalWithdrawn = withdrawnSetting?.value ? Number(withdrawnSetting.value) : 0;
+      const availableRevenue = totalRevenue - totalWithdrawn;
+
+      if (amount > availableRevenue) {
+        return jsonRes({ error: `Insufficient revenue. Available: ${availableRevenue}` }, 400);
+      }
+
+      const { data: bankDetail } = await supabase.from("bank_details")
+        .select("*").eq("id", bank_detail_id).eq("user_id", user.id).single();
+
+      if (!bankDetail?.recipient_code) {
+        return jsonRes({ error: "Bank details not found. Please add bank details first." }, 400);
+      }
+
+      const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source: "balance", amount: amount * 100,
+          recipient: bankDetail.recipient_code, reason: "Platform revenue withdrawal",
+        }),
+      });
+      const transferData = await transferRes.json();
+
+      if (!transferData.status) {
+        return jsonRes({ error: transferData.message || "Transfer failed" }, 400);
+      }
+
       const newWithdrawn = totalWithdrawn + amount;
       if (withdrawnSetting) {
-        await supabase
-          .from("platform_settings")
+        await supabase.from("platform_settings")
           .update({ value: newWithdrawn as any, updated_at: new Date().toISOString(), updated_by: user.id })
           .eq("key", "total_revenue_withdrawn");
       } else {
-        await supabase
-          .from("platform_settings")
+        await supabase.from("platform_settings")
           .insert({ key: "total_revenue_withdrawn", value: newWithdrawn as any, updated_by: user.id });
       }
 
-      // Log admin activity
       await supabase.from("admin_activity_log").insert({
-        admin_id: user.id,
-        action: "revenue_withdrawal",
-        target_type: "platform_revenue",
+        admin_id: user.id, action: "revenue_withdrawal", target_type: "platform_revenue",
         details: { amount, transfer_code: transferData.data?.transfer_code, bank: bankDetail.bank_name },
       });
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        transfer_code: transferData.data?.transfer_code,
-        available_after: availableRevenue - amount 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return jsonRes({
+        success: true, transfer_code: transferData.data?.transfer_code,
+        available_after: availableRevenue - amount,
       });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonRes({ error: "Unknown action" }, 400);
   } catch (error) {
     console.error("Paystack transfer error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonRes({ error: "Internal server error" }, 500);
   }
 });

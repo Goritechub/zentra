@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
           .update({ status: "selecting_winners" })
           .eq("id", contest.id);
 
-        // Notify client
         await supabase.from("notifications").insert({
           user_id: contest.client_id,
           type: "contest_deadline",
@@ -51,7 +50,7 @@ Deno.serve(async (req) => {
           message: `Your contest "${contest.title}" has ended. Please select winners.`,
           contract_id: null,
         });
-        
+
         results.push({ contest_id: contest.id, action: "status_updated_to_selecting" });
         continue;
       }
@@ -80,42 +79,44 @@ Deno.serve(async (req) => {
         results.push({ contest_id: contest.id, action: "reminder_1_day" });
       }
 
-      // Auto-award at 25 days
+      // Auto-award at 25 days — uses the SAME atomic RPC as manual publishing
       if (daysSinceDeadline >= 25) {
-        // Get nominees
+        // Check if there are nominees
         const { data: nominees } = await supabase
           .from("contest_entries")
-          .select("*")
+          .select("id")
           .eq("contest_id", contest.id)
           .eq("is_nominee", true);
 
         if (nominees && nominees.length > 0) {
-          // Auto-publish nominees as winners
-          for (let i = 0; i < Math.min(nominees.length, 3); i++) {
-            await supabase
-              .from("contest_entries")
-              .update({
-                is_winner: true,
-                prize_position: i + 1,
-                is_nominee: false,
-              })
-              .eq("id", nominees[i].id);
+          // Use the atomic RPC with _is_auto_award = true
+          const { data: result, error: rpcError } = await supabase.rpc("publish_contest_winners_atomic", {
+            _user_id: contest.client_id,
+            _contest_id: contest.id,
+            _is_auto_award: true,
+          });
+
+          if (rpcError) {
+            console.error(`Auto-award RPC error for contest ${contest.id}:`, rpcError);
+            results.push({ contest_id: contest.id, action: "auto_award_failed", error: rpcError.message });
+            continue;
           }
 
-          await supabase
-            .from("contests")
-            .update({ status: "ended" })
-            .eq("id", contest.id);
+          if (!result?.success) {
+            console.error(`Auto-award failed for contest ${contest.id}:`, result?.error);
+            results.push({ contest_id: contest.id, action: "auto_award_failed", error: result?.error });
+            continue;
+          }
 
           await supabase.from("notifications").insert({
             user_id: contest.client_id,
             type: "contest_auto_award",
             title: "Winners auto-awarded",
-            message: `Winners for "${contest.title}" have been automatically awarded based on your nominees.`,
+            message: `Winners for "${contest.title}" have been automatically awarded based on your nominees. ${result.total_paid > 0 ? `₦${result.total_paid.toLocaleString()} in prizes paid out.` : ''}`,
             contract_id: null,
           });
 
-          results.push({ contest_id: contest.id, action: "auto_awarded" });
+          results.push({ contest_id: contest.id, action: "auto_awarded", winners: result.winners, total_paid: result.total_paid });
         } else {
           // No nominees - flag for admin review
           await supabase.from("notifications").insert({
