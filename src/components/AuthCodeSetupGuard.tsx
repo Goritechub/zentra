@@ -7,12 +7,14 @@ import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Check } from "lucide-react";
+import { Loader2, ShieldCheck, Check, Clock } from "lucide-react";
 
 type Step = "loading" | "idle" | "enter" | "confirm" | "saving";
 
+const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState<Step>("loading");
   const [code, setCode] = useState("");
   const [confirmCode, setConfirmCode] = useState("");
@@ -27,12 +29,35 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
       if (cancelled) return;
       if (data?.has_code) {
         setStep("idle");
-      } else {
-        setStep("enter");
+        return;
       }
+
+      // Check if user dismissed recently (within 24h)
+      const dismissedAt = (profile as any)?.auth_code_dismissed_at;
+      if (dismissedAt) {
+        const dismissed = new Date(dismissedAt).getTime();
+        if (Date.now() - dismissed < DISMISS_COOLDOWN_MS) {
+          setStep("idle");
+          return;
+        }
+      }
+
+      setStep("enter");
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, profile]);
+
+  const handleDismiss = async () => {
+    // Store dismissal timestamp in DB
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ auth_code_dismissed_at: new Date().toISOString() } as any)
+        .eq("id", user.id);
+    }
+    setStep("idle");
+    toast.info("You can set up your security code anytime from your profile settings.");
+  };
 
   const handleNext = () => {
     if (code.length !== 6) { toast.error("Please enter all 6 digits"); return; }
@@ -63,7 +88,7 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={() => {/* prevent close */}}>
+      <Dialog open={isOpen} onOpenChange={() => {/* controlled */}}>
         <DialogContent
           className="sm:max-w-md"
           onPointerDownOutside={(e) => e.preventDefault()}
@@ -77,7 +102,7 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
             </DialogTitle>
             <DialogDescription>
               {step === "enter" || step === "saving"
-                ? "Create a 6-digit authentication code to secure your transactions. This code will be required for wallet operations, escrow funding, and more."
+                ? "For additional security, please create a 6-digit authentication code. You'll be asked for this when performing sensitive actions like withdrawals."
                 : "Please re-enter your code to confirm."}
             </DialogDescription>
           </DialogHeader>
@@ -90,16 +115,26 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
                   <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Funding milestones & escrow</li>
                   <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Wallet withdrawals</li>
                   <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Publishing contest winners</li>
-                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Deleting your account</li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Changing payout details</li>
                 </ul>
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground mb-3 text-center">Enter your 6-digit code</p>
                 <AuthCodeInput value={code} onChange={setCode} />
               </div>
-              <Button className="w-full" onClick={handleNext} disabled={code.length !== 6}>
-                Continue
-              </Button>
+              <div className="space-y-2">
+                <Button className="w-full" onClick={handleNext} disabled={code.length !== 6}>
+                  Set up authentication code
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground hover:text-foreground"
+                  onClick={handleDismiss}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  I'll do this later
+                </Button>
+              </div>
             </div>
           )}
 

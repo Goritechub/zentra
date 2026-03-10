@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
+import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
 import {
   Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
@@ -67,6 +68,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false);
   const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const exportRef = useRef<HTMLDivElement>(null);
+  const { requireAuthCode, SetupModal: AuthSetupModal, VerifyModal: AuthVerifyModal } = useRequireAuthCode();
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -189,7 +191,7 @@ export default function TransactionsPage() {
                 <Button size="sm" variant="secondary" onClick={() => setShowFund(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => setShowWithdraw(true)} disabled={availableBalance < 5000}>
+                <Button size="sm" variant="secondary" onClick={() => requireAuthCode(() => setShowWithdraw(true))} disabled={availableBalance < 5000}>
                   <Download className="h-4 w-4 mr-1" /> Withdraw
                 </Button>
               </div>
@@ -434,6 +436,8 @@ export default function TransactionsPage() {
           </div>
         </DialogContent>
       </Dialog>
+      {AuthSetupModal}
+      {AuthVerifyModal}
     </div>
   );
 }
