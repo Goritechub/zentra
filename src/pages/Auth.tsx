@@ -546,8 +546,41 @@ export default function AuthPage() {
         return;
       }
 
+      // Sign-in succeeded — navigate immediately using redirect param or default route
+      // Don't wait for profile to load; it will populate in the background
       setLoading(false);
       toast.success("Welcome back!");
+
+      const redirect = searchParams.get("redirect");
+      if (redirect) {
+        navigate(redirect);
+        return;
+      }
+
+      // Use Supabase user metadata for role-based routing (available immediately, no profile fetch needed)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userMeta = sessionData?.session?.user?.user_metadata;
+      const metaRole = userMeta?.role;
+
+      // Check admin role
+      try {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", sessionData?.session?.user?.id ?? "")
+          .eq("role", "admin")
+          .maybeSingle();
+        if (roleData) {
+          navigate("/admin");
+          return;
+        }
+      } catch {}
+
+      if (metaRole === "freelancer") {
+        navigate("/jobs");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       console.error("Sign-in error:", err);
       if (err?.message === "TIMEOUT") {
