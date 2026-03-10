@@ -17,25 +17,20 @@ function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
   if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
     return { strong: false, reason: "Code must be exactly 6 digits" };
   }
-  // Reject all same digits (111111, 000000)
   if (/^(\d)\1{5}$/.test(code)) {
     return { strong: false, reason: "Code cannot be all the same digit" };
   }
-  // Reject sequential ascending (123456)
   const ascending = "0123456789";
   if (ascending.includes(code)) {
     return { strong: false, reason: "Code cannot be a sequential sequence" };
   }
-  // Reject sequential descending (654321)
   const descending = "9876543210";
   if (descending.includes(code)) {
     return { strong: false, reason: "Code cannot be a sequential sequence" };
   }
-  // Reject repeating pairs (121212, 787878)
   if (/^(\d{2})\1{2}$/.test(code)) {
     return { strong: false, reason: "Code cannot be a repeating pair pattern" };
   }
-  // Reject repeating triplets (123123)
   if (/^(\d{3})\1$/.test(code)) {
     return { strong: false, reason: "Code cannot be a repeating triplet pattern" };
   }
@@ -87,13 +82,14 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("auth_code_hash")
-        .eq("id", user.id)
+      // Check if code already exists in auth_codes table
+      const { data: existing } = await adminClient
+        .from("auth_codes")
+        .select("user_id")
+        .eq("user_id", user.id)
         .single();
 
-      if (profile?.auth_code_hash) {
+      if (existing) {
         return new Response(JSON.stringify({ error: "Auth code already set. Use change action." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -102,9 +98,8 @@ Deno.serve(async (req) => {
 
       const hashed = await hashCode(code);
       await adminClient
-        .from("profiles")
-        .update({ auth_code_hash: hashed })
-        .eq("id", user.id);
+        .from("auth_codes")
+        .insert({ user_id: user.id, auth_code_hash: hashed });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -119,13 +114,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: profile } = await adminClient
-        .from("profiles")
+      const { data: authCode } = await adminClient
+        .from("auth_codes")
         .select("auth_code_hash")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
-      if (!profile?.auth_code_hash) {
+      if (!authCode?.auth_code_hash) {
         return new Response(JSON.stringify({ success: false, error: "No auth code set" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -133,7 +128,7 @@ Deno.serve(async (req) => {
       }
 
       const hashed = await hashCode(code);
-      const valid = hashed === profile.auth_code_hash;
+      const valid = hashed === authCode.auth_code_hash;
 
       return new Response(JSON.stringify({ success: valid, error: valid ? null : "Invalid code" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -156,13 +151,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: profile } = await adminClient
-        .from("profiles")
+      const { data: authCode } = await adminClient
+        .from("auth_codes")
         .select("auth_code_hash")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
-      if (!profile?.auth_code_hash) {
+      if (!authCode?.auth_code_hash) {
         return new Response(JSON.stringify({ error: "No auth code set" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -170,16 +165,15 @@ Deno.serve(async (req) => {
       }
 
       const currentHashed = await hashCode(current_code);
-      if (currentHashed !== profile.auth_code_hash) {
+      if (currentHashed !== authCode.auth_code_hash) {
         return new Response(JSON.stringify({ error: "Current code is incorrect" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Ensure new code differs from current
       const newHashed = await hashCode(new_code);
-      if (newHashed === profile.auth_code_hash) {
+      if (newHashed === authCode.auth_code_hash) {
         return new Response(JSON.stringify({ error: "New code must be different from current code" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -187,9 +181,9 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("profiles")
-        .update({ auth_code_hash: newHashed })
-        .eq("id", user.id);
+        .from("auth_codes")
+        .update({ auth_code_hash: newHashed, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -197,13 +191,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === "check") {
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("auth_code_hash")
-        .eq("id", user.id)
+      const { data: authCode } = await adminClient
+        .from("auth_codes")
+        .select("user_id")
+        .eq("user_id", user.id)
         .single();
 
-      return new Response(JSON.stringify({ has_code: !!profile?.auth_code_hash }), {
+      return new Response(JSON.stringify({ has_code: !!authCode }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -223,13 +217,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: profile } = await adminClient
-        .from("profiles")
+      const { data: authCode } = await adminClient
+        .from("auth_codes")
         .select("auth_code_hash")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
-      if (!profile?.auth_code_hash) {
+      if (!authCode?.auth_code_hash) {
         return new Response(JSON.stringify({ error: "No auth code set" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -237,7 +231,7 @@ Deno.serve(async (req) => {
       }
 
       const hashed = await hashCode(code);
-      if (hashed !== profile.auth_code_hash) {
+      if (hashed !== authCode.auth_code_hash) {
         return new Response(JSON.stringify({ error: "Invalid current code" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -245,9 +239,9 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("profiles")
-        .update({ auth_code_hash: null })
-        .eq("id", user.id);
+        .from("auth_codes")
+        .delete()
+        .eq("user_id", user.id);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -6,17 +6,57 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function verifyHmacSignature(rawBody: string, signature: string, secret: string): Promise<boolean> {
+  if (!signature || !secret) return false;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const expected = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  // Constant-time comparison
+  if (expected.length !== signature.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Verify webhook signature from KYC provider
+    const webhookSecret = Deno.env.get("DIDIT_WEBHOOK_SECRET");
+    const rawBody = await req.text();
+
+    if (webhookSecret) {
+      const signature = req.headers.get("x-didit-signature") || req.headers.get("x-webhook-signature") || "";
+      const isValid = await verifyHmacSignature(rawBody, signature, webhookSecret);
+      if (!isValid) {
+        console.error("KYC webhook signature verification failed");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.warn("DIDIT_WEBHOOK_SECRET not configured — webhook signature verification skipped");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const payload = await req.json();
+    const payload = JSON.parse(rawBody);
     console.log("KYC webhook payload:", JSON.stringify(payload));
 
     const sessionId = payload.session_id;
