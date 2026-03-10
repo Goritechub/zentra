@@ -1,17 +1,52 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function hashCode(code: string): Promise<string> {
-  return await bcrypt.hash(code);
+const PBKDF2_ITERATIONS = 100_000;
+const SALT_LENGTH = 16;
+const KEY_LENGTH = 32;
+
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function verifyCode(code: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(code, hash);
+function fromHex(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+async function hashCode(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
+  const derived = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITERATIONS },
+    keyMaterial,
+    KEY_LENGTH * 8
+  );
+  return `pbkdf2:${PBKDF2_ITERATIONS}:${toHex(salt.buffer)}:${toHex(derived)}`;
+}
+
+async function verifyCode(code: string, storedHash: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const parts = storedHash.split(":");
+  if (parts[0] !== "pbkdf2" || parts.length !== 4) return false;
+  const iterations = parseInt(parts[1], 10);
+  const salt = fromHex(parts[2]);
+  const expectedHash = parts[3];
+  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
+  const derived = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    keyMaterial,
+    KEY_LENGTH * 8
+  );
+  return toHex(derived) === expectedHash;
 }
 
 function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
