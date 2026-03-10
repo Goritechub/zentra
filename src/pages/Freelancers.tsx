@@ -92,7 +92,10 @@ export default function FreelancersPage() {
       (f.skills || []).some((s: string) => s.toLowerCase().includes(term));
     const matchState = !selectedState || p.state === selectedState;
     const matchSkill = !selectedSkill || (f.skills || []).includes(selectedSkill);
-    const matchCategory = !selectedCategory || (f as any).primary_category === selectedCategory;
+    const matchCategory = !selectedCategory || 
+      (f.title || "").toLowerCase().includes(selectedCategory.toLowerCase()) ||
+      (f.skills || []).some((s: string) => s.toLowerCase().includes(selectedCategory.toLowerCase())) ||
+      (p.occupation || "").toLowerCase().includes(selectedCategory.toLowerCase());
     const matchVerified = !verifiedOnly || p.is_verified;
     return matchSearch && matchState && matchSkill && matchCategory && matchVerified;
   });
