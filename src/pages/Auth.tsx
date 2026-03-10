@@ -217,17 +217,18 @@ export default function AuthPage() {
     apply();
   }, [user, profile, refreshProfile]);
 
-  // Redirect once user exists and profile is loaded (or timed out)
+  // Redirect if user is already authenticated (e.g. page refresh while logged in)
   useEffect(() => {
     if (!user || authLoading) return;
-    // Wait for profile to load before redirecting so we know the role
-    if (profileLoading || !profile) return;
 
     const redirect = searchParams.get("redirect");
     if (redirect) {
       navigate(redirect);
       return;
     }
+
+    // Use profile if available, otherwise fall back to user metadata
+    const role = profile?.role ?? user.user_metadata?.role;
 
     const doRedirect = async () => {
       try {
@@ -240,13 +241,13 @@ export default function AuthPage() {
 
         if (roleData) {
           navigate("/admin");
-        } else if (profile.role === "freelancer") {
+        } else if (role === "freelancer") {
           navigate("/jobs");
         } else {
           navigate("/dashboard");
         }
       } catch {
-        if (profile.role === "freelancer") {
+        if (role === "freelancer") {
           navigate("/jobs");
         } else {
           navigate("/dashboard");
@@ -254,7 +255,7 @@ export default function AuthPage() {
       }
     };
     doRedirect();
-  }, [user, authLoading, profileLoading, profile, navigate, searchParams]);
+  }, [user, authLoading, profile, navigate, searchParams]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
