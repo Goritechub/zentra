@@ -7,35 +7,98 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Search, Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Loader2, Search, Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp, Timer, ShieldAlert, XCircle } from "lucide-react";
 import { RevenueWithdrawCard } from "@/components/admin/RevenueWithdrawCard";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function AdminPayments() {
+  const { user } = useAuth();
   const [wallets, setWallets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [revenue, setRevenue] = useState<any[]>([]);
+  const [pendingClearance, setPendingClearance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [withdrawalsFrozen, setWithdrawalsFrozen] = useState(false);
+  const [togglingFreeze, setTogglingFreeze] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
-    const [walletsRes, txRes, wdRes, revRes] = await Promise.all([
+    const [walletsRes, txRes, wdRes, revRes, freezeRes] = await Promise.all([
       supabase.from("wallets").select("*, profile:profiles!wallets_user_id_fkey(full_name, email, role)").order("balance", { ascending: false }).limit(200),
       supabase.from("wallet_transactions").select("*, profile:profiles!wallet_transactions_user_id_fkey(full_name)").order("created_at", { ascending: false }).limit(200),
       supabase.from("withdrawal_requests").select("*, profile:profiles!withdrawal_requests_user_id_fkey(full_name), bank:bank_details!withdrawal_requests_bank_detail_id_fkey(bank_name, account_number)").order("created_at", { ascending: false }).limit(100),
       supabase.from("platform_revenue").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("platform_settings").select("value").eq("key", "withdrawals_frozen").maybeSingle(),
     ]);
     setWallets(walletsRes.data || []);
     setTransactions(txRes.data || []);
     setWithdrawals(wdRes.data || []);
     setRevenue(revRes.data || []);
+    setWithdrawalsFrozen(freezeRes.data?.value === true || freezeRes.data?.value === "true");
+
+    // Get pending clearance from wallets
+    const walletsWithPending = (walletsRes.data || []).filter((w: any) => (w.pending_clearance || 0) > 0);
+    setPendingClearance(walletsWithPending);
+
     setLoading(false);
+  };
+
+  const toggleWithdrawalFreeze = async () => {
+    setTogglingFreeze(true);
+    const newValue = !withdrawalsFrozen;
+    
+    const { data: existing } = await supabase.from("platform_settings").select("id").eq("key", "withdrawals_frozen").maybeSingle();
+    
+    if (existing) {
+      await supabase.from("platform_settings").update({ value: newValue as any, updated_at: new Date().toISOString(), updated_by: user?.id }).eq("key", "withdrawals_frozen");
+    } else {
+      await supabase.from("platform_settings").insert({ key: "withdrawals_frozen", value: newValue as any, updated_by: user?.id });
+    }
+
+    await supabase.from("admin_activity_log").insert({
+      admin_id: user!.id, action: newValue ? "freeze_withdrawals" : "unfreeze_withdrawals",
+      target_type: "platform_settings", details: { frozen: newValue },
+    });
+
+    setWithdrawalsFrozen(newValue);
+    toast.success(newValue ? "Withdrawals frozen" : "Withdrawals unfrozen");
+    setTogglingFreeze(false);
+  };
+
+  const cancelWithdrawal = async (withdrawal: any) => {
+    if (!confirm(`Cancel withdrawal of ${formatNaira(withdrawal.amount)} for ${withdrawal.profile?.full_name}? This will refund the amount to their wallet.`)) return;
+
+    const { error } = await supabase.rpc("reverse_withdrawal_atomic" as any, {
+      _user_id: withdrawal.user_id,
+      _withdrawal_id: withdrawal.id,
+      _reference: `admin_cancel_${withdrawal.id}`,
+      _reason: "Cancelled by admin",
+    });
+
+    if (error) {
+      toast.error("Failed to cancel: " + error.message);
+      return;
+    }
+
+    await supabase.from("admin_activity_log").insert({
+      admin_id: user!.id, action: "cancel_withdrawal", target_type: "withdrawal",
+      target_id: withdrawal.id, details: { amount: withdrawal.amount, user: withdrawal.profile?.full_name },
+    });
+
+    toast.success("Withdrawal cancelled and funds refunded");
+    fetchAll();
   };
 
   const totalBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
   const totalEscrow = wallets.reduce((s, w) => s + (w.escrow_balance || 0), 0);
+  const totalPending = wallets.reduce((s, w) => s + (w.pending_clearance || 0), 0);
   const totalRev = revenue.reduce((s, r) => s + (r.commission_amount || 0), 0);
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -44,7 +107,7 @@ export default function AdminPayments() {
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-6">Payments & Escrow</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card><CardContent className="pt-6 flex items-center justify-between">
           <div><p className="text-sm text-muted-foreground">Total Wallet Balances</p><p className="text-xl font-bold text-primary">{formatNaira(totalBalance)}</p></div>
           <Wallet className="h-8 w-8 text-primary" />
@@ -54,10 +117,35 @@ export default function AdminPayments() {
           <ArrowDownLeft className="h-8 w-8 text-amber-500" />
         </CardContent></Card>
         <Card><CardContent className="pt-6 flex items-center justify-between">
+          <div><p className="text-sm text-muted-foreground">Pending Clearance</p><p className="text-xl font-bold text-orange-500">{formatNaira(totalPending)}</p></div>
+          <Timer className="h-8 w-8 text-orange-500" />
+        </CardContent></Card>
+        <Card><CardContent className="pt-6 flex items-center justify-between">
           <div><p className="text-sm text-muted-foreground">Platform Revenue</p><p className="text-xl font-bold text-emerald-500">{formatNaira(totalRev)}</p></div>
           <TrendingUp className="h-8 w-8 text-emerald-500" />
         </CardContent></Card>
       </div>
+
+      {/* Withdrawal Freeze Toggle */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className={`h-5 w-5 ${withdrawalsFrozen ? "text-destructive" : "text-muted-foreground"}`} />
+              <div>
+                <p className="font-medium text-foreground">Freeze All Withdrawals</p>
+                <p className="text-xs text-muted-foreground">
+                  {withdrawalsFrozen ? "Withdrawals are currently FROZEN. No user can withdraw." : "Withdrawals are enabled for all users."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="freeze-toggle" className="text-sm">{withdrawalsFrozen ? "Frozen" : "Active"}</Label>
+              <Switch id="freeze-toggle" checked={withdrawalsFrozen} onCheckedChange={toggleWithdrawalFreeze} disabled={togglingFreeze} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Revenue Withdrawal - Super Admin only */}
       <div className="mb-6">
@@ -67,6 +155,7 @@ export default function AdminPayments() {
       <Tabs defaultValue="wallets">
         <TabsList>
           <TabsTrigger value="wallets">Wallets</TabsTrigger>
+          <TabsTrigger value="pending">Pending Clearance</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
@@ -79,7 +168,8 @@ export default function AdminPayments() {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Balance</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead>Pending</TableHead>
                   <TableHead>Escrow</TableHead>
                   <TableHead>Earned</TableHead>
                   <TableHead>Spent</TableHead>
@@ -93,6 +183,7 @@ export default function AdminPayments() {
                     </TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{w.profile?.role === "freelancer" ? "Expert" : w.profile?.role}</Badge></TableCell>
                     <TableCell className="font-medium text-primary">{formatNaira(w.balance)}</TableCell>
+                    <TableCell className={`font-medium ${(w.pending_clearance || 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`}>{formatNaira(w.pending_clearance || 0)}</TableCell>
                     <TableCell className="text-amber-500">{formatNaira(w.escrow_balance)}</TableCell>
                     <TableCell>{formatNaira(w.total_earned)}</TableCell>
                     <TableCell>{formatNaira(w.total_spent)}</TableCell>
@@ -100,6 +191,38 @@ export default function AdminPayments() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
+            {pendingClearance.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground">
+                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No pending clearance payments</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Pending Amount</TableHead>
+                    <TableHead>Available Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingClearance.map(w => (
+                    <TableRow key={w.id}>
+                      <TableCell>
+                        <div><p className="font-medium text-sm">{w.profile?.full_name || "—"}</p><p className="text-xs text-muted-foreground">{w.profile?.email}</p></div>
+                      </TableCell>
+                      <TableCell className="font-medium text-orange-500">{formatNaira(w.pending_clearance)}</TableCell>
+                      <TableCell className="font-medium text-primary">{formatNaira(w.balance)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </TabsContent>
 
@@ -142,6 +265,7 @@ export default function AdminPayments() {
                   <TableHead>Bank</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,8 +274,15 @@ export default function AdminPayments() {
                     <TableCell className="text-sm font-medium">{w.profile?.full_name || "—"}</TableCell>
                     <TableCell className="font-medium">{formatNaira(w.amount)}</TableCell>
                     <TableCell className="text-sm">{w.bank?.bank_name} - {w.bank?.account_number}</TableCell>
-                    <TableCell><Badge variant={w.status === "completed" ? "default" : w.status === "pending" ? "secondary" : "destructive"} className="capitalize">{w.status}</Badge></TableCell>
+                    <TableCell><Badge variant={w.status === "completed" ? "default" : w.status === "pending" || w.status === "processing" ? "secondary" : "destructive"} className="capitalize">{w.status}</Badge></TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(w.created_at), { addSuffix: true })}</TableCell>
+                    <TableCell>
+                      {(w.status === "pending" || w.status === "processing") && (
+                        <Button variant="destructive" size="sm" onClick={() => cancelWithdrawal(w)}>
+                          <XCircle className="h-3 w-3 mr-1" /> Cancel
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
