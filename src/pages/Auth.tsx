@@ -997,6 +997,8 @@ export default function AuthPage() {
                         ) : (
                           <div className="space-y-1">
                             <Input
+                              id="signup-occupation"
+                              name="occupation"
                               placeholder="e.g. Project Manager"
                               value={signUpData.occupation}
                               onChange={(e) => {
