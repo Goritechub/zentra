@@ -67,11 +67,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] loadUserAndProfile called, hasSession:", !!s, "callId:", callId);
 
       if (s?.user) {
-        // Retry profile fetch up to 2 times on failure (handles AbortError from concurrent calls)
+        // Set user/session immediately so auth gate unblocks
+        setSession(s);
+        setUser(s.user);
+        if (mounted && callId === latestCallId) {
+          console.log("[Auth] Setting loading=false (session resolved), callId:", callId);
+          setLoading(false);
+        }
+
+        // Fetch profile in background — does not block sign-in
+        setProfileLoading(true);
         let profileData: Profile | null = null;
         let lastErr: unknown = null;
         for (let attempt = 0; attempt < 3; attempt++) {
-          if (!mounted || callId !== latestCallId) return; // stale call, abort
+          if (!mounted || callId !== latestCallId) return;
           try {
             profileData = await fetchProfile(s.user.id);
             lastErr = null;
@@ -83,25 +92,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        if (!mounted || callId !== latestCallId) return; // stale call, abort
+        if (!mounted || callId !== latestCallId) return;
 
         if (lastErr) {
           console.error("[Auth] Profile fetch failed after retries:", lastErr);
         }
 
-        console.log("[Auth] Profile loaded:", !!profileData, "setting user+profile+session, callId:", callId);
-        setSession(s);
-        setUser(s.user);
+        console.log("[Auth] Profile loaded:", !!profileData, "callId:", callId);
         setProfile(profileData);
+        setProfileLoading(false);
       } else {
         console.log("[Auth] No session, clearing state");
         setSession(null);
         setUser(null);
         setProfile(null);
-      }
-      if (mounted && callId === latestCallId) {
-        console.log("[Auth] Setting loading=false, callId:", callId);
-        setLoading(false);
+        setProfileLoading(false);
+        if (mounted && callId === latestCallId) {
+          console.log("[Auth] Setting loading=false, callId:", callId);
+          setLoading(false);
+        }
       }
     };
 
