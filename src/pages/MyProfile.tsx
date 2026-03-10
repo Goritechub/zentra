@@ -72,6 +72,8 @@ export default function MyProfilePage() {
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [occupation, setOccupation] = useState("");
+  const [occupationError, setOccupationError] = useState("");
 
   // Form fields – freelancer
   const [title, setTitle] = useState("");
@@ -178,6 +180,7 @@ export default function MyProfilePage() {
       setState(profile.state || "");
       setCity(profile.city || "");
       setAvatarUrl(profile.avatar_url || null);
+      setOccupation((profile as any).occupation || "");
     }
     if (user && profile?.role === "freelancer") {
       fetchFreelancerProfile();
@@ -254,11 +257,21 @@ export default function MyProfilePage() {
     setSaving(true);
 
     try {
+      // Validate occupation word count
+      const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+      if (occupation.trim() && wordCount(occupation) > 5) {
+        setOccupationError("Maximum 5 words allowed");
+        setSaving(false);
+        return;
+      }
+      setOccupationError("");
+
       const profileUpdate: any = {
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || null,
         state: state || null,
         city: city || null,
+        occupation: occupation.trim() || null,
       };
 
       // Only allow full_name update if not yet edited (or if it was empty)
@@ -523,6 +536,18 @@ export default function MyProfilePage() {
                     <SelectContent>{cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input
+                  value={occupation}
+                  onChange={(e) => { setOccupation(e.target.value); setOccupationError(""); }}
+                  maxLength={50}
+                  placeholder={isFreelancer ? "e.g. Engineer, Technician, Student" : "e.g. Project Manager"}
+                  className={occupationError ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                <p className="text-xs text-muted-foreground">Keep it brief — max 5 words</p>
+                {occupationError && <p className="text-sm text-destructive">{occupationError}</p>}
               </div>
             </section>
 
