@@ -413,9 +413,12 @@ export default function AuthPage() {
       signUpData.username,
     );
 
-    // Store primary category for freelancers to apply after first login
-    if (!error && signUpData.role === "freelancer" && signUpData.primaryCategory) {
-      localStorage.setItem("pending_primary_category", signUpData.primaryCategory);
+    // Store occupation to apply after first login (email verification required first)
+    const finalOccupation = signUpData.role === "freelancer"
+      ? (signUpData.occupation === "Others" ? signUpData.occupationOther.trim() : signUpData.occupation)
+      : signUpData.occupation.trim();
+    if (!error && finalOccupation) {
+      localStorage.setItem("pending_occupation", finalOccupation);
     }
 
     if (error) {
