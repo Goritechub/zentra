@@ -954,7 +954,7 @@ export default function AuthPage() {
 
                       {/* Occupation field */}
                       <div className="space-y-2">
-                        <Label>Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                        <Label htmlFor="signup-occupation">Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
                         {signUpData.role === "freelancer" ? (
                           <>
                             <Select
