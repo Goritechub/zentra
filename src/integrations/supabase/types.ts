@@ -2327,6 +2327,7 @@ export type Database = {
         Row: {
           amount: number
           balance_after: number
+          clearance_at: string | null
           contract_id: string | null
           created_at: string
           description: string | null
@@ -2340,6 +2341,7 @@ export type Database = {
         Insert: {
           amount: number
           balance_after?: number
+          clearance_at?: string | null
           contract_id?: string | null
           created_at?: string
           description?: string | null
@@ -2353,6 +2355,7 @@ export type Database = {
         Update: {
           amount?: number
           balance_after?: number
+          clearance_at?: string | null
           contract_id?: string | null
           created_at?: string
           description?: string | null
@@ -2385,6 +2388,7 @@ export type Database = {
           balance: number
           escrow_balance: number
           id: string
+          pending_clearance: number
           total_earned: number
           total_spent: number
           updated_at: string | null
@@ -2394,6 +2398,7 @@ export type Database = {
           balance?: number
           escrow_balance?: number
           id?: string
+          pending_clearance?: number
           total_earned?: number
           total_spent?: number
           updated_at?: string | null
@@ -2403,6 +2408,7 @@ export type Database = {
           balance?: number
           escrow_balance?: number
           id?: string
+          pending_clearance?: number
           total_earned?: number
           total_spent?: number
           updated_at?: string | null
@@ -2522,6 +2528,7 @@ export type Database = {
         Args: { _admin_id: string; _target_user_id: string }
         Returns: Json
       }
+      clear_pending_funds: { Args: never; Returns: Json }
       credit_wallet_atomic: {
         Args: {
           _amount: number
