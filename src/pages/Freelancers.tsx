@@ -22,6 +22,7 @@ import {
 
 export default function FreelancersPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const [freelancers, setFreelancers] = useState<any[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -30,6 +31,14 @@ export default function FreelancersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    const slug = searchParams.get("category");
+    if (slug) {
+      const cat = getCategoryBySlug(slug);
+      return cat?.name || "";
+    }
+    return "";
+  });
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
