@@ -401,6 +401,11 @@ export default function AuthPage() {
       signUpData.username,
     );
 
+    // Store primary category for freelancers to apply after first login
+    if (!error && signUpData.role === "freelancer" && signUpData.primaryCategory) {
+      localStorage.setItem("pending_primary_category", signUpData.primaryCategory);
+    }
+
     if (error) {
       if (error.message.includes("already registered")) {
         setSignUpErrors({ email: "This email is already registered. Please sign in instead." });
