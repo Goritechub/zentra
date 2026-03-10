@@ -191,7 +191,7 @@ export default function TransactionsPage() {
                 <Button size="sm" variant="secondary" onClick={() => setShowFund(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => setShowWithdraw(true)} disabled={availableBalance < 5000}>
+                <Button size="sm" variant="secondary" onClick={() => requireAuthCode(() => setShowWithdraw(true))} disabled={availableBalance < 5000}>
                   <Download className="h-4 w-4 mr-1" /> Withdraw
                 </Button>
               </div>
