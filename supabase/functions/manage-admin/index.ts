@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,11 +13,7 @@ const ALL_PERMISSIONS = [
 ];
 
 async function hashCode(code: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(code);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return await bcrypt.hash(code);
 }
 
 Deno.serve(async (req) => {
@@ -168,12 +165,11 @@ Deno.serve(async (req) => {
           role: "admin",
         });
 
-        // Set the auth code hash on profile
+        // Set the auth code hash in auth_codes table (bcrypt)
         const hashedCode = await hashCode(authCode);
         await supabaseAdmin
-          .from("profiles")
-          .update({ auth_code_hash: hashedCode })
-          .eq("id", newUser.user.id);
+          .from("auth_codes")
+          .upsert({ user_id: newUser.user.id, auth_code_hash: hashedCode });
 
         // Create admin_status entry
         await supabaseAdmin.from("admin_status").insert({
@@ -254,9 +250,8 @@ Deno.serve(async (req) => {
 
         const hashedCode = await hashCode(newCode);
         await supabaseAdmin
-          .from("profiles")
-          .update({ auth_code_hash: hashedCode })
-          .eq("id", targetUserId);
+          .from("auth_codes")
+          .upsert({ user_id: targetUserId, auth_code_hash: hashedCode, updated_at: new Date().toISOString() });
 
         await supabaseAdmin.from("admin_activity_log").insert({
           admin_id: caller.id,
