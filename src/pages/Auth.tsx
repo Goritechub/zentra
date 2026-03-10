@@ -851,7 +851,7 @@ export default function AuthPage() {
                         <Label>I want to...</Label>
                         <RadioGroup
                           value={signUpData.role}
-                          onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value })}
+                          onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value, occupation: "", occupationOther: "" })}
                           className="grid grid-cols-2 gap-3"
                         >
                           <label

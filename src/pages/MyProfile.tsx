@@ -180,6 +180,7 @@ export default function MyProfilePage() {
       setState(profile.state || "");
       setCity(profile.city || "");
       setAvatarUrl(profile.avatar_url || null);
+      setOccupation((profile as any).occupation || "");
     }
     if (user && profile?.role === "freelancer") {
       fetchFreelancerProfile();
