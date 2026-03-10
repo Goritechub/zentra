@@ -998,6 +998,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           min_project_rate: number | null
+          primary_category: string | null
           rating: number | null
           show_whatsapp: boolean | null
           skill_levels: Json | null
@@ -1015,6 +1016,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           min_project_rate?: number | null
+          primary_category?: string | null
           rating?: number | null
           show_whatsapp?: boolean | null
           skill_levels?: Json | null
@@ -1032,6 +1034,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           min_project_rate?: number | null
+          primary_category?: string | null
           rating?: number | null
           show_whatsapp?: boolean | null
           skill_levels?: Json | null

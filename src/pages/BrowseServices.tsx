@@ -16,11 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { ShoppingBag, Loader2, MessageSquare, Clock, ArrowLeft, Star, Search, X, ChevronLeft, ChevronRight, Send } from "lucide-react";
 
-const CATEGORIES = [
-  "Product Design", "CAD Drafting", "3D Modeling", "3D Printing",
-  "Structural Design", "Architectural Design", "Mechanical Design",
-  "Electrical Design", "BIM/Revit", "Civil Engineering",
-];
+import { categoryNames } from "@/lib/categories";
+const CATEGORIES = categoryNames;
 
 export default function BrowseServicesPage() {
   const { user, loading: authLoading } = useAuth();

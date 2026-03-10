@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira, getAllStates, cadSoftwareList } from "@/lib/nigerian-data";
+import { categoryNames, getCategoryBySlug } from "@/lib/categories";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,7 @@ import {
 
 export default function FreelancersPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const [freelancers, setFreelancers] = useState<any[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -29,6 +31,14 @@ export default function FreelancersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    const slug = searchParams.get("category");
+    if (slug) {
+      const cat = getCategoryBySlug(slug);
+      return cat?.name || "";
+    }
+    return "";
+  });
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
@@ -82,12 +92,13 @@ export default function FreelancersPage() {
       (f.skills || []).some((s: string) => s.toLowerCase().includes(term));
     const matchState = !selectedState || p.state === selectedState;
     const matchSkill = !selectedSkill || (f.skills || []).includes(selectedSkill);
+    const matchCategory = !selectedCategory || (f as any).primary_category === selectedCategory;
     const matchVerified = !verifiedOnly || p.is_verified;
-    return matchSearch && matchState && matchSkill && matchVerified;
+    return matchSearch && matchState && matchSkill && matchCategory && matchVerified;
   });
 
-  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setSelectedSkill(""); setVerifiedOnly(false); };
-  const hasFilters = searchTerm || selectedState || selectedSkill || verifiedOnly;
+  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setSelectedSkill(""); setSelectedCategory(""); setVerifiedOnly(false); };
+  const hasFilters = searchTerm || selectedState || selectedSkill || selectedCategory || verifiedOnly;
 
   const handleSaveExpert = async (e: React.MouseEvent, freelancerId: string) => {
     e.preventDefault();
@@ -156,6 +167,10 @@ export default function FreelancersPage() {
                     <Input placeholder="Search by name, @username, skill, or title..." className="pl-10 h-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
                   <div className="flex flex-wrap gap-3">
+                    <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v === "all" ? "" : v)}>
+                      <SelectTrigger className="w-[180px] h-12"><SlidersHorizontal className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="All Categories" /></SelectTrigger>
+                      <SelectContent><SelectItem value="all">All Categories</SelectItem>{categoryNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
                     <Select value={selectedState} onValueChange={(v) => setSelectedState(v === "all" ? "" : v)}>
                       <SelectTrigger className="w-[180px] h-12"><MapPin className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="All States" /></SelectTrigger>
                       <SelectContent><SelectItem value="all">All States</SelectItem>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>

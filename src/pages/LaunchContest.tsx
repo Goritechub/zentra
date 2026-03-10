@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
+import { categoryNames } from "@/lib/categories";
 import { formatNaira } from "@/lib/nigerian-data";
 import { Loader2, X, Trophy, Upload, Wallet, AlertTriangle } from "lucide-react";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
@@ -47,10 +48,7 @@ export default function LaunchContestPage() {
   const [insufficientData, setInsufficientData] = useState({ total: 0, balance: 0, shortfall: 0 });
   const [showFundWallet, setShowFundWallet] = useState(false);
 
-  const categories = [
-    "Architectural Drafting", "Mechanical CAD", "Electrical CAD", "3D Modeling",
-    "BIM/Revit", "AutoCAD 2D Plans", "SolidWorks", "Fusion 360", "Civil/Structural Drawings"
-  ];
+  const categories = categoryNames;
 
   // Fetch wallet balance
   useEffect(() => {
