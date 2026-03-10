@@ -977,6 +977,8 @@ export default function AuthPage() {
                             {signUpData.occupation === "Others" && (
                               <div className="space-y-1">
                                 <Input
+                                  id="signup-occupation-other"
+                                  name="occupation-other"
                                   placeholder="e.g. Research Scientist"
                                   value={signUpData.occupationOther}
                                   onChange={(e) => {
