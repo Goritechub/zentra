@@ -217,17 +217,18 @@ export default function AuthPage() {
     apply();
   }, [user, profile, refreshProfile]);
 
-  // Redirect once user exists and profile is loaded (or timed out)
+  // Redirect if user is already authenticated (e.g. page refresh while logged in)
   useEffect(() => {
     if (!user || authLoading) return;
-    // Wait for profile to load before redirecting so we know the role
-    if (profileLoading || !profile) return;
 
     const redirect = searchParams.get("redirect");
     if (redirect) {
       navigate(redirect);
       return;
     }
+
+    // Use profile if available, otherwise fall back to user metadata
+    const role = profile?.role ?? user.user_metadata?.role;
 
     const doRedirect = async () => {
       try {
@@ -240,13 +241,13 @@ export default function AuthPage() {
 
         if (roleData) {
           navigate("/admin");
-        } else if (profile.role === "freelancer") {
+        } else if (role === "freelancer") {
           navigate("/jobs");
         } else {
           navigate("/dashboard");
         }
       } catch {
-        if (profile.role === "freelancer") {
+        if (role === "freelancer") {
           navigate("/jobs");
         } else {
           navigate("/dashboard");
@@ -254,7 +255,7 @@ export default function AuthPage() {
       }
     };
     doRedirect();
-  }, [user, authLoading, profileLoading, profile, navigate, searchParams]);
+  }, [user, authLoading, profile, navigate, searchParams]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
@@ -546,8 +547,41 @@ export default function AuthPage() {
         return;
       }
 
+      // Sign-in succeeded — navigate immediately using redirect param or default route
+      // Don't wait for profile to load; it will populate in the background
       setLoading(false);
       toast.success("Welcome back!");
+
+      const redirect = searchParams.get("redirect");
+      if (redirect) {
+        navigate(redirect);
+        return;
+      }
+
+      // Use Supabase user metadata for role-based routing (available immediately, no profile fetch needed)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userMeta = sessionData?.session?.user?.user_metadata;
+      const metaRole = userMeta?.role;
+
+      // Check admin role
+      try {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", sessionData?.session?.user?.id ?? "")
+          .eq("role", "admin")
+          .maybeSingle();
+        if (roleData) {
+          navigate("/admin");
+          return;
+        }
+      } catch {}
+
+      if (metaRole === "freelancer") {
+        navigate("/jobs");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       console.error("Sign-in error:", err);
       if (err?.message === "TIMEOUT") {
