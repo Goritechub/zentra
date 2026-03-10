@@ -741,6 +741,8 @@ export default function AuthPage() {
                           <Label htmlFor="forgot-identifier">Email or Username</Label>
                           <Input
                             id="forgot-identifier"
+                            name="forgot-identifier"
+                            autoComplete="username"
                             type="text"
                             placeholder="you@example.com or username"
                             value={forgotEmail}
