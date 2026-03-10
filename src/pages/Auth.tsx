@@ -204,6 +204,30 @@ export default function AuthPage() {
     }
   }, [user, authLoading, profile, refreshProfile]);
 
+  // Apply pending primary category for freelancers on first login
+  useEffect(() => {
+    if (!user || !profile || profile.role !== "freelancer") return;
+    const pendingCategory = localStorage.getItem("pending_primary_category");
+    if (!pendingCategory) return;
+
+    const applyCategory = async () => {
+      // Upsert freelancer profile with primary_category
+      const { data: existing } = await supabase
+        .from("freelancer_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("freelancer_profiles").update({ primary_category: pendingCategory } as any).eq("user_id", user.id);
+      } else {
+        await supabase.from("freelancer_profiles").insert({ user_id: user.id, primary_category: pendingCategory } as any);
+      }
+      localStorage.removeItem("pending_primary_category");
+    };
+    applyCategory();
+  }, [user, profile]);
+
   useEffect(() => {
     if (user && !authLoading && profile) {
       const redirect = searchParams.get("redirect");
