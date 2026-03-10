@@ -167,6 +167,10 @@ export default function FreelancersPage() {
                     <Input placeholder="Search by name, @username, skill, or title..." className="pl-10 h-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
                   <div className="flex flex-wrap gap-3">
+                    <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v === "all" ? "" : v)}>
+                      <SelectTrigger className="w-[180px] h-12"><SlidersHorizontal className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="All Categories" /></SelectTrigger>
+                      <SelectContent><SelectItem value="all">All Categories</SelectItem>{categoryNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
                     <Select value={selectedState} onValueChange={(v) => setSelectedState(v === "all" ? "" : v)}>
                       <SelectTrigger className="w-[180px] h-12"><MapPin className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="All States" /></SelectTrigger>
                       <SelectContent><SelectItem value="all">All States</SelectItem>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
