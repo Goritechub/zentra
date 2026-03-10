@@ -16,24 +16,48 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
 import {
-  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image
+  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 
-// Types that show as credit (green, incoming)
 const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
-
-// Types to hide from display (internal escrow bookkeeping)
 const hiddenTypes = ["escrow_credit", "escrow_hold"];
-
 type TxFilter = "all" | "credits" | "debits";
+
+function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(clearanceAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("Cleared");
+        return;
+      }
+      const hours = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(`${hours}h ${mins}m`);
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [clearanceAt]);
+
+  return (
+    <span className={`text-xs font-medium ${timeLeft === "Cleared" ? "text-primary" : "text-amber-500"}`}>
+      <Timer className="h-3 w-3 inline mr-0.5" />
+      {timeLeft}
+    </span>
+  );
+}
 
 export default function TransactionsPage() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [pendingClearanceTxs, setPendingClearanceTxs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFund, setShowFund] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -58,11 +82,15 @@ export default function TransactionsPage() {
 
     const walletTx = ((walletTxRes.data as any[]) || []).filter(tx => !hiddenTypes.includes(tx.type));
     setTransactions(walletTx);
+
+    // Get pending clearance transactions
+    const pending = walletTx.filter(tx => tx.clearance_at && new Date(tx.clearance_at) > new Date());
+    setPendingClearanceTxs(pending);
+
     setLoading(false);
   };
 
   const isFreelancer = profile?.role === "freelancer";
-
   const isCredit = (tx: any) => creditTypes.includes(tx.type);
 
   const filteredTransactions = transactions.filter(tx => {
@@ -119,6 +147,16 @@ export default function TransactionsPage() {
     return "No transactions yet";
   };
 
+  const pendingClearance = wallet?.pending_clearance || 0;
+  const availableBalance = wallet?.balance || 0;
+  const walletBalance = availableBalance + pendingClearance;
+
+  // Find the next clearance time
+  const nextClearance = pendingClearanceTxs.length > 0
+    ? pendingClearanceTxs.reduce((earliest, tx) =>
+        !earliest || new Date(tx.clearance_at) < new Date(earliest) ? tx.clearance_at : earliest, null as string | null)
+    : null;
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -142,23 +180,64 @@ export default function TransactionsPage() {
           </h1>
 
           {/* Wallet Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className={`grid grid-cols-1 ${isFreelancer ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"} gap-6 mb-8`}>
+            {/* Wallet Balance (total) */}
             <div className="bg-hero-gradient text-white rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Available Balance</span></div>
-              <p className="text-3xl font-bold">{formatNaira(wallet?.balance || 0)}</p>
+              <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Wallet Balance</span></div>
+              <p className="text-3xl font-bold">{formatNaira(walletBalance)}</p>
               <div className="flex gap-2 mt-4">
                 <Button size="sm" variant="secondary" onClick={() => setShowFund(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Fund Wallet
+                  <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => setShowWithdraw(true)}>
+                <Button size="sm" variant="secondary" onClick={() => setShowWithdraw(true)} disabled={availableBalance < 5000}>
                   <Download className="h-4 w-4 mr-1" /> Withdraw
                 </Button>
               </div>
+              {isFreelancer && availableBalance < 5000 && availableBalance > 0 && (
+                <p className="text-xs text-white/60 mt-2">Min. withdrawal: ₦5,000</p>
+              )}
             </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">In Escrow</span></div>
-              <p className="text-3xl font-bold text-foreground">{formatNaira(wallet?.escrow_balance || 0)}</p>
-            </div>
+
+            {/* Pending Clearance (freelancer only) */}
+            {isFreelancer && (
+              <div className="bg-card rounded-xl border border-amber-500/30 p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Timer className="h-5 w-5 text-amber-500" />
+                  <span className="text-sm text-muted-foreground">Pending Clearance</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{formatNaira(pendingClearance)}</p>
+                {nextClearance && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground">Next release:</p>
+                    <ClearanceCountdown clearanceAt={nextClearance} />
+                  </div>
+                )}
+                {pendingClearance === 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">No pending funds</p>
+                )}
+              </div>
+            )}
+
+            {/* Available for Withdrawal (freelancer) / In Escrow */}
+            {isFreelancer ? (
+              <div className="bg-card rounded-xl border border-primary/30 p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Download className="h-5 w-5 text-primary" />
+                  <span className="text-sm text-muted-foreground">Available for Withdrawal</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{formatNaira(availableBalance)}</p>
+                {availableBalance < 5000 && (
+                  <p className="text-xs text-muted-foreground mt-2">Min. ₦5,000 to withdraw</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-card rounded-xl border border-border p-6">
+                <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">In Escrow</span></div>
+                <p className="text-3xl font-bold text-foreground">{formatNaira(wallet?.escrow_balance || 0)}</p>
+              </div>
+            )}
+
+            {/* Total Earned / Spent */}
             <div className="bg-card rounded-xl border border-border p-6">
               <div className="flex items-center gap-2 mb-2">
                 <CreditCard className="h-5 w-5 text-primary" />
@@ -170,6 +249,32 @@ export default function TransactionsPage() {
             </div>
           </div>
 
+          {/* Pending Clearance Details (freelancer) */}
+          {isFreelancer && pendingClearanceTxs.length > 0 && (
+            <div className="bg-card rounded-xl border border-amber-500/20 mb-8">
+              <div className="p-4 border-b border-border">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-amber-500" />
+                  Pending Clearance ({pendingClearanceTxs.length})
+                </h3>
+              </div>
+              <div className="divide-y divide-border">
+                {pendingClearanceTxs.map((tx: any) => (
+                  <div key={tx.id} className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{tx.description}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-amber-500">{formatNaira(tx.amount)}</p>
+                      <ClearanceCountdown clearanceAt={tx.clearance_at} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Transaction History */}
           <div className="bg-card rounded-xl border border-border">
             <div className="p-6 border-b border-border flex items-center justify-between">
@@ -179,7 +284,6 @@ export default function TransactionsPage() {
               </Button>
             </div>
 
-            {/* Filter Tabs */}
             <div className="px-6 pt-4">
               <Tabs value={txFilter} onValueChange={(v) => setTxFilter(v as TxFilter)}>
                 <TabsList>
@@ -203,6 +307,7 @@ export default function TransactionsPage() {
               <div className="divide-y divide-border">
                 {filteredTransactions.map((tx: any) => {
                   const credit = isCredit(tx);
+                  const isPendingClearance = tx.clearance_at && new Date(tx.clearance_at) > new Date();
                   return (
                     <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
                       <div className="flex items-center gap-3">
@@ -212,12 +317,22 @@ export default function TransactionsPage() {
                             : <ArrowUpRight className="h-5 w-5 text-destructive" />}
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{tx.description || tx.type}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
+                          <p className="font-medium text-foreground">
+                            {tx.description || tx.type}
+                            {isPendingClearance && (
+                              <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/30 text-[10px] px-1.5 py-0">
+                                Pending
+                              </Badge>
+                            )}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
+                            {isPendingClearance && <ClearanceCountdown clearanceAt={tx.clearance_at} />}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold ${credit ? "text-primary" : "text-destructive"}`}>
+                        <p className={`font-semibold ${isPendingClearance ? "text-amber-500" : credit ? "text-primary" : "text-destructive"}`}>
                           {credit ? "+" : "-"}{formatNaira(tx.amount)}
                         </p>
                         {tx.balance_after != null && <p className="text-xs text-muted-foreground">Bal: {formatNaira(tx.balance_after)}</p>}
@@ -268,7 +383,6 @@ export default function TransactionsPage() {
             </div>
             <p className="text-sm text-muted-foreground">{filteredForExport.length} transaction(s) in range</p>
 
-            {/* Hidden exportable div for PNG */}
             <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
               <div ref={exportRef} style={{ width: 800, padding: 32, background: "#fff", fontFamily: "sans-serif" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>

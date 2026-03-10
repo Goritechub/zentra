@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
-import { Loader2, Building2, CheckCircle2 } from "lucide-react";
+import { Loader2, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface WithdrawModalProps {
   open: boolean;
@@ -17,6 +17,8 @@ interface WithdrawModalProps {
   walletBalance: number;
   userId: string;
 }
+
+const MIN_WITHDRAWAL = 5000;
 
 type Step = "bank_select" | "add_bank" | "amount" | "confirm" | "processing" | "success" | "failed";
 
@@ -28,7 +30,6 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   const [amount, setAmount] = useState("");
   const [banks, setBanks] = useState<any[]>([]);
 
-  // Add bank form
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
@@ -108,12 +109,12 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
 
   const initiateWithdrawal = async () => {
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount < 100) {
-      toast.error("Minimum withdrawal is ₦100");
+    if (!numAmount || numAmount < MIN_WITHDRAWAL) {
+      toast.error(`Minimum withdrawal amount is ${formatNaira(MIN_WITHDRAWAL)}.`);
       return;
     }
     if (numAmount > walletBalance) {
-      toast.error("Insufficient balance");
+      toast.error("Insufficient available balance");
       return;
     }
     setStep("confirm");
@@ -156,6 +157,8 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     onOpenChange(open);
   };
 
+  const belowMinimum = walletBalance < MIN_WITHDRAWAL;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
@@ -164,9 +167,21 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
           <DialogDescription>Transfer funds from your wallet to your bank account.</DialogDescription>
         </DialogHeader>
 
-        {step === "bank_select" && (
+        {belowMinimum && step === "bank_select" && (
+          <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Minimum withdrawal amount is {formatNaira(MIN_WITHDRAWAL)}.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your available balance is {formatNaira(walletBalance)}. You need at least {formatNaira(MIN_WITHDRAWAL)} to withdraw.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === "bank_select" && !belowMinimum && (
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">Available: <strong>{formatNaira(walletBalance)}</strong></p>
+            <p className="text-sm text-muted-foreground">Available for withdrawal: <strong>{formatNaira(walletBalance)}</strong></p>
             {bankDetails.length > 0 ? (
               <div className="space-y-2">
                 <Label>Select Bank Account</Label>
@@ -255,8 +270,8 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
             </div>
             <div className="space-y-2">
               <Label>Amount (₦)</Label>
-              <Input type="number" min="100" max={walletBalance} placeholder="Enter amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Available: {formatNaira(walletBalance)}</p>
+              <Input type="number" min={MIN_WITHDRAWAL} max={walletBalance} placeholder={`Min. ${formatNaira(MIN_WITHDRAWAL)}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Available: {formatNaira(walletBalance)} · Min: {formatNaira(MIN_WITHDRAWAL)}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("bank_select")} className="flex-1">Back</Button>
