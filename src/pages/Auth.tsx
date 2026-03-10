@@ -779,6 +779,8 @@ export default function AuthPage() {
                         <Label htmlFor="signin-identifier">Email or Username</Label>
                         <Input
                           id="signin-identifier"
+                          name="identifier"
+                          autoComplete="username"
                           type="text"
                           placeholder="you@example.com or username"
                           value={signInData.identifier}
