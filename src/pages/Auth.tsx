@@ -1081,6 +1081,8 @@ export default function AuthPage() {
                         <div className="relative">
                           <Input
                             id="signup-password"
+                            name="password"
+                            autoComplete="new-password"
                             type={showSignUpPassword ? "text" : "password"}
                             placeholder="••••••••"
                             value={signUpData.password}
