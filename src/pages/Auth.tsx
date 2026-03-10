@@ -60,7 +60,7 @@ const forgotPasswordSchema = z.object({
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, profile, signUp, signIn, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, signUp, signIn, loading: authLoading, profileLoading, refreshProfile } = useAuth();
   const { signupsPaused, platformFrozen } = usePlatformFreeze();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
@@ -217,41 +217,44 @@ export default function AuthPage() {
     apply();
   }, [user, profile, refreshProfile]);
 
+  // Redirect once user exists and profile is loaded (or timed out)
   useEffect(() => {
-    if (user && !authLoading && profile) {
-      const redirect = searchParams.get("redirect");
-      if (redirect) {
-        navigate(redirect);
-        return;
-      }
+    if (!user || authLoading) return;
+    // Wait for profile to load before redirecting so we know the role
+    if (profileLoading || !profile) return;
 
-      const doRedirect = async () => {
-        try {
-          const { data: roleData } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-
-          if (roleData) {
-            navigate("/admin");
-          } else if (profile.role === "freelancer") {
-            navigate("/jobs");
-          } else {
-            navigate("/dashboard");
-          }
-        } catch {
-          if (profile.role === "freelancer") {
-            navigate("/jobs");
-          } else {
-            navigate("/dashboard");
-          }
-        }
-      };
-      doRedirect();
+    const redirect = searchParams.get("redirect");
+    if (redirect) {
+      navigate(redirect);
+      return;
     }
-  }, [user, authLoading, profile, navigate, searchParams]);
+
+    const doRedirect = async () => {
+      try {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (roleData) {
+          navigate("/admin");
+        } else if (profile.role === "freelancer") {
+          navigate("/jobs");
+        } else {
+          navigate("/dashboard");
+        }
+      } catch {
+        if (profile.role === "freelancer") {
+          navigate("/jobs");
+        } else {
+          navigate("/dashboard");
+        }
+      }
+    };
+    doRedirect();
+  }, [user, authLoading, profileLoading, profile, navigate, searchParams]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
