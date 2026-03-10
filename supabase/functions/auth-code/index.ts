@@ -33,20 +33,35 @@ async function hashCode(code: string): Promise<string> {
   return `pbkdf2:${PBKDF2_ITERATIONS}:${toHex(salt.buffer)}:${toHex(derived)}`;
 }
 
-async function verifyCode(code: string, storedHash: string): Promise<boolean> {
+async function verifySha256(code: string, storedHash: string): Promise<boolean> {
   const encoder = new TextEncoder();
-  const parts = storedHash.split(":");
-  if (parts[0] !== "pbkdf2" || parts.length !== 4) return false;
-  const iterations = parseInt(parts[1], 10);
-  const salt = fromHex(parts[2]);
-  const expectedHash = parts[3];
-  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
-    keyMaterial,
-    KEY_LENGTH * 8
-  );
-  return toHex(derived) === expectedHash;
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(code));
+  return toHex(digest) === storedHash;
+}
+
+async function verifyCode(code: string, storedHash: string): Promise<{ valid: boolean; isLegacy: boolean }> {
+  // PBKDF2 format
+  if (storedHash.startsWith("pbkdf2:")) {
+    const encoder = new TextEncoder();
+    const parts = storedHash.split(":");
+    if (parts.length !== 4) return { valid: false, isLegacy: false };
+    const iterations = parseInt(parts[1], 10);
+    const salt = fromHex(parts[2]);
+    const expectedHash = parts[3];
+    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
+    const derived = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+      keyMaterial,
+      KEY_LENGTH * 8
+    );
+    return { valid: toHex(derived) === expectedHash, isLegacy: false };
+  }
+  // Legacy SHA-256 format (64-char hex)
+  if (/^[0-9a-f]{64}$/.test(storedHash)) {
+    const valid = await verifySha256(code, storedHash);
+    return { valid, isLegacy: true };
+  }
+  return { valid: false, isLegacy: false };
 }
 
 function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
@@ -162,9 +177,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      const valid = await verifyCode(code, authCode.auth_code_hash);
+      const result = await verifyCode(code, authCode.auth_code_hash);
 
-      return new Response(JSON.stringify({ success: valid, error: valid ? null : "Invalid code" }), {
+      // Auto-migrate legacy SHA-256 hash to PBKDF2
+      if (result.valid && result.isLegacy) {
+        const newHash = await hashCode(code);
+        await adminClient.from("auth_codes").update({ auth_code_hash: newHash, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+      }
+
+      return new Response(JSON.stringify({ success: result.valid, error: result.valid ? null : "Invalid code" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -198,8 +219,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const currentValid = await verifyCode(current_code, authCode.auth_code_hash);
-      if (!currentValid) {
+      const currentResult = await verifyCode(current_code, authCode.auth_code_hash);
+      if (!currentResult.valid) {
         return new Response(JSON.stringify({ error: "Current code is incorrect" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -266,8 +287,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const valid = await verifyCode(code, authCode.auth_code_hash);
-      if (!valid) {
+      const resetResult = await verifyCode(code, authCode.auth_code_hash);
+      if (!resetResult.valid) {
         return new Response(JSON.stringify({ error: "Invalid current code" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
