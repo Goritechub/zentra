@@ -68,6 +68,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false);
   const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const exportRef = useRef<HTMLDivElement>(null);
+  const { requireAuthCode, SetupModal: AuthSetupModal, VerifyModal: AuthVerifyModal } = useRequireAuthCode();
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
