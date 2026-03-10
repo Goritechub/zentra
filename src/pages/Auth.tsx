@@ -845,6 +845,69 @@ export default function AuthPage() {
                         </RadioGroup>
                       </div>
 
+                      {/* Primary Category for freelancers */}
+                      {signUpData.role === "freelancer" && (
+                        <div className="space-y-2">
+                          <Label>Primary Service Category</Label>
+                          <div className="relative">
+                            <div
+                              className={cn(
+                                "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer",
+                                fieldClass("primaryCategory", signUpErrors)
+                              )}
+                              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                            >
+                              <span className={signUpData.primaryCategory ? "text-foreground" : "text-muted-foreground"}>
+                                {signUpData.primaryCategory || "Select your main category"}
+                              </span>
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            {categoryDropdownOpen && (
+                              <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-md">
+                                <div className="p-2">
+                                  <Input
+                                    placeholder="Type to filter..."
+                                    value={categorySearch}
+                                    onChange={(e) => setCategorySearch(e.target.value)}
+                                    className="h-8 text-sm"
+                                    autoFocus
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto px-1 pb-1">
+                                  {categoryNames
+                                    .filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()))
+                                    .map((cat) => (
+                                      <button
+                                        key={cat}
+                                        type="button"
+                                        className={cn(
+                                          "w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors",
+                                          signUpData.primaryCategory === cat && "bg-primary/10 text-primary font-medium"
+                                        )}
+                                        onClick={() => {
+                                          setSignUpData({ ...signUpData, primaryCategory: cat });
+                                          setCategoryDropdownOpen(false);
+                                          setCategorySearch("");
+                                          if (signUpErrors.primaryCategory)
+                                            setSignUpErrors((prev) => { const { primaryCategory, ...rest } = prev; return rest; });
+                                        }}
+                                      >
+                                        {cat}
+                                      </button>
+                                    ))}
+                                  {categoryNames.filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                                    <p className="px-3 py-2 text-sm text-muted-foreground">No categories found</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">This helps clients find you. You can update this later.</p>
+                          {signUpErrors.primaryCategory && <p className="text-sm text-destructive">{signUpErrors.primaryCategory}</p>}
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label htmlFor="signup-name">Full Name</Label>
                         <Input
