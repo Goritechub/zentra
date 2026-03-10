@@ -33,20 +33,35 @@ async function hashCode(code: string): Promise<string> {
   return `pbkdf2:${PBKDF2_ITERATIONS}:${toHex(salt.buffer)}:${toHex(derived)}`;
 }
 
-async function verifyCode(code: string, storedHash: string): Promise<boolean> {
+async function verifySha256(code: string, storedHash: string): Promise<boolean> {
   const encoder = new TextEncoder();
-  const parts = storedHash.split(":");
-  if (parts[0] !== "pbkdf2" || parts.length !== 4) return false;
-  const iterations = parseInt(parts[1], 10);
-  const salt = fromHex(parts[2]);
-  const expectedHash = parts[3];
-  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
-    keyMaterial,
-    KEY_LENGTH * 8
-  );
-  return toHex(derived) === expectedHash;
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(code));
+  return toHex(digest) === storedHash;
+}
+
+async function verifyCode(code: string, storedHash: string): Promise<{ valid: boolean; isLegacy: boolean }> {
+  // PBKDF2 format
+  if (storedHash.startsWith("pbkdf2:")) {
+    const encoder = new TextEncoder();
+    const parts = storedHash.split(":");
+    if (parts.length !== 4) return { valid: false, isLegacy: false };
+    const iterations = parseInt(parts[1], 10);
+    const salt = fromHex(parts[2]);
+    const expectedHash = parts[3];
+    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(code), "PBKDF2", false, ["deriveBits"]);
+    const derived = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+      keyMaterial,
+      KEY_LENGTH * 8
+    );
+    return { valid: toHex(derived) === expectedHash, isLegacy: false };
+  }
+  // Legacy SHA-256 format (64-char hex)
+  if (/^[0-9a-f]{64}$/.test(storedHash)) {
+    const valid = await verifySha256(code, storedHash);
+    return { valid, isLegacy: true };
+  }
+  return { valid: false, isLegacy: false };
 }
 
 function checkCodeStrength(code: string): { strong: boolean; reason?: string } {
