@@ -219,8 +219,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const currentValid = await verifyCode(current_code, authCode.auth_code_hash);
-      if (!currentValid) {
+      const currentResult = await verifyCode(current_code, authCode.auth_code_hash);
+      if (!currentResult.valid) {
         return new Response(JSON.stringify({ error: "Current code is incorrect" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
