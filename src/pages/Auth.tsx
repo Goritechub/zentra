@@ -81,10 +81,9 @@ export default function AuthPage() {
     email: "",
     password: "",
     role: defaultRole as "client" | "freelancer",
-    primaryCategory: "",
+    occupation: "",
+    occupationOther: "",
   });
-  const [categorySearch, setCategorySearch] = useState("");
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [signUpErrors, setSignUpErrors] = useState<Record<string, string>>({});
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
