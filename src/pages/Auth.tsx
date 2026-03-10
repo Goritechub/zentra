@@ -741,6 +741,8 @@ export default function AuthPage() {
                           <Label htmlFor="forgot-identifier">Email or Username</Label>
                           <Input
                             id="forgot-identifier"
+                            name="forgot-identifier"
+                            autoComplete="username"
                             type="text"
                             placeholder="you@example.com or username"
                             value={forgotEmail}
@@ -779,6 +781,8 @@ export default function AuthPage() {
                         <Label htmlFor="signin-identifier">Email or Username</Label>
                         <Input
                           id="signin-identifier"
+                          name="identifier"
+                          autoComplete="username"
                           type="text"
                           placeholder="you@example.com or username"
                           value={signInData.identifier}
@@ -805,6 +809,8 @@ export default function AuthPage() {
                         <div className="relative">
                           <Input
                             id="signin-password"
+                            name="password"
+                            autoComplete="current-password"
                             type={showSignInPassword ? "text" : "password"}
                             placeholder="••••••••"
                             value={signInData.password}
@@ -917,7 +923,7 @@ export default function AuthPage() {
                     <Divider />
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="space-y-3">
-                        <Label>I want to...</Label>
+                        <Label id="role-label">I want to...</Label>
                         <RadioGroup
                           value={signUpData.role}
                           onValueChange={(value: "client" | "freelancer") => setSignUpData({ ...signUpData, role: value, occupation: "", occupationOther: "" })}
@@ -954,7 +960,7 @@ export default function AuthPage() {
 
                       {/* Occupation field */}
                       <div className="space-y-2">
-                        <Label>Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                        <Label htmlFor="signup-occupation">Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
                         {signUpData.role === "freelancer" ? (
                           <>
                             <Select
@@ -965,7 +971,7 @@ export default function AuthPage() {
                                 if (signUpErrors.occupationOther) setSignUpErrors((prev) => { const { occupationOther, ...rest } = prev; return rest; });
                               }}
                             >
-                              <SelectTrigger className={fieldClass("occupation", signUpErrors)}>
+                              <SelectTrigger id="signup-occupation" className={fieldClass("occupation", signUpErrors)}>
                                 <SelectValue placeholder="Select your occupation" />
                               </SelectTrigger>
                               <SelectContent>
@@ -977,6 +983,8 @@ export default function AuthPage() {
                             {signUpData.occupation === "Others" && (
                               <div className="space-y-1">
                                 <Input
+                                  id="signup-occupation-other"
+                                  name="occupation-other"
                                   placeholder="e.g. Research Scientist"
                                   value={signUpData.occupationOther}
                                   onChange={(e) => {
@@ -995,6 +1003,8 @@ export default function AuthPage() {
                         ) : (
                           <div className="space-y-1">
                             <Input
+                              id="signup-occupation"
+                              name="occupation"
                               placeholder="e.g. Project Manager"
                               value={signUpData.occupation}
                               onChange={(e) => {
@@ -1015,6 +1025,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-name">Full Name</Label>
                         <Input
                           id="signup-name"
+                          name="fullName"
+                          autoComplete="name"
                           placeholder="Adewale Okonkwo"
                           value={signUpData.fullName}
                           onChange={(e) => {
@@ -1031,6 +1043,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-username">Username</Label>
                         <Input
                           id="signup-username"
+                          name="username"
+                          autoComplete="username"
                           placeholder="adewale_cad"
                           value={signUpData.username}
                           onChange={(e) => {
@@ -1048,6 +1062,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-email">Email</Label>
                         <Input
                           id="signup-email"
+                          name="email"
+                          autoComplete="email"
                           type="email"
                           placeholder="you@example.com"
                           value={signUpData.email}
@@ -1065,6 +1081,8 @@ export default function AuthPage() {
                         <div className="relative">
                           <Input
                             id="signup-password"
+                            name="password"
+                            autoComplete="new-password"
                             type={showSignUpPassword ? "text" : "password"}
                             placeholder="••••••••"
                             value={signUpData.password}
