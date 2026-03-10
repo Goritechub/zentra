@@ -1043,6 +1043,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-username">Username</Label>
                         <Input
                           id="signup-username"
+                          name="username"
+                          autoComplete="username"
                           placeholder="adewale_cad"
                           value={signUpData.username}
                           onChange={(e) => {
