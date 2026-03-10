@@ -21,11 +21,8 @@ import {
   Loader2, ArrowLeft, ShoppingBag, PlusCircle, Edit, Pause, Play, Trash2, X, Clock, Upload, ImageIcon
 } from "lucide-react";
 
-const CATEGORIES = [
-  "Product Design", "CAD Drafting", "3D Modeling", "3D Printing",
-  "Structural Design", "Architectural Design", "Mechanical Design",
-  "Electrical Design", "BIM/Revit", "Civil Engineering",
-];
+import { categoryNames } from "@/lib/categories";
+const CATEGORIES = categoryNames;
 
 export default function MyServicesPage() {
   const { user, loading: authLoading } = useAuth();

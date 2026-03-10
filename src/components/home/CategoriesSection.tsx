@@ -1,81 +1,5 @@
 import { Link } from "react-router-dom";
-import { 
-  Building2, 
-  Cog, 
-  Zap, 
-  Box, 
-  Layers, 
-  PenTool, 
-  Boxes,
-  RotateCcw,
-  Landmark
-} from "lucide-react";
-
-const categories = [
-  {
-    name: "Architectural Drafting",
-    slug: "architectural-drafting",
-    description: "Floor plans, elevations & construction drawings",
-    icon: Building2,
-    color: "from-blue-500 to-blue-600",
-  },
-  {
-    name: "Mechanical CAD",
-    slug: "mechanical-cad",
-    description: "Machine parts & mechanical systems",
-    icon: Cog,
-    color: "from-orange-500 to-orange-600",
-  },
-  {
-    name: "Electrical CAD",
-    slug: "electrical-cad",
-    description: "Wiring diagrams & panel designs",
-    icon: Zap,
-    color: "from-yellow-500 to-yellow-600",
-  },
-  {
-    name: "3D Modeling",
-    slug: "3d-modeling",
-    description: "Product visualization & rendering",
-    icon: Box,
-    color: "from-purple-500 to-purple-600",
-  },
-  {
-    name: "BIM/Revit",
-    slug: "bim-revit",
-    description: "Building Information Modeling",
-    icon: Layers,
-    color: "from-emerald-500 to-emerald-600",
-  },
-  {
-    name: "AutoCAD 2D",
-    slug: "autocad-2d",
-    description: "Technical 2D drawings",
-    icon: PenTool,
-    color: "from-red-500 to-red-600",
-  },
-  {
-    name: "SolidWorks",
-    slug: "solidworks",
-    description: "Design & simulation",
-    icon: Boxes,
-    color: "from-cyan-500 to-cyan-600",
-  },
-  {
-    name: "Fusion 360",
-    slug: "fusion-360",
-    description: "Product design & manufacturing",
-    icon: RotateCcw,
-    color: "from-pink-500 to-pink-600",
-  },
-  {
-    name: "Civil/Structural",
-    slug: "civil-structural",
-    description: "Civil & structural drawings",
-    icon: Landmark,
-    color: "from-slate-500 to-slate-600",
-  },
-];
+import { serviceCategories } from "@/lib/categories";
 
 export function CategoriesSection() {
   return (
@@ -91,7 +15,7 @@ export function CategoriesSection() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {categories.map((category, index) => (
+          {serviceCategories.map((category, index) => (
             <Link
               key={category.slug}
               to={`/freelancers?category=${category.slug}`}
