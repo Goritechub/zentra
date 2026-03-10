@@ -177,9 +177,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      const valid = await verifyCode(code, authCode.auth_code_hash);
+      const result = await verifyCode(code, authCode.auth_code_hash);
 
-      return new Response(JSON.stringify({ success: valid, error: valid ? null : "Invalid code" }), {
+      // Auto-migrate legacy SHA-256 hash to PBKDF2
+      if (result.valid && result.isLegacy) {
+        const newHash = await hashCode(code);
+        await adminClient.from("auth_codes").update({ auth_code_hash: newHash, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+      }
+
+      return new Response(JSON.stringify({ success: result.valid, error: result.valid ? null : "Invalid code" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
