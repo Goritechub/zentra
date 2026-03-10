@@ -257,11 +257,21 @@ export default function MyProfilePage() {
     setSaving(true);
 
     try {
+      // Validate occupation word count
+      const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+      if (occupation.trim() && wordCount(occupation) > 5) {
+        setOccupationError("Maximum 5 words allowed");
+        setSaving(false);
+        return;
+      }
+      setOccupationError("");
+
       const profileUpdate: any = {
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || null,
         state: state || null,
         city: city || null,
+        occupation: occupation.trim() || null,
       };
 
       // Only allow full_name update if not yet edited (or if it was empty)
