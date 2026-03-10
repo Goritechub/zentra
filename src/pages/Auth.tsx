@@ -458,9 +458,36 @@ export default function AuthPage() {
     setLoading(false);
   };
 
+  const mapSignInError = (error: Error): { field?: string; message: string } => {
+    const msg = error.message?.toLowerCase() || "";
+    if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials"))
+      return { field: "password", message: "Incorrect email or password." };
+    if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed"))
+      return { field: "identifier", message: "Please confirm your email before signing in." };
+    if (msg.includes("too many requests") || msg.includes("rate limit") || msg.includes("429"))
+      return { message: "Too many login attempts. Please wait a moment and try again." };
+    if (msg.includes("user not found"))
+      return { field: "identifier", message: "No account found with this email." };
+    if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network"))
+      return { message: "Network connection lost. Please check your internet and try again." };
+    if (msg.includes("503") || msg.includes("service unavailable"))
+      return { message: "Authentication service temporarily unavailable. Please try again shortly." };
+    if (msg.includes("500") || msg.includes("server error"))
+      return { message: "Server error. Please try again shortly." };
+    if (msg.includes("403") || msg.includes("forbidden"))
+      return { message: "Your account is restricted. Please contact support." };
+    return { message: "Something went wrong during sign-in. Please try again." };
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignInErrors({});
+
+    // Check network before attempting
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setSignInErrors({ general: "Network connection lost. Please check your internet and try again." });
+      return;
+    }
 
     const result = signInSchema.safeParse(signInData);
     if (!result.success) {
@@ -474,39 +501,61 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    let email = signInData.identifier;
-    if (!signInData.identifier.includes("@")) {
-      const { data: profileData, error: lookupError } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("username", signInData.identifier)
-        .single();
+    try {
+      // Username lookup with timeout
+      let email = signInData.identifier;
+      if (!signInData.identifier.includes("@")) {
+        const lookupPromise = supabase
+          .from("profiles")
+          .select("email")
+          .eq("username", signInData.identifier)
+          .single();
 
-      if (lookupError || !profileData) {
-        setSignInErrors({ identifier: "No account found with that username" });
+        const lookupResult = await Promise.race([
+          lookupPromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+        ]);
+
+        const { data: profileData, error: lookupError } = lookupResult as any;
+        if (lookupError || !profileData) {
+          setSignInErrors({ identifier: "No account found with that username" });
+          setLoading(false);
+          return;
+        }
+        email = profileData.email;
+      }
+
+      // Sign in with timeout
+      const signInPromise = signIn(email, signInData.password);
+      const { error } = await Promise.race([
+        signInPromise,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+      ]);
+
+      if (error) {
+        const mapped = mapSignInError(error);
+        if (mapped.field) {
+          setSignInErrors({ [mapped.field]: mapped.message });
+        } else {
+          setSignInErrors({ general: mapped.message });
+        }
         setLoading(false);
         return;
       }
-      email = profileData.email;
-    }
 
-    const { error } = await signIn(email, signInData.password);
-
-    if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        setSignInErrors({ password: "Invalid email/username or password" });
+      setLoading(false);
+      toast.success("Welcome back!");
+    } catch (err: any) {
+      console.error("Sign-in error:", err);
+      if (err?.message === "TIMEOUT") {
+        setSignInErrors({ general: "Connection timed out. Please check your internet connection and try again." });
+      } else if (err?.message?.toLowerCase().includes("fetch") || err?.message?.toLowerCase().includes("network")) {
+        setSignInErrors({ general: "Network connection lost. Please check your internet and try again." });
       } else {
-        toast.error(error.message);
+        setSignInErrors({ general: "Something went wrong during sign-in. Please try again." });
       }
       setLoading(false);
-      return;
     }
-
-    // Sign-in succeeded — the auth state listener will update user/profile
-    // and the useEffect will navigate. Reset local loading so the form
-    // doesn't stay stuck if navigation takes a moment.
-    setLoading(false);
-    toast.success("Welcome back!");
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -773,6 +822,23 @@ export default function AuthPage() {
                         </div>
                         {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
                       </div>
+
+                      {signInErrors.general && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5">⚠</span>
+                          <div>
+                            <p>{signInErrors.general}</p>
+                            {(signInErrors.general.includes("Network") || signInErrors.general.includes("timed out")) && (
+                              <button
+                                type="submit"
+                                className="mt-1.5 text-xs font-medium underline hover:no-underline"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <Button type="submit" className="w-full" size="lg" disabled={loading}>
                         {loading ? (
