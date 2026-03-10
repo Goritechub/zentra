@@ -1025,6 +1025,8 @@ export default function AuthPage() {
                         <Label htmlFor="signup-name">Full Name</Label>
                         <Input
                           id="signup-name"
+                          name="fullName"
+                          autoComplete="name"
                           placeholder="Adewale Okonkwo"
                           value={signUpData.fullName}
                           onChange={(e) => {
