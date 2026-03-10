@@ -965,7 +965,7 @@ export default function AuthPage() {
                                 if (signUpErrors.occupationOther) setSignUpErrors((prev) => { const { occupationOther, ...rest } = prev; return rest; });
                               }}
                             >
-                              <SelectTrigger className={fieldClass("occupation", signUpErrors)}>
+                              <SelectTrigger id="signup-occupation" className={fieldClass("occupation", signUpErrors)}>
                                 <SelectValue placeholder="Select your occupation" />
                               </SelectTrigger>
                               <SelectContent>
