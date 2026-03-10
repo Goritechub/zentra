@@ -95,6 +95,27 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_codes: {
+        Row: {
+          auth_code_hash: string
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_code_hash: string
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_code_hash?: string
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_details: {
         Row: {
           account_name: string
@@ -1850,7 +1871,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          auth_code_hash: string | null
           avatar_url: string | null
           city: string | null
           created_at: string | null
@@ -1869,7 +1889,6 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
-          auth_code_hash?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
@@ -1888,7 +1907,6 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
-          auth_code_hash?: string | null
           avatar_url?: string | null
           city?: string | null
           created_at?: string | null
