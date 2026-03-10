@@ -366,6 +366,23 @@ export default function AuthPage() {
       return;
     }
 
+    // Validate occupation word count (max 5 words for text inputs)
+    const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+    if (signUpData.role === "client" && signUpData.occupation.trim() && wordCount(signUpData.occupation) > 5) {
+      setSignUpErrors({ occupation: "Maximum 5 words allowed" });
+      return;
+    }
+    if (signUpData.role === "freelancer" && signUpData.occupation === "Others") {
+      if (!signUpData.occupationOther.trim()) {
+        setSignUpErrors({ occupationOther: "Please specify your occupation" });
+        return;
+      }
+      if (wordCount(signUpData.occupationOther) > 5) {
+        setSignUpErrors({ occupationOther: "Maximum 5 words allowed" });
+        return;
+      }
+    }
+
     setLoading(true);
 
     if (!recaptchaToken) {
