@@ -537,6 +537,18 @@ export default function MyProfilePage() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Occupation <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input
+                  value={occupation}
+                  onChange={(e) => { setOccupation(e.target.value); setOccupationError(""); }}
+                  maxLength={50}
+                  placeholder={isFreelancer ? "e.g. Engineer, Technician, Student" : "e.g. Project Manager"}
+                  className={occupationError ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                <p className="text-xs text-muted-foreground">Keep it brief — max 5 words</p>
+                {occupationError && <p className="text-sm text-destructive">{occupationError}</p>}
+              </div>
             </section>
 
             {/* Freelancer-Specific */}

@@ -357,6 +357,9 @@ export default function ExpertProfile() {
                   {freelancerProfile?.title && (
                     <p className="text-muted-foreground">{freelancerProfile.title}</p>
                   )}
+                  {profile.occupation && (
+                    <p className="text-sm text-muted-foreground">{profile.occupation}</p>
+                  )}
                   <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground mt-2">
                     <MapPin className="h-3.5 w-3.5" />
                     {profile.city && `${profile.city}, `}{profile.state || "Nigeria"}
