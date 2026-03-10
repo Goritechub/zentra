@@ -436,6 +436,8 @@ export default function TransactionsPage() {
           </div>
         </DialogContent>
       </Dialog>
+      {AuthSetupModal}
+      {AuthVerifyModal}
     </div>
   );
 }
