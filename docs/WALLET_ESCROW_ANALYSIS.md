@@ -1,6 +1,6 @@
 # Wallet & Escrow System Analysis
 
-> Generated: 2026-03-10 | Analysis of existing implementation — no code changes made.
+> Updated: 2026-03-10 | Post-refactoring — all financial operations are now atomic, concurrency-safe, and idempotent.
 
 ---
 
@@ -20,7 +20,7 @@
 
 - RLS: Users can view/update own wallet; admins can view all.
 - No DELETE policy — wallets are never deleted except via the `delete_user_account` RPC.
-- **No row-level locking** — updates use read-then-write via the Supabase JS client.
+- **CHECK constraint**: `balance >= 0` — prevents negative available balances at the database level.
 
 ### 1.2 `wallet_transactions` Table
 
@@ -30,24 +30,29 @@
 | `user_id` | uuid | — | Owner of the transaction |
 | `amount` | integer | — | Transaction amount in **Naira** |
 | `balance_after` | integer | `0` | Snapshot of wallet balance after this transaction |
-| `type` | text | — | `credit`, `debit`, `escrow_lock`, `escrow_release`, `withdrawal` |
+| `type` | text | — | `credit`, `debit`, `escrow_lock`, `escrow_release`, `withdrawal`, `reversal` |
 | `description` | text | nullable | Human-readable description |
-| `reference` | text | nullable | Paystack reference or `contest_escrow_*`, `contest_prize_*` |
-| `status` | text | `'completed'` | Transaction status |
+| `reference` | text | nullable | Unique operation key (e.g. `fund_ms_{id}`, `contest_prize_{id}_{pos}`, `withdraw_{uuid}`) |
+| `status` | text | `'completed'` | `completed`, `pending`, `reversed` |
 | `contract_id` | uuid | nullable | FK → `contracts.id` |
 | `milestone_id` | uuid | nullable | FK → `milestones.id` |
 | `created_at` | timestamptz | `now()` | — |
 
+**Unique index**: `idx_wallet_tx_reference_unique` — partial unique index on `reference` where `reference IS NOT NULL`, preventing duplicate financial operations.
+
 ### 1.3 How Balances Are Stored & Updated
 
-All balance updates use a **read-then-write** pattern:
+All balance updates now happen inside **PostgreSQL `SECURITY DEFINER` functions** that run as single atomic transactions:
 
 ```
-1. SELECT wallet WHERE user_id = X  →  get current balance
-2. UPDATE wallet SET balance = currentBalance ± amount WHERE user_id = X
+1. SELECT * FROM wallets WHERE user_id = X FOR UPDATE   →  row-level lock
+2. Validate balance >= required amount
+3. UPDATE wallets SET balance = balance - amount ...     →  atomic within same transaction
+4. INSERT INTO wallet_transactions ...                   →  same transaction
+5. RETURN result                                         →  COMMIT or ROLLBACK
 ```
 
-**There is no `SELECT ... FOR UPDATE`, no database-level locking, and no `BEGIN/COMMIT` transaction wrapping.** Every operation is an individual Supabase client call.
+If any step fails, the entire function rolls back automatically via PostgreSQL's implicit transaction.
 
 ---
 
@@ -68,9 +73,9 @@ All balance updates use a **read-then-write** pattern:
 | `created_at` | timestamptz | `now()` | — |
 | `updated_at` | timestamptz | `now()` | — |
 
-### 2.2 `escrow_transactions` Table
+**Unique index**: `idx_escrow_ledger_milestone_held` — partial unique index on `milestone_id` where `status = 'held'`, preventing duplicate escrow locks for the same milestone.
 
-Separate audit trail for escrow deposits/releases:
+### 2.2 `escrow_transactions` Table
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -82,248 +87,323 @@ Separate audit trail for escrow deposits/releases:
 
 ### 2.3 How Escrow Is Funded
 
-**Milestone Escrow** (`escrow-release` → `fund_milestone` action):
+**Milestone Escrow** — via `fund_milestone_atomic` RPC:
+
+All steps execute atomically within one database transaction:
+
 1. Read milestone + joined contract
 2. Verify caller is client, milestone status is `pending`
-3. Read client wallet → check `balance >= milestone.amount`
-4. UPDATE wallet: `balance -= amount`, `escrow_balance += amount`, `total_spent += amount`
-5. INSERT `wallet_transactions` (type: `escrow_lock`)
-6. INSERT `escrow_ledger` (status: `held`)
-7. INSERT `escrow_transactions` (type: `deposit`)
-8. UPDATE milestone status → `funded`
-9. Optionally activate contract if `pending_funding`
-10. Notify expert + system message
+3. `SELECT ... FOR UPDATE` on client wallet — acquires row lock
+4. Check `balance >= milestone.amount`
+5. UPDATE wallet: `balance -= amount`, `escrow_balance += amount`, `total_spent += amount`
+6. INSERT `wallet_transactions` (type: `escrow_lock`, reference: `fund_ms_{milestone_id}`)
+7. INSERT `escrow_ledger` (status: `held`)
+8. INSERT `escrow_transactions` (type: `deposit`)
+9. UPDATE milestone status → `funded`
+10. Optionally activate contract if `pending_funding`
 
-**Contest Escrow** (`launch-contest` edge function):
-1. Authenticate user
-2. Calculate total prize pool (sum of 5 prize tiers)
-3. Read client wallet → check `balance >= totalPrizePool`
+If any step fails → automatic rollback. The unique reference `fund_ms_{id}` prevents duplicate funding.
+
+**Contest Escrow** — via `launch_contest_atomic` RPC:
+
+1. Calculate total prize pool
+2. `SELECT ... FOR UPDATE` on client wallet
+3. Check `balance >= total_pool`
 4. INSERT contest record (status: `active`)
-5. UPDATE wallet: `balance -= totalPrizePool`, `escrow_balance += totalPrizePool`, `total_spent += totalPrizePool`
-6. If wallet update fails → DELETE the contest (manual rollback)
-7. INSERT `wallet_transactions` (type: `debit`, reference: `contest_escrow_{id}`)
+5. UPDATE wallet: `balance -= total_pool`, `escrow_balance += total_pool`
+6. INSERT `wallet_transactions` (reference: `contest_escrow_{contest_id}`)
+
+Atomic — no manual rollback needed.
 
 ### 2.4 How Escrow Is Released
 
-**Milestone Release** (`escrow-release` → `approve_release` action):
+**Milestone Release** — via `release_milestone_atomic` RPC:
+
 1. Read milestone + contract; verify caller is client, status is `submitted`
-2. Find `escrow_ledger` entry with status `held` (creates one if missing)
-3. Load commission tiers from `platform_settings` (fallback to hardcoded defaults)
-4. Calculate: `platformFee = amount × commissionRate`, `expertAmount = amount - platformFee`
-5. UPDATE client wallet: `escrow_balance -= amount`
-6. UPDATE/INSERT freelancer wallet: `balance += expertAmount`, `total_earned += expertAmount`
-7. UPDATE `escrow_ledger`: status → `released`, record fee split
-8. INSERT two `wallet_transactions` (one per party)
-9. INSERT `escrow_transactions` (type: `release`)
-10. INSERT `platform_revenue` record
-11. UPDATE milestone status → `approved`
-12. Notify expert
-13. Attempt Paystack bank payout (best-effort, no rollback on failure)
-14. Check if all milestones approved → complete contract
+2. `SELECT ... FOR UPDATE` on `escrow_ledger` entry with status `held`
+3. Idempotency: if ledger already `released`, return error immediately
+4. Load commission tiers from `platform_settings`
+5. Calculate: `platformFee = amount × commissionRate`, `expertAmount = amount - platformFee`
+6. UPDATE client wallet: `escrow_balance -= amount`
+7. `SELECT ... FOR UPDATE` on freelancer wallet → credit: `balance += expertAmount`
+8. UPDATE `escrow_ledger`: status → `released`, record fee split
+9. INSERT two `wallet_transactions` (one per party, with unique references `release_client_{id}` / `release_expert_{id}`)
+10. INSERT `escrow_transactions` (type: `release`)
+11. INSERT `platform_revenue` record
+12. UPDATE milestone status → `approved`
+13. Check if all milestones approved → complete contract
 
-**Contest Prize Release** (`publish-contest-winners`):
-1. Authenticate caller as contest owner
-2. Verify contest not already `ended`/`completed`
+All atomic. Edge function then handles post-commit notifications and optional Paystack payout (best-effort).
+
+**Contest Prize Release** — via `publish_contest_winners_atomic` RPC:
+
+1. `SELECT ... FOR UPDATE` on contest row — prevents concurrent calls
+2. Verify status is not `completed` or `ended`
 3. Fetch nominees, verify count matches prize tiers
-4. For each nominee (up to 5):
-   a. Read winner wallet (create if absent)
-   b. UPDATE winner wallet: `balance += prizeAmount`, `total_earned += prizeAmount`
-   c. INSERT `wallet_transactions` (type: `credit`, reference: `contest_prize_{id}_{position}`)
-   d. Read client wallet → UPDATE: `escrow_balance -= prizeAmount`
-   e. Notify winner
-5. UPDATE contest status → `completed`
-6. Mark entries as winners
+4. `SELECT ... FOR UPDATE` on client wallet
+5. For each winner (up to 5):
+   a. `SELECT ... FOR UPDATE` on winner wallet (create if absent)
+   b. Credit winner: `balance += prize`, `total_earned += prize`
+   c. INSERT `wallet_transactions` (reference: `contest_prize_{contest_id}_{position}`)
+   d. Debit client escrow: `escrow_balance -= prize`
+   e. INSERT notification
+6. UPDATE contest status → `completed`
+
+Atomic — if any winner payout fails, all rollback (no partial payouts).
 
 ---
 
-## 3. FINANCIAL EDGE FUNCTIONS — DETAILED ANALYSIS
+## 3. SQL / RPC FUNCTIONS
 
-### 3.1 `fund_milestone` (in `escrow-release/index.ts`)
+### 3.1 `fund_milestone_atomic(_user_id, _milestone_id)`
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `milestones` (+ joined `contracts`), `wallets` |
-| **Tables Written** | `wallets`, `wallet_transactions`, `escrow_ledger`, `escrow_transactions`, `milestones`, `contracts`, `notifications`, `contract_messages` |
-| **Order of Operations** | Read milestone → check auth → check status → read wallet → update wallet → insert tx log → insert ledger → insert escrow tx → update milestone → update contract → notify |
-| **Database Transactions** | ❌ **None** — all operations are sequential, independent Supabase client calls |
-| **Row Locking** | ❌ **None** — read-then-write without `FOR UPDATE` |
-| **Idempotency Protection** | ⚠️ **Partial** — checks `milestone.status !== "pending"` to prevent re-funding, but no unique constraint on the operation |
+**Purpose**: Lock milestone funds from client wallet into escrow.
 
-### 3.2 `approve_release` (in `escrow-release/index.ts`)
+**Row locks**: `wallets` (client) via `FOR UPDATE`
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `milestones` (+ `contracts`), `escrow_ledger`, `wallets` (client + freelancer), `platform_settings` |
-| **Tables Written** | `wallets` (both parties), `escrow_ledger`, `wallet_transactions`, `escrow_transactions`, `platform_revenue`, `milestones`, `contracts`, `payout_transfers`, `notifications`, `contract_messages`, `bank_details` |
-| **Order of Operations** | Read milestone → check status → find/create ledger → calc commission → update client wallet → update/create freelancer wallet → update ledger → insert tx logs → insert escrow tx → insert revenue → update milestone → notify → attempt Paystack payout → check contract completion |
-| **Database Transactions** | ❌ **None** |
-| **Row Locking** | ❌ **None** |
-| **Idempotency Protection** | ⚠️ **Partial** — checks `milestone.status !== "submitted"`, but if two requests read `submitted` simultaneously, both proceed |
+**Idempotency**: Checks `milestone.status != 'pending'`; unique reference `fund_ms_{id}` on `wallet_transactions`; unique partial index on `escrow_ledger(milestone_id)` where `status = 'held'`.
 
-### 3.3 `publish-contest-winners` (in `publish-contest-winners/index.ts`)
+**Atomicity**: Full — single PL/pgSQL function = single transaction.
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `contests`, `contest_entries`, `wallets` (per winner + client) |
-| **Tables Written** | `contest_entries`, `contests`, `wallets` (per winner + client), `wallet_transactions`, `notifications` |
-| **Order of Operations** | Auth → read contest → check status → read nominees → loop: update entry → update winner wallet → insert tx → update client escrow → notify |
-| **Database Transactions** | ❌ **None** |
-| **Row Locking** | ❌ **None** |
-| **Idempotency Protection** | ⚠️ **Partial** — checks `status === "ended" || "completed"`, but two simultaneous calls could both read `selecting_winners` and proceed |
+### 3.2 `release_milestone_atomic(_user_id, _milestone_id)`
 
-### 3.4 `withdraw` (in `paystack-transfer/index.ts`)
+**Purpose**: Release escrow funds to freelancer, deduct platform commission, record revenue.
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `wallets`, `bank_details` |
-| **Tables Written** | `wallets`, `withdrawal_requests`, `wallet_transactions` |
-| **Order of Operations** | Read wallet → check balance → read bank → **debit wallet immediately** → call Paystack API → insert withdrawal request → insert tx log → if Paystack fails: **refund wallet** |
-| **Database Transactions** | ❌ **None** |
-| **Row Locking** | ❌ **None** |
-| **Idempotency Protection** | ❌ **None** — no deduplication mechanism |
-| **Rollback** | ⚠️ **Manual** — on Paystack failure, sets wallet balance back to original value. But the `wallet_transactions` debit record is **NOT deleted** on refund, creating an orphaned debit entry. |
+**Row locks**: `escrow_ledger` row via `FOR UPDATE`; freelancer `wallets` row via `FOR UPDATE`.
 
-### 3.5 `paystack-webhook` (charge.success handler)
+**Idempotency**: Checks for existing `released` ledger entry; unique references `release_client_{id}` / `release_expert_{id}`.
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `paystack_references`, `wallet_transactions` (for dedup check), `wallets` |
-| **Tables Written** | `paystack_references`, `wallets`, `wallet_transactions`, `notifications` |
-| **Order of Operations** | Verify HMAC signature → update reference status → read reference → check for existing wallet_transaction with same reference → if not exists: read wallet → update/insert wallet → insert wallet_transaction → notify |
-| **Database Transactions** | ❌ **None** |
-| **Row Locking** | ❌ **None** |
-| **Idempotency Protection** | ✅ **Yes** — checks `wallet_transactions` for existing record with same `reference` before crediting. However, this is a non-atomic check-then-insert (TOCTOU vulnerability). |
+**Atomicity**: Full.
 
-### 3.6 `admin_withdraw_revenue` (in `paystack-transfer/index.ts`)
+### 3.3 `publish_contest_winners_atomic(_user_id, _contest_id, _is_auto_award)`
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `platform_revenue`, `platform_settings`, `bank_details` |
-| **Tables Written** | `platform_settings`, `admin_activity_log` |
-| **Order of Operations** | Verify super admin → sum all commission_amount → read total_withdrawn → calc available → check amount → read bank → call Paystack → update total_withdrawn → log activity |
-| **Database Transactions** | ❌ **None** |
-| **Row Locking** | ❌ **None** |
-| **Idempotency Protection** | ❌ **None** |
+**Purpose**: Pay all contest winners atomically.
 
-### 3.7 `contest-auto-award` (scheduled function)
+**Row locks**: `contests` row via `FOR UPDATE`; client `wallets` via `FOR UPDATE`; each winner `wallets` via `FOR UPDATE`.
 
-| Aspect | Detail |
-|--------|--------|
-| **Tables Read** | `contests`, `contest_entries` |
-| **Tables Written** | `contests`, `contest_entries`, `notifications` |
-| **⚠️ CRITICAL BUG** | Auto-award marks nominees as winners but **does NOT pay out prizes**. Winner wallets are never credited. The prize pool remains locked in the client's escrow indefinitely. |
-| **Idempotency Protection** | ⚠️ **Partial** — status check prevents re-processing, but no atomic guard |
+**Idempotency**: Checks `contest.status IN ('completed', 'ended')` under lock; unique references `contest_prize_{contest_id}_{position}`.
 
----
+**Atomicity**: Full — all winners paid or none. No partial payout state possible.
 
-## 4. RACE CONDITION ANALYSIS
+### 3.4 `launch_contest_atomic(_user_id, ...params)`
 
-### 4.1 Two Withdrawals Simultaneously
+**Purpose**: Create contest and lock prize pool in escrow atomically.
 
-**VULNERABLE: YES — Critical**
+**Row locks**: Client `wallets` via `FOR UPDATE`.
 
-```
-Thread A: read wallet.balance = 10,000
-Thread B: read wallet.balance = 10,000
-Thread A: UPDATE wallet SET balance = 10,000 - 5,000 = 5,000
-Thread B: UPDATE wallet SET balance = 10,000 - 5,000 = 5,000
-Result: Both succeed. 10,000 withdrawn but balance shows 5,000 (5,000 lost)
-```
+**Idempotency**: Unique reference `contest_escrow_{contest_id}`.
 
-The read-then-write pattern with no row locking allows **double-spend**. Two Paystack transfers would be initiated for the same funds.
+**Atomicity**: Full.
 
-### 4.2 Two Milestone Fundings Simultaneously
+### 3.5 `withdraw_wallet_atomic(_user_id, _amount, _bank_detail_id)`
 
-**VULNERABLE: YES — Moderate**
+**Purpose**: Atomically debit wallet and create pending withdrawal request (before Paystack API call).
 
-Same pattern: two concurrent `fund_milestone` calls for different milestones on the same client wallet can cause the second to use a stale balance snapshot, resulting in the wallet going below its actual available balance.
+**Row locks**: `wallets` via `FOR UPDATE`.
 
-For the **same** milestone, the `status !== "pending"` check provides **partial** protection, but two requests reading `pending` simultaneously would both proceed.
+**Idempotency**: Generates unique reference `withdraw_{uuid}`. Balance check under lock prevents double-spend.
 
-### 4.3 Contest Winners Published Twice (Retry)
+**Atomicity**: Full — balance debit, transaction log, and withdrawal request all in one transaction.
 
-**VULNERABLE: YES — Critical**
+### 3.6 `reverse_withdrawal_atomic(_user_id, _withdrawal_id, _reference, _reason)`
 
-```
-Request A: reads contest.status = "selecting_winners"
-Request B: reads contest.status = "selecting_winners"  (retry before A completes)
-Both proceed: winners credited twice, client escrow double-debited
-```
+**Purpose**: Reverse a failed withdrawal — refund balance, mark original transaction as reversed, log reversal.
 
-The status check (`status === "ended" || "completed"`) is non-atomic. No unique constraint on winner payouts. No transaction reference deduplication.
+**Row locks**: `withdrawal_requests` via `FOR UPDATE`; `wallets` via `FOR UPDATE`.
 
-### 4.4 Escrow Release Called Twice
+**Idempotency**: Checks `withdrawal.status NOT IN ('pending', 'processing')` — already-finalized withdrawals cannot be reversed again.
 
-**VULNERABLE: YES — Critical**
+**Atomicity**: Full — refund + status update + reversal log all in one transaction.
 
-```
-Request A: reads milestone.status = "submitted"
-Request B: reads milestone.status = "submitted"
-Both proceed: freelancer paid twice, client escrow double-debited (could go negative)
-```
+### 3.7 `credit_wallet_atomic(_user_id, _amount, _description, _reference)`
 
-The `Math.max(0, escrow_balance - amount)` in some paths prevents negative escrow but doesn't prevent the freelancer from being credited twice.
+**Purpose**: Credit a wallet (e.g. from Paystack webhook on successful charge).
+
+**Row locks**: `wallets` via `FOR UPDATE`.
+
+**Idempotency**: Checks `wallet_transactions` for existing record with same `reference` before crediting. Returns `{duplicate: true}` if already processed.
+
+**Atomicity**: Full.
+
+### 3.8 `resolve_dispute_atomic(_admin_id, _dispute_id, _contract_id, _resolution_type, ...)`
+
+**Purpose**: Resolve a dispute — release to freelancer, refund client, or partial split.
+
+**Row locks**: Both client and freelancer wallets via `FOR UPDATE` (locked in consistent UUID order to prevent deadlocks).
+
+**Idempotency**: Status checks under lock.
+
+**Atomicity**: Full.
 
 ---
 
-## 5. TRANSACTION SAFETY
+## 4. UPDATED EDGE FUNCTION FLOWS
 
-### 5.1 BEGIN/COMMIT Transactions
+### 4.1 `escrow-release/index.ts`
 
-**❌ No edge function uses database transactions.**
+**Fund Milestone action**:
+```
+1. Authenticate user (JWT)
+2. Call supabase.rpc('fund_milestone_atomic', { _user_id, _milestone_id })
+3. If success → send notifications + system message (post-commit, non-critical)
+4. Return result
+```
 
-All operations are individual Supabase JS client calls (`supabase.from(...).update(...)`, `.insert(...)`). Each is an independent HTTP request to the PostgREST API. There is no transactional grouping.
+**Approve Release action**:
+```
+1. Authenticate user (JWT)
+2. Call supabase.rpc('release_milestone_atomic', { _user_id, _milestone_id })
+3. If success → send notifications, attempt Paystack payout (best-effort)
+4. Return result
+```
 
-### 5.2 Rollback Protection
+All financial state changes happen inside the RPC. The edge function only handles auth, notifications, and external API calls.
 
-| Function | Rollback Mechanism |
-|----------|-------------------|
-| `launch-contest` | Manual: deletes contest if wallet update fails |
-| `withdraw` | Manual: resets wallet balance if Paystack API fails (but leaves orphaned wallet_transaction) |
-| `fund_milestone` | ❌ None — if escrow_ledger insert fails after wallet debit, funds are lost |
-| `approve_release` | ❌ None — if freelancer credit fails after client debit, funds disappear |
-| `publish-contest-winners` | ❌ None — partial payouts leave inconsistent state |
-| `resolve_dispute` | ❌ None |
+### 4.2 `publish-contest-winners/index.ts`
 
-### 5.3 What Happens If Insert Fails After Wallet Update
+```
+1. Authenticate user (JWT)
+2. Call supabase.rpc('publish_contest_winners_atomic', { _user_id, _contest_id })
+3. Return result (notifications are sent inside the RPC)
+```
 
-**Scenario**: `fund_milestone` debits wallet successfully, then `escrow_ledger` insert fails.
+### 4.3 `contest-auto-award/index.ts`
 
-**Result**:
-- Wallet balance is reduced ✓
-- Escrow balance is increased ✓
-- No escrow_ledger record exists ✗
-- Milestone remains `pending` ✗
-- User sees reduced balance but milestone appears unfunded
-- **No automatic recovery** — requires manual database intervention
+```
+1. Query overdue contests (status = 'active', deadline < now)
+2. For each contest:
+   a. Select top entries as nominees
+   b. Mark entries as nominees
+   c. Call supabase.rpc('publish_contest_winners_atomic', { _user_id: client_id, _contest_id, _is_auto_award: true })
+   d. This atomically pays winners — fixing the previous bug where auto-award did NOT pay out prizes
+```
 
-### 5.4 Paystack Amount Convention
+### 4.4 `paystack-transfer/index.ts`
+
+**User Withdrawal**:
+```
+1. Authenticate user
+2. Call supabase.rpc('withdraw_wallet_atomic', { _user_id, _amount, _bank_detail_id })
+   → Returns { success, withdrawal_id, recipient_code, reference }
+3. Call Paystack Transfer API
+4. If Paystack fails → Call supabase.rpc('reverse_withdrawal_atomic', { ... })
+   → Atomically refunds balance, marks original tx as reversed, logs reversal
+5. If Paystack succeeds → Update withdrawal_requests with transfer_code
+```
+
+**Admin Revenue Withdrawal**: Unchanged flow (reads `platform_revenue`, calls Paystack, updates `platform_settings`).
+
+### 4.5 `paystack-webhook/index.ts` (charge.success)
+
+```
+1. Verify HMAC signature
+2. Update paystack_references status
+3. Call supabase.rpc('credit_wallet_atomic', { _user_id, _amount, _description, _reference })
+   → Returns { success, duplicate } — if reference already processed, skips silently
+4. If success and not duplicate → send notification
+```
+
+---
+
+## 5. DATABASE CONSTRAINTS & INDEXES
+
+### 5.1 CHECK Constraints
+
+| Table | Constraint | Rule |
+|-------|-----------|------|
+| `wallets` | `chk_wallet_balance_non_negative` | `balance >= 0` |
+
+Prevents any operation from driving the available balance below zero, even if application logic has a bug.
+
+### 5.2 Unique Indexes (Idempotency)
+
+| Index | Table | Columns | Condition |
+|-------|-------|---------|-----------|
+| `idx_wallet_tx_reference_unique` | `wallet_transactions` | `reference` | `WHERE reference IS NOT NULL` |
+| `idx_escrow_ledger_milestone_held` | `escrow_ledger` | `milestone_id` | `WHERE status = 'held'` |
+
+These prevent:
+- Duplicate milestone funding (same `fund_ms_{id}` reference)
+- Duplicate escrow releases (same `release_client_{id}` / `release_expert_{id}` reference)
+- Duplicate contest payouts (same `contest_prize_{id}_{pos}` reference)
+- Duplicate wallet credits (same Paystack reference)
+- Duplicate escrow ledger entries for a milestone in `held` status
+
+---
+
+## 6. RACE CONDITION ANALYSIS (POST-FIX)
+
+### 6.1 Two Withdrawals Simultaneously
+
+**PROTECTED ✅**
+
+Both requests call `withdraw_wallet_atomic`. The first to acquire `FOR UPDATE` lock proceeds; the second blocks until the first commits. The second then reads the updated (lower) balance and either succeeds or returns "Insufficient balance".
+
+### 6.2 Two Milestone Fundings Simultaneously
+
+**PROTECTED ✅**
+
+- **Same milestone**: First call sets status to `funded`; second call sees `status != 'pending'` and returns error. Unique reference `fund_ms_{id}` also prevents duplicate `wallet_transactions`.
+- **Different milestones, same client**: `FOR UPDATE` on the client wallet serializes the operations. No stale balance reads.
+
+### 6.3 Contest Winners Published Twice (Retry)
+
+**PROTECTED ✅**
+
+`FOR UPDATE` on the `contests` row serializes calls. First call sets status to `completed`; second call sees `status IN ('completed', 'ended')` and returns error. Unique references `contest_prize_{id}_{pos}` also prevent duplicate credits.
+
+### 6.4 Escrow Release Called Twice
+
+**PROTECTED ✅**
+
+`FOR UPDATE` on `escrow_ledger` row serializes calls. First call sets status to `released`; second call finds no `held` entry and checks for existing `released` entry, returning "already released" error. Unique references prevent duplicate `wallet_transactions`.
+
+### 6.5 Webhook Delivered Twice
+
+**PROTECTED ✅**
+
+`credit_wallet_atomic` checks for existing `wallet_transactions` with same reference before crediting. Returns `{duplicate: true}` on second call. The unique index on `reference` provides database-level enforcement.
+
+---
+
+## 7. TRANSACTION SAFETY
+
+### 7.1 Atomicity
+
+All financial RPCs are PL/pgSQL functions. PostgreSQL wraps each function call in an implicit transaction. If any statement fails (constraint violation, runtime error, etc.), the entire function rolls back automatically.
+
+### 7.2 Rollback Protection
+
+| Scenario | Protection |
+|----------|-----------|
+| Client debited but freelancer not credited | Impossible — both happen in same `release_milestone_atomic` transaction |
+| First contest winner paid but third fails | Impossible — all winners paid in same `publish_contest_winners_atomic` transaction; any failure rolls back all |
+| Escrow ledger updated but wallet not | Impossible — same transaction |
+| Contest marked completed but prizes not paid | Impossible — status update and prize credits are in same transaction |
+| Withdrawal debit logged but Paystack fails | Clean reversal via `reverse_withdrawal_atomic`: marks original tx as `reversed`, creates `reversal` tx, refunds balance |
+
+### 7.3 Paystack Amount Convention
 
 Amounts are stored in **Naira (integers)** in the database. When calling the Paystack API, values are converted to **kobo (× 100)**. The webhook handler converts back: `amountNaira = Math.round(amountKobo / 100)`.
 
 ---
 
-## 6. SUMMARY OF RISKS
+## 8. ARCHITECTURE SUMMARY
 
-| Risk | Severity | Affected Functions |
-|------|----------|--------------------|
-| **No atomic transactions** — all multi-step operations can partially fail | 🔴 Critical | All financial functions |
-| **No row locking** — concurrent reads cause stale balance writes | 🔴 Critical | All wallet updates |
-| **Double-spend on withdrawals** — no deduplication | 🔴 Critical | `withdraw` |
-| **Double-payout on escrow release** — status check is non-atomic | 🔴 Critical | `approve_release` |
-| **Double-payout on contest winners** — no idempotency key | 🔴 Critical | `publish-contest-winners` |
-| **Contest auto-award doesn't pay winners** — prizes stuck in escrow | 🔴 Critical | `contest-auto-award` |
-| **Orphaned transaction records on withdrawal failure** — debit logged but refunded | 🟡 Moderate | `withdraw` |
-| **Manual rollback is incomplete** — only `launch-contest` and `withdraw` attempt it | 🟡 Moderate | `fund_milestone`, `approve_release` |
-| **Commission tier caching** — edge function caches tiers for entire invocation lifetime | 🟢 Low | `escrow-release` |
+```
+┌─────────────────┐
+│  Edge Function   │  ← Auth, external APIs (Paystack), notifications
+│  (Deno/TS)       │
+└────────┬────────┘
+         │  supabase.rpc('..._atomic', { params })
+         ▼
+┌─────────────────┐
+│  PostgreSQL RPC  │  ← All financial state changes
+│  (PL/pgSQL)      │  ← SELECT ... FOR UPDATE (row locks)
+│                  │  ← Implicit BEGIN/COMMIT transaction
+│                  │  ← Unique references (idempotency)
+│                  │  ← CHECK constraints (balance >= 0)
+└─────────────────┘
+```
 
----
-
-## 7. RECOMMENDATIONS (Not Yet Implemented)
-
-1. **Use database functions (RPCs) with `BEGIN/COMMIT`** for all financial operations to guarantee atomicity
-2. **Use `SELECT ... FOR UPDATE`** row locking on wallet reads before writes
-3. **Add idempotency keys** — unique constraints on `(milestone_id, type)` in escrow_ledger, unique references for contest payouts
-4. **Fix `contest-auto-award`** — it must call the payout logic when auto-awarding winners
-5. **Clean up orphaned transactions** — withdrawal failure should delete the debit wallet_transaction or mark it as `reversed`
-6. **Add `balance >= 0` check constraints** on the `wallets` table to prevent negative balances at the database level
+**Principle**: Edge functions handle authentication, external API calls, and notifications. All money movement is centralized in database-side transactional functions that guarantee atomicity, prevent races, and enforce idempotency.
