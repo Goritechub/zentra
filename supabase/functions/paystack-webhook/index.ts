@@ -35,7 +35,6 @@ serve(async (req) => {
     const rawBody = await req.text();
     const signature = req.headers.get("x-paystack-signature") || "";
 
-    // Verify signature
     const isValid = await verifyPaystackSignature(rawBody, signature, PAYSTACK_SECRET_KEY);
     if (!isValid) {
       console.error("Invalid Paystack signature");
@@ -69,44 +68,23 @@ serve(async (req) => {
         .single();
 
       if (ref && ref.status === "success") {
-        // Check if already credited (prevent double-credit from check_pending + webhook)
-        const { data: existing } = await supabase.from("wallet_transactions")
-          .select("id")
-          .eq("reference", reference)
-          .eq("user_id", ref.user_id)
-          .maybeSingle();
+        const amountNaira = Math.round(ref.amount / 100);
+        const channelLabel = ref.channel === "card" ? "Card" : ref.channel === "bank" ? "Bank Transfer" : ref.channel === "ussd" ? "USSD" : "Paystack";
+        const description = `Wallet funded via ${channelLabel}`;
 
-        if (!existing) {
-          const amountNaira = Math.round(ref.amount / 100);
-          const channelLabel = ref.channel === "card" ? "Card" : ref.channel === "bank" ? "Bank Transfer" : ref.channel === "ussd" ? "USSD" : "Paystack";
-          const description = `Wallet funded via ${channelLabel}`;
+        // Use atomic RPC for wallet credit (with built-in idempotency)
+        const { data: creditResult, error: creditError } = await supabase.rpc("credit_wallet_atomic", {
+          _user_id: ref.user_id,
+          _amount: amountNaira,
+          _description: description,
+          _reference: reference,
+        });
 
-          const { data: wallet } = await supabase.from("wallets")
-            .select("*")
-            .eq("user_id", ref.user_id)
-            .maybeSingle();
-
-          if (wallet) {
-            await supabase.from("wallets").update({
-              balance: wallet.balance + amountNaira,
-            }).eq("user_id", ref.user_id);
-          } else {
-            await supabase.from("wallets").insert({
-              user_id: ref.user_id,
-              balance: amountNaira,
-            });
-          }
-
-          const { error: wtErr } = await supabase.from("wallet_transactions").insert({
-            user_id: ref.user_id,
-            type: "credit",
-            amount: amountNaira,
-            balance_after: (wallet?.balance || 0) + amountNaira,
-            description,
-            reference,
-          });
-          if (wtErr) console.error("webhook wallet_transactions insert error:", JSON.stringify(wtErr));
-
+        if (creditError) {
+          console.error("credit_wallet_atomic error:", creditError);
+        } else if (creditResult?.duplicate) {
+          console.log("Duplicate credit skipped for reference:", reference);
+        } else if (creditResult?.success) {
           await supabase.from("notifications").insert({
             user_id: ref.user_id,
             type: "payment_received",
@@ -122,11 +100,8 @@ serve(async (req) => {
       const transferCode = event.data?.transfer_code;
       if (!transferCode) return new Response("OK", { status: 200 });
 
-      // Update payout_transfers
       const { data: payout } = await supabase.from("payout_transfers")
-        .select("*")
-        .eq("transfer_code", transferCode)
-        .single();
+        .select("*").eq("transfer_code", transferCode).single();
 
       if (payout) {
         await supabase.from("payout_transfers").update({
@@ -135,12 +110,10 @@ serve(async (req) => {
           paystack_response: event.data,
         }).eq("id", payout.id);
 
-        // Update milestone to paid
         if (payout.milestone_id) {
           await supabase.from("milestones").update({ status: "paid" }).eq("id", payout.milestone_id);
         }
 
-        // Notify expert
         await supabase.from("notifications").insert({
           user_id: payout.expert_id,
           type: "payout_success",
@@ -148,6 +121,21 @@ serve(async (req) => {
           message: `₦${payout.amount.toLocaleString()} has been transferred to your bank account.`,
           contract_id: payout.contract_id,
         });
+      }
+
+      // Also finalize withdrawal requests
+      const { data: wr } = await supabase.from("withdrawal_requests")
+        .select("*").eq("transfer_code", transferCode).maybeSingle();
+      if (wr && wr.status !== "completed") {
+        await supabase.from("withdrawal_requests").update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", wr.id);
+        // Mark pending wallet transaction as completed
+        await supabase.from("wallet_transactions")
+          .update({ status: "completed" })
+          .eq("user_id", wr.user_id)
+          .eq("type", "withdrawal")
+          .eq("status", "pending")
+          .eq("amount", wr.amount);
       }
     }
 
@@ -157,9 +145,7 @@ serve(async (req) => {
       if (!transferCode) return new Response("OK", { status: 200 });
 
       const { data: payout } = await supabase.from("payout_transfers")
-        .select("*")
-        .eq("transfer_code", transferCode)
-        .single();
+        .select("*").eq("transfer_code", transferCode).single();
 
       if (payout) {
         await supabase.from("payout_transfers").update({
@@ -167,7 +153,6 @@ serve(async (req) => {
           paystack_response: event.data,
         }).eq("id", payout.id);
 
-        // Notify expert
         await supabase.from("notifications").insert({
           user_id: payout.expert_id,
           type: "payout_failed",
@@ -175,6 +160,20 @@ serve(async (req) => {
           message: `Transfer of ₦${payout.amount.toLocaleString()} to your bank failed. Funds remain in your wallet.`,
           contract_id: payout.contract_id,
         });
+      }
+
+      // Also handle withdrawal request failures via webhook
+      const { data: wr } = await supabase.from("withdrawal_requests")
+        .select("*").eq("transfer_code", transferCode).maybeSingle();
+      if (wr && (wr.status === "pending" || wr.status === "processing")) {
+        // Use atomic reversal
+        const { error: revError } = await supabase.rpc("reverse_withdrawal_atomic", {
+          _user_id: wr.user_id,
+          _withdrawal_id: wr.id,
+          _reference: "withdraw_" + wr.id, // best-effort match
+          _reason: event.data?.gateway_response || "Transfer failed via webhook",
+        });
+        if (revError) console.error("Webhook reverse_withdrawal_atomic error:", revError);
       }
     }
 

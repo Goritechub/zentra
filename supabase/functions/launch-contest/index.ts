@@ -53,104 +53,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    const p1 = prize_first || 0;
-    const p2 = prize_second || 0;
-    const p3 = prize_third || 0;
-    const p4 = prize_fourth || 0;
-    const p5 = prize_fifth || 0;
-    const totalPrizePool = p1 + p2 + p3 + p4 + p5;
-
-    if (totalPrizePool <= 0) {
-      return new Response(JSON.stringify({ error: "Prize pool must be greater than zero" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Check wallet balance
-    const { data: wallet } = await supabaseAdmin
-      .from("wallets")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const availableBalance = wallet?.balance || 0;
-
-    if (availableBalance < totalPrizePool) {
-      return new Response(JSON.stringify({
-        error: "insufficient_funds",
-        wallet_balance: availableBalance,
-        total_prize_pool: totalPrizePool,
-        shortfall: totalPrizePool - availableBalance,
-      }), {
-        status: 402,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Create contest as active
-    const { data: contest, error: contestErr } = await supabaseAdmin
-      .from("contests")
-      .insert({
-        client_id: user.id,
-        title: title.trim(),
-        description: description.trim(),
-        category: category || null,
-        prize_first: p1,
-        prize_second: p2,
-        prize_third: p3,
-        prize_fourth: p4,
-        prize_fifth: p5,
-        deadline,
-        required_skills: required_skills || [],
-        visibility: visibility || "open",
-        rules: rules || null,
-        banner_image: banner_image || null,
-        winner_selection_method: winner_selection_method || "client_selects",
-        status: "active",
-      })
-      .select()
-      .single();
-
-    if (contestErr || !contest) {
-      console.error("Contest creation error:", contestErr);
-      return new Response(JSON.stringify({ error: "Failed to create contest" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Deduct from wallet balance, add to escrow
-    const newBalance = availableBalance - totalPrizePool;
-    const newEscrow = (wallet?.escrow_balance || 0) + totalPrizePool;
-    const newTotalSpent = (wallet?.total_spent || 0) + totalPrizePool;
-
-    const { error: walletErr } = await supabaseAdmin
-      .from("wallets")
-      .update({ balance: newBalance, escrow_balance: newEscrow, total_spent: newTotalSpent })
-      .eq("user_id", user.id);
-
-    if (walletErr) {
-      // Rollback: delete the contest
-      await supabaseAdmin.from("contests").delete().eq("id", contest.id);
-      console.error("Wallet update error:", walletErr);
-      return new Response(JSON.stringify({ error: "Failed to fund escrow. Contest not created." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Create wallet transaction record (debit)
-    await supabaseAdmin.from("wallet_transactions").insert({
-      user_id: user.id,
-      amount: totalPrizePool,
-      balance_after: newBalance,
-      type: "debit",
-      description: `Contest prize pool escrow — "${title.trim()}"`,
-      reference: `contest_escrow_${contest.id}`,
+    // Use atomic RPC for contest creation + escrow lock
+    const { data: result, error: rpcError } = await supabaseAdmin.rpc("launch_contest_atomic", {
+      _user_id: user.id,
+      _title: title.trim(),
+      _description: description.trim(),
+      _category: category || null,
+      _prize_first: prize_first || 0,
+      _prize_second: prize_second || 0,
+      _prize_third: prize_third || 0,
+      _prize_fourth: prize_fourth || 0,
+      _prize_fifth: prize_fifth || 0,
+      _deadline: deadline,
+      _required_skills: required_skills || [],
+      _visibility: visibility || "open",
+      _rules: rules || null,
+      _banner_image: banner_image || null,
+      _winner_selection_method: winner_selection_method || "client_selects",
     });
 
-    return new Response(JSON.stringify({ success: true, contest_id: contest.id }), {
+    if (rpcError) {
+      console.error("launch_contest_atomic error:", rpcError);
+      return new Response(JSON.stringify({ error: rpcError.message || "Failed to create contest" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!result?.success) {
+      // Check for insufficient_funds error
+      const status = result?.error === "insufficient_funds" ? 402 : 400;
+      return new Response(JSON.stringify({
+        error: result?.error || "Failed to create contest",
+        wallet_balance: result?.wallet_balance,
+        total_prize_pool: result?.total_prize_pool,
+        shortfall: result?.shortfall,
+      }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, contest_id: result.contest_id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
