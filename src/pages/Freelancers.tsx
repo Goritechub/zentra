@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira, getAllStates, cadSoftwareList } from "@/lib/nigerian-data";
+import { categoryNames, getCategoryBySlug } from "@/lib/categories";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
