@@ -72,6 +72,8 @@ export default function MyProfilePage() {
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [occupation, setOccupation] = useState("");
+  const [occupationError, setOccupationError] = useState("");
 
   // Form fields – freelancer
   const [title, setTitle] = useState("");
