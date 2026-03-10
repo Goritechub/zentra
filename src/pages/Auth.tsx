@@ -823,6 +823,23 @@ export default function AuthPage() {
                         {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
                       </div>
 
+                      {signInErrors.general && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5">⚠</span>
+                          <div>
+                            <p>{signInErrors.general}</p>
+                            {(signInErrors.general.includes("Network") || signInErrors.general.includes("timed out")) && (
+                              <button
+                                type="submit"
+                                className="mt-1.5 text-xs font-medium underline hover:no-underline"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <Button type="submit" className="w-full" size="lg" disabled={loading}>
                         {loading ? (
                           <>
