@@ -2501,7 +2501,20 @@ export type Database = {
         Args: { _admin_id: string; _target_user_id: string }
         Returns: Json
       }
+      credit_wallet_atomic: {
+        Args: {
+          _amount: number
+          _description: string
+          _reference: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       delete_user_account: { Args: { _user_id: string }; Returns: Json }
+      fund_milestone_atomic: {
+        Args: { _milestone_id: string; _user_id: string }
+        Returns: Json
+      }
       get_contest_entry_count: {
         Args: { _contest_id: string }
         Returns: number
@@ -2523,6 +2536,63 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      launch_contest_atomic: {
+        Args: {
+          _banner_image?: string
+          _category: string
+          _deadline?: string
+          _description: string
+          _prize_fifth?: number
+          _prize_first: number
+          _prize_fourth?: number
+          _prize_second?: number
+          _prize_third?: number
+          _required_skills?: string[]
+          _rules?: string
+          _title: string
+          _user_id: string
+          _visibility?: string
+          _winner_selection_method?: string
+        }
+        Returns: Json
+      }
+      publish_contest_winners_atomic: {
+        Args: {
+          _contest_id: string
+          _is_auto_award?: boolean
+          _user_id: string
+        }
+        Returns: Json
+      }
+      release_milestone_atomic: {
+        Args: { _milestone_id: string; _user_id: string }
+        Returns: Json
+      }
+      resolve_dispute_atomic: {
+        Args: {
+          _admin_id: string
+          _contract_id: string
+          _dispute_id: string
+          _resolution_explanation: string
+          _resolution_type: string
+          _split_client?: number
+          _split_freelancer?: number
+        }
+        Returns: Json
+      }
+      reverse_withdrawal_atomic: {
+        Args: {
+          _reason?: string
+          _reference: string
+          _user_id: string
+          _withdrawal_id: string
+        }
+        Returns: Json
+      }
+      withdraw_wallet_atomic: {
+        Args: { _amount: number; _bank_detail_id: string; _user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
