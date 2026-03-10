@@ -92,12 +92,13 @@ export default function FreelancersPage() {
       (f.skills || []).some((s: string) => s.toLowerCase().includes(term));
     const matchState = !selectedState || p.state === selectedState;
     const matchSkill = !selectedSkill || (f.skills || []).includes(selectedSkill);
+    const matchCategory = !selectedCategory || (f as any).primary_category === selectedCategory;
     const matchVerified = !verifiedOnly || p.is_verified;
-    return matchSearch && matchState && matchSkill && matchVerified;
+    return matchSearch && matchState && matchSkill && matchCategory && matchVerified;
   });
 
-  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setSelectedSkill(""); setVerifiedOnly(false); };
-  const hasFilters = searchTerm || selectedState || selectedSkill || verifiedOnly;
+  const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setSelectedSkill(""); setSelectedCategory(""); setVerifiedOnly(false); };
+  const hasFilters = searchTerm || selectedState || selectedSkill || selectedCategory || verifiedOnly;
 
   const handleSaveExpert = async (e: React.MouseEvent, freelancerId: string) => {
     e.preventDefault();
