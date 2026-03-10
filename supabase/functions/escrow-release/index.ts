@@ -126,7 +126,7 @@ serve(async (req) => {
       // Non-critical side effects
       await notify(supabase, result.freelancer_id, "payment_released",
         "Payment Released!",
-        `${formatAmount(result.expert_amount)} has been released to your wallet for milestone "${result.milestone_title}" (${(result.commission_rate * 100).toFixed(0)}% platform fee applied).`,
+        `${formatAmount(result.expert_amount)} has been released for milestone "${result.milestone_title}" (${(result.commission_rate * 100).toFixed(0)}% platform fee applied). Funds will be available for withdrawal after 48 hours.`,
         result.contract_id);
 
       await supabase.from("contract_messages").insert({
