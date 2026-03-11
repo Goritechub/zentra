@@ -81,15 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] loadUserAndProfile called, hasSession:", !!s, "callId:", callId);
 
       if (s?.user) {
-        // Set user/session immediately so auth gate unblocks
+        // Set user/session immediately but DON'T set loading=false yet —
+        // wait until isAdmin is resolved to prevent admin seeing non-admin pages
         setSession(s);
         setUser(s.user);
-        if (mounted && callId === latestCallId) {
-          console.log("[Auth] Setting loading=false (session resolved), callId:", callId);
-          setLoading(false);
-        }
 
-        // Fetch profile and admin status in background
+        // Fetch profile and admin status BEFORE unblocking the auth gate
         setProfileLoading(true);
         let profileData: Profile | null = null;
         let adminStatus = false;
@@ -120,6 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData);
         setIsAdmin(adminStatus);
         setProfileLoading(false);
+        // Only now unblock the auth gate — isAdmin is resolved, no flash possible
+        if (mounted && callId === latestCallId) {
+          setLoading(false);
+        }
       } else {
         console.log("[Auth] No session, clearing state");
         setSession(null);
