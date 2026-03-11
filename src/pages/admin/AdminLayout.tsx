@@ -316,9 +316,15 @@ export default function AdminLayout() {
 
           <button
             onClick={async () => {
-              await supabase.auth.signOut();
-              toast.success("Logged out successfully");
-              navigate("/auth");
+              const { signOut } = await import("@/integrations/supabase/client").then(() => import("@/hooks/useAuth")).then(() => {
+                // Can't use hook outside component, so use supabase directly but clear state properly
+                return { signOut: async () => {
+                  await supabase.auth.signOut();
+                  toast.success("Logged out successfully");
+                  window.location.href = "/auth";
+                }};
+              });
+              await signOut();
             }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
             
