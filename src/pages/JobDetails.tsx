@@ -146,10 +146,22 @@ export default function JobDetailsPage() {
   const fetchProposalsForJob = async (jobId: string) => {
     const { data } = await supabase
       .from("proposals")
-      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(id, full_name, avatar_url, state, city)")
+      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(id, full_name, avatar_url, state, city, is_verified)")
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
-    setProposals(data || []);
+
+    // Fetch KYC for freelancers
+    const fIds = [...new Set((data || []).map((p: any) => p.freelancer_id))];
+    let kycMap = new Map<string, any>();
+    if (fIds.length > 0) {
+      const { data: kycData } = await supabase
+        .from("kyc_verifications" as any)
+        .select("user_id, kyc_status, zentra_verified")
+        .in("user_id", fIds);
+      (kycData || []).forEach((k: any) => kycMap.set(k.user_id, k));
+    }
+
+    setProposals((data || []).map((p: any) => ({ ...p, kyc: kycMap.get(p.freelancer_id) || null })));
   };
 
   const fetchInterviewContracts = async (jobId: string) => {
