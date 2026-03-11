@@ -308,12 +308,6 @@ export default function JobDetailsPage() {
     const proposal = assignDialog.proposal;
     if (!proposal || !user) return;
 
-    // KYC gating
-    if (!kycVerified) {
-      setAssignDialog({ open: false, proposal: null });
-      setShowKycModal(true);
-      return;
-    }
 
     const requiredAmount = getRequiredAmount(proposal);
     const fundNow = fundingChoice === "now";
