@@ -134,6 +134,7 @@ export default function AdminSettings() {
       toast.success("Commission tiers updated");
       setTiers(finalTiers);
       invalidateCommissionCache();
+      preloadCommissionTiers();
       setEditingTiers(false);
 
       // Auto-notify all users about commission change
