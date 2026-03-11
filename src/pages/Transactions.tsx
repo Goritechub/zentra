@@ -448,6 +448,11 @@ export default function TransactionsPage() {
       </Dialog>
       {AuthSetupModal}
       {AuthVerifyModal}
+      <KycRequiredModal
+        open={showKycModal}
+        onClose={() => setShowKycModal(false)}
+        action="withdraw funds"
+      />
     </div>
   );
 }
