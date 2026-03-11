@@ -36,10 +36,9 @@ const allNavItems = [
 
 
 export default function AdminLayout() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -52,26 +51,12 @@ export default function AdminLayout() {
   const [isSuspended, setIsSuspended] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) checkAdmin();
+    if (!authLoading && user && isAdmin) fetchPermissions();
+    if (!authLoading && user && !isAdmin) setLoading(false);
     if (!authLoading && !user) navigate("/auth");
-  }, [user, authLoading]);
+  }, [user, authLoading, isAdmin]);
 
-  const checkAdmin = async () => {
-    const { data } = await supabase.
-    from("user_roles").
-    select("role").
-    eq("user_id", user!.id).
-    eq("role", "admin").
-    maybeSingle();
-
-    if (!data) {
-      setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-
-    setIsAdmin(true);
-
+  const fetchPermissions = async () => {
     // Fetch this admin's permissions
     const { data: perms } = await supabase.
     from("admin_permissions" as any).
