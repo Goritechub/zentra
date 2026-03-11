@@ -22,7 +22,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [jobsMenuOpen, setJobsMenuOpen] = useState(false);
   const [mobileJobsOpen, setMobileJobsOpen] = useState(false);
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useUnreadMessages();
@@ -31,7 +31,6 @@ export function Header() {
 
   const isClient = profile?.role === "client";
   const isFreelancer = profile?.role === "freelancer";
-  const isAdmin = profile?.role === "admin";
   const profileLoaded = !!profile;
 
   const handleSignOut = async () => {

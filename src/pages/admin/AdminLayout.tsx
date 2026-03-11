@@ -36,7 +36,7 @@ const allNavItems = [
 
 
 export default function AdminLayout() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -315,11 +315,7 @@ export default function AdminLayout() {
           </Popover>
 
           <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              toast.success("Logged out successfully");
-              navigate("/auth");
-            }}
+            onClick={() => signOut()}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors">
             
             <LogOut className="h-5 w-5 shrink-0" />

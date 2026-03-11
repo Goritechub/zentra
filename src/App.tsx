@@ -132,6 +132,7 @@ const App = () => (
               <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
               <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/saved-experts" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><SavedExperts /></RoleGuard></AuthGuard>} />
 
               {/* Contests */}
               <Route path="/contests" element={<AuthGuard><BrowseContests /></AuthGuard>} />

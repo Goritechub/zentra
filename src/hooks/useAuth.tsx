@@ -26,6 +26,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   profileLoading: boolean;
+  isAdmin: boolean;
   signUp: (
     email: string,
     password: string,
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -56,6 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return data as Profile;
+  };
+
+  const checkAdminRole = async (userId: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    return !!data;
   };
 
   useEffect(() => {
@@ -77,14 +89,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         }
 
-        // Fetch profile in background — does not block sign-in
+        // Fetch profile and admin status in background
         setProfileLoading(true);
         let profileData: Profile | null = null;
+        let adminStatus = false;
         let lastErr: unknown = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (!mounted || callId !== latestCallId) return;
           try {
-            profileData = await fetchProfile(s.user.id);
+            [profileData, adminStatus] = await Promise.all([
+              fetchProfile(s.user.id),
+              checkAdminRole(s.user.id),
+            ]);
             lastErr = null;
             break;
           } catch (err) {
@@ -100,14 +116,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("[Auth] Profile fetch failed after retries:", lastErr);
         }
 
-        console.log("[Auth] Profile loaded:", !!profileData, "callId:", callId);
+        console.log("[Auth] Profile loaded:", !!profileData, "isAdmin:", adminStatus, "callId:", callId);
         setProfile(profileData);
+        setIsAdmin(adminStatus);
         setProfileLoading(false);
       } else {
         console.log("[Auth] No session, clearing state");
         setSession(null);
         setUser(null);
         setProfile(null);
+        setIsAdmin(false);
         setProfileLoading(false);
         if (mounted && callId === latestCallId) {
           console.log("[Auth] Setting loading=false, callId:", callId);
@@ -168,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setSession(null);
       setProfile(null);
+      setIsAdmin(false);
       await supabase.auth.signOut();
     } catch (e) {
       console.error("Sign out error:", e);
@@ -178,8 +197,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id);
+      const [profileData, adminStatus] = await Promise.all([
+        fetchProfile(user.id),
+        checkAdminRole(user.id),
+      ]);
       setProfile(profileData);
+      setIsAdmin(adminStatus);
     }
   };
 
@@ -191,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         profileLoading,
+        isAdmin,
         signUp,
         signIn,
         signOut,
