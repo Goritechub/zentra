@@ -198,6 +198,15 @@ serve(async (req) => {
       if (!dispute_id || !contract_id || !resolution_explanation)
         return jsonResponse({ error: "Missing required fields" }, 400);
 
+      // Defense-in-depth: verify caller is admin before invoking RPC
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      if (!isAdmin) {
+        return jsonResponse({ error: "Only admins can resolve disputes" }, 403);
+      }
+
       const { data: result, error } = await supabase.rpc("resolve_dispute_atomic", {
         _admin_id: user.id,
         _dispute_id: dispute_id,
