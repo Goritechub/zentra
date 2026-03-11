@@ -323,6 +323,9 @@ export default function AdminUsers() {
                   <div className="flex items-center gap-2 mb-2">
                     <Wallet className="h-4 w-4 text-primary" />
                     <span className="font-medium text-sm">Wallet</span>
+                    {frozenWithdrawalUsers[selectedUser.id] && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Withdrawal Frozen</Badge>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Balance: <span className="font-bold text-primary">{formatNaira(userWallet.balance)}</span></div>
