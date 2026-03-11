@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle, Camera } from "lucide-react";
+import { KycVerificationCard } from "@/components/KycVerificationCard";
 
 interface FreelancerProfile {
   id: string;
