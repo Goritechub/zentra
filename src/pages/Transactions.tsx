@@ -71,6 +71,8 @@ export default function TransactionsPage() {
   const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const exportRef = useRef<HTMLDivElement>(null);
   const { requireAuthCode, SetupModal: AuthSetupModal, VerifyModal: AuthVerifyModal } = useRequireAuthCode();
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
