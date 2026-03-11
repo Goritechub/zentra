@@ -26,6 +26,8 @@ export default function AdminUsers() {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [closingAccount, setClosingAccount] = useState(false);
   const [notifyingUser, setNotifyingUser] = useState(false);
+  const [frozenWithdrawalUsers, setFrozenWithdrawalUsers] = useState<Record<string, boolean>>({});
+  const [togglingWithdrawal, setTogglingWithdrawal] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
