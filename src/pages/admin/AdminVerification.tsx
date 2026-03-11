@@ -347,6 +347,11 @@ export default function AdminVerification() {
                     </Button>
                   </>
                 )}
+                {selectedKyc.kyc_status === "verified" && (
+                  <Button size="sm" variant="destructive" onClick={() => handleRevokeIdentity(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                    <XCircle className="h-4 w-4 mr-1" /> Revoke Identity Verification
+                  </Button>
+                )}
                 {selectedKyc.kyc_status === "verified" && !selectedKyc.zentra_verified && (
                   <Button size="sm" variant="default" onClick={() => handleGrantZentraVerified(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
                     <Star className="h-4 w-4 mr-1" /> Grant ZentraGig Verified
