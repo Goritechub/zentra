@@ -366,7 +366,7 @@ export default function ExpertProfile() {
                   </div>
                   {(kycVerified || profile.is_verified) && (
                     <div className="mt-3">
-                      <VerificationBadges isVerified={kycVerified || profile.is_verified} isZentraVerified={isZentraVerified} />
+                      <VerificationBadges isVerified={kycVerified || profile.is_verified} isZentraVerified={isZentraVerified} role={profile.role} />
                     </div>
                   )}
 
