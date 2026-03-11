@@ -1,16 +1,22 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, differenceInBusinessDays } from "date-fns";
 import { formatNaira } from "@/lib/nigerian-data";
+import { createNotification } from "@/lib/notifications";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Eye } from "lucide-react";
+import { Loader2, Search, Eye, Trash2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+
+const DELETABLE_STATUSES = ["interviewing", "draft", "pending_funding"];
 
 export default function AdminContracts() {
+  const { user } = useAuth();
   const [contracts, setContracts] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
   const [escrow, setEscrow] = useState<any[]>([]);
@@ -18,6 +24,8 @@ export default function AdminContracts() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; contract: any | null }>({ open: false, contract: null });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchContracts(); }, []);
 
@@ -41,8 +49,84 @@ export default function AdminContracts() {
     setEscrow(escrowRes.data || []);
   };
 
+  const deleteContract = async (contract: any) => {
+    if (!user) return;
+    setDeleting(true);
+    try {
+      // Delete related data first (order matters for FK constraints)
+      await Promise.all([
+        supabase.from("contract_attachments").delete().eq("contract_id", contract.id),
+        supabase.from("contract_messages").delete().eq("contract_id", contract.id),
+        supabase.from("escrow_ledger").delete().eq("contract_id", contract.id),
+        supabase.from("milestones").delete().eq("contract_id", contract.id),
+      ]);
+
+      // Delete the contract
+      const { error } = await supabase.from("contracts").delete().eq("id", contract.id);
+      if (error) throw error;
+
+      // Notify both parties
+      const isInterviewing = contract.status === "interviewing";
+      const message = isInterviewing
+        ? `Your interview contract for "${contract.job_title || "a project"}" has been closed by ZentraGig. If you have questions, please contact support.`
+        : `Your contract for "${contract.job_title || "a project"}" has been removed by ZentraGig.`;
+
+      const notificationPromises = [
+        createNotification({
+          userId: contract.client_id,
+          type: "contract_closed",
+          title: "Contract Closed by Platform",
+          message,
+          linkUrl: "/contracts",
+        }),
+        createNotification({
+          userId: contract.freelancer_id,
+          type: "contract_closed",
+          title: "Contract Closed by Platform",
+          message,
+          linkUrl: "/contracts",
+        }),
+      ];
+
+      // Log admin activity
+      notificationPromises.push(
+        supabase.from("admin_activity_log").insert({
+          admin_id: user.id,
+          action: "delete_contract",
+          target_type: "contract",
+          target_id: contract.id,
+          details: {
+            job_title: contract.job_title,
+            status: contract.status,
+            client_id: contract.client_id,
+            freelancer_id: contract.freelancer_id,
+          },
+        }) as any
+      );
+
+      await Promise.all(notificationPromises);
+
+      setContracts(prev => prev.filter(c => c.id !== contract.id));
+      setDeleteDialog({ open: false, contract: null });
+      toast.success("Contract deleted and parties notified.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete contract.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const isDeletable = (status: string) => DELETABLE_STATUSES.includes(status);
+
+  const getStaleLabel = (c: any) => {
+    if (c.status !== "interviewing") return null;
+    const days = differenceInBusinessDays(new Date(), new Date(c.created_at));
+    if (days >= 20) return `${days} business days old`;
+    return null;
+  };
+
   const statusColor = (s: string) => {
-    const map: Record<string, string> = { active: "default", completed: "secondary", disputed: "destructive", cancelled: "outline", draft: "outline", pending_funding: "secondary" };
+    const map: Record<string, string> = { active: "default", completed: "secondary", disputed: "destructive", cancelled: "outline", draft: "outline", pending_funding: "secondary", interviewing: "default" };
     return (map[s] || "outline") as any;
   };
 
@@ -70,6 +154,7 @@ export default function AdminContracts() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="interviewing">Interviewing</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="disputed">Disputed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -94,25 +179,45 @@ export default function AdminContracts() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(c => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium max-w-[180px] truncate">{c.job_title || "—"}</TableCell>
-                <TableCell className="text-sm">{c.client?.full_name || "—"}</TableCell>
-                <TableCell className="text-sm">{c.freelancer?.full_name || "—"}</TableCell>
-                <TableCell className="text-sm font-medium">{formatNaira(c.amount)}</TableCell>
-                <TableCell><Badge variant={statusColor(c.status)} className="capitalize">{c.status}</Badge></TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => viewContract(c)}><Eye className="h-4 w-4" /></Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered.map(c => {
+              const staleLabel = getStaleLabel(c);
+              return (
+                <TableRow key={c.id} className={staleLabel ? "bg-amber-500/5" : ""}>
+                  <TableCell className="font-medium max-w-[180px] truncate">{c.job_title || "—"}</TableCell>
+                  <TableCell className="text-sm">{c.client?.full_name || "—"}</TableCell>
+                  <TableCell className="text-sm">{c.freelancer?.full_name || "—"}</TableCell>
+                  <TableCell className="text-sm font-medium">{formatNaira(c.amount)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={statusColor(c.status)} className="capitalize">{c.status}</Badge>
+                      {staleLabel && (
+                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                          <AlertTriangle className="h-3 w-3 mr-0.5" />{staleLabel}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => viewContract(c)}><Eye className="h-4 w-4" /></Button>
+                      {isDeletable(c.status) && (
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialog({ open: true, contract: c })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
 
+      {/* View Contract Dialog */}
       <Dialog open={!!selectedContract} onOpenChange={() => setSelectedContract(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -157,8 +262,43 @@ export default function AdminContracts() {
                   </div>
                 </div>
               )}
+
+              {isDeletable(selectedContract.status) && (
+                <div className="pt-2 border-t border-border">
+                  <Button variant="destructive" size="sm" onClick={() => { setSelectedContract(null); setDeleteDialog({ open: true, contract: selectedContract }); }}>
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete Contract
+                  </Button>
+                </div>
+              )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, contract: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Delete Contract
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete the contract "{deleteDialog.contract?.job_title || "Untitled"}" 
+              ({deleteDialog.contract?.status}) and all associated messages, milestones, and escrow records.
+              {deleteDialog.contract?.status === "interviewing" && (
+                <span className="block mt-2 font-medium text-foreground">
+                  Both the client and expert will be notified that this contract was closed by ZentraGig.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, contract: null })} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteDialog.contract && deleteContract(deleteDialog.contract)} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete & Notify
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
