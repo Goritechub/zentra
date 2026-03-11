@@ -688,6 +688,11 @@ export default function MyProfilePage() {
               </>
             )}
 
+            {/* Identity Verification - shown for all users */}
+            <section className="bg-card rounded-xl border border-border p-0 overflow-hidden">
+              <KycVerificationCard />
+            </section>
+
             {/* Auth Code Section */}
             <section className="bg-card rounded-xl border border-border p-6 space-y-5">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
