@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
+import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
