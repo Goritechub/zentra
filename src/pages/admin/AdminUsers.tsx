@@ -355,6 +355,16 @@ export default function AdminUsers() {
                 </Button>
                 {selectedUser.display_role !== "superadmin" && (
                   <>
+                    <Button
+                      size="sm"
+                      variant={frozenWithdrawalUsers[selectedUser.id] ? "default" : "outline"}
+                      className={frozenWithdrawalUsers[selectedUser.id] ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                      onClick={() => toggleUserWithdrawalFreeze(selectedUser.id, selectedUser.full_name || selectedUser.email)}
+                      disabled={togglingWithdrawal}
+                    >
+                      {togglingWithdrawal ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : frozenWithdrawalUsers[selectedUser.id] ? <UnlockKeyhole className="h-4 w-4 mr-1" /> : <LockKeyhole className="h-4 w-4 mr-1" />}
+                      {frozenWithdrawalUsers[selectedUser.id] ? "Unfreeze Withdrawal" : "Freeze Withdrawal"}
+                    </Button>
                     {userWallet && (userWallet.balance > 0 || userWallet.escrow_balance > 0) ? (
                       <Button size="sm" variant="outline" className="border-amber-500 text-amber-600" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
                         {notifyingUser ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-1" />}
