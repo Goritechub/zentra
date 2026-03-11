@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet, Trash2, AlertTriangle, LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function AdminUsers() {
@@ -26,8 +26,10 @@ export default function AdminUsers() {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [closingAccount, setClosingAccount] = useState(false);
   const [notifyingUser, setNotifyingUser] = useState(false);
+  const [frozenWithdrawalUsers, setFrozenWithdrawalUsers] = useState<Record<string, boolean>>({});
+  const [togglingWithdrawal, setTogglingWithdrawal] = useState(false);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); fetchFrozenUsers(); }, []);
 
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, permsRes] = await Promise.all([
@@ -43,6 +45,62 @@ export default function AdminUsers() {
     }));
     setUsers(enriched);
     setLoading(false);
+  };
+
+  const fetchFrozenUsers = async () => {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "withdrawal_frozen_users")
+      .maybeSingle();
+    if (data?.value && typeof data.value === "object") {
+      setFrozenWithdrawalUsers(data.value as Record<string, boolean>);
+    }
+  };
+
+  const toggleUserWithdrawalFreeze = async (userId: string, userName: string) => {
+    setTogglingWithdrawal(true);
+    const current = { ...frozenWithdrawalUsers };
+    const isFrozen = !!current[userId];
+
+    if (isFrozen) {
+      delete current[userId];
+    } else {
+      current[userId] = true;
+    }
+
+    const { data: existing } = await supabase
+      .from("platform_settings")
+      .select("id")
+      .eq("key", "withdrawal_frozen_users")
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("platform_settings")
+        .update({ value: current as any, updated_at: new Date().toISOString(), updated_by: user?.id })
+        .eq("key", "withdrawal_frozen_users");
+    } else {
+      await supabase
+        .from("platform_settings")
+        .insert({ key: "withdrawal_frozen_users", value: current as any, updated_by: user?.id });
+    }
+
+    await logAction(isFrozen ? "unfreeze_user_withdrawal" : "freeze_user_withdrawal", "user", userId, { user_name: userName });
+
+    // Notify the user
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: isFrozen ? "Withdrawals Restored" : "Withdrawals Restricted",
+      message: isFrozen
+        ? "Your withdrawal access has been restored. You can now withdraw funds normally."
+        : "Your withdrawals have been temporarily restricted by the administrator. Please contact support for more information.",
+      type: "security_alert",
+    });
+
+    setFrozenWithdrawalUsers(current);
+    toast.success(isFrozen ? `Withdrawals unfrozen for ${userName}` : `Withdrawals frozen for ${userName}`);
+    setTogglingWithdrawal(false);
   };
 
   const viewUser = async (u: any) => {
@@ -265,6 +323,9 @@ export default function AdminUsers() {
                   <div className="flex items-center gap-2 mb-2">
                     <Wallet className="h-4 w-4 text-primary" />
                     <span className="font-medium text-sm">Wallet</span>
+                    {frozenWithdrawalUsers[selectedUser.id] && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Withdrawal Frozen</Badge>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Balance: <span className="font-bold text-primary">{formatNaira(userWallet.balance)}</span></div>
@@ -297,6 +358,16 @@ export default function AdminUsers() {
                 </Button>
                 {selectedUser.display_role !== "superadmin" && (
                   <>
+                    <Button
+                      size="sm"
+                      variant={frozenWithdrawalUsers[selectedUser.id] ? "default" : "outline"}
+                      className={frozenWithdrawalUsers[selectedUser.id] ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                      onClick={() => toggleUserWithdrawalFreeze(selectedUser.id, selectedUser.full_name || selectedUser.email)}
+                      disabled={togglingWithdrawal}
+                    >
+                      {togglingWithdrawal ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : frozenWithdrawalUsers[selectedUser.id] ? <UnlockKeyhole className="h-4 w-4 mr-1" /> : <LockKeyhole className="h-4 w-4 mr-1" />}
+                      {frozenWithdrawalUsers[selectedUser.id] ? "Unfreeze Withdrawal" : "Freeze Withdrawal"}
+                    </Button>
                     {userWallet && (userWallet.balance > 0 || userWallet.escrow_balance > 0) ? (
                       <Button size="sm" variant="outline" className="border-amber-500 text-amber-600" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
                         {notifyingUser ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-1" />}

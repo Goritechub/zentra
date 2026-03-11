@@ -17,7 +17,16 @@ const DEFAULT_TIERS: CommissionTier[] = [
 // Cache to avoid repeated DB reads in the same session
 let cachedTiers: CommissionTier[] | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 60_000; // 1 minute
+const CACHE_TTL = 30_000; // 30 seconds for faster admin changes propagation
+
+// Preload tiers on module init so sync helpers use DB values
+let _preloadPromise: Promise<void> | null = null;
+export function preloadCommissionTiers() {
+  if (!_preloadPromise) {
+    _preloadPromise = getCommissionTiers().then(() => { _preloadPromise = null; });
+  }
+  return _preloadPromise;
+}
 
 export async function getCommissionTiers(): Promise<CommissionTier[]> {
   if (cachedTiers && Date.now() - cacheTime < CACHE_TTL) return cachedTiers;

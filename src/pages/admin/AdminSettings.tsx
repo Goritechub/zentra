@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Plus, Save, Settings, Pencil, X, Trash2 } from "lucide-react";
 import { formatNaira } from "@/lib/nigerian-data";
-import { CommissionTier, invalidateCommissionCache } from "@/lib/service-charge";
+import { CommissionTier, invalidateCommissionCache, preloadCommissionTiers } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
@@ -134,6 +134,7 @@ export default function AdminSettings() {
       toast.success("Commission tiers updated");
       setTiers(finalTiers);
       invalidateCommissionCache();
+      preloadCommissionTiers();
       setEditingTiers(false);
 
       // Auto-notify all users about commission change

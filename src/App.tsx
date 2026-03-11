@@ -73,6 +73,10 @@ const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyControls"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
+import { preloadCommissionTiers } from "./lib/service-charge";
+
+// Preload commission tiers so sync helpers use DB values
+preloadCommissionTiers();
 
 const queryClient = new QueryClient();
 
