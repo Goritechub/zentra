@@ -29,7 +29,7 @@ export default function AdminUsers() {
   const [frozenWithdrawalUsers, setFrozenWithdrawalUsers] = useState<Record<string, boolean>>({});
   const [togglingWithdrawal, setTogglingWithdrawal] = useState(false);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); fetchFrozenUsers(); }, []);
 
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, permsRes] = await Promise.all([
