@@ -117,6 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData);
         setIsAdmin(adminStatus);
         setProfileLoading(false);
+        // Only now unblock the auth gate — isAdmin is resolved, no flash possible
+        if (mounted && callId === latestCallId) {
+          setLoading(false);
+        }
       } else {
         console.log("[Auth] No session, clearing state");
         setSession(null);
