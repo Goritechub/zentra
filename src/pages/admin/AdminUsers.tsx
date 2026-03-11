@@ -103,6 +103,7 @@ export default function AdminUsers() {
     setTogglingWithdrawal(false);
   };
 
+  const viewUser = async (u: any) => {
     setSelectedUser(u);
     const [walletRes, violRes] = await Promise.all([
       supabase.from("wallets").select("*").eq("user_id", u.id).maybeSingle(),
