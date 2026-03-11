@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
+import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
@@ -145,10 +146,22 @@ export default function JobDetailsPage() {
   const fetchProposalsForJob = async (jobId: string) => {
     const { data } = await supabase
       .from("proposals")
-      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(id, full_name, avatar_url, state, city)")
+      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(id, full_name, avatar_url, state, city, is_verified)")
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
-    setProposals(data || []);
+
+    // Fetch KYC for freelancers
+    const fIds = [...new Set((data || []).map((p: any) => p.freelancer_id))];
+    let kycMap = new Map<string, any>();
+    if (fIds.length > 0) {
+      const { data: kycData } = await supabase
+        .from("kyc_verifications" as any)
+        .select("user_id, kyc_status, zentra_verified")
+        .in("user_id", fIds);
+      (kycData || []).forEach((k: any) => kycMap.set(k.user_id, k));
+    }
+
+    setProposals((data || []).map((p: any) => ({ ...p, kyc: kycMap.get(p.freelancer_id) || null })));
   };
 
   const fetchInterviewContracts = async (jobId: string) => {
@@ -692,9 +705,19 @@ export default function JobDetailsPage() {
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
-                                      {proposal.freelancer?.full_name || "Expert"}
-                                    </Link>
+                                    <div className="flex items-center gap-2">
+                                      <Link to={`/expert/${proposal.freelancer?.id || proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
+                                        {proposal.freelancer?.full_name || "Expert"}
+                                      </Link>
+                                      {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
+                                        <VerificationBadges
+                                          isVerified={true}
+                                          isZentraVerified={proposal.kyc?.zentra_verified || false}
+                                          role="freelancer"
+                                          size="sm"
+                                        />
+                                      )}
+                                    </div>
                                     {proposal.freelancer?.state && (
                                       <p className="text-xs text-muted-foreground">
                                         {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}{proposal.freelancer.state}

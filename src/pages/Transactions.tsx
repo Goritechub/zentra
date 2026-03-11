@@ -16,6 +16,8 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
 import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 import {
   Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
@@ -69,6 +71,8 @@ export default function TransactionsPage() {
   const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const exportRef = useRef<HTMLDivElement>(null);
   const { requireAuthCode, SetupModal: AuthSetupModal, VerifyModal: AuthVerifyModal } = useRequireAuthCode();
+  const { isVerified: kycVerified } = useKycVerification();
+  const [showKycModal, setShowKycModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -191,7 +195,13 @@ export default function TransactionsPage() {
                 <Button size="sm" variant="secondary" onClick={() => setShowFund(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => requireAuthCode(() => setShowWithdraw(true))} disabled={availableBalance < 5000}>
+                <Button size="sm" variant="secondary" onClick={() => {
+                  if (isFreelancer && !kycVerified) {
+                    setShowKycModal(true);
+                    return;
+                  }
+                  requireAuthCode(() => setShowWithdraw(true));
+                }} disabled={availableBalance < 5000}>
                   <Download className="h-4 w-4 mr-1" /> Withdraw
                 </Button>
               </div>
@@ -438,6 +448,11 @@ export default function TransactionsPage() {
       </Dialog>
       {AuthSetupModal}
       {AuthVerifyModal}
+      <KycRequiredModal
+        open={showKycModal}
+        onClose={() => setShowKycModal(false)}
+        action="withdraw funds"
+      />
     </div>
   );
 }

@@ -136,6 +136,33 @@ export default function AdminVerification() {
     setSelectedKyc(null);
   };
 
+  const handleRevokeIdentity = async (kycId: string, userId: string) => {
+    setSaving(true);
+    await supabase
+      .from("kyc_verifications" as any)
+      .update({
+        kyc_status: "not_started",
+        verification_level: "basic",
+        zentra_verified: false,
+        zentra_verified_at: null,
+        zentra_verified_by: null,
+        admin_notes: adminNotes || "Identity verification revoked by admin",
+      })
+      .eq("id", kycId);
+    await supabase.from("profiles").update({ is_verified: false }).eq("id", userId);
+    await logAction("revoke_identity", "user", userId, { kyc_id: kycId, notes: adminNotes });
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: "Verification Revoked",
+      message: adminNotes || "Your identity verification has been revoked by an admin.",
+      type: "verification",
+    });
+    toast.success("Identity verification revoked");
+    setSaving(false);
+    await fetchVerifications();
+    setSelectedKyc(null);
+  };
+
   const logAction = async (action: string, targetType: string, targetId: string, details: any) => {
     await supabase.from("admin_activity_log").insert({
       admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
@@ -181,6 +208,7 @@ export default function AdminVerification() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>KYC Status</TableHead>
               <TableHead>Level</TableHead>
               <TableHead>ZentraGig Badge</TableHead>
@@ -191,7 +219,7 @@ export default function AdminVerification() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No verification requests found
                 </TableCell>
               </TableRow>
@@ -212,6 +240,11 @@ export default function AdminVerification() {
                         <p className="text-xs text-muted-foreground">{v.profile?.email}</p>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize text-xs">
+                      {v.profile?.role === "freelancer" ? "Expert" : v.profile?.role || "—"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className={`flex items-center gap-1.5 text-sm ${statusConf.color}`}>
@@ -346,6 +379,11 @@ export default function AdminVerification() {
                       <XCircle className="h-4 w-4 mr-1" /> Reject
                     </Button>
                   </>
+                )}
+                {selectedKyc.kyc_status === "verified" && (
+                  <Button size="sm" variant="destructive" onClick={() => handleRevokeIdentity(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                    <XCircle className="h-4 w-4 mr-1" /> Revoke Identity Verification
+                  </Button>
                 )}
                 {selectedKyc.kyc_status === "verified" && !selectedKyc.zentra_verified && (
                   <Button size="sm" variant="default" onClick={() => handleGrantZentraVerified(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
