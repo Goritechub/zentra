@@ -61,6 +61,9 @@ Deno.serve(async (req) => {
         supabase.from("reviews").delete().eq("contract_id", contract.id),
         supabase.from("notifications").delete().eq("contract_id", contract.id),
         supabase.from("milestones").delete().eq("contract_id", contract.id),
+        supabase.from("wallet_transactions").delete().eq("contract_id", contract.id),
+        supabase.from("platform_revenue").delete().eq("contract_id", contract.id),
+        supabase.from("paystack_references").delete().eq("contract_id", contract.id),
       ]);
 
       // Delete the contract
