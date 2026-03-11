@@ -53,11 +53,31 @@ export default function AdminContracts() {
     if (!user) return;
     setDeleting(true);
     try {
-      // Delete related data first (order matters for FK constraints)
+      // Delete all FK-dependent records (order matters)
+      // First: delete children of milestones/disputes
+      const { data: milestoneIds } = await supabase.from("milestones").select("id").eq("contract_id", contract.id);
+      const { data: disputeIds } = await supabase.from("disputes").select("id").eq("contract_id", contract.id);
+      
+      if (milestoneIds?.length) {
+        const msIds = milestoneIds.map(m => m.id);
+        await supabase.from("milestone_submissions").delete().in("milestone_id", msIds);
+      }
+      if (disputeIds?.length) {
+        const dIds = disputeIds.map(d => d.id);
+        await supabase.from("dispute_messages").delete().in("dispute_id", dIds);
+      }
+
+      // Then: delete direct FK references to contracts
       await Promise.all([
         supabase.from("contract_attachments").delete().eq("contract_id", contract.id),
         supabase.from("contract_messages").delete().eq("contract_id", contract.id),
         supabase.from("escrow_ledger").delete().eq("contract_id", contract.id),
+        supabase.from("escrow_transactions").delete().eq("contract_id", contract.id),
+        supabase.from("hidden_conversations").delete().eq("contract_id", contract.id),
+        supabase.from("disputes").delete().eq("contract_id", contract.id),
+        supabase.from("payout_transfers").delete().eq("contract_id", contract.id),
+        supabase.from("reviews").delete().eq("contract_id", contract.id),
+        supabase.from("notifications").delete().eq("contract_id", contract.id),
         supabase.from("milestones").delete().eq("contract_id", contract.id),
       ]);
 
