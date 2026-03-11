@@ -47,7 +47,62 @@ export default function AdminUsers() {
     setLoading(false);
   };
 
-  const viewUser = async (u: any) => {
+  const fetchFrozenUsers = async () => {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "withdrawal_frozen_users")
+      .maybeSingle();
+    if (data?.value && typeof data.value === "object") {
+      setFrozenWithdrawalUsers(data.value as Record<string, boolean>);
+    }
+  };
+
+  const toggleUserWithdrawalFreeze = async (userId: string, userName: string) => {
+    setTogglingWithdrawal(true);
+    const current = { ...frozenWithdrawalUsers };
+    const isFrozen = !!current[userId];
+
+    if (isFrozen) {
+      delete current[userId];
+    } else {
+      current[userId] = true;
+    }
+
+    const { data: existing } = await supabase
+      .from("platform_settings")
+      .select("id")
+      .eq("key", "withdrawal_frozen_users")
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("platform_settings")
+        .update({ value: current as any, updated_at: new Date().toISOString(), updated_by: user?.id })
+        .eq("key", "withdrawal_frozen_users");
+    } else {
+      await supabase
+        .from("platform_settings")
+        .insert({ key: "withdrawal_frozen_users", value: current as any, updated_by: user?.id });
+    }
+
+    await logAction(isFrozen ? "unfreeze_user_withdrawal" : "freeze_user_withdrawal", "user", userId, { user_name: userName });
+
+    // Notify the user
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: isFrozen ? "Withdrawals Restored" : "Withdrawals Restricted",
+      message: isFrozen
+        ? "Your withdrawal access has been restored. You can now withdraw funds normally."
+        : "Your withdrawals have been temporarily restricted by the administrator. Please contact support for more information.",
+      type: "security_alert",
+    });
+
+    setFrozenWithdrawalUsers(current);
+    toast.success(isFrozen ? `Withdrawals unfrozen for ${userName}` : `Withdrawals frozen for ${userName}`);
+    setTogglingWithdrawal(false);
+  };
+
     setSelectedUser(u);
     const [walletRes, violRes] = await Promise.all([
       supabase.from("wallets").select("*").eq("user_id", u.id).maybeSingle(),
