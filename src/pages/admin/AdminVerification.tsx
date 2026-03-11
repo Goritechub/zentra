@@ -208,6 +208,7 @@ export default function AdminVerification() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>KYC Status</TableHead>
               <TableHead>Level</TableHead>
               <TableHead>ZentraGig Badge</TableHead>
