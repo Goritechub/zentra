@@ -622,9 +622,19 @@ export default function ProposalsReceivedPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
-                                  {proposal.freelancer?.full_name || "Expert"}
-                                </Link>
+                                <div className="flex items-center gap-2">
+                                  <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
+                                    {proposal.freelancer?.full_name || "Expert"}
+                                  </Link>
+                                  {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
+                                    <VerificationBadges
+                                      isVerified={true}
+                                      isZentraVerified={proposal.kyc?.zentra_verified || false}
+                                      role="freelancer"
+                                      size="sm"
+                                    />
+                                  )}
+                                </div>
                                 {proposal.freelancer?.state && (
                                   <p className="text-xs text-muted-foreground">
                                     {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
