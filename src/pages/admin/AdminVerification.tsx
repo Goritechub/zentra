@@ -242,6 +242,11 @@ export default function AdminVerification() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <Badge variant="outline" className="capitalize text-xs">
+                      {v.profile?.role === "freelancer" ? "Expert" : v.profile?.role || "—"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <div className={`flex items-center gap-1.5 text-sm ${statusConf.color}`}>
                       <StatusIcon className="h-4 w-4" />
                       {statusConf.label}
