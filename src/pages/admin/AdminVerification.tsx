@@ -136,6 +136,33 @@ export default function AdminVerification() {
     setSelectedKyc(null);
   };
 
+  const handleRevokeIdentity = async (kycId: string, userId: string) => {
+    setSaving(true);
+    await supabase
+      .from("kyc_verifications" as any)
+      .update({
+        kyc_status: "not_started",
+        verification_level: "basic",
+        zentra_verified: false,
+        zentra_verified_at: null,
+        zentra_verified_by: null,
+        admin_notes: adminNotes || "Identity verification revoked by admin",
+      })
+      .eq("id", kycId);
+    await supabase.from("profiles").update({ is_verified: false }).eq("id", userId);
+    await logAction("revoke_identity", "user", userId, { kyc_id: kycId, notes: adminNotes });
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: "Verification Revoked",
+      message: adminNotes || "Your identity verification has been revoked by an admin.",
+      type: "verification",
+    });
+    toast.success("Identity verification revoked");
+    setSaving(false);
+    await fetchVerifications();
+    setSelectedKyc(null);
+  };
+
   const logAction = async (action: string, targetType: string, targetId: string, details: any) => {
     await supabase.from("admin_activity_log").insert({
       admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
