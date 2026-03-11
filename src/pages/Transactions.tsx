@@ -16,6 +16,8 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
 import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
+import { useKycVerification } from "@/hooks/useKycVerification";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 import {
   Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
