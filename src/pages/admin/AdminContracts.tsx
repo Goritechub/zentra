@@ -61,15 +61,19 @@ export default function AdminContracts() {
       if (milestoneIds?.length) {
         const msIds = milestoneIds.map(m => m.id);
         await supabase.from("milestone_submissions").delete().in("milestone_id", msIds);
+        // contract_attachments may reference milestones
+        await supabase.from("contract_attachments").delete().in("milestone_id", msIds);
       }
       if (disputeIds?.length) {
         const dIds = disputeIds.map(d => d.id);
         await supabase.from("dispute_messages").delete().in("dispute_id", dIds);
       }
 
-      // Then: delete direct FK references to contracts
-      await Promise.all([
-        supabase.from("contract_attachments").delete().eq("contract_id", contract.id),
+      // Delete contract_attachments that reference contract_messages
+      await supabase.from("contract_attachments").delete().eq("contract_id", contract.id);
+
+      // Then: delete all direct FK references to contracts
+      const deleteResults = await Promise.all([
         supabase.from("contract_messages").delete().eq("contract_id", contract.id),
         supabase.from("escrow_ledger").delete().eq("contract_id", contract.id),
         supabase.from("escrow_transactions").delete().eq("contract_id", contract.id),
@@ -83,6 +87,13 @@ export default function AdminContracts() {
         supabase.from("platform_revenue").delete().eq("contract_id", contract.id),
         supabase.from("paystack_references").delete().eq("contract_id", contract.id),
       ]);
+
+      // Check if any dependent deletes failed
+      const failedDelete = deleteResults.find(r => r.error);
+      if (failedDelete?.error) {
+        console.error("Failed to delete dependent records:", failedDelete.error);
+        throw new Error(`Failed to clean up: ${failedDelete.error.message}`);
+      }
 
       // Delete the contract
       const { error } = await supabase.from("contracts").delete().eq("id", contract.id);
