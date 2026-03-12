@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       // Use Lovable AI to compose a personalized email
       const apiKey = Deno.env.get("LOVABLE_API_KEY");
       const jobListText = matchingJobs.slice(0, 5).map((j: any, i: number) =>
-        `${i + 1}. ${j.title} - Budget: ${j.budget_min ? `₦${j.budget_min.toLocaleString()}` : "Negotiable"}${j.budget_max ? ` - ₦${j.budget_max.toLocaleString()}` : ""} | ${j.is_remote ? "Remote" : (j.state || "Nigeria")}${j.delivery_days ? ` | ${j.delivery_days} days` : ""}`
+        `${i + 1}. ${j.title} - Budget: ${j.budget_min ? `₦${j.budget_min.toLocaleString()}` : "Negotiable"}${j.budget_max ? ` - ₦${j.budget_max.toLocaleString()}` : ""} | ${j.is_remote ? "Remote" : (j.state || "Global")}${j.delivery_days ? ` | ${j.delivery_days} days` : ""}`
       ).join("\n");
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
