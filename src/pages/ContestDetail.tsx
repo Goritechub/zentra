@@ -471,19 +471,24 @@ export default function ContestDetailPage() {
     }
   }, [location.hash, comments]);
 
-  // Auto-promote status to "selecting_winners" in the DB for ALL viewers,
-  // not just the owner — so every user sees the right status immediately.
+  // Auto-promote status to "selecting_winners" — only the contest owner triggers the DB write;
+  // other viewers just see the derived state locally.
   useEffect(() => {
     if (contest && deadlinePassed && contest.status === "active" && winners.length === 0) {
-      supabase
-        .from("contests" as any)
-        .update({ status: "selecting_winners" })
-        .eq("id", id)
-        .then(() => {
-          setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
-        });
+      if (user && contest.client_id === user.id) {
+        supabase
+          .from("contests" as any)
+          .update({ status: "selecting_winners" })
+          .eq("id", id)
+          .then(() => {
+            setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
+          });
+      } else {
+        // Non-owners see derived state without writing to DB
+        setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
+      }
     }
-  }, [contest?.id, deadlinePassed, contest?.status, winners.length]);
+  }, [contest?.id, deadlinePassed, contest?.status, winners.length, user?.id]);
 
   const fetchFollowState = async () => {
     if (!user || !id) return;

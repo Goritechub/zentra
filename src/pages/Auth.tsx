@@ -324,8 +324,9 @@ export default function AuthPage() {
       const pendingSignupRole = localStorage.getItem("pending_signup_role") as "client" | "freelancer" | null;
       const metadataRole = user.user_metadata?.role as "client" | "freelancer" | "admin" | undefined;
 
-      const pendingRole =
-        pendingOauthRole ?? pendingSignupRole ?? (metadataRole === "freelancer" ? "freelancer" : null);
+      // Sanitize: only allow "client" or "freelancer" — never "admin"
+      const rawPending = pendingOauthRole ?? pendingSignupRole ?? (metadataRole === "freelancer" ? "freelancer" : null);
+      const pendingRole = (rawPending === "client" || rawPending === "freelancer") ? rawPending : null;
       if (!pendingRole || pendingRole === "client") return;
 
       if (pendingOauthRole && pendingOauthTs) {

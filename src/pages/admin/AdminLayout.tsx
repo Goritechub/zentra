@@ -153,8 +153,8 @@ export default function AdminLayout() {
             <p className="text-sm text-muted-foreground">
               Your admin access has been suspended by a Super Admin. Contact your administrator for assistance.
             </p>
-            <Button variant="outline" className="w-full" onClick={() => navigate("/dashboard")}>
-              Go to Dashboard
+            <Button variant="outline" className="w-full" onClick={() => signOut()}>
+              Sign Out
             </Button>
           </div>
         </div>
