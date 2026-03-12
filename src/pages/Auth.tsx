@@ -1378,7 +1378,7 @@ export default function AuthPage() {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              Nigerian Focus
+              Global Reach
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary" />
