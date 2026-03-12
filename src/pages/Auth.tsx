@@ -749,7 +749,7 @@ export default function AuthPage() {
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join Nigeria's #1 CAD marketplace"}
+              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join the #1 engineering & technical marketplace"}
             </p>
           </div>
 
@@ -1033,7 +1033,7 @@ export default function AuthPage() {
                             <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
                               Hire Talent
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
+                            <span className="text-xs text-muted-foreground text-center">Find engineering experts</span>
                           </label>
                           <label
                             htmlFor="role-freelancer"
@@ -1050,7 +1050,7 @@ export default function AuthPage() {
                             <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
                               Find Work
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
+                            <span className="text-xs text-muted-foreground text-center">Offer technical services</span>
                           </label>
                         </RadioGroup>
                       </div>
@@ -1378,7 +1378,7 @@ export default function AuthPage() {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              Nigerian Focus
+              Global Reach
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary" />

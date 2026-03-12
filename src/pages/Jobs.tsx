@@ -217,8 +217,8 @@ export default function JobsPage() {
       <main className="flex-1 bg-muted/30">
         <div className="bg-hero-gradient text-white py-12">
           <div className="container-wide">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Browse CAD Jobs in Nigeria</h1>
-            <p className="text-white/80 text-lg max-w-2xl">Find CAD projects that match your skills.</p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">Browse Engineering & Technical Jobs</h1>
+            <p className="text-white/80 text-lg max-w-2xl">Find engineering, hardware, and STEM projects that match your skills.</p>
           </div>
         </div>
 

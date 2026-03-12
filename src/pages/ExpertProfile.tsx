@@ -362,7 +362,7 @@ export default function ExpertProfile() {
                   )}
                   <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground mt-2">
                     <MapPin className="h-3.5 w-3.5" />
-                    {profile.city && `${profile.city}, `}{profile.state || "Nigeria"}
+                    {profile.city && `${profile.city}, `}{profile.state || "Global"}
                   </div>
                   {(kycVerified || profile.is_verified) && (
                     <div className="mt-3">
