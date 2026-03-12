@@ -135,7 +135,7 @@ export default function AdminLayout() {
           <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-destructive" />
           <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
           <p className="text-muted-foreground mb-4">You don't have admin privileges.</p>
-          <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
+          <Button onClick={() => signOut()}>Sign Out</Button>
         </div>
       </div>);
   }
