@@ -1033,7 +1033,7 @@ export default function AuthPage() {
                             <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
                               Hire Talent
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Find CAD experts</span>
+                            <span className="text-xs text-muted-foreground text-center">Find engineering experts</span>
                           </label>
                           <label
                             htmlFor="role-freelancer"
@@ -1050,7 +1050,7 @@ export default function AuthPage() {
                             <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
                               Find Work
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Offer CAD services</span>
+                            <span className="text-xs text-muted-foreground text-center">Offer technical services</span>
                           </label>
                         </RadioGroup>
                       </div>
