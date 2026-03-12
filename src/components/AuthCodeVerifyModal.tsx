@@ -52,8 +52,8 @@ export function AuthCodeVerifyModal({
     }
 
     setCode("");
-    onOpenChange(false);
     onVerified();
+    onOpenChange(false);
   };
 
   const handleSetupComplete = () => {
