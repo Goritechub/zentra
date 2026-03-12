@@ -16,12 +16,12 @@ export function Footer() {
               <ZentraGigLogo size="md" textClassName="text-white" />
             </Link>
             <p className="text-sm text-background/70">
-              Nigeria's premier marketplace for engineering projects and technical work. Connect with verified 
-              engineers and technical professionals across the country.
+              The premier marketplace for engineering projects and technical work. Connect with verified 
+              engineers and technical professionals worldwide.
             </p>
             <div className="flex items-center gap-4 text-background/70">
               <MapPin className="h-4 w-4 text-primary" />
-              <span className="text-sm">Lagos, Nigeria</span>
+              <span className="text-sm">Global Platform</span>
             </div>
           </div>
 
