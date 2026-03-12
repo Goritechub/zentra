@@ -23,7 +23,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase
 } from "lucide-react";
 import { createNotification } from "@/lib/notifications";
 
@@ -69,24 +69,47 @@ export default function ProposalsReceivedPage() {
     setWallet(data);
   };
 
+  const [jobContracts, setJobContracts] = useState<Map<string, any>>(new Map());
+  const [jobsData, setJobsData] = useState<any[]>([]);
+
   const fetchProposals = async () => {
     const { data: jobs } = await supabase
       .from("jobs")
-      .select("id, title")
+      .select("id, title, status")
       .eq("client_id", user!.id);
 
     if (!jobs?.length) {
       setProposals([]);
+      setJobsData([]);
       setLoading(false);
       return;
     }
 
+    setJobsData(jobs);
     const jobIds = jobs.map((j) => j.id);
-    const { data } = await supabase
-      .from("proposals")
-      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, avatar_url, state, city, is_verified)")
-      .in("job_id", jobIds)
-      .order("created_at", { ascending: false });
+    const [proposalsRes, contractsRes] = await Promise.all([
+      supabase
+        .from("proposals")
+        .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, avatar_url, state, city, is_verified)")
+        .in("job_id", jobIds)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("contracts")
+        .select("id, job_id, status, freelancer_id")
+        .in("job_id", jobIds)
+        .in("status", ["active", "completed", "pending_funding", "disputed"] as any),
+    ]);
+
+    // Build contract map per job (pick the most relevant contract)
+    const contractMap = new Map<string, any>();
+    (contractsRes.data || []).forEach((c: any) => {
+      if (!contractMap.has(c.job_id) || c.status === "active") {
+        contractMap.set(c.job_id, c);
+      }
+    });
+    setJobContracts(contractMap);
+
+    const data = proposalsRes.data;
 
     // Fetch KYC verification status for all freelancers
     const freelancerIds = [...new Set((data || []).map((p: any) => p.freelancer_id))];
@@ -540,6 +563,39 @@ export default function ProposalsReceivedPage() {
   const filterByStatus = (status: string) =>
     status === "all" ? proposals : proposals.filter((p) => p.status === status);
 
+  const contractStatusLabel = (status: string) => {
+    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+      active: { variant: "default", label: "Contract Active" },
+      completed: { variant: "secondary", label: "Contract Completed" },
+      pending_funding: { variant: "outline", label: "Pending Funding" },
+      disputed: { variant: "destructive", label: "Disputed" },
+    };
+    const cfg = map[status] || { variant: "outline" as const, label: status };
+    return <Badge variant={cfg.variant} className="gap-1 text-xs">{cfg.label}</Badge>;
+  };
+
+  const groupByJob = (proposalsList: any[]) => {
+    const jobMap = new Map<string, any[]>();
+    proposalsList.forEach((p) => {
+      if (!jobMap.has(p.job_id)) jobMap.set(p.job_id, []);
+      jobMap.get(p.job_id)!.push(p);
+    });
+    const jobIds = Array.from(jobMap.keys());
+    jobIds.sort((a, b) => {
+      const aAssigned = jobContracts.has(a);
+      const bAssigned = jobContracts.has(b);
+      if (aAssigned && !bAssigned) return 1;
+      if (!aAssigned && bAssigned) return -1;
+      return 0;
+    });
+    return jobIds.map((jobId) => ({
+      jobId,
+      jobTitle: jobMap.get(jobId)![0]?.job_title || "Unknown Job",
+      contract: jobContracts.get(jobId) || null,
+      proposals: jobMap.get(jobId)!,
+    }));
+  };
+
   const paymentReady = wallet && wallet.balance > 0;
 
   if (authLoading || loading) {
@@ -603,109 +659,133 @@ export default function ProposalsReceivedPage() {
                     <p>No {status === "all" ? "" : status} proposals</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {filterByStatus(status).map((proposal: any) => (
-                      <div key={proposal.id} className="bg-card rounded-xl border border-border p-6">
-                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={proposal.freelancer?.avatar_url || undefined} />
-                                <AvatarFallback className="bg-primary/10 text-primary">
-                                  {(proposal.freelancer?.full_name || "U")[0]}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
-                                    {proposal.freelancer?.full_name || "Expert"}
-                                  </Link>
-                                  {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
-                                    <VerificationBadges
-                                      isVerified={true}
-                                      isZentraVerified={proposal.kyc?.zentra_verified || false}
-                                      role="freelancer"
-                                      size="sm"
-                                    />
-                                  )}
-                                </div>
-                                {proposal.freelancer?.state && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
-                                    {proposal.freelancer.state}
-                                  </p>
-                                )}
-                              </div>
+                  <div className="space-y-6">
+                    {groupByJob(filterByStatus(status)).map((group) => {
+                      const isAssigned = !!group.contract;
+                      return (
+                        <div key={group.jobId} className={`rounded-xl border ${isAssigned ? "border-border/50 bg-muted/30" : "border-border bg-card"}`}>
+                          {/* Job Group Header */}
+                          <div className={`flex items-center justify-between px-6 py-4 border-b ${isAssigned ? "border-border/50" : "border-border"}`}>
+                            <div className="flex items-center gap-3">
+                              <Briefcase className={`h-4 w-4 ${isAssigned ? "text-muted-foreground" : "text-primary"}`} />
+                              <Link to={`/job/${group.jobId}`} className={`font-semibold hover:underline ${isAssigned ? "text-muted-foreground" : "text-foreground hover:text-primary"}`}>
+                                {group.jobTitle}
+                              </Link>
+                              <Badge variant="outline" className="text-xs">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</Badge>
                             </div>
-
-                            <Link to={`/job/${proposal.job_id}`} className="text-sm text-primary hover:underline font-medium">
-                              {proposal.job_title}
-                            </Link>
-
-                            <p className="text-muted-foreground text-sm mt-2 whitespace-pre-wrap">
-                              {proposal.cover_letter}
-                            </p>
-
-                            {/* Expert Attachments */}
-                            {proposal.attachments && proposal.attachments.length > 0 && (
-                              <div className="mt-3 space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground">Attachments:</p>
-                                {proposal.attachments.map((url: string, idx: number) => {
-                                  const name = url.split("/").pop() || `Attachment ${idx + 1}`;
-                                  return (
-                                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm">
-                                      <FileText className="h-4 w-4 text-primary shrink-0" />
-                                      <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                              <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>
-                              <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
-                              <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
+                            <div className="flex items-center gap-2">
+                              {isAssigned && contractStatusLabel(group.contract.status)}
+                              {isAssigned && (
+                                <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/contract/${group.contract.id}`)}>
+                                  View Contract
+                                </Button>
+                              )}
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-3">
-                            {statusBadge(proposal.status)}
+                          {/* Proposals within group */}
+                          <div className={`divide-y ${isAssigned ? "divide-border/50 opacity-60" : "divide-border"}`}>
+                            {group.proposals.map((proposal: any) => (
+                              <div key={proposal.id} className="px-6 py-5">
+                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <Avatar className="h-10 w-10">
+                                        <AvatarImage src={proposal.freelancer?.avatar_url || undefined} />
+                                        <AvatarFallback className="bg-primary/10 text-primary">
+                                          {(proposal.freelancer?.full_name || "U")[0]}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
+                                            {proposal.freelancer?.full_name || "Expert"}
+                                          </Link>
+                                          {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
+                                            <VerificationBadges
+                                              isVerified={true}
+                                              isZentraVerified={proposal.kyc?.zentra_verified || false}
+                                              role="freelancer"
+                                              size="sm"
+                                            />
+                                          )}
+                                        </div>
+                                        {proposal.freelancer?.state && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
+                                            {proposal.freelancer.state}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
 
-                            {proposal.status === "pending" && (
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => setInterviewConfirm({ open: true, proposal })} disabled={interviewingId === proposal.id}>
-                                  {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
-                                </Button>
-                                <Button size="sm" onClick={() => openAssignDialog(proposal)}>
-                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
-                                  <X className="h-4 w-4 mr-1" /> Reject
-                                </Button>
+                                    <p className="text-muted-foreground text-sm mt-2 whitespace-pre-wrap">
+                                      {proposal.cover_letter}
+                                    </p>
+
+                                    {proposal.attachments && proposal.attachments.length > 0 && (
+                                      <div className="mt-3 space-y-1">
+                                        <p className="text-xs font-medium text-muted-foreground">Attachments:</p>
+                                        {proposal.attachments.map((url: string, idx: number) => {
+                                          const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                                          return (
+                                            <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm">
+                                              <FileText className="h-4 w-4 text-primary shrink-0" />
+                                              <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
+                                            </a>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+
+                                    <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+                                      <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>
+                                      <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
+                                      <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col items-end gap-3">
+                                    {statusBadge(proposal.status)}
+
+                                    {!isAssigned && proposal.status === "pending" && (
+                                      <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => setInterviewConfirm({ open: true, proposal })} disabled={interviewingId === proposal.id}>
+                                          {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
+                                        </Button>
+                                        <Button size="sm" onClick={() => openAssignDialog(proposal)}>
+                                          <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
+                                        </Button>
+                                        <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
+                                          <X className="h-4 w-4 mr-1" /> Reject
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {!isAssigned && proposal.status === "interviewing" && (
+                                      <div className="flex gap-2">
+                                        <Button size="sm" onClick={() => openAssignDialog(proposal)}>
+                                          <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
+                                        </Button>
+                                        <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
+                                          <X className="h-4 w-4 mr-1" /> Reject
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    <div className="flex gap-2">
+                                      <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
+                                        <Eye className="h-4 w-4 mr-1" /> View Details
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            )}
-
-                            {proposal.status === "interviewing" && (
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => openAssignDialog(proposal)}>
-                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
-                                  <X className="h-4 w-4 mr-1" /> Reject
-                                </Button>
-                              </div>
-                            )}
-
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
-                                <Eye className="h-4 w-4 mr-1" /> View Details
-                              </Button>
-                            </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>

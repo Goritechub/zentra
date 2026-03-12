@@ -218,7 +218,7 @@ export default function ClientJobsPage() {
                 ) : (
                   <div className="space-y-4">
                     {filterByStatus(status).map(job => (
-                      <div key={job.id} className="bg-card rounded-xl border border-border p-6 card-hover">
+                      <div key={job.id} className={`bg-card rounded-xl border border-border p-6 card-hover ${job.status === "completed" ? "opacity-60" : ""}`}>
                         <div className="flex items-start justify-between">
                           <Link to={`/job/${job.id}`} className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
