@@ -246,14 +246,7 @@ export default function ContractDetail() {
     if (error) {
       toast.error("Failed to submit rating");
     } else {
-      // Update freelancer average rating
-      if (isClient) {
-        const { data: allReviews } = await supabase.from("reviews").select("rating").eq("reviewee_id", revieweeId);
-        if (allReviews && allReviews.length > 0) {
-          const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
-          await supabase.from("freelancer_profiles").update({ rating: Math.round(avg * 10) / 10 }).eq("user_id", revieweeId);
-        }
-      }
+      // Rating recalculation is handled by the DB trigger (recalculate_rating_on_review)
       toast.success("Review submitted! Thank you.");
       setShowRateDialog(false);
       setHasReviewed(true);

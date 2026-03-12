@@ -293,8 +293,11 @@ export default function AuthPage() {
       const desiredRole =
         activeTab === "signup" ? signUpData.role : searchParams.get("role") === "freelancer" ? "freelancer" : "client";
 
+      // Only allow client/freelancer — never admin
+      const safeRole = (desiredRole === "client" || desiredRole === "freelancer") ? desiredRole : "client";
+
       // Store role + timestamp so we can detect new users after redirect
-      localStorage.setItem("pending_oauth_role", desiredRole);
+      localStorage.setItem("pending_oauth_role", safeRole);
       localStorage.setItem("pending_oauth_ts", Date.now().toString());
 
       const result = await lovable.auth.signInWithOAuth("google", {
@@ -324,8 +327,9 @@ export default function AuthPage() {
       const pendingSignupRole = localStorage.getItem("pending_signup_role") as "client" | "freelancer" | null;
       const metadataRole = user.user_metadata?.role as "client" | "freelancer" | "admin" | undefined;
 
-      const pendingRole =
-        pendingOauthRole ?? pendingSignupRole ?? (metadataRole === "freelancer" ? "freelancer" : null);
+      // Sanitize: only allow "client" or "freelancer" — never "admin"
+      const rawPending = pendingOauthRole ?? pendingSignupRole ?? (metadataRole === "freelancer" ? "freelancer" : null);
+      const pendingRole = (rawPending === "client" || rawPending === "freelancer") ? rawPending : null;
       if (!pendingRole || pendingRole === "client") return;
 
       if (pendingOauthRole && pendingOauthTs) {

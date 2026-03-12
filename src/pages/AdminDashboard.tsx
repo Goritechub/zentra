@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
             <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-destructive" />
             <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
             <p className="text-muted-foreground">You don't have admin privileges.</p>
-            <Button className="mt-4" onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
+            <Button className="mt-4" onClick={() => signOut()}>Sign Out</Button>
           </div>
         </div>
         <Footer />
