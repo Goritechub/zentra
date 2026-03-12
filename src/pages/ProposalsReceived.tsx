@@ -23,7 +23,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase
 } from "lucide-react";
 import { createNotification } from "@/lib/notifications";
 
