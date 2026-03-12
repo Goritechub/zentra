@@ -69,24 +69,47 @@ export default function ProposalsReceivedPage() {
     setWallet(data);
   };
 
+  const [jobContracts, setJobContracts] = useState<Map<string, any>>(new Map());
+  const [jobsData, setJobsData] = useState<any[]>([]);
+
   const fetchProposals = async () => {
     const { data: jobs } = await supabase
       .from("jobs")
-      .select("id, title")
+      .select("id, title, status")
       .eq("client_id", user!.id);
 
     if (!jobs?.length) {
       setProposals([]);
+      setJobsData([]);
       setLoading(false);
       return;
     }
 
+    setJobsData(jobs);
     const jobIds = jobs.map((j) => j.id);
-    const { data } = await supabase
-      .from("proposals")
-      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, avatar_url, state, city, is_verified)")
-      .in("job_id", jobIds)
-      .order("created_at", { ascending: false });
+    const [proposalsRes, contractsRes] = await Promise.all([
+      supabase
+        .from("proposals")
+        .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, avatar_url, state, city, is_verified)")
+        .in("job_id", jobIds)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("contracts")
+        .select("id, job_id, status, freelancer_id")
+        .in("job_id", jobIds)
+        .in("status", ["active", "completed", "pending_funding", "disputed"] as any),
+    ]);
+
+    // Build contract map per job (pick the most relevant contract)
+    const contractMap = new Map<string, any>();
+    (contractsRes.data || []).forEach((c: any) => {
+      if (!contractMap.has(c.job_id) || c.status === "active") {
+        contractMap.set(c.job_id, c);
+      }
+    });
+    setJobContracts(contractMap);
+
+    const data = proposalsRes.data;
 
     // Fetch KYC verification status for all freelancers
     const freelancerIds = [...new Set((data || []).map((p: any) => p.freelancer_id))];
