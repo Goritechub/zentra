@@ -749,7 +749,7 @@ export default function AuthPage() {
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join Nigeria's #1 CAD marketplace"}
+              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join the #1 engineering & technical marketplace"}
             </p>
           </div>
 
