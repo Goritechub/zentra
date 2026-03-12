@@ -134,7 +134,7 @@ export function FeaturedFreelancers() {
               {(expert.city || expert.state) && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground mt-2">
                   <MapPin className="h-3.5 w-3.5" />
-                  {expert.city && `${expert.city}, `}{expert.state || "Nigeria"}
+                  {expert.city && `${expert.city}, `}{expert.state || "Global"}
                 </div>
               )}
 
