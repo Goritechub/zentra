@@ -9,7 +9,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
 import { toast } from "sonner";
@@ -19,7 +18,7 @@ import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { TermsModal } from "@/components/TermsModal";
 
-const RECAPTCHA_SITE_KEY = "6LdXjH4sAAAAAGq-ppkZ_-8z-nn2zUQFzXmb4YLW";
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const fullNameValidator = z
   .string()
@@ -289,6 +288,7 @@ export default function AuthPage() {
   const handleGoogleSignIn = useCallback(async () => {
     setGoogleLoading(true);
     try {
+
       // Determine desired role: signup tab uses radio, signin tab uses URL param or default
       const desiredRole =
         activeTab === "signup" ? signUpData.role : searchParams.get("role") === "freelancer" ? "freelancer" : "client";
@@ -300,11 +300,22 @@ export default function AuthPage() {
       localStorage.setItem("pending_oauth_role", safeRole);
       localStorage.setItem("pending_oauth_ts", Date.now().toString());
 
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
-      if (result.error) {
-        toast.error(result.error.message || "Google sign-in failed. Please try again.");
+
+      if (error) {
+        toast.error(error.message || "Google sign-in failed. Please try again.");
+        localStorage.removeItem("pending_oauth_role");
+        localStorage.removeItem("pending_oauth_ts");
+        return;
+      }
+
+      if (!data?.url) {
+        toast.error("Google sign-in could not be started.");
         localStorage.removeItem("pending_oauth_role");
         localStorage.removeItem("pending_oauth_ts");
       }
