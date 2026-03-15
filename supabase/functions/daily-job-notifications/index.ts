@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Get jobs posted in the last 24 hours
@@ -69,38 +70,41 @@ Deno.serve(async (req) => {
       const profile = profileMap.get(freelancer.user_id);
       if (!profile?.email) continue;
 
-      // Use Lovable AI to compose a personalized email
-      const apiKey = Deno.env.get("LOVABLE_API_KEY");
       const jobListText = matchingJobs.slice(0, 5).map((j: any, i: number) =>
-        `${i + 1}. ${j.title} - Budget: ${j.budget_min ? `₦${j.budget_min.toLocaleString()}` : "Negotiable"}${j.budget_max ? ` - ₦${j.budget_max.toLocaleString()}` : ""} | ${j.is_remote ? "Remote" : (j.state || "Global")}${j.delivery_days ? ` | ${j.delivery_days} days` : ""}`
+        `${i + 1}. ${j.title} - Budget: ${j.budget_min ? `NGN ${j.budget_min.toLocaleString()}` : "Negotiable"}${j.budget_max ? ` - NGN ${j.budget_max.toLocaleString()}` : ""} | ${j.is_remote ? "Remote" : (j.state || "Global")}${j.delivery_days ? ` | ${j.delivery_days} days` : ""}`
       ).join("\n");
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: "You write short, professional email bodies for a CAD engineering freelance marketplace called CADNaija. Keep it under 150 words. Be friendly and action-oriented. Do not include subject line."
-            },
-            {
-              role: "user",
-              content: `Write an email body for ${profile.full_name || "Expert"} (a ${freelancer.title || "CAD professional"}) about these new matching jobs:\n\n${jobListText}\n\nInclude a call to action to visit the platform to apply.`
-            }
-          ],
-          max_tokens: 300,
-        }),
-      });
-
       let emailBody = "";
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        emailBody = aiData.choices?.[0]?.message?.content || "";
+      if (openAiApiKey) {
+        const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openAiApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-mini",
+            temperature: 0.4,
+            max_tokens: 300,
+            messages: [
+              {
+                role: "system",
+                content: "You write short, professional email bodies for a CAD engineering freelance marketplace called CADNaija. Keep it under 150 words. Be friendly and action-oriented. Do not include a subject line."
+              },
+              {
+                role: "user",
+                content: `Write an email body for ${profile.full_name || "Expert"} (a ${freelancer.title || "CAD professional"}) about these new matching jobs:\n\n${jobListText}\n\nInclude a call to action to visit the platform to apply.`
+              }
+            ],
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          emailBody = aiData.choices?.[0]?.message?.content?.trim() || "";
+        } else {
+          console.error("[daily-job-notifications] OpenAI request failed:", await aiResponse.text());
+        }
       }
 
       if (!emailBody) {

@@ -1,73 +1,113 @@
-# Welcome to your Lovable project
+# ZentraGig
 
-## Project info
+ZentraGig is an engineering and technical services marketplace. It connects clients with engineers, CAD specialists, and technical professionals for project-based work, proposals, contracts, messaging, payments, and platform administration.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- Client and freelancer accounts
+- Job posting and proposal workflows
+- Contracts, milestones, and escrow support
+- Messaging and file attachments
+- Contest flows
+- Admin dashboard and moderation tools
+- Supabase-backed auth, database, storage, and Edge Functions
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Supabase
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Install dependencies:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Run the website locally:
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Then open the local address shown in the terminal, usually:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```text
+http://localhost:8080
+```
 
-**Use GitHub Codespaces**
+Create a local environment file:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_PROJECT_ID=YOUR_PROJECT_REF
+VITE_RECAPTCHA_SITE_KEY=YOUR_RECAPTCHA_SITE_KEY
+```
 
-## What technologies are used for this project?
+Start the development server:
 
-This project is built with:
+```sh
+npm run dev
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Create a production build:
 
-## How can I deploy this project?
+```sh
+npm run build
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Run tests:
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+npm test
+```
 
-Yes, you can!
+## Supabase
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This repository includes:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- database migrations in `supabase/migrations/`
+- Edge Functions in `supabase/functions/`
+- local Supabase config in `supabase/config.toml`
+
+Typical setup:
+
+```sh
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push
+```
+
+Deploy functions as needed:
+
+```sh
+npx supabase functions deploy FUNCTION_NAME
+```
+
+## Configuration
+
+Server-side secrets should be stored in Supabase Edge Function secrets, not in frontend env files.
+
+Depending on enabled features, this project may use secrets such as:
+
+- `OPENAI_API_KEY`
+- `PAYSTACK_SECRET_KEY`
+- `RECAPTCHA_SECRET_KEY`
+- `DIDIT_API_KEY`
+- `DIDIT_WORKFLOW_ID`
+- `DIDIT_WEBHOOK_SECRET`
+- `CRON_SECRET`
+
+## Deployment
+
+Recommended setup:
+
+- Frontend: Vercel
+- Backend, auth, storage, database, and functions: Supabase
+
+For the full rebuild and launch process, see [docs/REBUILD_ROADMAP.md](docs/REBUILD_ROADMAP.md).
