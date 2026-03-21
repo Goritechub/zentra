@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Activity } from "lucide-react";
+import { getAdminActivityLogs } from "@/api/admin.api";
 
 export default function AdminActivity() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -12,12 +12,8 @@ export default function AdminActivity() {
   useEffect(() => { fetchLogs(); }, []);
 
   const fetchLogs = async () => {
-    const { data } = await supabase
-      .from("admin_activity_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setLogs(data || []);
+    const data = await getAdminActivityLogs();
+    setLogs(data.logs || []);
     setLoading(false);
   };
 

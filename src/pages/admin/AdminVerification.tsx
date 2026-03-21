@@ -1,16 +1,32 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import {
+  approveAdminVerification,
+  getAdminVerifications,
+  grantAdminZentraVerification,
+  rejectAdminVerification,
+  revokeAdminIdentityVerification,
+  revokeAdminZentraVerification,
+} from "@/api/admin.api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, Eye, ShieldCheck, Star, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  Eye,
+  ShieldCheck,
+  Star,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
@@ -22,7 +38,6 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }>
 };
 
 export default function AdminVerification() {
-  const { user } = useAuth();
   const [verifications, setVerifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -31,153 +46,109 @@ export default function AdminVerification() {
   const [adminNotes, setAdminNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchVerifications(); }, []);
+  useEffect(() => {
+    void fetchVerifications();
+  }, []);
 
   const fetchVerifications = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("kyc_verifications" as any)
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (data && data.length > 0) {
-      const userIds = data.map((v: any) => v.user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, avatar_url, role, username")
-        .in("id", userIds);
-
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      setVerifications(data.map((v: any) => ({ ...v, profile: profileMap.get(v.user_id) })));
-    } else {
+    try {
+      const response = await getAdminVerifications();
+      setVerifications(response.verifications || []);
+    } catch (error) {
       setVerifications([]);
+      toast.error("Failed to load verifications");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleApproveKyc = async (kycId: string, userId: string) => {
+  const handleApproveKyc = async (kycId: string) => {
     setSaving(true);
-    await supabase
-      .from("kyc_verifications" as any)
-      .update({ kyc_status: "verified", verification_level: "identity_verified" })
-      .eq("id", kycId);
-    await supabase.from("profiles").update({ is_verified: true }).eq("id", userId);
-    await logAction("approve_kyc", "user", userId, { kyc_id: kycId });
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: "Identity Verified ✓",
-      message: "Your identity has been verified by an admin.",
-      type: "verification",
-    });
-    toast.success("KYC approved");
-    setSaving(false);
-    await fetchVerifications();
-    setSelectedKyc(null);
+    try {
+      await approveAdminVerification(kycId);
+      toast.success("KYC approved");
+      await fetchVerifications();
+      setSelectedKyc(null);
+    } catch (error) {
+      toast.error("Failed to approve KYC");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRejectKyc = async (kycId: string, userId: string) => {
+  const handleRejectKyc = async (kycId: string) => {
     setSaving(true);
-    await supabase
-      .from("kyc_verifications" as any)
-      .update({ kyc_status: "failed", admin_notes: adminNotes })
-      .eq("id", kycId);
-    await logAction("reject_kyc", "user", userId, { kyc_id: kycId, notes: adminNotes });
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: "Verification Rejected",
-      message: adminNotes || "Your identity verification was not approved.",
-      type: "verification",
-    });
-    toast.success("KYC rejected");
-    setSaving(false);
-    await fetchVerifications();
-    setSelectedKyc(null);
+    try {
+      await rejectAdminVerification(kycId, adminNotes);
+      toast.success("KYC rejected");
+      await fetchVerifications();
+      setSelectedKyc(null);
+    } catch (error) {
+      toast.error("Failed to reject KYC");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleGrantZentraVerified = async (kycId: string, userId: string) => {
+  const handleGrantZentraVerified = async (kycId: string) => {
     setSaving(true);
-    await supabase
-      .from("kyc_verifications" as any)
-      .update({
-        zentra_verified: true,
-        zentra_verified_at: new Date().toISOString(),
-        zentra_verified_by: user!.id,
-        verification_level: "zentra_verified",
-      })
-      .eq("id", kycId);
-    await logAction("grant_zentra_verified", "user", userId, { kyc_id: kycId });
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: "⭐ ZentraGig Verified Engineer",
-      message: "Congratulations! You've been awarded the ZentraGig Verified Engineer badge.",
-      type: "verification",
-    });
-    toast.success("ZentraGig Verified badge granted");
-    setSaving(false);
-    await fetchVerifications();
-    setSelectedKyc(null);
+    try {
+      await grantAdminZentraVerification(kycId);
+      toast.success("ZentraGig Verified badge granted");
+      await fetchVerifications();
+      setSelectedKyc(null);
+    } catch (error) {
+      toast.error("Failed to grant badge");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRevokeZentraVerified = async (kycId: string, userId: string) => {
+  const handleRevokeZentraVerified = async (kycId: string) => {
     setSaving(true);
-    await supabase
-      .from("kyc_verifications" as any)
-      .update({
-        zentra_verified: false,
-        zentra_verified_at: null,
-        zentra_verified_by: null,
-        verification_level: "identity_verified",
-      })
-      .eq("id", kycId);
-    await logAction("revoke_zentra_verified", "user", userId, { kyc_id: kycId });
-    toast.success("ZentraGig Verified badge revoked");
-    setSaving(false);
-    await fetchVerifications();
-    setSelectedKyc(null);
+    try {
+      await revokeAdminZentraVerification(kycId);
+      toast.success("ZentraGig Verified badge revoked");
+      await fetchVerifications();
+      setSelectedKyc(null);
+    } catch (error) {
+      toast.error("Failed to revoke badge");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRevokeIdentity = async (kycId: string, userId: string) => {
+  const handleRevokeIdentity = async (kycId: string) => {
     setSaving(true);
-    await supabase
-      .from("kyc_verifications" as any)
-      .update({
-        kyc_status: "not_started",
-        verification_level: "basic",
-        zentra_verified: false,
-        zentra_verified_at: null,
-        zentra_verified_by: null,
-        admin_notes: adminNotes || "Identity verification revoked by admin",
-      })
-      .eq("id", kycId);
-    await supabase.from("profiles").update({ is_verified: false }).eq("id", userId);
-    await logAction("revoke_identity", "user", userId, { kyc_id: kycId, notes: adminNotes });
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: "Verification Revoked",
-      message: adminNotes || "Your identity verification has been revoked by an admin.",
-      type: "verification",
-    });
-    toast.success("Identity verification revoked");
-    setSaving(false);
-    await fetchVerifications();
-    setSelectedKyc(null);
-  };
-
-  const logAction = async (action: string, targetType: string, targetId: string, details: any) => {
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
-    });
+    try {
+      await revokeAdminIdentityVerification(kycId, adminNotes);
+      toast.success("Identity verification revoked");
+      await fetchVerifications();
+      setSelectedKyc(null);
+    } catch (error) {
+      toast.error("Failed to revoke identity verification");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filtered = verifications.filter((v) => {
-    const matchSearch = !search || 
+    const matchSearch =
+      !search ||
       v.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       v.profile?.email?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || v.kyc_status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -186,7 +157,12 @@ export default function AdminVerification() {
       <div className="flex items-center gap-4 mb-6">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
@@ -236,14 +212,14 @@ export default function AdminVerification() {
                         <AvatarFallback>{(v.profile?.full_name || "U")[0]}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-sm">{v.profile?.full_name || "—"}</p>
+                        <p className="font-medium text-sm">{v.profile?.full_name || "-"}</p>
                         <p className="text-xs text-muted-foreground">{v.profile?.email}</p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize text-xs">
-                      {v.profile?.role === "freelancer" ? "Expert" : v.profile?.role || "—"}
+                      {v.profile?.role === "freelancer" ? "Expert" : v.profile?.role || "-"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -259,16 +235,23 @@ export default function AdminVerification() {
                   </TableCell>
                   <TableCell>
                     {v.zentra_verified ? (
-                      <Badge className="bg-accent/15 text-accent border-accent/25 text-xs">⭐ Verified</Badge>
+                      <Badge className="bg-accent/15 text-accent border-accent/25 text-xs">Verified</Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                      <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(v.created_at), { addSuffix: true })}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => { setSelectedKyc(v); setAdminNotes(v.admin_notes || ""); }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedKyc(v);
+                        setAdminNotes(v.admin_notes || "");
+                      }}
+                    >
                       <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -279,7 +262,6 @@ export default function AdminVerification() {
         </Table>
       </div>
 
-      {/* Detail Dialog */}
       <Dialog open={!!selectedKyc} onOpenChange={() => setSelectedKyc(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -293,7 +275,7 @@ export default function AdminVerification() {
                   <AvatarFallback className="text-lg">{(selectedKyc.profile?.full_name || "U")[0]}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-semibold">{selectedKyc.profile?.full_name || "—"}</h3>
+                  <h3 className="font-semibold">{selectedKyc.profile?.full_name || "-"}</h3>
                   <p className="text-sm text-muted-foreground">{selectedKyc.profile?.email}</p>
                   <Badge variant="outline" className="capitalize mt-1">
                     {selectedKyc.profile?.role === "freelancer" ? "Expert" : selectedKyc.profile?.role}
@@ -301,7 +283,6 @@ export default function AdminVerification() {
                 </div>
               </div>
 
-              {/* Name mismatch warning */}
               {selectedKyc.full_name_on_id && selectedKyc.profile?.full_name && (() => {
                 const profileName = selectedKyc.profile.full_name.toLowerCase().trim();
                 const idName = selectedKyc.full_name_on_id.toLowerCase().trim();
@@ -315,10 +296,10 @@ export default function AdminVerification() {
                       <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${hasMatch ? "text-accent" : "text-destructive"}`} />
                       <div>
                         <p className={`font-medium ${hasMatch ? "text-accent" : "text-destructive"}`}>
-                          {hasMatch ? "Partial name mismatch" : "Name mismatch detected!"}
+                          {hasMatch ? "Partial name mismatch" : "Name mismatch detected"}
                         </p>
                         <p className="text-muted-foreground">
-                          Profile: <strong>{selectedKyc.profile.full_name}</strong> — ID: <strong>{selectedKyc.full_name_on_id}</strong>
+                          Profile: <strong>{selectedKyc.profile.full_name}</strong> - ID: <strong>{selectedKyc.full_name_on_id}</strong>
                         </p>
                       </div>
                     </div>
@@ -339,16 +320,28 @@ export default function AdminVerification() {
                   <span className="font-medium capitalize">{selectedKyc.verification_level?.replace("_", " ")}</span>
                 </div>
                 {selectedKyc.full_name_on_id && (
-                  <div><span className="text-muted-foreground">Name on ID:</span> <span className="font-medium">{selectedKyc.full_name_on_id}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">Name on ID:</span>{" "}
+                    <span className="font-medium">{selectedKyc.full_name_on_id}</span>
+                  </div>
                 )}
                 {selectedKyc.country && (
-                  <div><span className="text-muted-foreground">Country:</span> <span className="font-medium">{selectedKyc.country}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">Country:</span>{" "}
+                    <span className="font-medium">{selectedKyc.country}</span>
+                  </div>
                 )}
                 {selectedKyc.document_type && (
-                  <div><span className="text-muted-foreground">Document:</span> <span className="font-medium capitalize">{selectedKyc.document_type}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">Document:</span>{" "}
+                    <span className="font-medium capitalize">{selectedKyc.document_type}</span>
+                  </div>
                 )}
                 {selectedKyc.date_of_birth && (
-                  <div><span className="text-muted-foreground">DOB:</span> <span className="font-medium">{selectedKyc.date_of_birth}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">DOB:</span>{" "}
+                    <span className="font-medium">{selectedKyc.date_of_birth}</span>
+                  </div>
                 )}
               </div>
 
@@ -372,26 +365,26 @@ export default function AdminVerification() {
               <div className="flex flex-wrap gap-2 pt-2">
                 {(selectedKyc.kyc_status === "manual_review" || selectedKyc.kyc_status === "pending") && (
                   <>
-                    <Button size="sm" onClick={() => handleApproveKyc(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                    <Button size="sm" onClick={() => handleApproveKyc(selectedKyc.id)} disabled={saving}>
                       <CheckCircle2 className="h-4 w-4 mr-1" /> Approve KYC
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleRejectKyc(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                    <Button size="sm" variant="destructive" onClick={() => handleRejectKyc(selectedKyc.id)} disabled={saving}>
                       <XCircle className="h-4 w-4 mr-1" /> Reject
                     </Button>
                   </>
                 )}
                 {selectedKyc.kyc_status === "verified" && (
-                  <Button size="sm" variant="destructive" onClick={() => handleRevokeIdentity(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                  <Button size="sm" variant="destructive" onClick={() => handleRevokeIdentity(selectedKyc.id)} disabled={saving}>
                     <XCircle className="h-4 w-4 mr-1" /> Revoke Identity Verification
                   </Button>
                 )}
                 {selectedKyc.kyc_status === "verified" && !selectedKyc.zentra_verified && (
-                  <Button size="sm" variant="default" onClick={() => handleGrantZentraVerified(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                  <Button size="sm" variant="default" onClick={() => handleGrantZentraVerified(selectedKyc.id)} disabled={saving}>
                     <Star className="h-4 w-4 mr-1" /> Grant ZentraGig Verified
                   </Button>
                 )}
                 {selectedKyc.zentra_verified && (
-                  <Button size="sm" variant="outline" onClick={() => handleRevokeZentraVerified(selectedKyc.id, selectedKyc.user_id)} disabled={saving}>
+                  <Button size="sm" variant="outline" onClick={() => handleRevokeZentraVerified(selectedKyc.id)} disabled={saving}>
                     <XCircle className="h-4 w-4 mr-1" /> Revoke ZentraGig Badge
                   </Button>
                 )}

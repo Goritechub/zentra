@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -11,6 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  cancelClientJob,
+  createClientJobDispute,
+  getClientJobCancelState,
+  getClientJobs,
+} from "@/api/jobs.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +31,9 @@ interface JobWithCounts {
 }
 
 export default function ClientJobsPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, authError } = useAuth();
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<JobWithCounts[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: any | null; hasAssignment: boolean }>({
     open: false, job: null, hasAssignment: false,
   });
@@ -38,51 +44,15 @@ export default function ClientJobsPage() {
   const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchJobs();
-  }, [user, authLoading]);
+  const jobsQuery = useQuery({
+    queryKey: ["client-jobs", user?.id],
+    enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async (): Promise<JobWithCounts[]> => getClientJobs(),
+  });
 
-  const fetchJobs = async () => {
-    const { data } = await supabase.from("jobs").select("*").eq("client_id", user!.id).order("created_at", { ascending: false });
-    const jobList = data || [];
-
-    if (jobList.length > 0) {
-      const jobIds = jobList.map(j => j.id);
-
-      // Fetch proposal counts, interviewing counts, and view counts
-      const [proposalsRes, viewsRes] = await Promise.all([
-        supabase.from("proposals").select("id, job_id, status").in("job_id", jobIds),
-        supabase.from("job_views").select("job_id").in("job_id", jobIds),
-      ]);
-
-      const proposalMap = new Map<string, { total: number; interviewing: number }>();
-      ((proposalsRes.data || []) as any[]).forEach((p: any) => {
-        if (!proposalMap.has(p.job_id)) proposalMap.set(p.job_id, { total: 0, interviewing: 0 });
-        const entry = proposalMap.get(p.job_id)!;
-        entry.total++;
-        if (p.status === "interviewing") entry.interviewing++;
-      });
-
-      const viewMap = new Map<string, number>();
-      ((viewsRes.data || []) as any[]).forEach((v: any) => {
-        viewMap.set(v.job_id, (viewMap.get(v.job_id) || 0) + 1);
-      });
-
-      const enriched: JobWithCounts[] = jobList.map(j => ({
-        ...j,
-        _proposalCount: proposalMap.get(j.id)?.total || 0,
-        _invitedCount: (j.invited_expert_ids || []).length,
-        _interviewingCount: proposalMap.get(j.id)?.interviewing || 0,
-        _viewCount: viewMap.get(j.id) || 0,
-      }));
-
-      setJobs(enriched);
-    } else {
-      setJobs([]);
-    }
-    setLoading(false);
-  };
+  const jobs = jobsQuery.data || [];
 
   const filterByStatus = (status: string) => {
     if (status === "all") return jobs;
@@ -90,16 +60,13 @@ export default function ClientJobsPage() {
   };
 
   const handleCancelClick = async (job: any) => {
-    const { data: contracts } = await supabase
-      .from("contracts")
-      .select("id")
-      .eq("job_id", job.id)
-      .eq("status", "active")
-      .limit(1);
-
-    const hasAssignment = (contracts?.length || 0) > 0;
-    setCancelDialog({ open: true, job, hasAssignment });
-    setDisputeReason("");
+    try {
+      const data = await getClientJobCancelState(job.id);
+      setCancelDialog({ open: true, job, hasAssignment: !!data.hasAssignment });
+      setDisputeReason("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to check job state");
+    }
   };
 
   const handleDeleteClick = (job: any) => {
@@ -118,7 +85,7 @@ export default function ClientJobsPage() {
       toast.error(data?.error || "Failed to delete job. Please try again.");
     } else {
       toast.success(`Job deleted. ${data.notified} applicant(s) notified.`);
-      setJobs(prev => prev.filter(j => j.id !== deleteDialog.job.id));
+      queryClient.invalidateQueries({ queryKey: ["client-jobs", user?.id] });
     }
 
     setDeleting(false);
@@ -128,16 +95,12 @@ export default function ClientJobsPage() {
   const handleSimpleCancel = async () => {
     if (!cancelDialog.job) return;
     setCancelling(true);
-    const { error } = await supabase
-      .from("jobs")
-      .update({ status: "cancelled" })
-      .eq("id", cancelDialog.job.id);
-
-    if (error) {
-      toast.error("Failed to cancel job");
-    } else {
+    try {
+      await cancelClientJob(cancelDialog.job.id);
       toast.success("Job cancelled successfully");
-      setJobs(prev => prev.map(j => j.id === cancelDialog.job.id ? { ...j, status: "cancelled" } : j));
+      queryClient.invalidateQueries({ queryKey: ["client-jobs", user?.id] });
+    } catch (error) {
+      toast.error("Failed to cancel job");
     }
     setCancelling(false);
     setCancelDialog({ open: false, job: null, hasAssignment: false });
@@ -147,31 +110,11 @@ export default function ClientJobsPage() {
     if (!cancelDialog.job || !disputeReason.trim()) return;
     setCancelling(true);
 
-    const { data: contracts } = await supabase
-      .from("contracts")
-      .select("id")
-      .eq("job_id", cancelDialog.job.id)
-      .eq("status", "active")
-      .limit(1);
-
-    if (!contracts?.length) {
-      toast.error("No active contract found");
-      setCancelling(false);
-      return;
-    }
-
-    const { error } = await supabase.from("disputes").insert({
-      contract_id: contracts[0].id,
-      raised_by: user!.id,
-      reason: disputeReason.trim(),
-      status: "open",
-    });
-
-    if (error) {
-      toast.error("Failed to open dispute");
-    } else {
-      await supabase.from("contracts").update({ status: "disputed" }).eq("id", contracts[0].id);
+    try {
+      await createClientJobDispute(cancelDialog.job.id, disputeReason.trim());
       toast.success("Dispute submitted. An admin will review it shortly.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to open dispute");
     }
 
     setCancelling(false);
@@ -182,9 +125,7 @@ export default function ClientJobsPage() {
     return job.status === "open" || job.status === "cancelled";
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
-  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -194,10 +135,18 @@ export default function ClientJobsPage() {
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-foreground">My Jobs</h1>
             <Button asChild><Link to="/post-job"><PlusCircle className="h-4 w-4 mr-2" />Post New Job</Link></Button>
           </div>
+          {jobsQuery.isFetching && (
+            <p className="text-sm text-muted-foreground mb-4">Refreshing jobs...</p>
+          )}
 
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
@@ -210,7 +159,25 @@ export default function ClientJobsPage() {
 
             {["all", "open", "in_progress", "completed", "cancelled"].map(status => (
               <TabsContent key={status} value={status}>
-                {filterByStatus(status).length === 0 ? (
+                {jobsQuery.isPending && !jobsQuery.data ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((item) => (
+                      <div key={item} className="rounded-xl border border-border bg-card p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 w-16 rounded bg-muted animate-pulse" />
+                            <div className="h-5 w-48 rounded bg-muted/80 animate-pulse" />
+                            <div className="h-3 w-64 rounded bg-muted/70 animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="h-5 w-24 rounded bg-muted animate-pulse" />
+                            <div className="h-8 w-20 rounded bg-muted/70 animate-pulse" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filterByStatus(status).length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">
                     <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No {status === "all" ? "" : status} jobs found</p>

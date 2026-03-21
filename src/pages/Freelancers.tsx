@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -10,7 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getBrowseExpertsList,
+  removeSavedExpertByFreelancer,
+  saveExpert,
+} from "@/api/client-read.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira, getAllStates, cadSoftwareList } from "@/lib/nigerian-data";
 import { categoryNames, getCategoryBySlug } from "@/lib/categories";
@@ -24,10 +29,7 @@ export default function FreelancersPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
-  const [freelancers, setFreelancers] = useState<any[]>([]);
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [savedExperts, setSavedExperts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
@@ -44,42 +46,23 @@ export default function FreelancersPage() {
 
   const states = getAllStates();
 
-  useEffect(() => {
-    fetchFreelancers();
-  }, []);
+  const freelancersQuery = useQuery({
+    queryKey: ["freelancers-page", user?.id],
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async () => {
+      const data = await getBrowseExpertsList();
+      return {
+        freelancers: data.freelancers || [],
+        savedIds: new Set(data.savedIds || []),
+        savedExperts: data.savedExperts || [],
+      };
+    },
+  });
 
-  const fetchFreelancers = async () => {
-    const { data } = await supabase
-      .from("freelancer_profiles")
-      .select("*, profile:profiles!freelancer_profiles_user_id_fkey(*)");
-    setFreelancers(data || []);
-
-    if (user) {
-      const { data: savedData } = await supabase
-        .from("saved_experts" as any)
-        .select("*, freelancer:profiles!saved_experts_freelancer_id_fkey(*)")
-        .eq("client_id", user.id)
-        .order("created_at", { ascending: false });
-
-      const savedArr = (savedData as any[]) || [];
-      setSavedIds(new Set(savedArr.map((s: any) => s.freelancer_id)));
-
-      // Fetch freelancer profiles for saved experts
-      if (savedArr.length > 0) {
-        const freelancerIds = savedArr.map((s: any) => s.freelancer_id).filter(Boolean);
-        const { data: fpData } = await supabase
-          .from("freelancer_profiles")
-          .select("*")
-          .in("user_id", freelancerIds);
-        savedArr.forEach((item: any) => {
-          item.freelancerProfile = (fpData || []).find((fp: any) => fp.user_id === item.freelancer_id);
-        });
-      }
-      setSavedExperts(savedArr);
-    }
-
-    setLoading(false);
-  };
+  const freelancers = freelancersQuery.data?.freelancers || [];
+  const savedIds = freelancersQuery.data?.savedIds || new Set<string>();
+  const savedExperts = freelancersQuery.data?.savedExperts || [];
 
   const filtered = freelancers.filter((f) => {
     const p = f.profile;
@@ -109,32 +92,29 @@ export default function FreelancersPage() {
     if (!user) { navigate("/auth"); return; }
     
     if (savedIds.has(freelancerId)) {
-      await supabase.from("saved_experts" as any).delete().eq("client_id", user.id).eq("freelancer_id", freelancerId);
-      setSavedIds((prev) => { const next = new Set(prev); next.delete(freelancerId); return next; });
-      setSavedExperts(prev => prev.filter((s: any) => s.freelancer_id !== freelancerId));
+      await removeSavedExpertByFreelancer(freelancerId);
+      queryClient.invalidateQueries({ queryKey: ["freelancers-page", user?.id] });
       toast.success("Expert removed from saved list");
     } else {
-      const { error } = await supabase.from("saved_experts" as any).insert({ client_id: user.id, freelancer_id: freelancerId } as any);
-      if (error?.code === "23505") toast.info("Expert already saved");
-      else if (error) toast.error("Failed to save expert");
-      else {
-        setSavedIds((prev) => new Set(prev).add(freelancerId));
+      try {
+        await saveExpert(freelancerId);
         toast.success("Expert saved!");
-        fetchFreelancers(); // Refresh saved list
+        queryClient.invalidateQueries({ queryKey: ["freelancers-page", user?.id] });
+      } catch (error) {
+        toast.error("Failed to save expert");
       }
     }
   };
 
-  const removeSaved = async (e: React.MouseEvent, itemId: string, freelancerId: string) => {
+  const removeSaved = async (e: React.MouseEvent, _itemId: string, freelancerId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    await supabase.from("saved_experts" as any).delete().eq("id", itemId);
-    setSavedExperts(prev => prev.filter((s: any) => s.id !== itemId));
-    setSavedIds(prev => { const next = new Set(prev); next.delete(freelancerId); return next; });
+    await removeSavedExpertByFreelancer(freelancerId);
+    queryClient.invalidateQueries({ queryKey: ["freelancers-page", user?.id] });
     toast.success("Expert removed from saved list");
   };
 
-  if (loading) {
+  if (freelancersQuery.isPending && !freelancersQuery.data) {
     return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
   }
 
@@ -150,6 +130,9 @@ export default function FreelancersPage() {
         </div>
 
         <div className="container-wide py-8">
+          {freelancersQuery.isFetching && (
+            <p className="text-sm text-muted-foreground mb-4">Refreshing experts...</p>
+          )}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="all">All Experts</TabsTrigger>

@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, differenceInBusinessDays } from "date-fns";
 import { formatNaira } from "@/lib/nigerian-data";
-import { createNotification } from "@/lib/notifications";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  deleteAdminContract,
+  getAdminContractDetail,
+  getAdminContractsData,
+} from "@/api/admin.api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,115 +33,23 @@ export default function AdminContracts() {
   useEffect(() => { fetchContracts(); }, []);
 
   const fetchContracts = async () => {
-    const { data } = await supabase
-      .from("contracts")
-      .select("*, client:profiles!contracts_client_id_fkey(full_name), freelancer:profiles!contracts_freelancer_id_fkey(full_name)")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    setContracts(data || []);
+    const data = await getAdminContractsData();
+    setContracts(data.contracts || []);
     setLoading(false);
   };
 
   const viewContract = async (c: any) => {
-    setSelectedContract(c);
-    const [msRes, escrowRes] = await Promise.all([
-      supabase.from("milestones").select("*").eq("contract_id", c.id).order("created_at", { ascending: true }),
-      supabase.from("escrow_ledger").select("*").eq("contract_id", c.id),
-    ]);
-    setMilestones(msRes.data || []);
-    setEscrow(escrowRes.data || []);
+    const data = await getAdminContractDetail(c.id);
+    setSelectedContract(data.contract || c);
+    setMilestones(data.milestones || []);
+    setEscrow(data.escrow || []);
   };
 
   const deleteContract = async (contract: any) => {
     if (!user) return;
     setDeleting(true);
     try {
-      // Delete all FK-dependent records (order matters)
-      // First: delete children of milestones/disputes
-      const { data: milestoneIds } = await supabase.from("milestones").select("id").eq("contract_id", contract.id);
-      const { data: disputeIds } = await supabase.from("disputes").select("id").eq("contract_id", contract.id);
-      
-      if (milestoneIds?.length) {
-        const msIds = milestoneIds.map(m => m.id);
-        await supabase.from("milestone_submissions").delete().in("milestone_id", msIds);
-        // contract_attachments may reference milestones
-        await supabase.from("contract_attachments").delete().in("milestone_id", msIds);
-      }
-      if (disputeIds?.length) {
-        const dIds = disputeIds.map(d => d.id);
-        await supabase.from("dispute_messages").delete().in("dispute_id", dIds);
-      }
-
-      // Delete contract_attachments that reference contract_messages
-      await supabase.from("contract_attachments").delete().eq("contract_id", contract.id);
-
-      // Then: delete all direct FK references to contracts
-      const deleteResults = await Promise.all([
-        supabase.from("contract_messages").delete().eq("contract_id", contract.id),
-        supabase.from("escrow_ledger").delete().eq("contract_id", contract.id),
-        supabase.from("escrow_transactions").delete().eq("contract_id", contract.id),
-        supabase.from("hidden_conversations").delete().eq("contract_id", contract.id),
-        supabase.from("disputes").delete().eq("contract_id", contract.id),
-        supabase.from("payout_transfers").delete().eq("contract_id", contract.id),
-        supabase.from("reviews").delete().eq("contract_id", contract.id),
-        supabase.from("notifications").delete().eq("contract_id", contract.id),
-        supabase.from("milestones").delete().eq("contract_id", contract.id),
-        supabase.from("wallet_transactions").delete().eq("contract_id", contract.id),
-        supabase.from("platform_revenue").delete().eq("contract_id", contract.id),
-        supabase.from("paystack_references").delete().eq("contract_id", contract.id),
-      ]);
-
-      // Check if any dependent deletes failed
-      const failedDelete = deleteResults.find(r => r.error);
-      if (failedDelete?.error) {
-        console.error("Failed to delete dependent records:", failedDelete.error);
-        throw new Error(`Failed to clean up: ${failedDelete.error.message}`);
-      }
-
-      // Delete the contract
-      const { error } = await supabase.from("contracts").delete().eq("id", contract.id);
-      if (error) throw error;
-
-      // Notify both parties
-      const isInterviewing = contract.status === "interviewing";
-      const message = isInterviewing
-        ? `Your interview contract for "${contract.job_title || "a project"}" has been closed by ZentraGig. If you have questions, please contact support.`
-        : `Your contract for "${contract.job_title || "a project"}" has been removed by ZentraGig.`;
-
-      const notificationPromises = [
-        createNotification({
-          userId: contract.client_id,
-          type: "contract_closed",
-          title: "Contract Closed by Platform",
-          message,
-          linkUrl: "/contracts",
-        }),
-        createNotification({
-          userId: contract.freelancer_id,
-          type: "contract_closed",
-          title: "Contract Closed by Platform",
-          message,
-          linkUrl: "/contracts",
-        }),
-      ];
-
-      // Log admin activity
-      notificationPromises.push(
-        supabase.from("admin_activity_log").insert({
-          admin_id: user.id,
-          action: "delete_contract",
-          target_type: "contract",
-          target_id: contract.id,
-          details: {
-            job_title: contract.job_title,
-            status: contract.status,
-            client_id: contract.client_id,
-            freelancer_id: contract.freelancer_id,
-          },
-        }) as any
-      );
-
-      await Promise.all(notificationPromises);
+      await deleteAdminContract(contract.id);
 
       setContracts(prev => prev.filter(c => c.id !== contract.id));
       setDeleteDialog({ open: false, contract: null });

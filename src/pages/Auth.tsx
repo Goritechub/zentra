@@ -10,8 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  applyAuthOccupation,
+  checkAuthUsernameAvailability,
+  lookupAuthUser,
+  updateAuthRole,
+} from "@/api/auth.api";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
-import { toast } from "sonner";
 import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check, ShieldCheck } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
@@ -61,6 +66,16 @@ const forgotPasswordSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
 });
 
+const GeneralFormError = ({ message }: { message?: string }) => {
+  if (!message) return null;
+
+  return (
+    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+      <p>{message}</p>
+    </div>
+  );
+};
+
 /*
  * Auth fixes checklist
  * [x] Successful sign-in leaves /auth without waiting on profile/admin lookups.
@@ -71,7 +86,7 @@ const forgotPasswordSchema = z.object({
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, profile, signUp, signIn, loading: authLoading, profileLoading, refreshProfile } = useAuth();
+  const { user, profile, signUp, signIn, loading: authLoading, refreshProfile, onboardingComplete, role } = useAuth();
   const { signupsPaused, platformFrozen } = usePlatformFreeze();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
@@ -112,6 +127,11 @@ export default function AuthPage() {
   const [forgotErrors, setForgotErrors] = useState<Record<string, string>>({});
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [googleRoleModalOpen, setGoogleRoleModalOpen] = useState(false);
+  const [googleRoleSelection, setGoogleRoleSelection] = useState<"client" | "freelancer">(defaultRole as "client" | "freelancer");
+  const [googleRoleSaving, setGoogleRoleSaving] = useState(false);
+  const [googleRoleError, setGoogleRoleError] = useState<string | null>(null);
+  const [pendingGoogleSetup, setPendingGoogleSetup] = useState(false);
 
   // Stable callbacks via refs to avoid stale closures
   const recaptchaTokenRef = useRef(recaptchaToken);
@@ -205,17 +225,6 @@ export default function AuthPage() {
     }
   }, [activeTab]);
 
-  // Fallback: if user exists but profile is null after auth completes, retry profile fetch
-  useEffect(() => {
-    if (user && !authLoading && !profile) {
-      console.log("[Auth] User exists but profile is null, retrying profile fetch...");
-      const timer = setTimeout(() => {
-        refreshProfile();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, authLoading, profile, refreshProfile]);
-
   // Apply pending occupation on first login
   useEffect(() => {
     if (!user || !profile) return;
@@ -223,25 +232,25 @@ export default function AuthPage() {
     if (!pendingOccupation) return;
 
     const apply = async () => {
-      await supabase
-        .from("profiles")
-        .update({ occupation: pendingOccupation } as any)
-        .eq("id", user.id);
+      await applyAuthOccupation(pendingOccupation);
       localStorage.removeItem("pending_occupation");
       refreshProfile();
     };
     apply();
   }, [user, profile, refreshProfile]);
 
-  const resolveRole = useCallback((): "client" | "freelancer" | "admin" => {
-    const pendingRole = localStorage.getItem("pending_signup_role");
+  const clearPendingGoogleState = useCallback(() => {
+    localStorage.removeItem("pending_oauth_role");
+    localStorage.removeItem("pending_oauth_intent");
+    localStorage.removeItem("pending_oauth_role_choice");
+    localStorage.removeItem("pending_oauth_ts");
+  }, []);
 
-    if (profile?.role) return profile.role;
-    if (user?.user_metadata?.role === "admin") return "admin";
-    if (pendingRole === "freelancer") return "freelancer";
-    if (user?.user_metadata?.role === "freelancer") return "freelancer";
-    return "client";
-  }, [profile?.role, user]);
+  useEffect(() => {
+    if (!authLoading && !user) {
+      clearPendingGoogleState();
+    }
+  }, [authLoading, clearPendingGoogleState, user]);
 
   // Redirect if user is already authenticated (e.g. page refresh while logged in)
   useEffect(() => {
@@ -253,7 +262,10 @@ export default function AuthPage() {
       return;
     }
 
-    const role = resolveRole();
+    if (!onboardingComplete) {
+      navigate("/onboarding");
+      return;
+    }
 
     if (role === "admin") {
       navigate("/admin");
@@ -261,77 +273,67 @@ export default function AuthPage() {
     }
 
     navigate(role === "freelancer" ? "/jobs" : "/dashboard");
-
-    const checkAdminRole = async () => {
-      try {
-        const roleQuery = supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("role", "admin")
-          .maybeSingle();
-
-        const { data: roleData } = await Promise.race([
-          roleQuery,
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 2500)),
-        ]);
-
-        if (roleData) {
-          navigate("/admin", { replace: true });
-        }
-      } catch {}
-    };
-
-    void checkAdminRole();
-  }, [user, authLoading, navigate, resolveRole, searchParams]);
+  }, [user, authLoading, navigate, onboardingComplete, role, searchParams]);
 
   const handleGoogleSignIn = useCallback(async () => {
+    setSignInErrors({});
+    setSignUpErrors({});
     setGoogleLoading(true);
     try {
 
       // Determine desired role: signup tab uses radio, signin tab uses URL param or default
-      const desiredRole =
-        activeTab === "signup" ? signUpData.role : searchParams.get("role") === "freelancer" ? "freelancer" : "client";
 
       // Only allow client/freelancer — never admin
-      const safeRole = (desiredRole === "client" || desiredRole === "freelancer") ? desiredRole : "client";
 
       // Store role + timestamp so we can detect new users after redirect
-      localStorage.setItem("pending_oauth_role", safeRole);
+      const preselectedRole = activeTab === "signup" ? signUpData.role : defaultRole;
+      localStorage.setItem("pending_oauth_role_choice", preselectedRole);
       localStorage.setItem("pending_oauth_ts", Date.now().toString());
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}/auth`,
         },
       });
 
       if (error) {
-        toast.error(error.message || "Google sign-in failed. Please try again.");
-        localStorage.removeItem("pending_oauth_role");
-        localStorage.removeItem("pending_oauth_ts");
+        const message = error.message || "Google sign-in failed. Please try again.";
+        if (activeTab === "signup") {
+          setSignUpErrors({ general: message });
+        } else {
+          setSignInErrors({ general: message });
+        }
+        clearPendingGoogleState();
         return;
       }
 
       if (!data?.url) {
-        toast.error("Google sign-in could not be started.");
-        localStorage.removeItem("pending_oauth_role");
-        localStorage.removeItem("pending_oauth_ts");
+        const message = "Google sign-in could not be started.";
+        if (activeTab === "signup") {
+          setSignUpErrors({ general: message });
+        } else {
+          setSignInErrors({ general: message });
+        }
+        clearPendingGoogleState();
       }
     } catch (err: any) {
-      toast.error("Google sign-in failed. Please try again.");
-      localStorage.removeItem("pending_oauth_role");
-      localStorage.removeItem("pending_oauth_ts");
+      const message = "Google sign-in failed. Please try again.";
+      if (activeTab === "signup") {
+        setSignUpErrors({ general: message });
+      } else {
+        setSignInErrors({ general: message });
+      }
+      clearPendingGoogleState();
     } finally {
       setGoogleLoading(false);
     }
-  }, [activeTab, signUpData.role, searchParams]);
+  }, [activeTab, clearPendingGoogleState, defaultRole, signUpData.role]);
 
   // Apply intended freelancer role after the profile exists.
   useEffect(() => {
     const applyPendingRole = async () => {
-      if (!user) return;
+      return;
 
       const pendingOauthRole = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
       const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
@@ -361,7 +363,7 @@ export default function AuthPage() {
       // Poll for profile to exist (trigger may not have run yet)
       let profileData: any = null;
       for (let i = 0; i < 10; i++) {
-        const { data } = await supabase.from("profiles").select("id, role, created_at").eq("id", user.id).maybeSingle();
+        const data = null as any;
         if (data) {
           profileData = data;
           break;
@@ -376,7 +378,7 @@ export default function AuthPage() {
       }
 
       if (profileData.role !== pendingRole) {
-        const { error } = await supabase.from("profiles").update({ role: pendingRole }).eq("id", user.id);
+        const error = new Error("disabled");
         if (!error) {
           await refreshProfile();
         }
@@ -389,12 +391,82 @@ export default function AuthPage() {
     void applyPendingRole();
   }, [user, refreshProfile]);
 
+  useEffect(() => {
+    const handlePendingGoogleOAuth = async () => {
+      return;
+
+      const pendingOauthIntent = localStorage.getItem("pending_oauth_intent");
+      const pendingOauthRole = localStorage.getItem("pending_oauth_role_choice") as "client" | "freelancer" | null;
+      const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
+      if (!pendingOauthIntent) return;
+
+      if (!pendingOauthTs) {
+        clearPendingGoogleState();
+        return;
+      }
+
+      const elapsed = Date.now() - parseInt(pendingOauthTs);
+      if (elapsed > 60000) {
+        clearPendingGoogleState();
+        return;
+      }
+
+      setPendingGoogleSetup(true);
+
+      let profileData: any = null;
+      for (let i = 0; i < 10; i++) {
+        const data = null as any;
+        if (data) {
+          profileData = data;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      if (!profileData) {
+        clearPendingGoogleState();
+        return;
+      }
+
+      if (profileData.username) {
+        clearPendingGoogleState();
+        return;
+      }
+
+      setGoogleRoleSelection(pendingOauthRole === "freelancer" ? "freelancer" : "client");
+      setGoogleRoleModalOpen(true);
+      setPendingGoogleSetup(false);
+    };
+
+    void handlePendingGoogleOAuth();
+  }, [clearPendingGoogleState, user]);
+
+  const handleGoogleRoleConfirm = async () => {
+    if (!user) return;
+
+    setGoogleRoleSaving(true);
+    setGoogleRoleError(null);
+
+    try {
+      await updateAuthRole(googleRoleSelection);
+    } catch {
+      setGoogleRoleError("We could not finish Google sign-up. Please try again.");
+      setGoogleRoleSaving(false);
+      return;
+    }
+
+    await refreshProfile();
+    clearPendingGoogleState();
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (signupsPaused || platformFrozen) {
-      toast.error(
-        platformFrozen ? "The platform is currently under maintenance." : "New registrations are temporarily paused.",
-      );
+      setSignUpErrors({
+        general: platformFrozen
+          ? "The platform is currently under maintenance."
+          : "New registrations are temporarily paused.",
+      });
       return;
     }
     setSignUpErrors({});
@@ -435,7 +507,7 @@ export default function AuthPage() {
     setLoading(true);
 
     if (!recaptchaToken) {
-      toast.error("Please complete the reCAPTCHA checkbox.");
+      setSignUpErrors({ general: "Please complete the reCAPTCHA checkbox." });
       setLoading(false);
       return;
     }
@@ -446,7 +518,7 @@ export default function AuthPage() {
       });
 
       if (verifyError || !verifyData?.success) {
-        toast.error(verifyData?.error || "reCAPTCHA verification failed. Please try again.");
+        setSignUpErrors({ general: verifyData?.error || "reCAPTCHA verification failed. Please try again." });
         const grecaptcha = (window as any).grecaptcha;
         if (grecaptcha && recaptchaWidgetIdRef.current !== null) grecaptcha.reset(recaptchaWidgetIdRef.current);
         setRecaptchaToken(null);
@@ -455,18 +527,13 @@ export default function AuthPage() {
       }
     } catch (err) {
       console.error("reCAPTCHA error:", err);
-      toast.error("Security verification failed. Please refresh and try again.");
+      setSignUpErrors({ general: "Security verification failed. Please refresh and try again." });
       setLoading(false);
       return;
     }
 
-    const { data: existingUser } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", signUpData.username)
-      .maybeSingle();
-
-    if (existingUser) {
+    const usernameCheck = await checkAuthUsernameAvailability(signUpData.username);
+    if (!usernameCheck.available) {
       setSignUpErrors({ username: "This username is already taken" });
       setLoading(false);
       return;
@@ -499,7 +566,7 @@ export default function AuthPage() {
       if (error.message.includes("already registered")) {
         setSignUpErrors({ email: "This email is already registered. Please sign in instead." });
       } else {
-        toast.error(error.message);
+        setSignUpErrors({ general: error.message });
       }
       setLoading(false);
       return;
@@ -560,20 +627,34 @@ export default function AuthPage() {
       // Username lookup with timeout
       let email = signInData.identifier;
       if (!signInData.identifier.includes("@")) {
-        const lookupPromise = supabase.from("profiles").select("email").eq("username", signInData.identifier).single();
+        const lookupPromise = lookupAuthUser(signInData.identifier);
 
         const lookupResult = await Promise.race([
           lookupPromise,
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
         ]);
 
-        const { data: profileData, error: lookupError } = lookupResult as any;
-        if (lookupError || !profileData) {
+        const resolvedLookup = lookupResult as Awaited<ReturnType<typeof lookupAuthUser>>;
+        if (!resolvedLookup.found || !resolvedLookup.email) {
           setSignInErrors({ identifier: "No account found with that username" });
           setLoading(false);
           return;
         }
-        email = profileData.email;
+        email = resolvedLookup.email;
+      } else {
+        const emailLookupPromise = lookupAuthUser(signInData.identifier.toLowerCase());
+
+        const emailLookupResult = await Promise.race([
+          emailLookupPromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+        ]);
+
+        const resolvedEmailLookup = emailLookupResult as Awaited<ReturnType<typeof lookupAuthUser>>;
+        if (!resolvedEmailLookup.found) {
+          setSignInErrors({ identifier: "No account found with that email address" });
+          setLoading(false);
+          return;
+        }
       }
 
       // Sign in with timeout
@@ -597,7 +678,6 @@ export default function AuthPage() {
       // Sign-in succeeded — navigate immediately using redirect param or default route
       // Don't wait for profile to load; it will populate in the background
       setLoading(false);
-      toast.success("Welcome back!");
     } catch (err: any) {
       console.error("Sign-in error:", err);
       if (err?.message === "TIMEOUT") {
@@ -632,9 +712,9 @@ export default function AuthPage() {
 
     // If input doesn't look like an email, treat as username
     if (!input.includes("@")) {
-      const { data: profileData } = await supabase.from("profiles").select("email").eq("username", input).maybeSingle();
+      const profileData = await lookupAuthUser(input);
 
-      if (!profileData) {
+      if (!profileData.found || !profileData.email) {
         setForgotErrors({ identifier: "No account found with this username" });
         setForgotLoading(false);
         return;
@@ -642,13 +722,9 @@ export default function AuthPage() {
       email = profileData.email;
     } else {
       // Verify email exists
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", input.toLowerCase())
-        .maybeSingle();
+      const profileData = await lookupAuthUser(input.toLowerCase());
 
-      if (!profileData) {
+      if (!profileData.found) {
         setForgotErrors({ identifier: "No account found with this email address" });
         setForgotLoading(false);
         return;
@@ -660,7 +736,7 @@ export default function AuthPage() {
     });
 
     if (error) {
-      setForgotErrors({ identifier: error.message });
+      setForgotErrors({ general: error.message });
       setForgotLoading(false);
       return;
     }
@@ -731,17 +807,6 @@ export default function AuthPage() {
   };
 
   const passwordStrength = getPasswordStrength(signUpData.password);
-
-  const Divider = () => (
-    <div className="relative my-5">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t border-border" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-card px-2 text-muted-foreground">or</span>
-      </div>
-    </div>
-  );
 
   // Helper for field error styling
   const fieldClass = (field: string, errors: Record<string, string>) =>
@@ -832,6 +897,7 @@ export default function AuthPage() {
                             "Send Reset Link"
                           )}
                         </Button>
+                        <GeneralFormError message={forgotErrors.general} />
                         <Button
                           type="button"
                           variant="ghost"
@@ -849,8 +915,6 @@ export default function AuthPage() {
                   )
                 ) : (
                   <>
-                    <GoogleButton label="Continue with Google" />
-                    <Divider />
                     <form onSubmit={handleSignIn} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="signin-identifier">Email or Username</Label>
@@ -920,21 +984,6 @@ export default function AuthPage() {
                         {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
                       </div>
 
-                      {signInErrors.general && (
-                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
-                          <span className="shrink-0 mt-0.5">Warning:</span>
-                          <div>
-                            <p>{signInErrors.general}</p>
-                            {(signInErrors.general.includes("Network") ||
-                              signInErrors.general.includes("timed out")) && (
-                              <button type="submit" className="mt-1.5 text-xs font-medium underline hover:no-underline">
-                                Retry
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
                       <Button type="submit" className="w-full" size="lg" disabled={loading}>
                         {loading ? (
                           <>
@@ -945,7 +994,11 @@ export default function AuthPage() {
                           "Sign In"
                         )}
                       </Button>
+                      <GeneralFormError message={signInErrors.general} />
                     </form>
+                    <div className="mt-5">
+                      <GoogleButton label="Continue with Google" />
+                    </div>
                   </>
                 )}
               </TabsContent>
@@ -1017,8 +1070,6 @@ export default function AuthPage() {
                   </div>
                 ) : (
                   <>
-                    <GoogleButton label="Continue with Google" />
-                    <Divider />
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="space-y-3">
                         <Label id="role-label">I want to...</Label>
@@ -1357,6 +1408,7 @@ export default function AuthPage() {
                           "Create Account"
                         )}
                       </Button>
+                      <GeneralFormError message={signUpErrors.general} />
 
                       <TermsModal
                         open={termsModalOpen}
@@ -1372,6 +1424,9 @@ export default function AuthPage() {
                         }}
                       />
                     </form>
+                    <div className="mt-5">
+                      <GoogleButton label="Continue with Google" />
+                    </div>
                   </>
                 )}
               </TabsContent>

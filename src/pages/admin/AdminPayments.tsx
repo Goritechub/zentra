@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  cancelAdminWithdrawal,
+  getAdminPaymentsOverview,
+  setAdminWithdrawalsFreeze,
+} from "@/api/admin.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -16,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export default function AdminPayments() {
-  const { user } = useAuth();
+  useAuth();
   const [wallets, setWallets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -27,73 +31,47 @@ export default function AdminPayments() {
   const [withdrawalsFrozen, setWithdrawalsFrozen] = useState(false);
   const [togglingFreeze, setTogglingFreeze] = useState(false);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { void fetchAll(); }, []);
 
   const fetchAll = async () => {
-    const [walletsRes, txRes, wdRes, revRes, freezeRes] = await Promise.all([
-      supabase.from("wallets").select("*, profile:profiles!wallets_user_id_fkey(full_name, email, role)").order("balance", { ascending: false }).limit(200),
-      supabase.from("wallet_transactions").select("*, profile:profiles!wallet_transactions_user_id_fkey(full_name)").order("created_at", { ascending: false }).limit(200),
-      supabase.from("withdrawal_requests").select("*, profile:profiles!withdrawal_requests_user_id_fkey(full_name), bank:bank_details!withdrawal_requests_bank_detail_id_fkey(bank_name, account_number)").order("created_at", { ascending: false }).limit(100),
-      supabase.from("platform_revenue").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("platform_settings").select("value").eq("key", "withdrawals_frozen").maybeSingle(),
-    ]);
-    setWallets(walletsRes.data || []);
-    setTransactions(txRes.data || []);
-    setWithdrawals(wdRes.data || []);
-    setRevenue(revRes.data || []);
-    setWithdrawalsFrozen(freezeRes.data?.value === true || freezeRes.data?.value === "true");
-
-    // Get pending clearance from wallets
-    const walletsWithPending = (walletsRes.data || []).filter((w: any) => (w.pending_clearance || 0) > 0);
-    setPendingClearance(walletsWithPending);
-
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getAdminPaymentsOverview();
+      setWallets(data.wallets || []);
+      setTransactions(data.transactions || []);
+      setWithdrawals(data.withdrawals || []);
+      setRevenue(data.revenue || []);
+      setWithdrawalsFrozen(!!data.withdrawalsFrozen);
+      setPendingClearance(data.pendingClearance || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleWithdrawalFreeze = async () => {
     setTogglingFreeze(true);
     const newValue = !withdrawalsFrozen;
-    
-    const { data: existing } = await supabase.from("platform_settings").select("id").eq("key", "withdrawals_frozen").maybeSingle();
-    
-    if (existing) {
-      await supabase.from("platform_settings").update({ value: newValue as any, updated_at: new Date().toISOString(), updated_by: user?.id }).eq("key", "withdrawals_frozen");
-    } else {
-      await supabase.from("platform_settings").insert({ key: "withdrawals_frozen", value: newValue as any, updated_by: user?.id });
+    try {
+      await setAdminWithdrawalsFreeze(newValue);
+      setWithdrawalsFrozen(newValue);
+      toast.success(newValue ? "Withdrawals frozen" : "Withdrawals unfrozen");
+    } catch {
+      toast.error("Failed to update withdrawal freeze");
+    } finally {
+      setTogglingFreeze(false);
     }
-
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action: newValue ? "freeze_withdrawals" : "unfreeze_withdrawals",
-      target_type: "platform_settings", details: { frozen: newValue },
-    });
-
-    setWithdrawalsFrozen(newValue);
-    toast.success(newValue ? "Withdrawals frozen" : "Withdrawals unfrozen");
-    setTogglingFreeze(false);
   };
 
   const cancelWithdrawal = async (withdrawal: any) => {
     if (!confirm(`Cancel withdrawal of ${formatNaira(withdrawal.amount)} for ${withdrawal.profile?.full_name}? This will refund the amount to their wallet.`)) return;
 
-    const { error } = await supabase.rpc("reverse_withdrawal_atomic" as any, {
-      _user_id: withdrawal.user_id,
-      _withdrawal_id: withdrawal.id,
-      _reference: `admin_cancel_${withdrawal.id}`,
-      _reason: "Cancelled by admin",
-    });
-
-    if (error) {
-      toast.error("Failed to cancel: " + error.message);
-      return;
+    try {
+      await cancelAdminWithdrawal(withdrawal.id);
+      toast.success("Withdrawal cancelled and funds refunded");
+      void fetchAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to cancel withdrawal");
     }
-
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action: "cancel_withdrawal", target_type: "withdrawal",
-      target_id: withdrawal.id, details: { amount: withdrawal.amount, user: withdrawal.profile?.full_name },
-    });
-
-    toast.success("Withdrawal cancelled and funds refunded");
-    fetchAll();
   };
 
   const totalBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);

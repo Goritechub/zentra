@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Star, MapPin, CheckCircle2, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, Send, Briefcase, Award, Building2, Settings, Share2, Download, Link as LinkIcon, Image, ShieldCheck, Clock, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { getExpertProfileOverview } from "@/api/expert-read.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
@@ -152,69 +152,30 @@ export default function ExpertProfile() {
     if (!id) return;
     const fetch = async () => {
       setLoading(true);
-      const [profileRes, fpRes, certsRes, expRes, servicesRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", id).single(),
-        supabase.from("freelancer_profiles").select("*").eq("user_id", id).maybeSingle(),
-        supabase.from("certifications").select("*").eq("user_id", id).order("year_obtained", { ascending: false }),
-        supabase.from("work_experience").select("*").eq("user_id", id).order("start_year", { ascending: false }),
-        supabase.from("service_offers").select("id, title, price, category").eq("freelancer_id", id).eq("is_active", true).limit(10),
-      ]);
-      setProfile(profileRes.data);
-      setFreelancerProfile(fpRes.data);
-      setCertifications(certsRes.data || []);
-      setWorkExperience(expRes.data || []);
-      setServices(servicesRes.data || []);
-
-      if (fpRes.data) {
-        const { data: pData } = await supabase.from("portfolio_items").select("*").eq("freelancer_profile_id", fpRes.data.id);
-        setPortfolio(pData || []);
+      try {
+        const response = await getExpertProfileOverview(id);
+        setProfile(response.data.profile || null);
+        setFreelancerProfile(response.data.freelancerProfile || null);
+        setCertifications(response.data.certifications || []);
+        setWorkExperience(response.data.workExperience || []);
+        setServices(response.data.services || []);
+        setPortfolio(response.data.portfolio || []);
+        setPastContracts(response.data.pastContracts || []);
+        setCompletedContractCount(response.data.completedContractCount || 0);
+        setReviews(response.data.reviews || []);
+      } catch {
+        setProfile(null);
+        setFreelancerProfile(null);
+        setCertifications([]);
+        setWorkExperience([]);
+        setServices([]);
+        setPortfolio([]);
+        setPastContracts([]);
+        setCompletedContractCount(0);
+        setReviews([]);
+      } finally {
+        setLoading(false);
       }
-
-      // No longer using old verification_requests
-
-      const { data: contractsData, count: completedCount } = await supabase
-        .from("contracts")
-        .select("id, job_title, job_description, job_category, amount, status, started_at, completed_at", { count: "exact" })
-        .eq("freelancer_id", id)
-        .in("status", ["completed", "active"])
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      setCompletedContractCount(completedCount || 0);
-
-      if (contractsData && contractsData.length > 0) {
-        const contractIds = contractsData.map(c => c.id);
-        const { data: contractReviews } = await supabase
-          .from("reviews")
-          .select("contract_id, rating, comment, reviewer:profiles!reviews_reviewer_id_fkey(full_name)")
-          .eq("reviewee_id", id)
-          .in("contract_id", contractIds);
-
-        const reviewMap = new Map();
-        (contractReviews || []).forEach(r => {
-          reviewMap.set(r.contract_id, {
-            rating: r.rating,
-            comment: r.comment,
-            reviewer_name: (r.reviewer as any)?.full_name,
-          });
-        });
-
-        setPastContracts(contractsData.map(c => ({
-          ...c,
-          review: reviewMap.get(c.id) || null,
-        })));
-      }
-
-      const { data: reviewsData } = await supabase
-        .from("reviews")
-        .select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url), contract:contracts!reviews_contract_id_fkey(job_title, amount)")
-        .eq("reviewee_id", id)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      setReviews(reviewsData || []);
-
-
-      setLoading(false);
     };
     fetch();
   }, [id, user]);

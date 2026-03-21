@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createMyService,
+  deleteMyService as deleteMyServiceApi,
+  getMyServicesList,
+  setMyServiceActive,
+  updateMyService as updateMyServiceApi,
+} from "@/api/marketplace.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import {
@@ -25,7 +32,7 @@ import { categoryNames } from "@/lib/categories";
 const CATEGORIES = categoryNames;
 
 export default function MyServicesPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,21 +54,28 @@ export default function MyServicesPage() {
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchServices = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await getMyServicesList();
+      setServices(response.data.services || []);
+    } catch (error) {
+      setServices([]);
+      setLoadError(error instanceof Error ? error.message : "Failed to load services");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchServices();
-  }, [user, authLoading]);
-
-  const fetchServices = async () => {
-    const { data } = await supabase
-      .from("service_offers" as any)
-      .select("*")
-      .eq("freelancer_id", user!.id)
-      .order("created_at", { ascending: false });
-    setServices((data as any[]) || []);
-    setLoading(false);
-  };
+    if (bootstrapStatus === "ready" && user) {
+      void fetchServices();
+    }
+  }, [bootstrapStatus, fetchServices, user]);
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory(""); setPricingType("fixed");
@@ -125,34 +139,50 @@ export default function MyServicesPage() {
     };
 
     if (editing) {
-      const { error } = await supabase.from("service_offers" as any).update(data).eq("id", editing.id);
-      if (error) toast.error("Failed to update"); else toast.success("Service updated!");
+      try {
+        await updateMyServiceApi(editing.id, data);
+        toast.success("Service updated!");
+      } catch (error) {
+        toast.error("Failed to update");
+      }
     } else {
-      const { error } = await supabase.from("service_offers" as any).insert(data);
-      if (error) toast.error("Failed to create"); else toast.success("Service created!");
+      try {
+        await createMyService(data);
+        toast.success("Service created!");
+      } catch (error) {
+        toast.error("Failed to create");
+      }
     }
 
     setSaving(false);
     setShowForm(false);
     resetForm();
-    fetchServices();
+    void fetchServices();
   };
 
   const toggleActive = async (svc: any) => {
-    await supabase.from("service_offers" as any).update({ is_active: !svc.is_active }).eq("id", svc.id);
-    toast.success(svc.is_active ? "Service paused" : "Service activated");
-    fetchServices();
+    try {
+      await setMyServiceActive(svc.id, !svc.is_active);
+      toast.success(svc.is_active ? "Service paused" : "Service activated");
+      void fetchServices();
+    } catch (error) {
+      toast.error("Failed to update service");
+    }
   };
 
   const deleteService = async (id: string) => {
     if (!window.confirm("Delete this service?")) return;
-    await supabase.from("service_offers" as any).delete().eq("id", id);
-    toast.success("Service deleted");
-    fetchServices();
+    try {
+      await deleteMyServiceApi(id);
+      toast.success("Service deleted");
+      void fetchServices();
+    } catch (error) {
+      toast.error("Failed to delete service");
+    }
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   return (
@@ -160,6 +190,16 @@ export default function MyServicesPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {loadError && (
+            <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {loadError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -172,7 +212,18 @@ export default function MyServicesPage() {
             </Button>
           </div>
 
-          {services.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-5 space-y-3">
+                  <div className="h-32 rounded-lg bg-muted animate-pulse" />
+                  <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-full rounded bg-muted/70 animate-pulse" />
+                  <div className="h-3 w-2/3 rounded bg-muted/70 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : services.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>You haven't posted any services yet</p>

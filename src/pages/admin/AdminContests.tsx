@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import {
+  deleteAdminContest,
+  getAdminContests,
+  updateAdminContestStatus,
+} from "@/api/admin.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -60,7 +63,6 @@ const getEffectiveStatus = (contest: { status: string; deadline: string; winner_
 };
 
 export default function AdminContests() {
-  const { user } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -68,87 +70,40 @@ export default function AdminContests() {
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
 
   useEffect(() => {
-    fetchContests();
+    void fetchContests();
   }, []);
 
   const fetchContests = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contests")
-      .select("id, title, status, category, deadline, prize_first, prize_second, prize_third, created_at, visibility, client_id, profiles!contests_client_id_fkey(full_name, email, username)")
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await getAdminContests();
+      setContests((data.contests as Contest[]) || []);
+    } catch {
       toast.error("Failed to load contests");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Fetch entry counts and winner counts
-    const withCounts = await Promise.all(
-      (data || []).map(async (c: any) => {
-        const [{ data: countData }, { count: winnerCount }] = await Promise.all([
-          supabase.rpc("get_contest_entry_count", { _contest_id: c.id }),
-          supabase.from("contest_entries").select("id", { count: "exact", head: true }).eq("contest_id", c.id).eq("is_winner", true),
-        ]);
-        return { ...c, entry_count: countData || 0, winner_count: winnerCount || 0 };
-      })
-    );
-
-    setContests(withCounts);
-    setLoading(false);
   };
 
   const updateContestStatus = async (contestId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("contests")
-      .update({ status: newStatus })
-      .eq("id", contestId);
-
-    if (error) {
+    try {
+      await updateAdminContestStatus(contestId, newStatus);
+      toast.success(`Contest status updated to ${newStatus}`);
+      void fetchContests();
+    } catch {
       toast.error("Failed to update contest status");
-      return;
     }
-
-    // Log activity
-    if (user) {
-      await supabase.from("admin_activity_log").insert({
-        admin_id: user.id,
-        action: `Changed contest status to ${newStatus}`,
-        target_type: "contest",
-        target_id: contestId,
-      });
-    }
-
-    toast.success(`Contest status updated to ${newStatus}`);
-    fetchContests();
   };
 
   const deleteContest = async (contestId: string) => {
-    // Delete entries first, then the contest
-    await supabase.from("contest_entries").delete().eq("contest_id", contestId);
-    await supabase.from("contest_comments").delete().eq("contest_id", contestId);
-    await supabase.from("contest_follows").delete().eq("contest_id", contestId);
-
-    const { error } = await supabase.from("contests").delete().eq("id", contestId);
-
-    if (error) {
+    try {
+      await deleteAdminContest(contestId);
+      toast.success("Contest deleted");
+      setSelectedContest(null);
+      void fetchContests();
+    } catch {
       toast.error("Failed to delete contest");
-      return;
     }
-
-    if (user) {
-      await supabase.from("admin_activity_log").insert({
-        admin_id: user.id,
-        action: "Deleted contest",
-        target_type: "contest",
-        target_id: contestId,
-      });
-    }
-
-    toast.success("Contest deleted");
-    setSelectedContest(null);
-    fetchContests();
   };
 
   const totalPrize = (c: Contest) =>

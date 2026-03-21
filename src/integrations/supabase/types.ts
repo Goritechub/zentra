@@ -1882,7 +1882,7 @@ export type Database = {
           is_verified: boolean | null
           occupation: string | null
           phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
+          role: Database["public"]["Enums"]["user_role"] | null
           state: string | null
           theme_preference: string | null
           updated_at: string | null
@@ -1902,7 +1902,7 @@ export type Database = {
           is_verified?: boolean | null
           occupation?: string | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
+          role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
           theme_preference?: string | null
           updated_at?: string | null
@@ -1922,7 +1922,7 @@ export type Database = {
           is_verified?: boolean | null
           occupation?: string | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
+          role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
           theme_preference?: string | null
           updated_at?: string | null

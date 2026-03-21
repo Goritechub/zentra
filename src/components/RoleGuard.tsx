@@ -8,9 +8,9 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, loading, role, bootstrapStatus } = useAuth();
 
-  if (loading) {
+  if (loading || bootstrapStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -18,22 +18,11 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     );
   }
 
-  // If not authenticated, redirect to auth (AuthGuard should handle this, but double-check)
-  if (!user) {
+  if (!user || bootstrapStatus !== "ready") {
     return <Navigate to="/auth" replace />;
   }
 
-  // Wait for profile to load before making role decisions
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Block authenticated users with wrong role
-  if (!allowedRoles.includes(profile.role)) {
+  if (!role || !allowedRoles.includes(role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

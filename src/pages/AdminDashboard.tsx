@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getAdminDashboardData,
+  setAdminUserSuspension,
+} from "@/api/admin.api";
 import { formatDistanceToNow } from "date-fns";
 import { DisputeAdjudicator } from "@/components/admin/DisputeAdjudicator";
 import {
@@ -14,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { user, signOut, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,51 +27,42 @@ export default function AdminDashboard() {
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
 
   useEffect(() => {
-    if (!authLoading && user) checkAdminAndFetch();
-    if (!authLoading && !user) navigate("/auth");
-  }, [user, authLoading]);
+    if (bootstrapStatus === "ready" && user) {
+      void checkAdminAndFetch();
+    }
+  }, [bootstrapStatus, user]);
 
   const checkAdminAndFetch = async () => {
-    // Check admin role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user!.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (!roleData) {
-      setIsAdmin(false);
+    setLoading(true);
+    try {
+      const data = await getAdminDashboardData();
+      setIsAdmin(true);
+      setModerationLogs(data.moderationLogs || []);
+      setViolators(data.violators || []);
+      setDisputes(data.disputes || []);
+    } catch (error: any) {
+      if (error?.status === 403) {
+        setIsAdmin(false);
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setIsAdmin(true);
-
-    const [logsRes, violatorsRes, disputesRes] = await Promise.all([
-      supabase.from("moderation_logs").select("*").order("created_at", { ascending: false }).limit(50),
-      supabase.from("user_violation_counts").select("*").order("total_violations", { ascending: false }).limit(50),
-      supabase.from("disputes").select("*, contract:contracts!disputes_contract_id_fkey(*, client:profiles!contracts_client_id_fkey(full_name), freelancer:profiles!contracts_freelancer_id_fkey(full_name))").order("created_at", { ascending: false }).limit(50),
-    ]);
-
-    setModerationLogs(logsRes.data || []);
-    setViolators(violatorsRes.data || []);
-    setDisputes(disputesRes.data || []);
-    setLoading(false);
   };
 
   const toggleSuspension = async (userId: string, isSuspended: boolean) => {
-    await supabase.from("user_violation_counts").update({ is_suspended: !isSuspended }).eq("user_id", userId);
-    setViolators(prev => prev.map(v => v.user_id === userId ? { ...v, is_suspended: !isSuspended } : v));
+    try {
+      await setAdminUserSuspension(userId, !isSuspended);
+      setViolators(prev => prev.map(v => v.user_id === userId ? { ...v, is_suspended: !isSuspended } : v));
+    } catch (error) {
+      // no-op toast omitted to preserve current behavior
+    }
   };
 
-  const updateDisputeStatus = async (disputeId: string, status: string) => {
-    // Legacy simple resolution - kept for backward compat but new flow uses adjudicator
-    await supabase.from("disputes").update({ status, dispute_status: "resolved", resolved_at: new Date().toISOString() }).eq("id", disputeId);
-    setDisputes(prev => prev.map(d => d.id === disputeId ? { ...d, status, dispute_status: "resolved" } : d));
-  };
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
+  }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -100,6 +94,11 @@ export default function AdminDashboard() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>

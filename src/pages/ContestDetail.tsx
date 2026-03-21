@@ -21,6 +21,26 @@ import {
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createContestComment,
+  createCommentMention,
+  deleteContestEntry,
+  extendContestDeadline,
+  followContest,
+  getContestComments,
+  getContestDetailOverview,
+  getContestCommentLikes,
+  getContestFollowers,
+  getContestFollowState,
+  publishContestWinners,
+  setContestEntryNominee,
+  submitContestEntry,
+  toggleContestCommentLike,
+  unfollowContest,
+  updateContestEntry,
+  updateContestStatus,
+  updateContestWinnerJustifications,
+} from "@/api/marketplace.api";
 import { createNotification } from "@/lib/notifications";
 import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, format, formatDistanceToNow, differenceInHours } from "date-fns";
@@ -476,13 +496,11 @@ export default function ContestDetailPage() {
   useEffect(() => {
     if (contest && deadlinePassed && contest.status === "active" && winners.length === 0) {
       if (user && contest.client_id === user.id) {
-        supabase
-          .from("contests" as any)
-          .update({ status: "selecting_winners" })
-          .eq("id", id)
+        updateContestStatus(id!, "selecting_winners")
           .then(() => {
             setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
-          });
+          })
+          .catch(() => {});
       } else {
         // Non-owners see derived state without writing to DB
         setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
@@ -492,28 +510,19 @@ export default function ContestDetailPage() {
 
   const fetchFollowState = async () => {
     if (!user || !id) return;
-    const { data } = await supabase
-      .from("contest_follows" as any)
-      .select("id")
-      .eq("contest_id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    setIsFollowing(!!data);
+    const data = await getContestFollowState(id);
+    setIsFollowing(!!data.isFollowing);
   };
 
   const handleToggleFollow = async () => {
     if (!user || !id) return;
     setFollowLoading(true);
     if (isFollowing) {
-      await supabase
-        .from("contest_follows" as any)
-        .delete()
-        .eq("contest_id", id)
-        .eq("user_id", user.id);
+      await unfollowContest(id);
       setIsFollowing(false);
       toast.success("Unfollowed contest");
     } else {
-      await supabase.from("contest_follows" as any).insert({ contest_id: id, user_id: user.id } as any);
+      await followContest(id);
       setIsFollowing(true);
       toast.success("Following contest — you'll be notified of new comments");
     }
@@ -521,94 +530,39 @@ export default function ContestDetailPage() {
   };
 
   const fetchContest = async () => {
-    const { data } = (await supabase
-      .from("contests" as any)
-      .select("*, client:profiles!contests_client_id_fkey(full_name, avatar_url, username, state, city)")
-      .eq("id", id)
-      .single()) as { data: any };
-    setContest(data);
-
-    // Fetch true entry count via SECURITY DEFINER function (bypasses RLS)
-    const { data: countData } = await supabase.rpc("get_contest_entry_count", { _contest_id: id! } as any);
-    setTrueEntryCount(typeof countData === "number" ? countData : 0);
-
-    const { data: entriesData } = await supabase
-      .from("contest_entries")
-      .select("*, freelancer:profiles!contest_entries_freelancer_id_fkey(full_name, avatar_url, username)")
-      .eq("contest_id", id!)
-      .order("created_at", { ascending: false });
-
-    const allFetched = (entriesData as any[]) || [];
-    setWinners(
-      allFetched.filter((e) => e.is_winner).sort((a, b) => (a.prize_position || 99) - (b.prize_position || 99)),
-    );
-    setNominees(allFetched.filter((e) => (e as any).is_nominee && !e.is_winner));
-    setEntries(allFetched.filter((e) => !e.is_winner && !(e as any).is_nominee));
-
-    const participants: any[] = [];
-    if (data) {
-      participants.push({
-        id: data.client_id,
-        full_name: (data.client as any)?.full_name,
-        username: (data.client as any)?.username,
-      });
-    }
-    allFetched.forEach((e) => {
-      if (!participants.find((p) => p.id === e.freelancer_id)) {
-        participants.push({
-          id: e.freelancer_id,
-          full_name: (e.freelancer as any)?.full_name,
-          username: (e.freelancer as any)?.username,
-        });
-      }
-    });
-    setContestParticipants(participants);
+    if (!id) return;
+    const data = await getContestDetailOverview(id);
+    setContest(data.contest);
+    setTrueEntryCount(data.trueEntryCount || 0);
+    setEntries(data.entries || []);
+    setNominees(data.nominees || []);
+    setWinners(data.winners || []);
+    setContestParticipants(data.participants || []);
     setLoading(false);
   };
 
   const fetchLikes = async () => {
     if (!id) return;
-    const { data } = await supabase.from("contest_comment_likes").select("*");
-    setCommentLikes((data as any[]) || []);
+    const data = await getContestCommentLikes(id);
+    setCommentLikes(data.likes || []);
   };
 
   const fetchComments = useCallback(async () => {
-    const { data: commentsData, error: commentsError } = await supabase
-      .from("contest_comments")
-      .select("*")
-      .eq("contest_id", id)
-      .order("created_at", { ascending: true });
-
-    if (commentsError) {
+    if (!id) return;
+    let hydrated: any[] = [];
+    try {
+      const data = await getContestComments(id);
+      hydrated = data.comments || [];
+    } catch {
       toast.error("Failed to load comments");
       return;
     }
 
-    const rows = (commentsData as any[]) || [];
-    const userIds = Array.from(new Set(rows.map((c) => c.user_id).filter(Boolean)));
-
-    let profileMap = new Map<string, any>();
-    if (userIds.length > 0) {
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url, username")
-        .in("id", userIds);
-      if (profilesData) {
-        profileMap = new Map(profilesData.map((p: any) => [p.id, p]));
-      }
-    }
-
-    const hydrated = rows.map((c) => ({
-      ...c,
-      user: profileMap.get(c.user_id) || null,
-    }));
-
     setComments(hydrated);
-
-    const commentIds = rows.map((c) => c.id);
+    const commentIds = hydrated.map((c) => c.id);
     if (commentIds.length > 0) {
-      const { data: likesData } = await supabase.from("contest_comment_likes").select("*").in("comment_id", commentIds);
-      setCommentLikes((likesData as any[]) || []);
+      const likesData = await getContestCommentLikes(id!);
+      setCommentLikes(likesData.likes || []);
     }
 
     setContestParticipants((prev) => {
@@ -674,19 +628,15 @@ export default function ContestDetailPage() {
         urls.push(data.publicUrl);
       }
     }
-    const { error } = await supabase.from("contest_entries").insert({
-      contest_id: id,
-      freelancer_id: user!.id,
-      description: submissionDesc.trim(),
-      attachments: urls,
-    });
-    if (error) toast.error("Failed to submit entry");
-    else {
+    try {
+      await submitContestEntry(id!, { description: submissionDesc.trim(), attachments: urls });
       toast.success("Entry submitted!");
       setShowSubmitDialog(false);
       setSubmissionDesc("");
       setSubmissionFiles([]);
       fetchContest();
+    } catch {
+      toast.error("Failed to submit entry");
     }
     setSubmitting(false);
   };
@@ -710,33 +660,32 @@ export default function ContestDetailPage() {
       }
       newAttachments = urls;
     }
-    const { error } = await supabase
-      .from("contest_entries")
-      .update({
+    try {
+      await updateContestEntry(editingEntry.id, {
         description: editDesc.trim(),
         attachments: newAttachments,
         edit_count: (editingEntry.edit_count || 0) + 1,
         last_edited_at: new Date().toISOString(),
-      })
-      .eq("id", editingEntry.id);
-    if (error) toast.error("Failed to update entry");
-    else {
+      });
       toast.success("Entry updated!");
       setEditingEntry(null);
       setEditDesc("");
       setEditFiles([]);
       fetchContest();
+    } catch {
+      toast.error("Failed to update entry");
     }
     setEditSubmitting(false);
   };
 
   const handleDeleteEntry = async (entryId: string) => {
     if (!confirm("Are you sure you want to delete this entry?")) return;
-    const { error } = await supabase.from("contest_entries").delete().eq("id", entryId);
-    if (error) toast.error("Failed to delete entry");
-    else {
+    try {
+      await deleteContestEntry(entryId);
       toast.success("Entry deleted");
       fetchContest();
+    } catch {
+      toast.error("Failed to delete entry");
     }
   };
 
@@ -746,19 +695,13 @@ export default function ContestDetailPage() {
       toast.error(`You can only nominate up to ${max} entr${max === 1 ? "y" : "ies"} based on your prize structure.`);
       return;
     }
-    await supabase
-      .from("contest_entries")
-      .update({ is_nominee: true } as any)
-      .eq("id", entryId);
+    await setContestEntryNominee(entryId, true);
     toast.success("Entry nominated!");
     fetchContest();
   };
 
   const handleRemoveNominee = async (entryId: string) => {
-    await supabase
-      .from("contest_entries")
-      .update({ is_nominee: false } as any)
-      .eq("id", entryId);
+    await setContestEntryNominee(entryId, false);
     toast.success("Nominee removed");
     fetchContest();
   };
@@ -774,18 +717,9 @@ export default function ContestDetailPage() {
     }
     setPublishingWinners(true);
 
-    await supabase
-      .from("contests" as any)
-      .update({ winner_justifications: justifications } as any)
-      .eq("id", id);
-
     try {
-      const { data, error } = await supabase.functions.invoke("publish-contest-winners", { body: { contest_id: id } });
-      if (error || !data?.success) {
-        toast.error(data?.error || "Failed to publish winners. Please try again.");
-        setPublishingWinners(false);
-        return;
-      }
+      await updateContestWinnerJustifications(id!, justifications);
+      await publishContestWinners(id!);
       toast.success("Winners published! Prize payouts completed.");
       setShowPublishConfirm(false);
       setJustifications({});
@@ -802,22 +736,17 @@ export default function ContestDetailPage() {
       return;
     }
     setExtendingDeadline(true);
-    const { error } = await supabase
-      .from("contests" as any)
-      .update({
-        deadline: newDeadline,
-        status: "active",
-        deadline_extended_once: true,
-      } as any)
-      .eq("id", id);
-    if (error) {
+    try {
+      await extendContestDeadline(id!, newDeadline);
+    } catch {
       toast.error("Failed to extend deadline");
-    } else {
-      toast.success("Deadline extended! Contest is active again.");
-      setShowExtendDialog(false);
-      setNewDeadline("");
-      fetchContest();
+      setExtendingDeadline(false);
+      return;
     }
+    toast.success("Deadline extended! Contest is active again.");
+    setShowExtendDialog(false);
+    setNewDeadline("");
+    fetchContest();
     setExtendingDeadline(false);
   };
 
@@ -882,11 +811,9 @@ export default function ContestDetailPage() {
         message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
       });
     }
-    const { data: followers } = await supabase
-      .from("contest_follows" as any)
-      .select("user_id")
-      .eq("contest_id", id);
-    if (followers) {
+    const followersData = await getContestFollowers(id);
+    const followers = followersData.followers || [];
+    if (followers.length) {
       for (const f of followers as any[]) {
         if (f.user_id === user.id) continue;
         if (f.user_id === contest.client_id) continue;
@@ -906,18 +833,14 @@ export default function ContestDetailPage() {
     if (!text.trim() || !user) return;
     setPostingComment(true);
 
-    const { data: inserted, error } = await supabase
-      .from("contest_comments" as any)
-      .insert({
-        contest_id: id,
-        user_id: user.id,
-        parent_id: parentId || null,
+    let inserted: any = null;
+    try {
+      const data = await createContestComment(id!, {
         content: text.trim(),
-      } as any)
-      .select("*")
-      .single();
-
-    if (error) {
+        parent_id: parentId || null,
+      });
+      inserted = data.comment;
+    } catch {
       toast.error("Failed to post comment");
       setPostingComment(false);
       return;
@@ -928,10 +851,7 @@ export default function ContestDetailPage() {
       for (const username of mentionedUsernames) {
         const mentioned = contestParticipants.find((p) => p.username?.toLowerCase() === username.toLowerCase());
         if (mentioned && mentioned.id !== user.id) {
-          await supabase.from("comment_mentions" as any).insert({
-            comment_id: (inserted as any).id,
-            mentioned_user_id: mentioned.id,
-          } as any);
+          await createCommentMention((inserted as any).id, mentioned.id);
           await createNotification({
             userId: mentioned.id,
             type: "mention",
@@ -954,20 +874,8 @@ export default function ContestDetailPage() {
 
   const handleLikeComment = async (commentId: string) => {
     if (!user) return;
-    const existing = commentLikes.find((l: any) => l.comment_id === commentId && l.user_id === user.id);
-    if (existing) {
-      await supabase
-        .from("contest_comment_likes" as any)
-        .delete()
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("contest_comment_likes" as any).insert({ comment_id: commentId, user_id: user.id } as any);
-    }
-    const commentIds = comments.map((c) => c.id);
-    if (commentIds.length > 0) {
-      const { data: likesData } = await supabase.from("contest_comment_likes").select("*").in("comment_id", commentIds);
-      setCommentLikes((likesData as any[]) || []);
-    }
+    const data = await toggleContestCommentLike(commentId, id!);
+    setCommentLikes(data.likes || []);
   };
 
   const getCommentLikeCount = (commentId: string) => commentLikes.filter((l: any) => l.comment_id === commentId).length;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -14,7 +15,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  acceptAndAssignClientProposal,
+  getClientReceivedProposalsOverview,
+  rejectClientProposal,
+  startClientProposalInterview,
+  updateClientProposalStatus,
+} from "@/api/client-proposals.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
@@ -25,7 +32,6 @@ import { toast } from "sonner";
 import {
   FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase
 } from "lucide-react";
-import { createNotification } from "@/lib/notifications";
 
 function formatDurationDisplay(days: number, unit?: string): string {
   const u = unit || "days";
@@ -41,7 +47,7 @@ function formatDurationDisplay(days: number, unit?: string): string {
 }
 
 export default function ProposalsReceivedPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,82 +61,44 @@ export default function ProposalsReceivedPage() {
   const { isVerified: kycVerified } = useKycVerification();
   const [showKycModal, setShowKycModal] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) {
-      fetchProposals();
-      fetchWallet();
-    }
-  }, [user, authLoading]);
-
-  const fetchWallet = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle();
-    setWallet(data);
-  };
-
   const [jobContracts, setJobContracts] = useState<Map<string, any>>(new Map());
   const [jobsData, setJobsData] = useState<any[]>([]);
 
-  const fetchProposals = async () => {
-    const { data: jobs } = await supabase
-      .from("jobs")
-      .select("id, title, status")
-      .eq("client_id", user!.id);
+  const proposalsOverviewQuery = useQuery({
+    queryKey: ["client-received-proposals", user?.id],
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: getClientReceivedProposalsOverview,
+  });
 
-    if (!jobs?.length) {
-      setProposals([]);
-      setJobsData([]);
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    if (!user) navigate("/auth");
+  }, [user, navigate]);
 
-    setJobsData(jobs);
-    const jobIds = jobs.map((j) => j.id);
-    const [proposalsRes, contractsRes] = await Promise.all([
-      supabase
-        .from("proposals")
-        .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, avatar_url, state, city, is_verified)")
-        .in("job_id", jobIds)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contracts")
-        .select("id, job_id, status, freelancer_id")
-        .in("job_id", jobIds)
-        .in("status", ["active", "completed", "pending_funding", "disputed"] as any),
-    ]);
+  useEffect(() => {
+    const data = proposalsOverviewQuery.data;
+    if (!data) return;
 
-    // Build contract map per job (pick the most relevant contract)
+    setWallet(data.wallet || null);
+    setJobsData(data.jobs || []);
+    setProposals(data.proposals || []);
+
     const contractMap = new Map<string, any>();
-    (contractsRes.data || []).forEach((c: any) => {
-      if (!contractMap.has(c.job_id) || c.status === "active") {
-        contractMap.set(c.job_id, c);
+    (data.jobContracts || []).forEach((contract: any) => {
+      if (!contractMap.has(contract.job_id) || contract.status === "active") {
+        contractMap.set(contract.job_id, contract);
       }
     });
     setJobContracts(contractMap);
-
-    const data = proposalsRes.data;
-
-    // Fetch KYC verification status for all freelancers
-    const freelancerIds = [...new Set((data || []).map((p: any) => p.freelancer_id))];
-    let kycMap = new Map<string, any>();
-    if (freelancerIds.length > 0) {
-      const { data: kycData } = await supabase
-        .from("kyc_verifications" as any)
-        .select("user_id, kyc_status, zentra_verified")
-        .in("user_id", freelancerIds);
-      (kycData || []).forEach((k: any) => kycMap.set(k.user_id, k));
-    }
-
-    const enriched = (data || []).map((p: any) => ({
-      ...p,
-      job_title: jobs.find((j) => j.id === p.job_id)?.title || "Unknown Job",
-      kyc: kycMap.get(p.freelancer_id) || null,
-    }));
-
-    setProposals(enriched);
     setLoading(false);
-  };
+  }, [proposalsOverviewQuery.data]);
+
+  useEffect(() => {
+    if (proposalsOverviewQuery.isPending && !proposalsOverviewQuery.data) {
+      setLoading(true);
+    }
+  }, [proposalsOverviewQuery.isPending, proposalsOverviewQuery.data]);
 
   const updateProposalStatus = async (proposalId: string, status: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
@@ -146,137 +114,39 @@ export default function ProposalsReceivedPage() {
       await handleRejectProposal(proposal);
       return;
     }
-
-    const { error } = await supabase
-      .from("proposals")
-      .update({ status } as any)
-      .eq("id", proposalId);
-
-    if (error) {
-      toast.error("Failed to update proposal");
-    } else {
+    try {
+      await updateClientProposalStatus(proposalId, status);
       toast.success(`Proposal ${status}`);
       setProposals((prev) =>
-        prev.map((p) => (p.id === proposalId ? { ...p, status } : p))
+        prev.map((p) => (p.id === proposalId ? { ...p, status } : p)),
       );
+    } catch {
+      toast.error("Failed to update proposal");
     }
   };
 
   const handleStartInterview = async (proposal: any) => {
     setInterviewingId(proposal.id);
-    // Fetch job details for snapshot
-    const { data: jobData } = await supabase
-      .from("jobs")
-      .select("title, description, budget_min, budget_max, delivery_days, delivery_unit, attachments, required_skills, required_software")
-      .eq("id", proposal.job_id)
-      .single();
-
-    // Update proposal status
-    const { error: propError } = await supabase
-      .from("proposals")
-      .update({ status: "interviewing" } as any)
-      .eq("id", proposal.id);
-
-    if (propError) { toast.error("Failed to start interview"); return; }
-
-    // Create draft contract with "interviewing" status
-    const { data: contractData, error: contractError } = await supabase.from("contracts").insert({
-      job_id: proposal.job_id,
-      client_id: user!.id,
-      freelancer_id: proposal.freelancer_id,
-      proposal_id: proposal.id,
-      amount: proposal.bid_amount,
-      status: "interviewing" as any,
-      job_title: jobData?.title || proposal.job_title,
-      job_description: jobData?.description || null,
-      job_budget_min: jobData?.budget_min || null,
-      job_budget_max: jobData?.budget_max || null,
-      job_delivery_days: jobData?.delivery_days || null,
-      job_delivery_unit: jobData?.delivery_unit || "days",
-      job_attachments: jobData?.attachments || [],
-      accepted_cover_letter: proposal.cover_letter,
-      accepted_bid_amount: proposal.bid_amount,
-      accepted_attachments: proposal.attachments || [],
-      accepted_payment_type: proposal.payment_type || "project",
-    } as any).select().single();
-
-    if (contractError || !contractData) { toast.error("Failed to create interview contract"); return; }
-
-    // Seed system message
-    const jobTitle = jobData?.title || proposal.job_title || "a job";
-    await supabase.from("contract_messages").insert({
-      contract_id: contractData.id,
-      sender_id: user!.id,
-      content: `💬 Interview started for "${jobTitle}". Discuss the project details here.`,
-      is_system_message: true,
-    } as any);
-
-    // Seed cover letter as message
-    if (proposal.cover_letter) {
-      await supabase.from("contract_messages").insert({
-        contract_id: contractData.id,
-        sender_id: proposal.freelancer_id,
-        content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
-        is_system_message: true,
-      } as any);
+    try {
+      const data = await startClientProposalInterview(proposal.id);
+      toast.success("Interview started! A chat thread has been created.");
+      setProposals((prev) => prev.map((p) => (p.id === proposal.id ? { ...p, status: "interviewing" } : p)));
+      navigate(`/contract/${data.contractId}?tab=chat`);
+    } catch {
+      toast.error("Failed to start interview");
+    } finally {
+      setInterviewingId(null);
     }
-
-    // Send notification to expert
-    await createNotification({
-      userId: proposal.freelancer_id,
-      type: "interview_started",
-      title: "Interview Started",
-      message: `${profile?.full_name || "A client"} started an interview for "${jobTitle}"`,
-      contractId: contractData.id,
-    });
-
-    toast.success("Interview started! A chat thread has been created.");
-    setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "interviewing" } : p));
-    navigate(`/contract/${contractData.id}?tab=chat`);
   };
 
   const handleRejectProposal = async (proposal: any) => {
-    // Update proposal status
-    const { error: propError } = await supabase
-      .from("proposals")
-      .update({ status: "rejected" } as any)
-      .eq("id", proposal.id);
-
-    if (propError) { toast.error("Failed to reject proposal"); return; }
-
-    // Find and close the associated interview contract if any
-    const { data: contracts } = await supabase
-      .from("contracts")
-      .select("id")
-      .eq("proposal_id", proposal.id)
-      .eq("status", "interviewing" as any);
-
-    if (contracts?.length) {
-      for (const c of contracts) {
-        await supabase.from("contracts").update({ status: "rejected" as any } as any).eq("id", c.id);
-
-        // Post system message
-        await supabase.from("contract_messages").insert({
-          contract_id: c.id,
-          sender_id: user!.id,
-          content: `❌ This interview has been closed. The proposal was declined.`,
-          is_system_message: true,
-        } as any);
-      }
+    try {
+      await rejectClientProposal(proposal.id);
+      toast.success("Proposal rejected");
+      setProposals((prev) => prev.map((p) => (p.id === proposal.id ? { ...p, status: "rejected" } : p)));
+    } catch {
+      toast.error("Failed to reject proposal");
     }
-
-    // Notify expert
-    const jobTitle = proposal.job_title || "a job";
-    await createNotification({
-      userId: proposal.freelancer_id,
-      type: "proposal_rejected",
-      title: "Proposal Declined",
-      message: `Your proposal for "${jobTitle}" was declined.`,
-      contractId: contracts?.[0]?.id || null,
-    });
-
-    toast.success("Proposal rejected");
-    setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "rejected" } : p));
   };
 
   const getRequiredAmount = (proposal: any) => {
@@ -304,238 +174,16 @@ export default function ProposalsReceivedPage() {
     }
 
     setAssigning(true);
-
-    // Fetch full job details for snapshot
-    const { data: jobData } = await supabase
-      .from("jobs")
-      .select("title, description, budget_min, budget_max, delivery_days, delivery_unit, attachments, required_skills, required_software")
-      .eq("id", proposal.job_id)
-      .single();
-
-    // Accept proposal
-    const { error: propError } = await supabase
-      .from("proposals")
-      .update({ status: "accepted" } as any)
-      .eq("id", proposal.id);
-
-    if (propError) {
-      toast.error("Failed to accept proposal");
+    try {
+      const result = await acceptAndAssignClientProposal(proposal.id, fundNow);
+      toast.success("Expert assigned and contract created!");
+      setAssignDialog({ open: false, proposal: null });
+      navigate(`/contract/${result.contractId}`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to assign expert");
+    } finally {
       setAssigning(false);
-      return;
     }
-
-    // Check if an interview contract already exists for this proposal
-    let contractData: any = null;
-    const { data: existingContracts } = await supabase
-      .from("contracts")
-      .select("*")
-      .eq("proposal_id", proposal.id)
-      .eq("status", "interviewing" as any);
-
-    if (existingContracts?.length) {
-      // Upgrade existing interview contract
-      const newStatus = fundNow ? "active" : "pending_funding";
-      const { data: updated, error: updateErr } = await supabase
-        .from("contracts")
-        .update({ status: newStatus as any, started_at: new Date().toISOString() } as any)
-        .eq("id", existingContracts[0].id)
-        .select()
-        .single();
-      if (updateErr) { toast.error("Failed to activate contract"); setAssigning(false); return; }
-      contractData = updated;
-    } else {
-      const newStatus = fundNow ? "active" : "pending_funding";
-      const { data: newContract, error: contractError } = await supabase.from("contracts").insert({
-        job_id: proposal.job_id,
-        client_id: user.id,
-        freelancer_id: proposal.freelancer_id,
-        proposal_id: proposal.id,
-        amount: proposal.bid_amount,
-        status: newStatus as any,
-        job_title: jobData?.title || proposal.job_title,
-        job_description: jobData?.description || null,
-        job_budget_min: jobData?.budget_min || null,
-        job_budget_max: jobData?.budget_max || null,
-        job_delivery_days: jobData?.delivery_days || null,
-        job_delivery_unit: jobData?.delivery_unit || "days",
-        job_attachments: jobData?.attachments || [],
-        accepted_cover_letter: proposal.cover_letter,
-        accepted_bid_amount: proposal.bid_amount,
-        accepted_attachments: proposal.attachments || [],
-        accepted_payment_type: proposal.payment_type || "project",
-      } as any).select().single();
-
-      if (contractError) {
-        toast.error("Failed to create contract");
-        setAssigning(false);
-        return;
-      }
-      contractData = newContract;
-
-      // Seed first contract messages for new contracts
-      const jobTitle = proposal.job_title || "a job";
-      await supabase.from("contract_messages").insert({
-        contract_id: contractData.id,
-        sender_id: user.id,
-        content: `🎉 Contract created for "${jobTitle}". Welcome aboard! Let's get started.`,
-        is_system_message: true,
-      } as any);
-
-      if (proposal.cover_letter) {
-        await supabase.from("contract_messages").insert({
-          contract_id: contractData.id,
-          sender_id: proposal.freelancer_id,
-          content: `📋 **Original Proposal:**\n\n${proposal.cover_letter}`,
-          is_system_message: true,
-        } as any);
-      }
-    }
-
-    // Post system message about hiring
-    await supabase.from("contract_messages").insert({
-      contract_id: contractData.id,
-      sender_id: user.id,
-      content: `🎉 Congratulations! You have been hired for this project. The contract is now active.`,
-      is_system_message: true,
-    } as any);
-
-    // Update job to in_progress
-    await supabase.from("jobs").update({ status: "in_progress" }).eq("id", proposal.job_id);
-
-    // Close all other interviewing contracts for this job
-    const { data: otherInterviews } = await supabase
-      .from("contracts")
-      .select("id")
-      .eq("job_id", proposal.job_id)
-      .eq("status", "interviewing" as any)
-      .neq("id", contractData.id);
-
-    if (otherInterviews?.length) {
-      for (const oc of otherInterviews) {
-        await supabase
-          .from("contracts")
-          .update({ status: "cancelled" as any } as any)
-          .eq("id", oc.id);
-        await supabase.from("contract_messages").insert({
-          contract_id: oc.id,
-          sender_id: user.id,
-          content: `📋 This job has been assigned to another expert. This interview is now closed.`,
-          is_system_message: true,
-        } as any);
-      }
-    }
-
-    // Reject other pending proposals for this job
-    await supabase
-      .from("proposals")
-      .update({ status: "rejected" } as any)
-      .eq("job_id", proposal.job_id)
-      .neq("id", proposal.id)
-      .in("status", ["pending", "interviewing"]);
-
-    // Create milestones in DB if milestone-based
-    if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
-      const milestoneInserts = proposal.milestones.map((ms: any, idx: number) => ({
-        contract_id: contractData.id,
-        title: ms.title,
-        amount: ms.amount,
-        due_date: ms.date || null,
-        status: (fundNow && idx === 0) ? "funded" : "pending",
-        funded_at: (fundNow && idx === 0) ? new Date().toISOString() : null,
-      }));
-      const { data: createdMilestones } = await supabase.from("milestones").insert(milestoneInserts).select();
-
-      if (fundNow) {
-        await supabase.from("wallets").update({
-          balance: wallet.balance - requiredAmount,
-          escrow_balance: (wallet.escrow_balance || 0) + requiredAmount,
-          total_spent: (wallet.total_spent || 0) + requiredAmount,
-        }).eq("user_id", user.id);
-
-        await supabase.from("wallet_transactions").insert({
-          user_id: user.id, type: "escrow_lock", amount: requiredAmount,
-          balance_after: wallet.balance - requiredAmount,
-          description: `Funded 1st milestone for "${proposal.job_title}"`,
-          contract_id: contractData.id,
-        });
-
-        // Create escrow ledger entry
-        if (createdMilestones?.[0]) {
-          await supabase.from("escrow_ledger").insert({
-            contract_id: contractData.id,
-            milestone_id: createdMilestones[0].id,
-            held_amount: requiredAmount,
-            status: "held",
-          });
-        }
-      }
-    } else {
-      const milestoneStatus = fundNow ? "funded" : "pending";
-      const { data: createdMs } = await supabase.from("milestones").insert({
-        contract_id: contractData.id, title: "Full Project Delivery",
-        amount: proposal.bid_amount, status: milestoneStatus, 
-        funded_at: fundNow ? new Date().toISOString() : null,
-      }).select().single();
-
-      if (fundNow) {
-        await supabase.from("wallets").update({
-          balance: wallet.balance - proposal.bid_amount,
-          escrow_balance: (wallet.escrow_balance || 0) + proposal.bid_amount,
-          total_spent: (wallet.total_spent || 0) + proposal.bid_amount,
-        }).eq("user_id", user.id);
-
-        await supabase.from("wallet_transactions").insert({
-          user_id: user.id, type: "escrow_lock", amount: proposal.bid_amount,
-          balance_after: wallet.balance - proposal.bid_amount,
-          description: `Escrow for project: "${proposal.job_title}"`,
-          contract_id: contractData.id,
-        });
-
-        // Create escrow ledger entry
-        if (createdMs) {
-          await supabase.from("escrow_ledger").insert({
-            contract_id: contractData.id,
-            milestone_id: createdMs.id,
-            held_amount: proposal.bid_amount,
-            status: "held",
-          });
-        }
-      }
-    }
-
-    // System message about funding choice
-    if (!fundNow) {
-      await supabase.from("contract_messages").insert({
-        contract_id: contractData.id,
-        sender_id: user.id,
-        content: `⏳ Contract created but funding is pending. The client will fund the milestone(s) before work begins.`,
-        is_system_message: true,
-      } as any);
-    } else {
-      await supabase.from("contract_messages").insert({
-        contract_id: contractData.id,
-        sender_id: user.id,
-        content: `💰 Funds have been deposited into escrow. Work can begin!`,
-        is_system_message: true,
-      } as any);
-    }
-
-    // Send notification to expert
-    const jobTitle = proposal.job_title || "a job";
-    await createNotification({
-      userId: proposal.freelancer_id,
-      type: "hired",
-      title: "You've Been Hired! 🎉",
-      message: `Congratulations! You have been hired for "${jobTitle}".`,
-      contractId: contractData.id,
-    });
-
-    toast.success("Expert assigned and contract created!");
-    setAssignDialog({ open: false, proposal: null });
-    setAssigning(false);
-    
-    // Navigate to contract page
-    navigate(`/contract/${contractData.id}`);
   };
 
   const openAssignDialog = (proposal: any) => {
@@ -598,7 +246,9 @@ export default function ProposalsReceivedPage() {
 
   const paymentReady = wallet && wallet.balance > 0;
 
-  if (authLoading || loading) {
+  const showInitialPageLoader = !user && (authLoading || bootstrapStatus === "loading");
+
+  if (showInitialPageLoader) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -618,6 +268,16 @@ export default function ProposalsReceivedPage() {
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
+
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+
+          {loading && (
+            <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals...</p>
+          )}
 
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold text-foreground">Proposals Received</h1>

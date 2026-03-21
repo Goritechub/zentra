@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { deleteAdminJob, getAdminJobProposals, getAdminJobs } from "@/api/admin.api";
 import { formatDistanceToNow } from "date-fns";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
@@ -13,7 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Eye, Trash2, FileText } from "lucide-react";
 
 export default function AdminJobs() {
-  const { user } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,46 +19,34 @@ export default function AdminJobs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedJob, setSelectedJob] = useState<any>(null);
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => { void fetchJobs(); }, []);
 
   const fetchJobs = async () => {
-    const { data } = await supabase
-      .from("jobs")
-      .select("*, client:profiles!jobs_client_id_fkey(full_name, email)")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    setJobs(data || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getAdminJobs();
+      setJobs(data.jobs || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const viewJob = async (job: any) => {
     setSelectedJob(job);
-    const { data } = await supabase
-      .from("proposals")
-      .select("*, freelancer:profiles!proposals_freelancer_id_fkey(full_name, email)")
-      .eq("job_id", job.id)
-      .order("created_at", { ascending: false });
-    setProposals(data || []);
+    const data = await getAdminJobProposals(job.id);
+    setProposals(data.proposals || []);
   };
 
   const deleteJob = async (jobId: string) => {
     if (!confirm("Are you sure you want to delete this job? This will also remove all proposals and related data.")) return;
-    // Clean up related data first
-    await Promise.all([
-      supabase.from("proposals").delete().eq("job_id", jobId),
-      supabase.from("job_views").delete().eq("job_id", jobId),
-    ]);
-    const { error } = await supabase.from("jobs").delete().eq("id", jobId);
-    if (error) {
+    try {
+      await deleteAdminJob(jobId);
+      setJobs(prev => prev.filter(j => j.id !== jobId));
+      setSelectedJob(null);
+      toast.success("Job deleted");
+    } catch {
       toast.error("Failed to delete job");
-      return;
     }
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action: "delete_job", target_type: "job", target_id: jobId, details: {},
-    });
-    setJobs(prev => prev.filter(j => j.id !== jobId));
-    setSelectedJob(null);
-    toast.success("Job deleted");
   };
 
   const statusColor = (s: string) => {

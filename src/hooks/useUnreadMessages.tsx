@@ -1,47 +1,39 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getUnreadMessagesCount } from "@/api/messages.api";
 
 export function useUnreadMessages() {
-  const { user } = useAuth();
-  const [count, setCount] = useState(0);
+  const { user, bootstrapStatus, onboardingComplete } = useAuth();
+  const queryClient = useQueryClient();
+
+  const queryKey = ["unread-messages", user?.id];
+  const enabled = !!user && bootstrapStatus === "ready" && onboardingComplete;
+
+  const { data: count = 0 } = useQuery({
+    queryKey,
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: getUnreadMessagesCount,
+  });
 
   useEffect(() => {
-    if (!user) { setCount(0); return; }
-
-    const fetchCount = async () => {
-      // Get all contracts the user is part of
-      const { data: contracts } = await supabase
-        .from("contracts")
-        .select("id")
-        .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`);
-
-      if (!contracts?.length) { setCount(0); return; }
-
-      const contractIds = contracts.map(c => c.id);
-      const { count: unread, error } = await supabase
-        .from("contract_messages")
-        .select("*", { count: "exact", head: true })
-        .in("contract_id", contractIds)
-        .neq("sender_id", user.id)
-        .eq("is_read", false);
-
-      if (!error && unread !== null) setCount(unread);
-    };
-
-    fetchCount();
+    if (!enabled || !user) return;
 
     const channel = supabase
       .channel("unread-contract-messages")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "contract_messages" },
-        () => fetchCount()
+        () => queryClient.invalidateQueries({ queryKey }),
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, queryClient, queryKey, user]);
 
   return count;
 }

@@ -8,14 +8,14 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { cancelSentOfferJob, getSentOffers } from "@/api/offers.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase, UserPlus, Globe, XCircle } from "lucide-react";
 
 export default function SentOffersPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
   const [privateJobs, setPrivateJobs] = useState<any[]>([]);
@@ -25,28 +25,24 @@ export default function SentOffersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchOffers();
-  }, [user, authLoading]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchOffers();
+    }
+  }, [bootstrapStatus, user]);
 
   const fetchOffers = async () => {
     if (!user) return;
-    const [offersRes, jobsRes] = await Promise.all([
-      supabase
-        .from("offers" as any)
-        .select("*, freelancer:profiles!offers_freelancer_id_fkey(full_name, avatar_url)")
-        .eq("client_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("jobs")
-        .select("*, invitedExperts:profiles!inner(id, full_name, avatar_url)")
-        .eq("client_id", user.id)
-        .eq("visibility", "private")
-        .order("created_at", { ascending: false }),
-    ]);
-    setOffers((offersRes.data as any[]) || []);
-    setPrivateJobs((jobsRes.data as any[]) || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const response = await getSentOffers();
+      setOffers(response.offers || []);
+      setPrivateJobs(response.privateJobs || []);
+    } catch {
+      setOffers([]);
+      setPrivateJobs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const statusIcon = (status: string) => {
@@ -83,16 +79,20 @@ export default function SentOffersPage() {
   const handleCloseJob = async () => {
     if (!selectedJob) return;
     setActionLoading(true);
-    const { error } = await supabase.from("jobs").update({ status: "cancelled" }).eq("id", selectedJob.id);
-    if (error) toast.error("Failed to close job");
-    else { toast.success("Job closed"); fetchOffers(); }
+    try {
+      await cancelSentOfferJob(selectedJob.id);
+      toast.success("Job closed");
+      void fetchOffers();
+    } catch {
+      toast.error("Failed to close job");
+    }
     setActionLoading(false);
     setShowCloseDialog(false);
     setSelectedJob(null);
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   const totalItems = offers.length + privateJobs.length;
@@ -102,12 +102,27 @@ export default function SentOffersPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
           <h1 className="text-3xl font-bold text-foreground mb-8">Sent Offers</h1>
 
-          {totalItems === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                  <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
+                  <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse mb-3" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              ))}
+            </div>
+          ) : totalItems === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No offers sent yet</p>

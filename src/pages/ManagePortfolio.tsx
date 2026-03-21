@@ -9,33 +9,53 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createMyPortfolioItem,
+  deleteMyPortfolioItem,
+  getMyPortfolioOverview,
+} from "@/api/marketplace.api";
 import { toast } from "sonner";
 import { cadSoftwareList } from "@/lib/nigerian-data";
-import { ArrowLeft, Loader2, Plus, Trash2, ImageIcon, X, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Plus,
+  Trash2,
+  ImageIcon,
+  X,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 function ImageCarousel({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) return null;
+
   return (
     <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden mb-3 group">
       <img src={images[idx]} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" />
       {images.length > 1 && (
         <>
           <button
-            onClick={() => setIdx(i => (i - 1 + images.length) % images.length)}
+            onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setIdx(i => (i + 1) % images.length)}
+            onClick={() => setIdx((i) => (i + 1) % images.length)}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
             {images.map((_, i) => (
-              <button key={i} onClick={() => setIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/50"}`} />
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/50"}`}
+              />
             ))}
           </div>
         </>
@@ -45,14 +65,13 @@ function ImageCarousel({ images }: { images: string[] }) {
 }
 
 export default function ManagePortfolioPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, role, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // New item form
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -62,44 +81,40 @@ export default function ManagePortfolioPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (!authLoading && profile?.role !== "freelancer") navigate("/dashboard");
-  }, [user, authLoading, profile]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchPortfolio = useCallback(async () => {
     if (!user) return;
-    const { data: fp } = await supabase
-      .from("freelancer_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (fp) {
-      setProfileId(fp.id);
-      const { data } = await supabase
-        .from("portfolio_items")
-        .select("*")
-        .eq("freelancer_profile_id", fp.id)
-        .order("created_at", { ascending: false });
-      setItems(data || []);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await getMyPortfolioOverview();
+      setProfileId(response.data.profileId);
+      setItems(response.data.items || []);
+    } catch (error) {
+      setProfileId(null);
+      setItems([]);
+      setLoadError(error instanceof Error ? error.message : "Failed to load portfolio");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    if (user) fetchPortfolio();
-  }, [user, fetchPortfolio]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchPortfolio();
+    }
+  }, [bootstrapStatus, user, fetchPortfolio]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(f =>
-      ["jpg", "jpeg", "png", "webp"].includes(f.name.split(".").pop()?.toLowerCase() || "")
+    const files = Array.from(e.target.files || []).filter((f) =>
+      ["jpg", "jpeg", "png", "webp"].includes(f.name.split(".").pop()?.toLowerCase() || ""),
     );
     const combined = [...imageFiles, ...files].slice(0, 5);
     setImageFiles(combined);
-    // Generate previews
+
     const previews: string[] = [];
-    combined.forEach(file => {
+    combined.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         previews.push(ev.target?.result as string);
@@ -107,12 +122,13 @@ export default function ManagePortfolioPage() {
       };
       reader.readAsDataURL(file);
     });
+
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const removeImage = (idx: number) => {
-    setImageFiles(f => f.filter((_, i) => i !== idx));
-    setImagePreviews(p => p.filter((_, i) => i !== idx));
+    setImageFiles((f) => f.filter((_, i) => i !== idx));
+    setImagePreviews((p) => p.filter((_, i) => i !== idx));
   };
 
   const handleAdd = async () => {
@@ -120,9 +136,8 @@ export default function ManagePortfolioPage() {
       toast.error("Please enter a title");
       return;
     }
-    setSaving(true);
 
-    // Upload images
+    setSaving(true);
     const uploadedUrls: string[] = [];
     for (const file of imageFiles) {
       const path = `portfolio/${user!.id}/${Date.now()}_${file.name}`;
@@ -133,38 +148,54 @@ export default function ManagePortfolioPage() {
       }
     }
 
-    const { error } = await supabase.from("portfolio_items").insert({
-      freelancer_profile_id: profileId,
-      title: title.trim(),
-      description: description.trim() || null,
-      project_type: projectType.trim() || null,
-      software_used: softwareUsed,
-      images: uploadedUrls,
-    });
-    if (error) {
-      toast.error("Failed to add portfolio item");
-    } else {
+    try {
+      await createMyPortfolioItem({
+        title: title.trim(),
+        description: description.trim() || null,
+        projectType: projectType.trim() || null,
+        softwareUsed,
+        images: uploadedUrls,
+      });
       toast.success("Portfolio item added!");
-      setTitle(""); setDescription(""); setProjectType(""); setSoftwareUsed([]);
-      setImageFiles([]); setImagePreviews([]); setShowForm(false);
-      fetchPortfolio();
+      setTitle("");
+      setDescription("");
+      setProjectType("");
+      setSoftwareUsed([]);
+      setImageFiles([]);
+      setImagePreviews([]);
+      setShowForm(false);
+      void fetchPortfolio();
+    } catch (error) {
+      toast.error("Failed to add portfolio item");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("portfolio_items").delete().eq("id", id);
-    if (error) toast.error("Failed to delete");
-    else {
+    try {
+      await deleteMyPortfolioItem(id);
       toast.success("Item deleted");
-      setItems(items.filter(i => i.id !== id));
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      toast.error("Failed to delete");
     }
   };
 
-  const swSuggestions = cadSoftwareList.filter(s => s.toLowerCase().includes(swSearch.toLowerCase()) && !softwareUsed.includes(s)).slice(0, 6);
+  const swSuggestions = cadSoftwareList
+    .filter((s) => s.toLowerCase().includes(swSearch.toLowerCase()) && !softwareUsed.includes(s))
+    .slice(0, 6);
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (bootstrapStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || bootstrapStatus !== "ready" || role !== "freelancer") {
+    return null;
   }
 
   if (!profileId) {
@@ -187,6 +218,17 @@ export default function ManagePortfolioPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {loadError && (
+            <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {loadError}
+            </div>
+          )}
+
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -214,42 +256,85 @@ export default function ManagePortfolioPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Project Title *</Label>
-                  <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Residential Building Design" maxLength={100} />
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Residential Building Design"
+                    maxLength={100}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
-                  <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the project..." rows={4} maxLength={500} />
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe the project..."
+                    rows={4}
+                    maxLength={500}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Project Type</Label>
-                  <Input value={projectType} onChange={e => setProjectType(e.target.value)} placeholder="e.g. Architectural, Mechanical, Structural" maxLength={50} />
+                  <Input
+                    value={projectType}
+                    onChange={(e) => setProjectType(e.target.value)}
+                    placeholder="e.g. Architectural, Mechanical, Structural"
+                    maxLength={50}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Software Used</Label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {softwareUsed.map(sw => (
+                    {softwareUsed.map((sw) => (
                       <Badge key={sw} variant="secondary" className="gap-1 pr-1">
                         {sw}
-                        <button onClick={() => setSoftwareUsed(softwareUsed.filter(s => s !== sw))} className="ml-1 rounded-full hover:bg-muted p-0.5"><X className="h-3 w-3" /></button>
+                        <button
+                          onClick={() => setSoftwareUsed(softwareUsed.filter((s) => s !== sw))}
+                          className="ml-1 rounded-full hover:bg-muted p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                   </div>
                   <div className="relative">
-                    <Input value={swSearch} onChange={e => setSwSearch(e.target.value)} placeholder="Search software..." />
+                    <Input
+                      value={swSearch}
+                      onChange={(e) => setSwSearch(e.target.value)}
+                      placeholder="Search software..."
+                    />
                     {swSearch && swSuggestions.length > 0 && (
                       <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                        {swSuggestions.map(s => (
-                          <button key={s} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setSoftwareUsed([...softwareUsed, s]); setSwSearch(""); }}>{s}</button>
+                        {swSuggestions.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                            onClick={() => {
+                              setSoftwareUsed([...softwareUsed, s]);
+                              setSwSearch("");
+                            }}
+                          >
+                            {s}
+                          </button>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Image Upload */}
                 <div className="space-y-2">
-                  <Label>Project Images <span className="text-muted-foreground text-xs">(up to 5)</span></Label>
-                  <input ref={imageInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
+                  <Label>
+                    Project Images <span className="text-muted-foreground text-xs">(up to 5)</span>
+                  </Label>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -277,7 +362,16 @@ export default function ManagePortfolioPage() {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => { setShowForm(false); setImageFiles([]); setImagePreviews([]); }}>Cancel</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowForm(false);
+                      setImageFiles([]);
+                      setImagePreviews([]);
+                    }}
+                  >
+                    Cancel
+                  </Button>
                   <Button onClick={handleAdd} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     Add Item
@@ -287,7 +381,17 @@ export default function ManagePortfolioPage() {
             </div>
           )}
 
-          {items.length === 0 && !showForm ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                  <div className="h-40 rounded-lg bg-muted animate-pulse mb-3" />
+                  <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
+                  <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : items.length === 0 && !showForm ? (
             <div className="text-center py-16 bg-card rounded-xl border border-border">
               <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">No portfolio items yet.</p>
@@ -297,7 +401,7 @@ export default function ManagePortfolioPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {items.map(item => (
+              {items.map((item) => (
                 <div key={item.id} className="bg-card rounded-xl border border-border p-6">
                   <ImageCarousel images={item.images || []} />
                   <div className="flex items-start justify-between">
@@ -307,14 +411,25 @@ export default function ManagePortfolioPage() {
                       {item.description && <p className="text-sm text-muted-foreground mt-2">{item.description}</p>}
                       {item.software_used?.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-3">
-                          {item.software_used.map((sw: string) => <Badge key={sw} variant="outline" className="text-xs">{sw}</Badge>)}
+                          {item.software_used.map((sw: string) => (
+                            <Badge key={sw} variant="outline" className="text-xs">
+                              {sw}
+                            </Badge>
+                          ))}
                         </div>
                       )}
                       {item.images?.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-2">{item.images.length} image{item.images.length !== 1 ? "s" : ""}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {item.images.length} image{item.images.length !== 1 ? "s" : ""}
+                        </p>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(item.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

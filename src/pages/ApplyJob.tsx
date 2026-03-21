@@ -11,6 +11,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  getMyJobApplyContext,
+  submitMyJobProposal,
+  updateMyJobProposal,
+} from "@/api/proposals.api";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
@@ -185,24 +190,14 @@ export default function ApplyJobPage() {
   };
 
   const fetchData = async () => {
-    const { data: jobData } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("id", id)
-      .single();
+    if (!id) return;
+    const { job: jobData, existingProposal: existing } = await getMyJobApplyContext(id);
 
     if (!jobData) {
       setLoading(false);
       return;
     }
     setJob(jobData);
-
-    const { data: existing } = await supabase
-      .from("proposals")
-      .select("*")
-      .eq("job_id", id!)
-      .eq("freelancer_id", user!.id)
-      .maybeSingle();
 
     if (existing) {
       setExistingProposal(existing);
@@ -306,9 +301,8 @@ export default function ApplyJobPage() {
         }))
       : [];
 
-    const response = await supabase.functions.invoke("moderate-proposal", {
-      body: {
-        job_id: id,
+    try {
+      const { proposal } = await submitMyJobProposal(id, {
         bid_amount: totalBid,
         delivery_days: totalDays,
         delivery_unit: paymentType === "project" ? deliveryUnit : "days",
@@ -316,37 +310,20 @@ export default function ApplyJobPage() {
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
         payment_type: paymentType,
         milestones: milestonesData,
-      },
-    });
+      });
 
-    if (response.error) {
-      const msg = typeof response.error === "object" && response.error.message
-        ? response.error.message
-        : "Your proposal was blocked due to policy violations.";
-      toast.error(msg);
+      toast.success("Proposal submitted!");
+      if (proposal) {
+        setExistingProposal(proposal);
+        populateEditFields(proposal);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Your proposal was blocked due to policy violations.");
       setSubmitting(false);
       return;
     }
 
-    if (response.data?.error) {
-      toast.error(response.data.error);
-      setSubmitting(false);
-      return;
-    }
-
-    toast.success("Proposal submitted!");
     setSubmitting(false);
-
-    const { data: newProposal } = await supabase
-      .from("proposals")
-      .select("*")
-      .eq("job_id", id!)
-      .eq("freelancer_id", user!.id)
-      .maybeSingle();
-    if (newProposal) {
-      setExistingProposal(newProposal);
-      populateEditFields(newProposal);
-    }
   };
 
   const handleEditProposal = async () => {
@@ -396,9 +373,9 @@ export default function ApplyJobPage() {
         }))
       : [];
 
-    const { error } = await supabase
-      .from("proposals")
-      .update({
+    let updatedProposal: any = null;
+    try {
+      const response = await updateMyJobProposal(existingProposal.id, {
         bid_amount: totalBid,
         delivery_days: totalDays,
         delivery_unit: editPaymentType === "project" ? editDeliveryUnit : "days",
@@ -407,10 +384,9 @@ export default function ApplyJobPage() {
         milestones: milestonesData,
         edit_count: existingProposal.edit_count + 1,
         last_edited_at: new Date().toISOString(),
-      })
-      .eq("id", existingProposal.id);
-
-    if (error) {
+      });
+      updatedProposal = response.proposal;
+    } catch {
       toast.error("Failed to update proposal");
       setEditSubmitting(false);
       return;
@@ -420,14 +396,9 @@ export default function ApplyJobPage() {
     setEditingProposal(false);
     setEditSubmitting(false);
 
-    const { data: updated } = await supabase
-      .from("proposals")
-      .select("*")
-      .eq("id", existingProposal.id)
-      .single();
-    if (updated) {
-      setExistingProposal(updated);
-      populateEditFields(updated);
+    if (updatedProposal) {
+      setExistingProposal(updatedProposal);
+      populateEditFields(updatedProposal);
     }
   };
 

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell, Palette, ChevronRight, FileText, FolderOpen, Mail } from "lucide-react";
 
@@ -22,20 +23,45 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [jobsMenuOpen, setJobsMenuOpen] = useState(false);
   const [mobileJobsOpen, setMobileJobsOpen] = useState(false);
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const [bootstrapStalled, setBootstrapStalled] = useState(false);
+  const { user, profile, signOut, isAdmin, bootstrapStatus, onboardingComplete, role, authError, refreshProfile, profileLoading } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useUnreadMessages();
   const { unreadCount: notifUnreadCount } = useNotifications();
   const { colorTheme, setColorTheme } = useColorTheme();
 
-  const isClient = profile?.role === "client";
-  const isFreelancer = profile?.role === "freelancer";
-  const profileLoaded = !!profile;
+  const isAuthenticated = !!user && bootstrapStatus === "ready";
+  const isBootstrapPending = !!user && bootstrapStatus === "loading";
+  const needsSetup = isAuthenticated && !onboardingComplete;
+  const isClient = role === "client";
+  const isFreelancer = role === "freelancer";
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || "User";
+  const displayRole = role || profile?.role || null;
+  const profileHref = isFreelancer && user ? `/expert/${user.id}/profile` : "/my-profile";
+
+  useEffect(() => {
+    if (!user || bootstrapStatus !== "loading") {
+      setBootstrapStalled(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setBootstrapStalled(true), 5000);
+    return () => window.clearTimeout(timer);
+  }, [bootstrapStatus, user]);
 
   const handleSignOut = async () => {
     setMobileMenuOpen(false);
     await signOut();
+  };
+
+  const handleRetryAccountSync = async () => {
+    const recovered = await refreshProfile();
+    if (!recovered) return;
+
+    await queryClient.invalidateQueries();
+    await queryClient.refetchQueries({ type: "active" });
   };
 
   const getInitials = (name: string | null) => {
@@ -59,12 +85,12 @@ export function Header() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            {user && profileLoaded && isClient && (
+            {isAuthenticated && !needsSetup && isClient && (
               <Link to="/freelancers" className={navLinkClass("/freelancers")}>
                 Find Talent
               </Link>
             )}
-            {user && profileLoaded && isFreelancer && (
+            {isAuthenticated && !needsSetup && isFreelancer && (
               <div className="relative">
                 <button
                   onClick={() => setJobsMenuOpen(!jobsMenuOpen)}
@@ -96,7 +122,7 @@ export function Header() {
                 )}
               </div>
             )}
-            {user && (
+            {isAuthenticated && !needsSetup && (
               <Link to="/messages" className={`relative ${navLinkClass("/messages")}`}>
                 Messages
                 {unreadCount > 0 && (
@@ -133,16 +159,25 @@ export function Header() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {user && profile ? (
+            {needsSetup ? (
+              <>
+                <Button variant="outline" asChild>
+                  <Link to="/onboarding">Complete setup</Link>
+                </Button>
+                <Button variant="ghost" onClick={handleSignOut}>
+                  Sign Out
+                </Button>
+              </>
+            ) : isAuthenticated ? (
               <>
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || "User"} />
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(profile.full_name)}
+                        {getInitials(displayName)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -150,25 +185,25 @@ export function Header() {
                 <DropdownMenuContent className="w-56" align="end">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile.avatar_url || undefined} />
+                      <AvatarImage src={profile?.avatar_url || undefined} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {getInitials(profile.full_name)}
+                        {getInitials(displayName)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <p className="text-sm font-medium">{profile.full_name || "User"}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
+                      <p className="text-sm font-medium">{displayName}</p>
+                      {displayRole && <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>}
                     </div>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
+                    <Link to={isAdmin ? "/admin" : "/dashboard"} className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />Dashboard
                     </Link>
                   </DropdownMenuItem>
                   {isFreelancer && (
                     <DropdownMenuItem asChild>
-                      <Link to={`/expert/${user?.id}/profile`} className="cursor-pointer">
+                      <Link to={profileHref} className="cursor-pointer">
                         <Briefcase className="mr-2 h-4 w-4" />My Profile
                       </Link>
                     </DropdownMenuItem>
@@ -187,8 +222,19 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
               </>
-            ) : user && !profile ? (
-              <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+            ) : isBootstrapPending ? (
+              bootstrapStalled ? (
+                <>
+                  <Button variant="outline" onClick={() => void handleRetryAccountSync()} disabled={profileLoading}>
+                    {profileLoading ? "Retrying..." : "Retry"}
+                  </Button>
+                  <Button variant="ghost" onClick={handleSignOut}>
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+              )
             ) : (
               <>
                 <Button variant="ghost" asChild>
@@ -202,7 +248,7 @@ export function Header() {
           </div>
 
           <div className="flex md:hidden items-center gap-2">
-            {user && <NotificationBell />}
+            {isAuthenticated && <NotificationBell />}
             <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -210,16 +256,33 @@ export function Header() {
         </div>
       </div>
 
+      {isAuthenticated && authError && (
+        <div className="border-t border-border/60 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          <div className="container-wide flex flex-col gap-2 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <p>{authError}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto px-0 text-xs font-medium text-amber-900 hover:bg-transparent hover:text-amber-950 dark:text-amber-100 dark:hover:text-white"
+              onClick={() => void handleRetryAccountSync()}
+              disabled={profileLoading}
+            >
+              {profileLoading ? "Refreshing..." : "Retry account sync"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-background">
           <div className="container-wide py-4 space-y-4">
             <nav className="flex flex-col gap-2">
-              {user && profileLoaded && isClient && (
+              {isAuthenticated && !needsSetup && isClient && (
                 <Link to="/freelancers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <Search className="h-4 w-4" />Find Talent
                 </Link>
               )}
-              {user && profileLoaded && isFreelancer && (
+              {isAuthenticated && !needsSetup && isFreelancer && (
                 <>
                   <button
                     onClick={() => setMobileJobsOpen(!mobileJobsOpen)}
@@ -248,7 +311,7 @@ export function Header() {
                   )}
                 </>
               )}
-              {user && (
+              {isAuthenticated && !needsSetup && (
                 <Link to="/messages" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <MessageSquare className="h-4 w-4" />Messages
                   {unreadCount > 0 && (
@@ -258,7 +321,7 @@ export function Header() {
                   )}
                 </Link>
               )}
-              {user && (
+              {isAuthenticated && !needsSetup && (
                 <Link to="/notifications" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
                   <Bell className="h-4 w-4" />Notifications
                   {notifUnreadCount > 0 && (
@@ -270,15 +333,34 @@ export function Header() {
               )}
             </nav>
             <div className="pt-4 border-t border-border space-y-2">
-              {user ? (
+              {isAuthenticated ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">Dashboard</Button>
-                  </Link>
+                  {needsSetup ? (
+                    <Link to="/onboarding" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">Complete Setup</Button>
+                    </Link>
+                  ) : (
+                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">Dashboard</Button>
+                    </Link>
+                  )}
                   <Button variant="ghost" className="w-full text-destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
                     Sign Out
                   </Button>
                 </>
+              ) : isBootstrapPending ? (
+                bootstrapStalled ? (
+                  <>
+                    <Button variant="outline" className="w-full" onClick={() => void handleRetryAccountSync()}>
+                      Refresh
+                    </Button>
+                    <Button variant="ghost" className="w-full text-destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <div className="h-10 rounded-lg bg-muted animate-pulse" />
+                )
               ) : (
                 <>
                   <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>

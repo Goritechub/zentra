@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getAdminOverview } from "@/api/admin.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,42 +24,28 @@ export default function AdminOverview() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchStats();
+    void fetchStats();
   }, []);
 
   const fetchStats = async () => {
-    const [
-      profilesRes, clientsRes, expertsRes, jobsRes, contestsRes, contractsRes,
-      walletsRes, txRes, disputesRes, revenueRes
-    ] = await Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "client"),
-      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "freelancer"),
-      supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "open"),
-      supabase.from("contests").select("id", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("contracts").select("id", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("wallets").select("escrow_balance"),
-      supabase.from("wallet_transactions").select("id", { count: "exact", head: true }),
-      supabase.from("disputes").select("id", { count: "exact", head: true }).eq("status", "open"),
-      supabase.from("platform_revenue").select("commission_amount"),
-    ]);
-
-    const totalEscrow = (walletsRes.data || []).reduce((s, w) => s + (w.escrow_balance || 0), 0);
-    const totalRevenue = (revenueRes.data || []).reduce((s, r) => s + (r.commission_amount || 0), 0);
-
-    setStats({
-      totalUsers: profilesRes.count || 0,
-      totalClients: clientsRes.count || 0,
-      totalExperts: expertsRes.count || 0,
-      activeJobs: jobsRes.count || 0,
-      activeContests: contestsRes.count || 0,
-      activeContracts: contractsRes.count || 0,
-      totalEscrow,
-      totalTransactions: txRes.count || 0,
-      openDisputes: disputesRes.count || 0,
-      totalRevenue,
-    });
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getAdminOverview();
+      setStats({
+        totalUsers: data.totalUsers || 0,
+        totalClients: data.totalClients || 0,
+        totalExperts: data.totalExperts || 0,
+        activeJobs: data.activeJobs || 0,
+        activeContests: data.activeContests || 0,
+        activeContracts: data.activeContracts || 0,
+        totalEscrow: data.totalEscrow || 0,
+        totalTransactions: data.totalTransactions || 0,
+        openDisputes: data.openDisputes || 0,
+        totalRevenue: data.totalRevenue || 0,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

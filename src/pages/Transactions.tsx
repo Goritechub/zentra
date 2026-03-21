@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { getWalletOverview } from "@/api/wallet.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
@@ -57,11 +59,8 @@ function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
 
 export default function TransactionsPage() {
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
-  const [wallet, setWallet] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [pendingClearanceTxs, setPendingClearanceTxs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, role, bootstrapStatus, authError } = useAuth();
+  const queryClient = useQueryClient();
   const [showFund, setShowFund] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -74,29 +73,18 @@ export default function TransactionsPage() {
   const { isVerified: kycVerified } = useKycVerification();
   const [showKycModal, setShowKycModal] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchData();
-  }, [user, authLoading]);
+  const transactionsQuery = useQuery({
+    queryKey: ["transactions-page", user?.id],
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: getWalletOverview,
+  });
 
-  const fetchData = async () => {
-    const [walletRes, walletTxRes] = await Promise.all([
-      supabase.from("wallets").select("*").eq("user_id", user!.id).maybeSingle(),
-      supabase.from("wallet_transactions").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
-    ]);
-    setWallet(walletRes.data);
-
-    const walletTx = ((walletTxRes.data as any[]) || []).filter(tx => !hiddenTypes.includes(tx.type));
-    setTransactions(walletTx);
-
-    // Get pending clearance transactions
-    const pending = walletTx.filter(tx => tx.clearance_at && new Date(tx.clearance_at) > new Date());
-    setPendingClearanceTxs(pending);
-
-    setLoading(false);
-  };
-
-  const isFreelancer = profile?.role === "freelancer";
+  const isFreelancer = role === "freelancer";
+  const wallet = transactionsQuery.data?.wallet ?? null;
+  const transactions = transactionsQuery.data?.transactions ?? [];
+  const pendingClearanceTxs = transactionsQuery.data?.pendingClearanceTxs ?? [];
   const isCredit = (tx: any) => creditTypes.includes(tx.type);
 
   const filteredTransactions = transactions.filter(tx => {
@@ -163,14 +151,8 @@ export default function TransactionsPage() {
         !earliest || new Date(tx.clearance_at) < new Date(earliest) ? tx.clearance_at : earliest, null as string | null)
     : null;
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        <Footer />
-      </div>
-    );
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   return (
@@ -184,6 +166,14 @@ export default function TransactionsPage() {
           <h1 className="text-3xl font-bold text-foreground mb-8">
             {isFreelancer ? "Wallet & Earnings" : "Wallet & Transactions"}
           </h1>
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {transactionsQuery.isFetching && (
+            <p className="text-sm text-muted-foreground mb-4">Refreshing wallet activity...</p>
+          )}
 
           {/* Wallet Cards */}
           <div className={`grid grid-cols-1 ${isFreelancer ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"} gap-6 mb-8`}>
@@ -310,7 +300,25 @@ export default function TransactionsPage() {
               </Tabs>
             </div>
 
-            {filteredTransactions.length === 0 ? (
+            {transactionsQuery.isPending && !transactionsQuery.data ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3, 4].map((item) => (
+                  <div key={item} className="flex items-center justify-between rounded-lg border border-border p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                      <div className="space-y-2">
+                        <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                        <div className="h-3 w-24 rounded bg-muted/70 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-right">
+                      <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-16 rounded bg-muted/70 animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>{getEmptyMessage()}</p>
@@ -362,7 +370,7 @@ export default function TransactionsPage() {
       <FundWalletModal
         open={showFund}
         onOpenChange={setShowFund}
-        onSuccess={fetchData}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["transactions-page", user?.id] })}
         userEmail={profile?.email}
       />
 
@@ -370,7 +378,7 @@ export default function TransactionsPage() {
         <WithdrawModal
           open={showWithdraw}
           onOpenChange={setShowWithdraw}
-          onSuccess={fetchData}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["transactions-page", user?.id] })}
           walletBalance={wallet?.balance || 0}
           userId={user.id}
         />

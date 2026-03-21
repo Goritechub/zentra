@@ -1,23 +1,17 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
-import { AuthCodeSetupGuard } from "@/components/AuthCodeSetupGuard";
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  allowIncomplete?: boolean;
 }
 
-/**
- * Wraps any route that requires authentication.
- * Guests are redirected to /auth with a ?redirect back.
- * Authenticated users without an auth code are forced to set one.
- */
-export function AuthGuard({ children }: AuthGuardProps) {
-  const { user, profile, loading, profileLoading, isAdmin } = useAuth();
+export function AuthGuard({ children, allowIncomplete = false }: AuthGuardProps) {
+  const { user, loading, isAdmin, bootstrapStatus, authError, onboardingComplete } = useAuth();
   const location = useLocation();
 
-  // Only wait for session check, not profile
-  if (loading) {
+  if (!user && (loading || bootstrapStatus === "loading")) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -25,14 +19,25 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (!user) {
+  if (!user || bootstrapStatus === "unauthenticated") {
     return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // Admin users can only access admin routes — use user_roles as source of truth
+  if (!user && bootstrapStatus === "error") {
+    return <Navigate to={`/auth?error=${encodeURIComponent(authError || "auth_bootstrap_failed")}`} replace />;
+  }
+
+  if (!allowIncomplete && !onboardingComplete && !location.pathname.startsWith("/onboarding")) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   if (isAdmin && !location.pathname.startsWith("/admin")) {
     return <Navigate to="/admin" replace />;
   }
 
-  return <AuthCodeSetupGuard>{children}</AuthCodeSetupGuard>;
+  if (allowIncomplete && !onboardingComplete) {
+    return <>{children}</>;
+  }
+
+  return <>{children}</>;
 }

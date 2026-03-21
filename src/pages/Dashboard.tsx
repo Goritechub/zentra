@@ -1,100 +1,85 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getDashboardOverview } from "@/api/dashboard.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
-import { 
+import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, Loader2, ArrowRight, Trophy, Send, Heart,
-  Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox
+  Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox,
 } from "lucide-react";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 
+interface DashboardData {
+  stats: {
+    jobs: number;
+    proposals: number;
+    messages: number;
+    contracts: number;
+  };
+  recentJobs: any[];
+  freelancerProfile: any;
+}
+
+const emptyDashboardData: DashboardData = {
+  stats: { jobs: 0, proposals: 0, messages: 0, contracts: 0 },
+  recentJobs: [],
+  freelancerProfile: null,
+};
+
 export default function DashboardPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, bootstrapStatus, onboardingComplete, isAdmin, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [stats, setStats] = useState({ jobs: 0, proposals: 0, messages: 0, contracts: 0 });
-  const [recentJobs, setRecentJobs] = useState<any[]>([]);
-  const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
-    if (user) {
-      // Check if admin and redirect
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle()
-        .then(({ data: roleData }) => {
-          if (roleData) {
-            navigate("/admin", { replace: true });
-          } else {
-            fetchStats();
-          }
-        });
-    }
-  }, [user, loading, navigate]);
+    if (isAdmin) navigate("/admin", { replace: true });
+  }, [user, loading, navigate, isAdmin]);
 
-  const fetchStats = async () => {
-    if (!user) return;
-    const isClient = profile?.role === "client";
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboard", user?.id, role],
+    enabled: !!user && bootstrapStatus === "ready" && !!profile && onboardingComplete && !isAdmin,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async (): Promise<DashboardData> => getDashboardOverview(),
+  });
 
-    const [jobsRes, proposalsRes, msgsRes, contractsRes] = await Promise.all([
-      isClient
-        ? supabase.from("jobs").select("*", { count: "exact" }).eq("client_id", user.id)
-        : supabase.from("proposals").select("*", { count: "exact" }).eq("freelancer_id", user.id),
-      isClient
-        ? supabase.from("jobs").select("id").eq("client_id", user.id).then(async (r) => {
-            if (!r.data?.length) return { count: 0 };
-            const jobIds = r.data.map(j => j.id);
-            const { count } = await supabase.from("proposals").select("*", { count: "exact" }).in("job_id", jobIds);
-            return { count };
-          })
-        : supabase.from("proposals").select("*", { count: "exact" }).eq("freelancer_id", user.id),
-      supabase.from("contract_messages").select("*", { count: "exact" }).eq("is_read", false).neq("sender_id", user.id),
-      supabase.from("contracts").select("*", { count: "exact" }).or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`),
-    ]);
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
+  }
 
-    setStats({
-      jobs: (isClient ? jobsRes : proposalsRes) && 'count' in jobsRes ? (jobsRes.count || 0) : 0,
-      proposals: proposalsRes && 'count' in proposalsRes ? (proposalsRes.count || 0) : 0,
-      messages: msgsRes.count || 0,
-      contracts: contractsRes.count || 0,
-    });
-
-    if (isClient) {
-      const { data } = await supabase.from("jobs").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(5);
-      setRecentJobs(data || []);
-    }
-
-    if (!isClient) {
-      const { data } = await supabase.from("freelancer_profiles").select("*").eq("user_id", user.id).maybeSingle();
-      setFreelancerProfile(data);
-    }
-  };
-
-  if (loading) {
+  if (!onboardingComplete || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center bg-muted/30 px-4">
+          <div className="max-w-md text-center space-y-4">
+            <h1 className="text-2xl font-bold text-foreground">Complete your setup</h1>
+            <p className="text-muted-foreground">
+              We need a little more account information before your dashboard is ready.
+            </p>
+            <Button onClick={() => navigate("/onboarding")}>Continue Setup</Button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
-  if (!user || !profile) return null;
-
   const isFreelancer = profile.role === "freelancer";
   const isClient = profile.role === "client";
+  const stats = dashboardQuery.data?.stats || emptyDashboardData.stats;
+  const recentJobs = dashboardQuery.data?.recentJobs || [];
+  const freelancerProfile = dashboardQuery.data?.freelancerProfile || null;
 
   const statCards = isClient
     ? [
@@ -133,28 +118,27 @@ export default function DashboardPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
-          {/* Welcome */}
           <div className="bg-hero-gradient text-white rounded-2xl p-8 mb-8">
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {profile.full_name?.split(" ")[0] || "User"}! 👋
+              Welcome back, {profile.full_name?.split(" ")[0] || "User"}!
             </h1>
             <p className="text-white/80">
               {isFreelancer ? "Manage your profile, view proposals, and track your projects." : "Find talent, manage projects, and track progress."}
             </p>
+            {dashboardQuery.isFetching && (
+              <p className="mt-2 text-sm text-white/70">Refreshing dashboard...</p>
+            )}
           </div>
 
-          {/* Expert Stats Banner */}
           {isFreelancer && <ExpertStatsBanner />}
 
-          {/* Platform Notice */}
           <Alert className="mb-6 border-primary/30 bg-primary/5">
             <ShieldAlert className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm text-muted-foreground">
-              🔒 All communication must stay on the platform. Sharing emails, phone numbers, WhatsApp, or financial details is strictly prohibited and will be blocked.
+              All communication must stay on the platform. Sharing emails, phone numbers, WhatsApp, or financial details is strictly prohibited and will be blocked.
             </AlertDescription>
           </Alert>
 
-          {/* Clickable Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {statCards.map((card) => (
               <Link
@@ -167,7 +151,11 @@ export default function DashboardPage() {
                     <card.icon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                    {dashboardQuery.isPending && !dashboardQuery.data ? (
+                      <div className="h-8 w-16 animate-pulse rounded bg-muted/70" />
+                    ) : (
+                      <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">{card.label}</p>
                   </div>
                 </div>
@@ -176,7 +164,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Menu / Quick Actions */}
             <div className="lg:col-span-2">
               {isClient && (
                 <div className="bg-card rounded-xl border border-border p-6 mb-8">
@@ -236,34 +223,47 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Recent Jobs (Client) */}
-              {isClient && recentJobs.length > 0 && (
+              {isClient && (
                 <div className="bg-card rounded-xl border border-border p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold">Recent Jobs</h2>
                     <Link to="/dashboard/jobs" className="text-sm text-primary hover:underline">View All</Link>
                   </div>
-                  <div className="space-y-3">
-                    {recentJobs.map((job) => (
-                      <Link key={job.id} to={`/job/${job.id}`} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                        <div>
-                          <p className="font-medium text-foreground">{job.title}</p>
-                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                            <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">{job.status}</Badge>
-                            <span>{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
-                          </div>
+                  {dashboardQuery.isPending && !dashboardQuery.data ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((item) => (
+                        <div key={item} className="rounded-lg border border-border p-4">
+                          <div className="h-4 w-40 animate-pulse rounded bg-muted/70 mb-2" />
+                          <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
                         </div>
-                        {(job.budget_min || job.budget_max) && (
-                          <p className="text-sm font-semibold text-primary">{formatNaira(job.budget_max || job.budget_min)}</p>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : recentJobs.length > 0 ? (
+                    <div className="space-y-3">
+                      {recentJobs.map((job) => (
+                        <Link key={job.id} to={`/job/${job.id}`} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                          <div>
+                            <p className="font-medium text-foreground">{job.title}</p>
+                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                              <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">{job.status}</Badge>
+                              <span>{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
+                            </div>
+                          </div>
+                          {(job.budget_min || job.budget_max) && (
+                            <p className="text-sm font-semibold text-primary">{formatNaira(job.budget_max || job.budget_min)}</p>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                      No recent jobs yet.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Profile Sidebar */}
             <div>
               <div className="bg-card rounded-xl border border-border p-6">
                 <h2 className="text-lg font-semibold mb-4">Profile Status</h2>

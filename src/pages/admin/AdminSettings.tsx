@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +12,11 @@ import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
 import { PlatformFreezeCard } from "@/components/admin/PlatformFreezeCard";
 import { broadcastNotification } from "@/lib/broadcast";
+import {
+  addAdminCategory,
+  getAdminSettingsData,
+  updateAdminCommissionTiers,
+} from "@/api/admin.api";
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -32,21 +36,20 @@ export default function AdminSettings() {
   }, []);
 
   const fetchAll = async () => {
-    const [catRes, settingsRes] = await Promise.all([
-      supabase.from("categories").select("*").order("name"),
-      (supabase.from("platform_settings" as any).select("*").eq("key", "commission_tiers").maybeSingle() as any),
-    ]);
-    setCategories(catRes.data || []);
-    if (settingsRes.data?.value && Array.isArray(settingsRes.data.value)) {
-      setTiers(settingsRes.data.value as CommissionTier[]);
-    }
+    const data = await getAdminSettingsData();
+    setCategories(data.categories || []);
+    setTiers((data.commissionTiers || []) as CommissionTier[]);
     setLoading(false);
   };
 
   const addCategory = async () => {
     if (!newCatName.trim() || !newCatSlug.trim()) { toast.error("Name and slug are required"); return; }
-    const { error } = await supabase.from("categories").insert({ name: newCatName.trim(), slug: newCatSlug.trim() });
-    if (error) { toast.error("Failed to add category"); return; }
+    try {
+      await addAdminCategory(newCatName.trim(), newCatSlug.trim());
+    } catch (error) {
+      toast.error("Failed to add category");
+      return;
+    }
     toast.success("Category added");
     setNewCatName(""); setNewCatSlug("");
     fetchAll();
@@ -122,32 +125,30 @@ export default function AdminSettings() {
     );
 
     setSavingTiers(true);
-    const { error } = await supabase
-      .from("platform_settings" as any)
-      .update({ value: finalTiers, updated_at: new Date().toISOString(), updated_by: user?.id })
-      .eq("key", "commission_tiers");
-
-    if (error) {
+    try {
+      await updateAdminCommissionTiers(finalTiers);
+    } catch (error) {
       toast.error("Failed to save commission tiers");
-      console.error(error);
-    } else {
-      toast.success("Commission tiers updated");
-      setTiers(finalTiers);
-      invalidateCommissionCache();
-      preloadCommissionTiers();
-      setEditingTiers(false);
+      setSavingTiers(false);
+      return;
+    }
 
-      // Auto-notify all users about commission change
-      try {
-        await broadcastNotification({
-          title: "Commission Structure Updated",
-          message: "The platform commission rates have been updated. The new rates apply to all future milestone releases.",
-          type: "policy_update",
-          link_url: "/terms",
-        });
-      } catch (e) {
-        console.error("Failed to broadcast commission update:", e);
-      }
+    toast.success("Commission tiers updated");
+    setTiers(finalTiers);
+    invalidateCommissionCache();
+    preloadCommissionTiers();
+    setEditingTiers(false);
+
+    // Auto-notify all users about commission change
+    try {
+      await broadcastNotification({
+        title: "Commission Structure Updated",
+        message: "The platform commission rates have been updated. The new rates apply to all future milestone releases.",
+        type: "policy_update",
+        link_url: "/terms",
+      });
+    } catch (e) {
+      console.error("Failed to broadcast commission update:", e);
     }
     setSavingTiers(false);
   };

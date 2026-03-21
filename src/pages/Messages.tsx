@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getMessagesConversations,
+  hideConversation,
+  hideConversations,
+  unhideConversation,
+} from "@/api/messages.api";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Card } from "@/components/ui/card";
@@ -25,157 +32,117 @@ interface ContractConversation {
   unreadCount: number;
 }
 
+interface MessagesPageData {
+  conversations: ContractConversation[];
+  hiddenIds: Set<string>;
+}
+
 const Messages = () => {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, role, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<ContractConversation[]>([]);
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchAll();
-  }, [user, authLoading]);
+  const queryKey = ["messages-page", user?.id, role];
 
-  const fetchAll = async () => {
-    if (!user) return;
-    await Promise.all([fetchContractConversations(), fetchHidden()]);
-    setLoading(false);
-  };
-
-  const fetchHidden = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("hidden_conversations")
-      .select("contract_id")
-      .eq("user_id", user.id);
-    setHiddenIds(new Set((data || []).map((h: any) => h.contract_id)));
-  };
-
-  const fetchContractConversations = async () => {
-    if (!user) return;
-
-    const { data: contracts } = await supabase
-      .from("contracts")
-      .select("id, job_title, status, client_id, freelancer_id, client:profiles!contracts_client_id_fkey(full_name, avatar_url), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url)")
-      .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
-      .order("created_at", { ascending: false });
-
-    if (!contracts?.length) { setConversations([]); return; }
-
-    const isClient = profile?.role === "client";
-    const contractIds = contracts.map(c => c.id);
-
-    const { data: allMsgs } = await supabase
-      .from("contract_messages")
-      .select("id, contract_id, sender_id, content, is_read, created_at")
-      .in("contract_id", contractIds)
-      .order("created_at", { ascending: false });
-
-    const msgMap = new Map<string, any[]>();
-    (allMsgs || []).forEach((m: any) => {
-      if (!msgMap.has(m.contract_id)) msgMap.set(m.contract_id, []);
-      msgMap.get(m.contract_id)!.push(m);
-    });
-
-    const convos: ContractConversation[] = contracts.map((c: any) => {
-      const msgs = msgMap.get(c.id) || [];
-      const latest = msgs[0];
-      const unread = msgs.filter((m: any) => m.sender_id !== user.id && !m.is_read).length;
-      const partner = isClient ? c.freelancer : c.client;
-
+  const { data, isPending, isFetching } = useQuery({
+    queryKey,
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async () => {
+      const data = await getMessagesConversations();
       return {
-        contractId: c.id,
-        contractTitle: c.job_title || "Contract",
-        contractStatus: c.status,
-        partner: { full_name: partner?.full_name || "User", avatar_url: partner?.avatar_url },
-        lastMessage: latest?.content || null,
-        lastMessageAt: latest?.created_at || null,
-        unreadCount: unread,
+        conversations: data.conversations || [],
+        hiddenIds: new Set<string>(data.hiddenIds || []),
       };
-    });
-
-    convos.sort((a, b) => {
-      if (!a.lastMessageAt && !b.lastMessageAt) return 0;
-      if (!a.lastMessageAt) return 1;
-      if (!b.lastMessageAt) return -1;
-      return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
-    });
-
-    setConversations(convos);
-  };
+    },
+  });
 
   useEffect(() => {
-    if (!user) return;
+    if (bootstrapStatus !== "ready" || !user) return;
     const channel = supabase
       .channel("messages-page-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "contract_messages" }, () => fetchContractConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "contract_messages" }, () => {
+        queryClient.invalidateQueries({ queryKey });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [bootstrapStatus, queryClient, queryKey, user]);
 
   const isClosedContract = (status: string) => ["completed", "cancelled"].includes(status);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
+  const updateHiddenIds = (updater: (previous: Set<string>) => Set<string>) => {
+    queryClient.setQueryData<MessagesPageData>(queryKey, (previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        hiddenIds: updater(previous.hiddenIds),
+      };
+    });
+  };
+
   const handleHideSelected = async () => {
     if (!user || selectedIds.size === 0) return;
-    const rows = Array.from(selectedIds).map(contractId => ({
-      user_id: user.id,
-      contract_id: contractId,
-    }));
-
-    const { error } = await supabase.from("hidden_conversations").insert(rows as any);
-    if (error) {
+    try {
+      await hideConversations(Array.from(selectedIds));
+    } catch (error) {
       toast.error("Failed to hide conversations");
-    } else {
-      setHiddenIds(prev => {
-        const next = new Set(prev);
-        selectedIds.forEach(id => next.add(id));
-        return next;
-      });
-      toast.success(`${selectedIds.size} conversation(s) hidden`);
-      setSelectedIds(new Set());
-      setSelectMode(false);
+      return;
     }
+
+    updateHiddenIds((previous) => {
+      const next = new Set(previous);
+      selectedIds.forEach((id) => next.add(id));
+      return next;
+    });
+    toast.success(`${selectedIds.size} conversation(s) hidden`);
+    setSelectedIds(new Set());
+    setSelectMode(false);
   };
 
   const handleHideSingle = async (contractId: string) => {
     if (!user) return;
-    const { error } = await supabase.from("hidden_conversations").insert({
-      user_id: user.id,
-      contract_id: contractId,
-    } as any);
-    if (error) {
+    try {
+      await hideConversation(contractId);
+    } catch (error) {
       toast.error("Failed to hide conversation");
-    } else {
-      setHiddenIds(prev => new Set(prev).add(contractId));
-      toast.success("Conversation hidden");
+      return;
     }
+
+    updateHiddenIds((previous) => {
+      const next = new Set(previous);
+      next.add(contractId);
+      return next;
+    });
+    toast.success("Conversation hidden");
   };
 
   const handleUnhide = async (contractId: string) => {
     if (!user) return;
-    const { error } = await supabase.from("hidden_conversations").delete().eq("user_id", user.id).eq("contract_id", contractId);
-    if (error) {
+    try {
+      await unhideConversation(contractId);
+    } catch (error) {
       toast.error("Failed to unhide conversation");
-    } else {
-      setHiddenIds(prev => {
-        const next = new Set(prev);
-        next.delete(contractId);
-        return next;
-      });
-      toast.success("Conversation restored");
+      return;
     }
+
+    updateHiddenIds((previous) => {
+      const next = new Set(previous);
+      next.delete(contractId);
+      return next;
+    });
+    toast.success("Conversation restored");
   };
 
   const onPointerDown = useCallback((convo: ContractConversation) => {
@@ -192,21 +159,33 @@ const Messages = () => {
     }
   }, []);
 
-  const visibleConversations = conversations.filter(c => !hiddenIds.has(c.contractId));
-  const archivedConversations = conversations.filter(c => hiddenIds.has(c.contractId));
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        <Footer />
-      </div>
-    );
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
+  const conversations = data?.conversations || [];
+  const hiddenIds = data?.hiddenIds || new Set<string>();
+  const visibleConversations = conversations.filter((conversation) => !hiddenIds.has(conversation.contractId));
+  const archivedConversations = conversations.filter((conversation) => hiddenIds.has(conversation.contractId));
+
   const renderConvoList = (convos: ContractConversation[], isArchived = false) => (
-    convos.length === 0 ? (
+    isPending && !data ? (
+      <div className="overflow-y-auto flex-1 p-4 space-y-3">
+        {[1, 2, 3, 4].map((item) => (
+          <div key={item} className="flex items-start gap-4 rounded-lg border border-border p-4">
+            <div className="h-11 w-11 rounded-full bg-muted animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-16 rounded bg-muted/80 animate-pulse" />
+              </div>
+              <div className="h-3 w-24 rounded bg-muted/70 animate-pulse" />
+              <div className="h-3 w-56 rounded bg-muted/60 animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : convos.length === 0 ? (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <MessageSquare className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
         <p className="text-muted-foreground">{isArchived ? "No archived conversations" : "No conversations yet"}</p>
@@ -311,6 +290,7 @@ const Messages = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Messages</h1>
+          {isFetching && <span className="text-sm text-muted-foreground">Refreshing...</span>}
         </div>
 
         {selectMode && (

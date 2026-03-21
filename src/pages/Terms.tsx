@@ -2,8 +2,8 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { getPublishedLegalDocument } from "@/api/client-read.api";
 
 export default function Terms() {
   const [searchParams] = useSearchParams();
@@ -15,16 +15,11 @@ export default function Terms() {
   useEffect(() => {
     const fetchDoc = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("legal_documents" as any)
-        .select("title, content")
-        .eq("slug", slug)
-        .eq("is_published", true)
-        .maybeSingle();
-
+      const response = await getPublishedLegalDocument(slug);
+      const data = response.document;
       if (data) {
-        setTitle((data as any).title);
-        setContent((data as any).content);
+        setTitle(data.title);
+        setContent(data.content);
       }
       setLoading(false);
     };

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyExpertSkills, saveMyExpertSkills } from "@/api/expert-read.api";
 import { toast } from "sonner";
 import { cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
 import { ArrowLeft, Loader2, Save, Plus, X, Wrench } from "lucide-react";
@@ -14,7 +14,7 @@ import { ArrowLeft, Loader2, Save, Plus, X, Wrench } from "lucide-react";
 const allOptions = [...cadSoftwareList, ...cadSkills];
 
 export default function ManageSkillsPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, role, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [skills, setSkills] = useState<string[]>([]);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -27,28 +27,25 @@ export default function ManageSkillsPage() {
     .filter(s => s.toLowerCase().includes(search.toLowerCase()) && !skills.includes(s))
     .slice(0, 10);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (!authLoading && profile?.role !== "freelancer") navigate("/dashboard");
-  }, [user, authLoading, profile]);
-
   const fetchSkills = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("freelancer_profiles")
-      .select("id, skills")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (data) {
-      setProfileId(data.id);
-      setSkills(data.skills || []);
+    try {
+      const response = await getMyExpertSkills();
+      setProfileId(response.data.profileId);
+      setSkills(response.data.skills || []);
+    } catch {
+      setProfileId(null);
+      setSkills([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    if (user) fetchSkills();
-  }, [user, fetchSkills]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchSkills();
+    }
+  }, [bootstrapStatus, user, fetchSkills]);
 
   const addSkill = (skill: string) => {
     if (!skills.includes(skill)) setSkills([...skills, skill]);
@@ -59,20 +56,23 @@ export default function ManageSkillsPage() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    if (profileId) {
-      const { error } = await supabase.from("freelancer_profiles").update({ skills }).eq("id", profileId);
-      if (error) toast.error("Failed to save skills");
-      else toast.success("Skills updated!");
-    } else {
-      const { error } = await supabase.from("freelancer_profiles").insert({ user_id: user.id, skills });
-      if (error) toast.error("Failed to create profile");
-      else toast.success("Skills saved!");
+    try {
+      const response = await saveMyExpertSkills(skills);
+      setProfileId(response.data.profileId);
+      toast.success(profileId ? "Skills updated!" : "Skills saved!");
+    } catch {
+      toast.error(profileId ? "Failed to save skills" : "Failed to create profile");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  if (authLoading || loading) {
+  if (bootstrapStatus === "loading" || loading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!user || bootstrapStatus !== "ready" || role !== "freelancer") {
+    return null;
   }
 
   return (
@@ -80,6 +80,11 @@ export default function ManageSkillsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-2xl">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>

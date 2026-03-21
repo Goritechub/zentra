@@ -36,7 +36,7 @@ const allNavItems = [
 
 
 export default function AdminLayout() {
-  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -51,10 +51,15 @@ export default function AdminLayout() {
   const [isSuspended, setIsSuspended] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user && isAdmin) fetchPermissions();
-    if (!authLoading && user && !isAdmin) setLoading(false);
-    if (!authLoading && !user) navigate("/auth");
-  }, [user, authLoading, isAdmin]);
+    if (bootstrapStatus !== "ready") return;
+    if (user && isAdmin) {
+      void fetchPermissions();
+      return;
+    }
+    if (user && !isAdmin) {
+      setLoading(false);
+    }
+  }, [bootstrapStatus, user, isAdmin]);
 
   const fetchPermissions = async () => {
     // Fetch this admin's permissions
@@ -121,7 +126,11 @@ export default function AdminLayout() {
     toast.success("Admin access granted");
   };
 
-  if (authLoading || loading) {
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

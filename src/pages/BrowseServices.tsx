@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -12,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getBrowseServicesList } from "@/api/client-read.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { ShoppingBag, Loader2, MessageSquare, Clock, ArrowLeft, Star, Search, X, ChevronLeft, ChevronRight, Send } from "lucide-react";
 
@@ -20,30 +21,25 @@ import { categoryNames } from "@/lib/categories";
 const CATEGORIES = categoryNames;
 
 export default function BrowseServicesPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
-  const [services, setServices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedService, setSelectedService] = useState<any>(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchServices();
-  }, [user, authLoading]);
+  const servicesQuery = useQuery({
+    queryKey: ["browse-services"],
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async () => {
+      const response = await getBrowseServicesList();
+      return (response.data.services as any[]) || [];
+    },
+  });
 
-  const fetchServices = async () => {
-    const { data, error } = await supabase
-      .from("service_offers")
-      .select("*, freelancer:profiles!service_offers_freelancer_id_fkey(full_name, avatar_url, username)")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
-    if (error) console.error("Failed to fetch services:", error);
-    setServices((data as any[]) || []);
-    setLoading(false);
-  };
+  const services = servicesQuery.data || [];
 
   const filtered = services.filter(svc => {
     if (categoryFilter && categoryFilter !== "all" && svc.category !== categoryFilter) return false;
@@ -60,8 +56,8 @@ export default function BrowseServicesPage() {
     setGalleryIdx(0);
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   const svcImages = selectedService?.images || [];
@@ -71,12 +67,20 @@ export default function BrowseServicesPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
           <h1 className="text-3xl font-bold text-foreground mb-6 flex items-center gap-3">
             <ShoppingBag className="h-8 w-8 text-primary" /> Browse Services
           </h1>
+          {servicesQuery.isFetching && (
+            <p className="text-sm text-muted-foreground mb-4">Refreshing services...</p>
+          )}
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -105,7 +109,18 @@ export default function BrowseServicesPage() {
             )}
           </div>
 
-          {filtered.length === 0 ? (
+          {servicesQuery.isPending && !servicesQuery.data ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-5 space-y-3">
+                  <div className="h-32 rounded-lg bg-muted animate-pulse" />
+                  <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-full rounded bg-muted/70 animate-pulse" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No services found</p>

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Save, FileText, Trash2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { broadcastNotification } from "@/lib/broadcast";
+import {
+  createAdminLegalDocument,
+  deleteAdminLegalDocument,
+  getAdminLegalDocuments,
+  updateAdminLegalDocument,
+} from "@/api/admin.api";
 
 interface LegalDocument {
   id: string;
@@ -39,18 +44,18 @@ export default function AdminLegalDocuments() {
   }, []);
 
   const fetchDocuments = async () => {
-    const { data, error } = await supabase
-      .from("legal_documents" as any)
-      .select("*")
-      .order("sort_order", { ascending: true });
-
-    if (!error && data) {
-      setDocuments(data as any);
-      if (!selectedId && data.length > 0) {
-        selectDocument(data[0] as any);
+    try {
+      const data = await getAdminLegalDocuments();
+      const docs = (data.documents || []) as any[];
+      setDocuments(docs);
+      if (!selectedId && docs.length > 0) {
+        selectDocument(docs[0] as any);
       }
+    } catch {
+      toast.error("Failed to load legal documents");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const selectDocument = (doc: LegalDocument) => {
@@ -85,37 +90,28 @@ export default function AdminLegalDocuments() {
 
     if (isNew) {
       const maxOrder = documents.length > 0 ? Math.max(...documents.map(d => d.sort_order)) : 0;
-      const { error } = await supabase
-        .from("legal_documents" as any)
-        .insert({
+      try {
+        await createAdminLegalDocument({
           title: editTitle.trim(),
           slug,
           content: editContent,
           is_published: editPublished,
           sort_order: maxOrder + 1,
-        } as any);
-
-      if (error) {
-        toast.error("Failed to create document");
-      } else {
+        });
         toast.success("Document created");
         setIsNew(false);
+      } catch {
+        toast.error("Failed to create document");
       }
     } else if (selectedId) {
-      const { error } = await supabase
-        .from("legal_documents" as any)
-        .update({
+      try {
+        await updateAdminLegalDocument(selectedId, {
           title: editTitle.trim(),
           slug,
           content: editContent,
           is_published: editPublished,
           updated_at: new Date().toISOString(),
-        } as any)
-        .eq("id", selectedId);
-
-      if (error) {
-        toast.error("Failed to save changes");
-      } else {
+        });
         toast.success("Document saved");
         // Auto-notify all users about policy update
         if (editPublished) {
@@ -131,6 +127,8 @@ export default function AdminLegalDocuments() {
             console.error("Failed to broadcast policy update:", e);
           }
         }
+      } catch {
+        toast.error("Failed to save changes");
       }
     }
 
@@ -142,18 +140,14 @@ export default function AdminLegalDocuments() {
     if (!selectedId || isNew) return;
     if (!confirm("Are you sure you want to delete this document?")) return;
 
-    const { error } = await supabase
-      .from("legal_documents" as any)
-      .delete()
-      .eq("id", selectedId);
-
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
+    try {
+      await deleteAdminLegalDocument(selectedId);
       toast.success("Document deleted");
       setSelectedId(null);
       setIsNew(false);
       await fetchDocuments();
+    } catch {
+      toast.error("Failed to delete");
     }
   };
 

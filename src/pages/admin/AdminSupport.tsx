@@ -17,6 +17,15 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  getAdminSupportChatMessages,
+  getAdminSupportChats,
+  getAdminSupportComplaints,
+  getAdminSupportSettings,
+  sendAdminSupportChatMessage,
+  updateAdminSupportComplaintStatus,
+  updateAdminSupportSettings,
+} from "@/api/support.api";
 
 const COMPLAINT_STATUSES = ["new", "in_review", "resolved", "closed"] as const;
 const COMPLAINT_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -55,17 +64,15 @@ function SupportSettingsTab() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("platform_settings")
-        .select("key, value")
-        .in("key", ["support_email", "support_phone", "support_whatsapp"]);
-      if (data) {
-        for (const row of data) {
-          const val = typeof row.value === "string" ? row.value : String(row.value).replace(/^"|"$/g, "");
-          if (row.key === "support_email") setEmail(val);
-          if (row.key === "support_phone") setPhone(val);
-          if (row.key === "support_whatsapp") setWhatsapp(val);
-        }
+      try {
+        const data = await getAdminSupportSettings();
+        setEmail(data.email || "");
+        setPhone(data.phone || "");
+        setWhatsapp(data.whatsapp || "");
+      } catch (error) {
+        setEmail("");
+        setPhone("");
+        setWhatsapp("");
       }
       setLoading(false);
     };
@@ -81,21 +88,14 @@ function SupportSettingsTab() {
     if (!whatsapp.trim()) { toast.error("WhatsApp number is required"); return; }
 
     setSaving(true);
-    const updates = [
-      { key: "support_email", value: JSON.stringify(email.trim()) },
-      { key: "support_phone", value: JSON.stringify(phone.trim()) },
-      { key: "support_whatsapp", value: JSON.stringify(whatsapp.trim()) },
-    ];
-
-    for (const u of updates) {
-      await supabase
-        .from("platform_settings")
-        .update({ value: u.value as any, updated_at: new Date().toISOString() })
-        .eq("key", u.key);
+    try {
+      await updateAdminSupportSettings(email.trim(), phone.trim(), whatsapp.trim());
+      toast.success("Support settings updated");
+    } catch (error) {
+      toast.error("Failed to update support settings");
+    } finally {
+      setSaving(false);
     }
-
-    toast.success("Support settings updated");
-    setSaving(false);
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -128,17 +128,15 @@ function ComplaintsTab() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchComplaints = useCallback(async () => {
-    let query = supabase.from("complaints" as any).select("*").order("created_at", { ascending: false });
-    if (statusFilter !== "all") query = query.eq("status", statusFilter);
-    const { data } = await query;
-    setComplaints((data as any[]) || []);
+    const data = await getAdminSupportComplaints(statusFilter);
+    setComplaints(data.complaints || []);
     setLoading(false);
   }, [statusFilter]);
 
   useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
 
   const updateStatus = async (id: string, newStatus: string) => {
-    await supabase.from("complaints" as any).update({ status: newStatus, updated_at: new Date().toISOString() } as any).eq("id", id);
+    await updateAdminSupportComplaintStatus(id, newStatus);
     toast.success(`Complaint status updated to ${COMPLAINT_STATUS_CONFIG[newStatus]?.label}`);
     fetchComplaints();
     if (selected?.id === id) setSelected({ ...selected, status: newStatus });
@@ -277,11 +275,8 @@ function SupportChatsTab() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchChats = useCallback(async () => {
-    const { data } = await supabase
-      .from("support_chats" as any)
-      .select("*")
-      .order("updated_at", { ascending: false });
-    setChats((data as any[]) || []);
+    const data = await getAdminSupportChats();
+    setChats(data.chats || []);
     setLoading(false);
   }, []);
 
@@ -289,20 +284,8 @@ function SupportChatsTab() {
 
   const openChat = async (chat: any) => {
     setSelectedChat(chat);
-    const { data } = await supabase
-      .from("support_chat_messages" as any)
-      .select("*")
-      .eq("chat_id", chat.id)
-      .order("created_at", { ascending: true });
-    setMessages((data as any[]) || []);
-
-    // Mark user messages as read
-    await supabase
-      .from("support_chat_messages" as any)
-      .update({ is_read: true } as any)
-      .eq("chat_id", chat.id)
-      .eq("sender_type", "user")
-      .eq("is_read", false);
+    const data = await getAdminSupportChatMessages(chat.id);
+    setMessages(data.messages || []);
 
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
@@ -328,13 +311,7 @@ function SupportChatsTab() {
   const handleSend = async () => {
     if (!newMsg.trim() || !user || !selectedChat) return;
     setSending(true);
-    await supabase.from("support_chat_messages" as any).insert({
-      chat_id: selectedChat.id,
-      sender_id: user.id,
-      sender_type: "admin",
-      message: newMsg.trim(),
-    } as any);
-    await supabase.from("support_chats" as any).update({ updated_at: new Date().toISOString() } as any).eq("id", selectedChat.id);
+    await sendAdminSupportChatMessage(selectedChat.id, newMsg.trim());
     setNewMsg("");
     setSending(false);
   };

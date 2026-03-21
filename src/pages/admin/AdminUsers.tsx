@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -13,6 +12,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatNaira } from "@/lib/nigerian-data";
 import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet, Trash2, AlertTriangle, LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  closeAdminUserAccount,
+  getAdminUserDetail,
+  getAdminUsersData,
+  sendAdminUserWithdrawReminder,
+  setAdminUserSuspensionUpsert,
+  setAdminUserVerification,
+  setAdminUserWithdrawalFreeze,
+} from "@/api/admin.api";
 
 export default function AdminUsers() {
   const { user } = useAuth();
@@ -29,33 +37,13 @@ export default function AdminUsers() {
   const [frozenWithdrawalUsers, setFrozenWithdrawalUsers] = useState<Record<string, boolean>>({});
   const [togglingWithdrawal, setTogglingWithdrawal] = useState(false);
 
-  useEffect(() => { fetchUsers(); fetchFrozenUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
-    const [profilesRes, rolesRes, permsRes] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
-      supabase.from("admin_permissions").select("user_id, permission").eq("permission", "admin_management"),
-    ]);
-    const adminIds = new Set((rolesRes.data || []).map((r: any) => r.user_id));
-    const superAdminIds = new Set((permsRes.data || []).map((p: any) => p.user_id));
-    const enriched = (profilesRes.data || []).map((u: any) => ({
-      ...u,
-      display_role: superAdminIds.has(u.id) ? "superadmin" : adminIds.has(u.id) ? "admin" : u.role,
-    }));
-    setUsers(enriched);
+    const data = await getAdminUsersData();
+    setUsers(data.users || []);
+    setFrozenWithdrawalUsers(data.frozenWithdrawalUsers || {});
     setLoading(false);
-  };
-
-  const fetchFrozenUsers = async () => {
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "withdrawal_frozen_users")
-      .maybeSingle();
-    if (data?.value && typeof data.value === "object") {
-      setFrozenWithdrawalUsers(data.value as Record<string, boolean>);
-    }
   };
 
   const toggleUserWithdrawalFreeze = async (userId: string, userName: string) => {
@@ -69,81 +57,36 @@ export default function AdminUsers() {
       current[userId] = true;
     }
 
-    const { data: existing } = await supabase
-      .from("platform_settings")
-      .select("id")
-      .eq("key", "withdrawal_frozen_users")
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from("platform_settings")
-        .update({ value: current as any, updated_at: new Date().toISOString(), updated_by: user?.id })
-        .eq("key", "withdrawal_frozen_users");
-    } else {
-      await supabase
-        .from("platform_settings")
-        .insert({ key: "withdrawal_frozen_users", value: current as any, updated_by: user?.id });
-    }
-
-    await logAction(isFrozen ? "unfreeze_user_withdrawal" : "freeze_user_withdrawal", "user", userId, { user_name: userName });
-
-    // Notify the user
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      title: isFrozen ? "Withdrawals Restored" : "Withdrawals Restricted",
-      message: isFrozen
-        ? "Your withdrawal access has been restored. You can now withdraw funds normally."
-        : "Your withdrawals have been temporarily restricted by the administrator. Please contact support for more information.",
-      type: "security_alert",
-    });
-
-    setFrozenWithdrawalUsers(current);
+    const data = await setAdminUserWithdrawalFreeze(userId, !isFrozen, userName);
+    setFrozenWithdrawalUsers(data.frozenUsers || current);
     toast.success(isFrozen ? `Withdrawals unfrozen for ${userName}` : `Withdrawals frozen for ${userName}`);
     setTogglingWithdrawal(false);
   };
 
   const viewUser = async (u: any) => {
     setSelectedUser(u);
-    const [walletRes, violRes] = await Promise.all([
-      supabase.from("wallets").select("*").eq("user_id", u.id).maybeSingle(),
-      supabase.from("user_violation_counts").select("*").eq("user_id", u.id).maybeSingle(),
-    ]);
-    setUserWallet(walletRes.data);
-    setUserViolations(violRes.data);
+    const data = await getAdminUserDetail(u.id);
+    setUserWallet(data.wallet);
+    setUserViolations(data.violations);
   };
 
   const toggleVerification = async (userId: string, current: boolean) => {
-    await supabase.from("profiles").update({ is_verified: !current }).eq("id", userId);
-    await logAction("toggle_verification", "user", userId, { verified: !current });
+    await setAdminUserVerification(userId, !current);
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !current } : u));
     setSelectedUser((prev: any) => prev ? { ...prev, is_verified: !current } : prev);
     toast.success(current ? "User unverified" : "User verified");
   };
 
   const toggleSuspension = async (userId: string, isSuspended: boolean) => {
-    await supabase.from("user_violation_counts")
-      .upsert({ user_id: userId, is_suspended: !isSuspended, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    await logAction("toggle_suspension", "user", userId, { suspended: !isSuspended });
+    await setAdminUserSuspensionUpsert(userId, !isSuspended);
     setUserViolations((prev: any) => prev ? { ...prev, is_suspended: !isSuspended } : { user_id: userId, is_suspended: !isSuspended, total_violations: 0 });
     toast.success(isSuspended ? "User unsuspended" : "User suspended");
-  };
-
-  const logAction = async (action: string, targetType: string, targetId: string, details: any) => {
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action, target_type: targetType, target_id: targetId, details,
-    });
   };
 
   const closeAccount = async (targetUser: any) => {
     setClosingAccount(true);
     try {
-      const { data, error } = await supabase.rpc("admin_close_user_account", {
-        _admin_id: user!.id,
-        _target_user_id: targetUser.id,
-      });
-      if (error) throw error;
-      const result = data as any;
+      const result = await closeAdminUserAccount(targetUser.id);
       if (!result.success) {
         if (result.code === "has_funds") {
           toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Escrow ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
@@ -172,22 +115,7 @@ export default function AdminUsers() {
     try {
       const walletBalance = userWallet?.balance || 0;
       const escrowBalance = userWallet?.escrow_balance || 0;
-      const totalFunds = walletBalance + escrowBalance;
-
-      // Send in-app notification
-      await supabase.from("notifications").insert({
-        user_id: targetUser.id,
-        title: "Action Required: Withdraw Your Funds",
-        message: `Your account has been flagged for closure. You currently have ${formatNaira(totalFunds)} in your wallet. Please withdraw all funds immediately to avoid any issues. Contact support if you need assistance.`,
-        type: "platform_announcement",
-        link_url: "/dashboard",
-      });
-
-      await logAction("send_withdraw_reminder", "user", targetUser.id, {
-        wallet_balance: walletBalance,
-        escrow_balance: escrowBalance,
-      });
-
+      await sendAdminUserWithdrawReminder(targetUser.id, walletBalance, escrowBalance);
       toast.success("Withdrawal reminder notification sent to user");
     } catch (err: any) {
       toast.error(err.message || "Failed to send reminder");

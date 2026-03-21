@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getMyProfileDeleteChecks,
+  getMyProfileOverview,
+  updateMyAvatarUrl,
+  updateMyProfileData,
+} from "@/api/profile.api";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle, Camera } from "lucide-react";
@@ -56,13 +63,14 @@ interface WorkExp {
 }
 
 export default function MyProfilePage() {
-  const { user, profile, loading: authLoading, refreshProfile, signOut } = useAuth();
+  const { user, profile, refreshProfile, signOut, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -116,79 +124,113 @@ export default function MyProfilePage() {
   );
   const allSuggestions = [...filteredSkills, ...filteredSoftware].slice(0, 10);
 
+  const authCodeQuery = useQuery({
+    queryKey: ["auth-code-status", user?.id],
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.functions.invoke("auth-code", { body: { action: "check" } });
+      return !!data?.has_code;
+    },
+  });
+
+  const generalProfileQuery = useQuery({
+    queryKey: ["my-profile-general", user?.id],
+    enabled: bootstrapStatus === "ready" && !!user,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async () => {
+      const data = await getMyProfileOverview();
+      return data.generalProfile;
+    },
+  });
+
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) {
-      supabase.functions.invoke("auth-code", { body: { action: "check" } }).then(({ data }) => {
-        setHasAuthCode(data?.has_code || false);
-      });
+    if (typeof authCodeQuery.data === "boolean") {
+      setHasAuthCode(authCodeQuery.data);
     }
-  }, [user, authLoading, navigate]);
+  }, [authCodeQuery.data]);
 
-  const fetchFreelancerProfile = useCallback(async () => {
-    if (!user) return;
-    try {
-      const [fpRes, certsRes, expRes] = await Promise.all([
-        supabase.from("freelancer_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("certifications").select("*").eq("user_id", user.id).order("year_obtained", { ascending: false }),
-        supabase.from("work_experience").select("*").eq("user_id", user.id).order("start_year", { ascending: false }),
-      ]);
-
-      if (fpRes.error) throw fpRes.error;
-      setFreelancerProfile(fpRes.data);
-
-      if (fpRes.data) {
-        setTitle(fpRes.data.title || "");
-        setBio(fpRes.data.bio || "");
-        setSkills(fpRes.data.skills || []);
-        setHourlyRate(fpRes.data.hourly_rate?.toString() || "");
-        setMinProjectRate(fpRes.data.min_project_rate?.toString() || "");
-        setYearsExperience(fpRes.data.years_experience?.toString() || "");
-        setAvailability(fpRes.data.availability || "flexible");
-        setShowWhatsapp(fpRes.data.show_whatsapp || false);
-      }
-
-      setCertifications((certsRes.data || []).map((c: any) => ({
-        id: c.id, name: c.name, issuer: c.issuer || "", year_obtained: c.year_obtained?.toString() || "", credential_url: c.credential_url || "",
-      })));
-
-      setWorkExperience((expRes.data || []).map((e: any) => ({
-        id: e.id, company: e.company, role: e.role, start_year: e.start_year?.toString() || "", end_year: e.end_year?.toString() || "", is_current: e.is_current, description: e.description || "",
-      })));
-    } catch (err) {
-      console.error("Error fetching freelancer profile:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const freelancerBundleQuery = useQuery({
+    queryKey: ["my-profile-freelancer-bundle", user?.id],
+    enabled: bootstrapStatus === "ready" && !!user && profile?.role === "freelancer",
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: async () => {
+      const data = await getMyProfileOverview();
+      return {
+        freelancerProfile: (data.freelancerProfile as FreelancerProfile | null) ?? null,
+        certifications: (data.certifications || []).map((c: any) => ({
+          id: c.id, name: c.name, issuer: c.issuer || "", year_obtained: c.year_obtained?.toString() || "", credential_url: c.credential_url || "",
+        })) as Certification[],
+        workExperience: (data.workExperience || []).map((e: any) => ({
+          id: e.id, company: e.company, role: e.role, start_year: e.start_year?.toString() || "", end_year: e.end_year?.toString() || "", is_current: e.is_current, description: e.description || "",
+        })) as WorkExp[],
+      };
+    },
+  });
 
   // Fetch edit-once flags
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name_edited, username_edited").eq("id", user.id).single().then(({ data }) => {
-      if (data) {
-        setFullNameEdited((data as any).full_name_edited || false);
-        setUsernameEdited((data as any).username_edited || false);
+    getMyProfileOverview().then((data) => {
+      if (data.editFlags) {
+        setFullNameEdited((data.editFlags as any).full_name_edited || false);
+        setUsernameEdited((data.editFlags as any).username_edited || false);
       }
     });
   }, [user]);
 
   useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name || "");
-      setPhone(profile.phone || "");
-      setWhatsapp(profile.whatsapp || "");
-      setState(profile.state || "");
-      setCity(profile.city || "");
-      setAvatarUrl(profile.avatar_url || null);
-      setOccupation((profile as any).occupation || "");
+    setLoadingError(null);
+    const generalProfile = generalProfileQuery.data;
+    if (generalProfile || profile) {
+      setFullName(generalProfile?.full_name || profile?.full_name || "");
+      setPhone((generalProfile as any)?.phone || "");
+      setWhatsapp((generalProfile as any)?.whatsapp || "");
+      setState((generalProfile as any)?.state || "");
+      setCity((generalProfile as any)?.city || "");
+      setAvatarUrl(generalProfile?.avatar_url || profile?.avatar_url || null);
+      setOccupation((generalProfile as any)?.occupation || "");
     }
-    if (user && profile?.role === "freelancer") {
-      fetchFreelancerProfile();
-    } else if (profile) {
-      setLoading(false);
+  }, [generalProfileQuery.data, profile]);
+
+  useEffect(() => {
+    if (profile?.role !== "freelancer") {
+      setFreelancerProfile(null);
+      setCertifications([]);
+      setWorkExperience([]);
+      return;
     }
-  }, [profile, user, fetchFreelancerProfile]);
+
+    if (freelancerBundleQuery.error) {
+      console.error("Error fetching freelancer profile:", freelancerBundleQuery.error);
+      setLoadingError(
+        freelancerBundleQuery.error instanceof Error
+          ? freelancerBundleQuery.error.message
+          : "We could not load your profile details.",
+      );
+      return;
+    }
+
+    if (!freelancerBundleQuery.data) return;
+
+    setLoadingError(null);
+    setFreelancerProfile(freelancerBundleQuery.data.freelancerProfile);
+    setCertifications(freelancerBundleQuery.data.certifications);
+    setWorkExperience(freelancerBundleQuery.data.workExperience);
+
+    if (freelancerBundleQuery.data.freelancerProfile) {
+      setTitle(freelancerBundleQuery.data.freelancerProfile.title || "");
+      setBio(freelancerBundleQuery.data.freelancerProfile.bio || "");
+      setSkills(freelancerBundleQuery.data.freelancerProfile.skills || []);
+      setHourlyRate(freelancerBundleQuery.data.freelancerProfile.hourly_rate?.toString() || "");
+      setMinProjectRate(freelancerBundleQuery.data.freelancerProfile.min_project_rate?.toString() || "");
+      setYearsExperience(freelancerBundleQuery.data.freelancerProfile.years_experience?.toString() || "");
+      setAvailability(freelancerBundleQuery.data.freelancerProfile.availability || "flexible");
+      setShowWhatsapp(freelancerBundleQuery.data.freelancerProfile.show_whatsapp || false);
+    }
+  }, [freelancerBundleQuery.data, freelancerBundleQuery.error, profile?.role]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -205,7 +247,7 @@ export default function MyProfilePage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
       const newUrl = `${data.publicUrl}?t=${Date.now()}`;
-      await supabase.from("profiles").update({ avatar_url: newUrl }).eq("id", user.id);
+      await updateMyAvatarUrl(newUrl);
       setAvatarUrl(newUrl);
       await refreshProfile();
       toast({ title: "Avatar updated!" });
@@ -281,16 +323,20 @@ export default function MyProfilePage() {
         profileUpdate.full_name_edited = true;
       }
 
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update(profileUpdate)
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
+      const payload: Record<string, any> = {
+        phone: profileUpdate.phone,
+        whatsapp: profileUpdate.whatsapp,
+        state: profileUpdate.state,
+        city: profileUpdate.city,
+        occupation: profileUpdate.occupation,
+        fullName: profileUpdate.full_name || null,
+        fullNameEdited,
+        role: profile.role,
+      };
 
       if (profile.role === "freelancer") {
-        const freelancerData = {
-          user_id: user.id,
+        payload.freelancerProfileId = freelancerProfile?.id || null;
+        payload.freelancerData = {
           title: title.trim() || null,
           bio: bio.trim() || null,
           skills,
@@ -300,36 +346,33 @@ export default function MyProfilePage() {
           availability: availability as FreelancerProfile["availability"],
           show_whatsapp: showWhatsapp,
         };
-
-        if (freelancerProfile) {
-          const { error } = await supabase.from("freelancer_profiles").update(freelancerData).eq("id", freelancerProfile.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from("freelancer_profiles").insert(freelancerData);
-          if (error) throw error;
-        }
-
-        if (deletedCertIds.length > 0) await supabase.from("certifications").delete().in("id", deletedCertIds);
-        for (const cert of certifications) {
-          if (!cert.name.trim()) continue;
-          const certData = { user_id: user.id, name: cert.name.trim(), issuer: cert.issuer.trim() || null, year_obtained: cert.year_obtained ? parseInt(cert.year_obtained) : null, credential_url: cert.credential_url.trim() || null };
-          if (cert.id) { await supabase.from("certifications").update(certData).eq("id", cert.id); }
-          else { await supabase.from("certifications").insert(certData); }
-        }
-
-        if (deletedExpIds.length > 0) await supabase.from("work_experience").delete().in("id", deletedExpIds);
-        for (const exp of workExperience) {
-          if (!exp.company.trim() || !exp.role.trim()) continue;
-          const expData = { user_id: user.id, company: exp.company.trim(), role: exp.role.trim(), start_year: parseInt(exp.start_year) || new Date().getFullYear(), end_year: exp.is_current ? null : (exp.end_year ? parseInt(exp.end_year) : null), is_current: exp.is_current, description: exp.description.trim() || null };
-          if (exp.id) { await supabase.from("work_experience").update(expData).eq("id", exp.id); }
-          else { await supabase.from("work_experience").insert(expData); }
-        }
-
-        setDeletedCertIds([]);
-        setDeletedExpIds([]);
+        payload.deletedCertIds = deletedCertIds;
+        payload.deletedExpIds = deletedExpIds;
+        payload.certifications = certifications.map((cert) => ({
+          id: cert.id,
+          name: cert.name.trim(),
+          issuer: cert.issuer.trim() || null,
+          year_obtained: cert.year_obtained ? parseInt(cert.year_obtained) : null,
+          credential_url: cert.credential_url.trim() || null,
+        }));
+        payload.workExperience = workExperience.map((exp) => ({
+          id: exp.id,
+          company: exp.company.trim(),
+          role: exp.role.trim(),
+          start_year: parseInt(exp.start_year) || new Date().getFullYear(),
+          end_year: exp.is_current ? null : (exp.end_year ? parseInt(exp.end_year) : null),
+          is_current: exp.is_current,
+          description: exp.description.trim() || null,
+        }));
       }
 
+      await updateMyProfileData(payload);
+      setDeletedCertIds([]);
+      setDeletedExpIds([]);
+
       await refreshProfile();
+      await queryClient.invalidateQueries({ queryKey: ["my-profile-general", user.id] });
+      await queryClient.invalidateQueries({ queryKey: ["my-profile-freelancer-bundle", user.id] });
       toast({ title: "Profile updated", description: "Your changes have been saved." });
       
       // Redirect to view profile
@@ -353,32 +396,27 @@ export default function MyProfilePage() {
     setDeleteChecking(true);
 
     try {
-      const { data: wallet } = await supabase.from("wallets").select("balance, escrow_balance").eq("user_id", user!.id).maybeSingle();
-      if (wallet && ((wallet.balance || 0) + (wallet.escrow_balance || 0)) > 0) {
+      const checks = await getMyProfileDeleteChecks();
+
+      if ((checks.walletBalance || 0) > 0) {
         setDeleteError("You have a remaining wallet balance. Please withdraw all funds before deleting your account.");
         setDeleteChecking(false);
         return;
       }
 
-      const { count: activeContracts } = await supabase.from("contracts").select("id", { count: "exact", head: true })
-        .or(`client_id.eq.${user!.id},freelancer_id.eq.${user!.id}`)
-        .in("status", ["active", "pending_funding", "in_review", "draft", "interviewing"]);
-      if ((activeContracts || 0) > 0) {
+      if ((checks.activeContracts || 0) > 0) {
         setDeleteError("You have active contracts. Please complete or cancel them first.");
         setDeleteChecking(false);
         return;
       }
 
-      const { count: activeJobs } = await supabase.from("jobs").select("id", { count: "exact", head: true })
-        .eq("client_id", user!.id)
-        .in("status", ["open", "in_progress"]);
-      if ((activeJobs || 0) > 0) {
+      if ((checks.activeJobs || 0) > 0) {
         setDeleteError("You have active job postings. Please close them first.");
         setDeleteChecking(false);
         return;
       }
 
-      if (!hasAuthCode) {
+      if (!checks.hasAuthCode && !hasAuthCode) {
         setDeleteError("You must set an authentication code before you can delete your account. Please set one above.");
         setDeleteChecking(false);
         return;
@@ -423,7 +461,9 @@ export default function MyProfilePage() {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  if (authLoading || loading) {
+  const showInitialFreelancerLoad = profile?.role === "freelancer" && freelancerBundleQuery.isPending && !freelancerBundleQuery.data;
+
+  if (bootstrapStatus === "loading" || showInitialFreelancerLoad) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -431,7 +471,54 @@ export default function MyProfilePage() {
     );
   }
 
-  if (!user || !profile) return null;
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center bg-muted/30 px-4">
+          <div className="max-w-md text-center space-y-4">
+            <h1 className="text-2xl font-bold text-foreground">Profile unavailable</h1>
+            <p className="text-muted-foreground">
+              We could not load your profile details right now. Please refresh the page and try again.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Refresh
+              </Button>
+              <Button onClick={() => signOut()}>Sign Out</Button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loadingError) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center bg-muted/30 px-4">
+          <div className="max-w-md text-center space-y-4">
+            <h1 className="text-2xl font-bold text-foreground">Profile took too long to load</h1>
+            <p className="text-muted-foreground">{loadingError}</p>
+            <div className="flex justify-center gap-3">
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Refresh
+              </Button>
+              <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
+              <Button variant="ghost" onClick={() => signOut()}>Sign Out</Button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const isFreelancer = profile.role === "freelancer";
   const cities = state ? getCitiesByState(state) : [];
@@ -441,6 +528,11 @@ export default function MyProfilePage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>

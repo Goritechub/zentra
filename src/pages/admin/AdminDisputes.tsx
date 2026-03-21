@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisputeAdjudicator } from "@/components/admin/DisputeAdjudicator";
 import { Loader2, ArrowLeft, Gavel, Eye, AlertTriangle, History } from "lucide-react";
+import { getAdminDisputesList } from "@/api/admin.api";
 
 export default function AdminDisputes() {
   const [disputes, setDisputes] = useState<any[]>([]);
@@ -15,12 +15,8 @@ export default function AdminDisputes() {
   useEffect(() => { fetchDisputes(); }, []);
 
   const fetchDisputes = async () => {
-    const { data } = await supabase
-      .from("disputes")
-      .select("*, contract:contracts!disputes_contract_id_fkey(*, client:profiles!contracts_client_id_fkey(full_name), freelancer:profiles!contracts_freelancer_id_fkey(full_name))")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setDisputes(data || []);
+    const data = await getAdminDisputesList();
+    setDisputes(data.disputes || []);
     setLoading(false);
   };
 

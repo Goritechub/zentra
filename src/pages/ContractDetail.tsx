@@ -15,6 +15,11 @@ import {
 import { ContractChat } from "@/components/contract/ContractChat";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  addContractMilestone,
+  getContractDetail,
+  submitContractReview,
+} from "@/api/contracts.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow, format } from "date-fns";
@@ -102,36 +107,22 @@ export default function ContractDetail() {
   useEffect(() => { if (id) fetchData(); }, [id]);
 
   const fetchData = async () => {
-    const [{ data: contractData }, { data: ms }, { data: ds }, { data: ledger }, { data: txns }, { data: sysMessages }] = await Promise.all([
-      supabase.from("contracts")
-        .select("*, client:profiles!contracts_client_id_fkey(full_name, avatar_url, id), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url, id)")
-        .eq("id", id).single(),
-      supabase.from("milestones").select("*").eq("contract_id", id!).order("created_at", { ascending: true }),
-      supabase.from("disputes").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
-      supabase.from("escrow_ledger").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
-      supabase.from("wallet_transactions").select("*").eq("contract_id", id!).order("created_at", { ascending: false }),
-      supabase.from("contract_messages").select("*").eq("contract_id", id!).eq("is_system_message", true).order("created_at", { ascending: false }),
-    ]);
+    const data = await getContractDetail(id!);
+    const contractData = data.contract;
+    const ms = data.milestones || [];
     setContract(contractData);
-    setMilestones(ms || []);
-    setDisputes(ds || []);
-    setEscrowLedger(ledger || []);
-    setWalletTransactions(txns || []);
-    setActivityLog(sysMessages || []);
+    setMilestones(ms);
+    setDisputes(data.disputes || []);
+    setEscrowLedger(data.escrowLedger || []);
+    setWalletTransactions(data.walletTransactions || []);
+    setActivityLog(data.activityLog || []);
     setLoading(false);
 
     // Check if user can rate (completed contract, all milestones paid/approved, no existing review)
     if (contractData && contractData.status === "completed" && user) {
       const allMilestonesDone = (ms || []).length > 0 && (ms || []).every((m: any) => m.status === "approved" || m.status === "paid");
-      const revieweeId = contractData.client_id === user.id ? contractData.freelancer_id : contractData.client_id;
-      const { data: existingReview } = await supabase
-        .from("reviews")
-        .select("id")
-        .eq("contract_id", id!)
-        .eq("reviewer_id", user.id)
-        .maybeSingle();
-      setHasReviewed(!!existingReview);
-      setCanRate(!existingReview && allMilestonesDone);
+      setHasReviewed(!!data.hasReviewed);
+      setCanRate(!data.hasReviewed && allMilestonesDone);
     }
   };
 
@@ -147,12 +138,20 @@ export default function ContractDetail() {
   const addMilestone = async () => {
     if (!newMilestone.title || !newMilestone.amount) { toast.error("Title and amount are required"); return; }
     setActionLoading(true);
-    const { error } = await supabase.from("milestones").insert({
-      contract_id: id, title: newMilestone.title, description: newMilestone.description || null,
-      amount: parseInt(newMilestone.amount), due_date: newMilestone.due_date || null,
-    });
-    if (error) toast.error("Failed to add milestone");
-    else { toast.success("Milestone added"); setShowAddMilestone(false); setNewMilestone({ title: "", description: "", amount: "", due_date: "" }); fetchData(); }
+    try {
+      await addContractMilestone(id!, {
+        title: newMilestone.title,
+        description: newMilestone.description || null,
+        amount: parseInt(newMilestone.amount),
+        due_date: newMilestone.due_date || null,
+      });
+      toast.success("Milestone added");
+      setShowAddMilestone(false);
+      setNewMilestone({ title: "", description: "", amount: "", due_date: "" });
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to add milestone");
+    }
     setActionLoading(false);
   };
 
@@ -230,30 +229,30 @@ export default function ContractDetail() {
     ) / 10;
     const revieweeId = isClient ? contract.freelancer_id : contract.client_id;
 
-    const { error } = await supabase.from("reviews").insert({
-      contract_id: id!,
-      reviewer_id: user.id,
-      reviewee_id: revieweeId,
-      rating: Math.round(overallRating),
-      comment: ratingComment.trim() || null,
-      rating_skills: categoryRatings.rating_skills,
-      rating_quality: categoryRatings.rating_quality,
-      rating_availability: categoryRatings.rating_availability,
-      rating_deadlines: categoryRatings.rating_deadlines,
-      rating_communication: categoryRatings.rating_communication,
-      rating_cooperation: categoryRatings.rating_cooperation,
-    } as any);
-    if (error) {
+    try {
+      await submitContractReview(id!, {
+        reviewee_id: revieweeId,
+        rating: Math.round(overallRating),
+        comment: ratingComment.trim() || null,
+        rating_skills: categoryRatings.rating_skills,
+        rating_quality: categoryRatings.rating_quality,
+        rating_availability: categoryRatings.rating_availability,
+        rating_deadlines: categoryRatings.rating_deadlines,
+        rating_communication: categoryRatings.rating_communication,
+        rating_cooperation: categoryRatings.rating_cooperation,
+      });
+    } catch (error) {
       toast.error("Failed to submit rating");
-    } else {
-      // Rating recalculation is handled by the DB trigger (recalculate_rating_on_review)
-      toast.success("Review submitted! Thank you.");
-      setShowRateDialog(false);
-      setHasReviewed(true);
-      setCanRate(false);
-      setCategoryRatings({});
-      setRatingComment("");
+      setRatingLoading(false);
+      return;
     }
+    // Rating recalculation is handled by the DB trigger (recalculate_rating_on_review)
+    toast.success("Review submitted! Thank you.");
+    setShowRateDialog(false);
+    setHasReviewed(true);
+    setCanRate(false);
+    setCategoryRatings({});
+    setRatingComment("");
     setRatingLoading(false);
   };
 

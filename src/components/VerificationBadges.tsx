@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 interface VerificationBadgesProps {
   isVerified: boolean;
   isZentraVerified: boolean;
-  role?: "client" | "freelancer" | string;
+  role?: "client" | "freelancer" | null;
   size?: "sm" | "md";
   className?: string;
 }
@@ -14,7 +14,8 @@ export function VerificationBadges({ isVerified, isZentraVerified, role, size = 
   const iconSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
   const textSize = size === "sm" ? "text-[10px]" : "text-xs";
 
-  const verifiedLabel = role === "client" ? "Verified Client" : "Verified Engineer";
+  const verifiedLabel =
+    role === "client" ? "Verified Client" : role === "freelancer" ? "Verified Engineer" : "Verified User";
 
   return (
     <div className={cn("flex flex-wrap gap-1.5", className)}>

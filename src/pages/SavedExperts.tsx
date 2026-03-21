@@ -6,64 +6,53 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getSavedExpertsList, removeSavedExpert } from "@/api/client-read.api";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, Loader2, MapPin, Star, Trash2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SavedExpertsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [saved, setSaved] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchSaved();
-  }, [user, authLoading]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchSaved();
+    }
+  }, [bootstrapStatus, user]);
 
   const fetchSaved = async () => {
-    // Fetch saved experts with profile and freelancer_profile data
-    const { data } = await supabase
-      .from("saved_experts" as any)
-      .select("*, freelancer:profiles!saved_experts_freelancer_id_fkey(*)")
-      .eq("client_id", user!.id)
-      .order("created_at", { ascending: false });
-
-    const savedData = (data as any[]) || [];
-
-    // Fetch freelancer_profiles for rating/title/skills
-    if (savedData.length > 0) {
-      const freelancerIds = savedData.map((s: any) => s.freelancer_id).filter(Boolean);
-      const { data: fpData } = await supabase
-        .from("freelancer_profiles")
-        .select("*")
-        .in("user_id", freelancerIds);
-
-      // Merge freelancer profile data
-      savedData.forEach((item: any) => {
-        item.freelancerProfile = (fpData || []).find((fp: any) => fp.user_id === item.freelancer_id);
-      });
+    setLoading(true);
+    try {
+      const response = await getSavedExpertsList();
+      setSaved(response.data.savedExperts || []);
+    } catch {
+      setSaved([]);
+    } finally {
+      setLoading(false);
     }
-
-    setSaved(savedData);
-    setLoading(false);
   };
 
   const removeSaved = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    await supabase.from("saved_experts" as any).delete().eq("id", id);
-    setSaved(saved.filter((s: any) => s.id !== id));
-    toast.success("Expert removed from saved list");
+    try {
+      await removeSavedExpert(id);
+      setSaved(saved.filter((s: any) => s.id !== id));
+      toast.success("Expert removed from saved list");
+    } catch {
+      toast.error("Failed to remove saved expert");
+    }
   };
 
   const getRelativeTime = (dateStr: string) => {
     return `Saved ${formatDistanceToNow(new Date(dateStr), { addSuffix: true })}`;
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   return (
@@ -71,12 +60,27 @@ export default function SavedExpertsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
           <h1 className="text-3xl font-bold text-foreground mb-8">Saved Experts</h1>
-          {saved.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-6 space-y-3">
+                  <div className="h-14 w-14 rounded-full bg-muted animate-pulse" />
+                  <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              ))}
+            </div>
+          ) : saved.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No saved experts yet</p>

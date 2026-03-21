@@ -12,6 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupportSettings } from "@/hooks/useSupportSettings";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createSupportComplaint,
+  getMySupportComplaints,
+  getSupportChat,
+  sendSupportChatMessage,
+} from "@/api/support.api";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -126,21 +132,22 @@ function ComplaintForm({ userId }: { userId: string }) {
     if (message.trim().length > 5000) { toast.error("Message must be under 5000 characters"); return; }
 
     setSubmitting(true);
-    const { error } = await supabase.from("complaints" as any).insert({
-      user_id: userId,
-      subject: subject.trim(),
-      category,
-      message: message.trim(),
-    } as any);
-
-    if (error) {
+    try {
+      await createSupportComplaint({
+        subject: subject.trim(),
+        category,
+        message: message.trim(),
+      });
+    } catch (error) {
       toast.error("Failed to submit complaint");
-    } else {
-      toast.success("Complaint submitted successfully. We'll review it shortly.");
-      setSubject("");
-      setCategory("");
-      setMessage("");
+      setSubmitting(false);
+      return;
     }
+
+    toast.success("Complaint submitted successfully. We'll review it shortly.");
+    setSubject("");
+    setCategory("");
+    setMessage("");
     setSubmitting(false);
   };
 
@@ -180,12 +187,12 @@ function ComplaintHistory({ userId }: { userId: string }) {
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
-        .from("complaints" as any)
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-      setComplaints((data as any[]) || []);
+      try {
+        const response = await getMySupportComplaints();
+        setComplaints(response.complaints || []);
+      } catch (error) {
+        setComplaints([]);
+      }
       setLoading(false);
     };
     fetch();
@@ -237,42 +244,15 @@ function SupportChatPanel({ userId }: { userId: string }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const initChat = useCallback(async () => {
-    // Get or create support chat
-    const { data: existing } = await supabase
-      .from("support_chats" as any)
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    let id: string;
-    if (existing) {
-      id = (existing as any).id;
-    } else {
-      const { data: created } = await supabase
-        .from("support_chats" as any)
-        .insert({ user_id: userId } as any)
-        .select("id")
-        .single();
-      id = (created as any).id;
+    try {
+      const data = await getSupportChat();
+      setChatId(data.chatId);
+      setMessages(data.messages || []);
+    } catch (error) {
+      setChatId(null);
+      setMessages([]);
     }
-
-    setChatId(id);
-
-    const { data: msgs } = await supabase
-      .from("support_chat_messages" as any)
-      .select("*")
-      .eq("chat_id", id)
-      .order("created_at", { ascending: true });
-    setMessages((msgs as any[]) || []);
     setLoading(false);
-
-    // Mark admin messages as read
-    await supabase
-      .from("support_chat_messages" as any)
-      .update({ is_read: true } as any)
-      .eq("chat_id", id)
-      .eq("sender_type", "admin")
-      .eq("is_read", false);
 
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }, [userId]);
@@ -300,13 +280,7 @@ function SupportChatPanel({ userId }: { userId: string }) {
   const handleSend = async () => {
     if (!newMsg.trim() || !chatId) return;
     setSending(true);
-    await supabase.from("support_chat_messages" as any).insert({
-      chat_id: chatId,
-      sender_id: userId,
-      sender_type: "user",
-      message: newMsg.trim(),
-    } as any);
-    await supabase.from("support_chats" as any).update({ updated_at: new Date().toISOString() } as any).eq("id", chatId);
+    await sendSupportChatMessage(newMsg.trim());
     setNewMsg("");
     setSending(false);
   };

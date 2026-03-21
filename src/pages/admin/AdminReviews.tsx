@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteAdminReview, getAdminReviews } from "@/api/admin.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -9,30 +9,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Star, Trash2 } from "lucide-react";
 
 export default function AdminReviews() {
-  const { user } = useAuth();
+  useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchReviews(); }, []);
+  useEffect(() => { void fetchReviews(); }, []);
 
   const fetchReviews = async () => {
-    const { data } = await supabase
-      .from("reviews")
-      .select("*, reviewer:profiles!reviews_reviewer_id_fkey(full_name), reviewee:profiles!reviews_reviewee_id_fkey(full_name), contract:contracts!reviews_contract_id_fkey(job_title)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setReviews(data || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getAdminReviews();
+      setReviews(data.reviews || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteReview = async (id: string) => {
     if (!confirm("Delete this review? This cannot be undone.")) return;
-    await supabase.from("reviews").delete().eq("id", id);
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action: "delete_review", target_type: "review", target_id: id, details: {},
-    });
-    setReviews(prev => prev.filter(r => r.id !== id));
-    toast.success("Review deleted");
+    try {
+      await deleteAdminReview(id);
+      setReviews(prev => prev.filter(r => r.id !== id));
+      toast.success("Review deleted");
+    } catch {
+      toast.error("Failed to delete review");
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { getWalletBalance } from "@/api/wallet.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
@@ -54,10 +55,14 @@ export default function LaunchContestPage() {
   useEffect(() => {
     if (!user) return;
     const fetchWallet = async () => {
-      const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-      setWalletBalance(data?.balance || 0);
+      try {
+        const data = await getWalletBalance();
+        setWalletBalance(data.balance || 0);
+      } catch {
+        setWalletBalance(0);
+      }
     };
-    fetchWallet();
+    void fetchWallet();
   }, [user]);
 
   const calcTotalPrize = () => {
@@ -144,8 +149,13 @@ export default function LaunchContestPage() {
   const handleFundSuccess = async () => {
     // Refresh wallet balance
     if (!user) return;
-    const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-    const newBal = data?.balance || 0;
+    let newBal = 0;
+    try {
+      const data = await getWalletBalance();
+      newBal = data.balance || 0;
+    } catch {
+      newBal = 0;
+    }
     setWalletBalance(newBal);
     setShowFundWallet(false);
     // Update insufficient modal data

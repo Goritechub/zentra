@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/layout/Header";
@@ -11,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { getOpenJobs } from "@/api/jobs.api";
 import { getAllStates, formatNaira, cadSoftwareList, cadSkills } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +25,8 @@ const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
 export default function JobsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const { user, authError } = useAuth();
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
@@ -45,29 +44,14 @@ export default function JobsPage() {
     .filter(s => s.toLowerCase().includes(skillSearch.toLowerCase()) && !selectedSkills.includes(s))
     .slice(0, 8);
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
+  const jobsQuery = useQuery({
+    queryKey: ["jobs-page", user?.id],
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    queryFn: getOpenJobs,
+  });
 
-  const fetchJobs = async () => {
-    const { data } = await supabase
-      .from("jobs")
-      .select("*, client:profiles!jobs_client_id_fkey(full_name, avatar_url)")
-      .eq("status", "open")
-      .order("created_at", { ascending: false });
-
-    // Filter out private jobs user isn't invited to
-    const jobData = (data || []).filter((j: any) => {
-      if (j.visibility === "private") {
-        return user && (j.client_id === user.id || (j.invited_expert_ids || []).includes(user.id));
-      }
-      return true;
-    });
-
-    const clientIds = [...new Set(jobData.map((j: any) => j.client_id))];
-    setJobs(jobData);
-    setLoading(false);
-  };
+  const jobs = jobsQuery.data || [];
 
   const toggleSaveJob = (jobId: string) => {
     setSavedJobIds((prev) => {
@@ -135,10 +119,6 @@ export default function JobsPage() {
 
   const clearFilters = () => { setSearchTerm(""); setSelectedState(""); setRemoteOnly(false); setJobType(""); setJobLength(""); setSortBy("newest"); setSelectedSkills([]); };
   const hasFilters = searchTerm || selectedState || remoteOnly || jobType || jobLength || sortBy !== "newest" || selectedSkills.length > 0;
-
-  if (loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
-  }
 
   const renderJobList = (filtered: any[]) => (
     <>
@@ -223,6 +203,14 @@ export default function JobsPage() {
         </div>
 
         <div className="container-wide py-8">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {jobsQuery.isFetching && (
+            <p className="text-sm text-muted-foreground mb-4">Refreshing jobs...</p>
+          )}
           {/* Filters */}
           <div className="bg-card rounded-xl border border-border p-4 mb-6 shadow-card">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -320,9 +308,21 @@ export default function JobsPage() {
               <TabsTrigger value="all">All Jobs ({allFiltered.length})</TabsTrigger>
               <TabsTrigger value="saved">Saved Jobs ({savedFiltered.length})</TabsTrigger>
             </TabsList>
-            <TabsContent value="all">{renderJobList(allFiltered)}</TabsContent>
+            <TabsContent value="all">
+              {jobsQuery.isPending && !jobsQuery.data ? (
+                <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+                  <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin opacity-50" />
+                  <p>Loading jobs...</p>
+                </div>
+              ) : renderJobList(allFiltered)}
+            </TabsContent>
             <TabsContent value="saved">
-              {savedJobIds.size === 0 ? (
+              {jobsQuery.isPending && !jobsQuery.data ? (
+                <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+                  <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin opacity-50" />
+                  <p>Loading jobs...</p>
+                </div>
+              ) : savedJobIds.size === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
                   <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No saved jobs yet</p>

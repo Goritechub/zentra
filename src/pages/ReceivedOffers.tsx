@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { declineReceivedOffer, getReceivedOffers } from "@/api/offers.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 export default function ReceivedOffersPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,57 +28,14 @@ export default function ReceivedOffersPage() {
   const [showDecline, setShowDecline] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
+    if (!user) navigate("/auth");
     if (user) fetchOffers();
-  }, [user, authLoading]);
+  }, [user]);
 
   const fetchOffers = async () => {
     if (!user) return;
-    // Fetch private jobs where expert is invited
-    const { data: privateJobs } = await supabase
-      .from("jobs")
-      .select("*, client:profiles!jobs_client_id_fkey(id, full_name, avatar_url, state, city)")
-      .eq("visibility", "private")
-      .eq("status", "open")
-      .contains("invited_expert_ids", [user.id]);
-
-    // Also fetch direct offers from `offers` table
-    const { data: directOffers } = await supabase
-      .from("offers")
-      .select("*, client:profiles!offers_client_id_fkey(id, full_name, avatar_url)")
-      .eq("freelancer_id", user.id)
-      .order("created_at", { ascending: false });
-
-    // Combine: private jobs as "job_offer" type, direct offers as "direct_offer"
-    const jobOffers = (privateJobs || []).map((j: any) => ({
-      _type: "job_offer",
-      id: j.id,
-      title: j.title,
-      description: j.description,
-      budget: j.budget_max || j.budget_min,
-      budget_min: j.budget_min,
-      budget_max: j.budget_max,
-      client: j.client,
-      client_id: j.client_id,
-      created_at: j.created_at,
-      state: j.state,
-      city: j.city,
-      is_remote: j.is_remote,
-      delivery_days: j.delivery_days,
-      delivery_unit: j.delivery_unit,
-      required_skills: j.required_skills,
-      status: "pending",
-      job_id: j.id,
-    }));
-
-    const dOffers = ((directOffers as any[]) || []).map((o: any) => ({
-      _type: "direct_offer",
-      ...o,
-    }));
-
-    setOffers([...jobOffers, ...dOffers].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ));
+    const offers = await getReceivedOffers();
+    setOffers(offers);
     setLoading(false);
   };
 
@@ -90,22 +47,12 @@ export default function ReceivedOffersPage() {
     if (!selected || !user) return;
     setActionLoading(true);
     try {
-      if (selected._type === "direct_offer") {
-        await supabase.from("offers" as any).update({ status: "rejected" }).eq("id", selected.id);
-      }
-      // For private jobs, remove expert from invited list
-      if (selected._type === "job_offer") {
-        const { data: job } = await supabase.from("jobs").select("invited_expert_ids").eq("id", selected.job_id).single();
-        if (job?.invited_expert_ids) {
-          const updated = (job.invited_expert_ids as string[]).filter((id: string) => id !== user.id);
-          await supabase.from("jobs").update({ invited_expert_ids: updated }).eq("id", selected.job_id);
-        }
-      }
-      await supabase.from("notifications").insert({
-        user_id: selected.client_id,
-        title: "Offer Declined",
-        message: `An expert declined your offer: "${selected.title}"`,
-        type: "offer_declined",
+      await declineReceivedOffer({
+        offerType: selected._type,
+        offerId: selected._type === "direct_offer" ? selected.id : null,
+        jobId: selected._type === "job_offer" ? selected.job_id : null,
+        title: selected.title || null,
+        clientId: selected.client_id || null,
       });
       toast.success("Offer declined.");
       await fetchOffers();
@@ -117,17 +64,7 @@ export default function ReceivedOffersPage() {
     setActionLoading(false);
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  if (!user || bootstrapStatus !== "ready") return null;
 
   const pendingOffers = offers.filter(o => o.status === "pending");
   const respondedOffers = offers.filter(o => o.status !== "pending");
@@ -235,6 +172,14 @@ export default function ReceivedOffersPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {loading && (
+            <p className="mb-4 text-sm text-muted-foreground">Refreshing offers...</p>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -251,7 +196,23 @@ export default function ReceivedOffersPage() {
             )}
           </div>
 
-          {pendingOffers.length === 0 && respondedOffers.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="rounded-xl border border-border bg-card p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-full bg-muted animate-pulse shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 w-44 rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-28 rounded bg-muted/80 animate-pulse" />
+                      <div className="h-3 w-56 rounded bg-muted/70 animate-pulse" />
+                    </div>
+                    <div className="h-6 w-20 rounded bg-muted animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : pendingOffers.length === 0 && respondedOffers.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground bg-card rounded-xl border border-border">
               <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No offers yet</p>

@@ -5,7 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyContestsList } from "@/api/client-read.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Loader2, Trophy, ArrowLeft, PlusCircle, Users, Calendar } from "lucide-react";
@@ -30,70 +30,35 @@ function statusVariant(s: ReturnType<typeof deriveContestStatus>): "default" | "
 }
 
 export default function MyContestsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [contests, setContests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchContests();
-  }, [user, authLoading]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchContests();
+    }
+  }, [bootstrapStatus, user]);
 
   const fetchContests = async () => {
-    const { data } = await supabase
-      .from("contests" as any)
-      .select("*")
-      .eq("client_id", user!.id)
-      .order("created_at", { ascending: false });
-
-    const list = (data as any[]) || [];
-
-    if (list.length > 0) {
-      const ids = list.map((c) => c.id);
-
-      // Entry counts
-      const { data: entries } = await supabase.from("contest_entries").select("contest_id").in("contest_id", ids);
-
-      const countMap = new Map<string, number>();
-      (entries || []).forEach((e: any) => countMap.set(e.contest_id, (countMap.get(e.contest_id) || 0) + 1));
-
-      // Winner counts for accurate status
-      const { data: winnerRows } = await supabase
-        .from("contest_entries")
-        .select("contest_id")
-        .in("contest_id", ids)
-        .eq("is_winner", true);
-
-      const winnerCountMap = new Map<string, number>();
-      (winnerRows || []).forEach((e: any) =>
-        winnerCountMap.set(e.contest_id, (winnerCountMap.get(e.contest_id) || 0) + 1),
-      );
-
-      list.forEach((c) => {
-        c._entryCount = countMap.get(c.id) || 0;
-        c._winnersCount = winnerCountMap.get(c.id) || 0;
-      });
+    setLoading(true);
+    try {
+      const response = await getMyContestsList();
+      setContests(response.data.contests || []);
+    } catch {
+      setContests([]);
+    } finally {
+      setLoading(false);
     }
-
-    setContests(list);
-    setLoading(false);
   };
 
   // All five prize tiers
   const totalPrize = (c: any) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
-      </div>
-    );
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
   }
 
   return (
@@ -101,6 +66,11 @@ export default function MyContestsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -115,7 +85,17 @@ export default function MyContestsPage() {
             </Button>
           </div>
 
-          {contests.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                  <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
+                  <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse mb-3" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              ))}
+            </div>
+          ) : contests.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>You haven't launched any contests yet</p>

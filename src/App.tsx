@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,7 +10,6 @@ import { PlatformFreezeProvider } from "@/hooks/usePlatformFreeze";
 import { PlatformFrozenBanner } from "@/components/PlatformFrozenBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AuthGuard } from "@/components/AuthGuard";
-import { AuthCodeSetupGuard } from "@/components/AuthCodeSetupGuard";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { Loader2 } from "lucide-react";
 
@@ -22,6 +21,7 @@ const Jobs = lazy(() => import("./pages/Jobs"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Messages = lazy(() => import("./pages/Messages"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
 const MyProfile = lazy(() => import("./pages/MyProfile"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const JobDetails = lazy(() => import("./pages/JobDetails"));
@@ -74,11 +74,21 @@ const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyCo
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 import { preloadCommissionTiers } from "./lib/service-charge";
+import { getBackendHealth } from "./api/health.api";
 
 // Preload commission tiers so sync helpers use DB values
 preloadCommissionTiers();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -86,22 +96,37 @@ const PageLoader = () => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-    <AuthProvider>
-      <PlatformFreezeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <PlatformFrozenBanner />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+const AppShell = () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    void getBackendHealth()
+      .then((response) => {
+        if (!cancelled && import.meta.env.DEV) {
+          console.info("[api] health ok", response.data);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("[api] health failed", error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <ScrollToTop />
+      <PlatformFrozenBanner />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/onboarding" element={<AuthGuard allowIncomplete><Onboarding /></AuthGuard>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/terms" element={<Terms />} />
@@ -165,10 +190,22 @@ const App = () => (
               </Route>
 
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-          <FloatingSupport />
-        </BrowserRouter>
+        </Routes>
+      </Suspense>
+      <FloatingSupport />
+    </BrowserRouter>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+    <AuthProvider>
+      <PlatformFreezeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AppShell />
       </TooltipProvider>
       </PlatformFreezeProvider>
     </AuthProvider>

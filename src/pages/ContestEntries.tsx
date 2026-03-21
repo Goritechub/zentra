@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyContestEntriesList } from "@/api/marketplace.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { format, isPast } from "date-fns";
 import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award } from "lucide-react";
@@ -20,41 +20,74 @@ function deriveContestStatus(contest: any, isWinner: boolean): "active" | "selec
 }
 
 export default function ContestEntriesPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
-    if (user) fetchEntries();
-  }, [user, authLoading]);
+    if (bootstrapStatus === "ready" && user) {
+      void fetchEntries();
+    }
+  }, [bootstrapStatus, user]);
 
   const fetchEntries = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("contest_entries")
-      .select(
-        "*, contest:contests(id, title, description, deadline, status, prize_first, prize_second, prize_third, prize_fourth, prize_fifth, client_id, client:profiles!contests_client_id_fkey(full_name))",
-      )
-      .eq("freelancer_id", user.id)
-      .order("created_at", { ascending: false });
-    setEntries((data as any[]) || []);
-    setLoading(false);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await getMyContestEntriesList();
+      setEntries(response.data.entries || []);
+    } catch (error) {
+      setEntries([]);
+      setLoadError(error instanceof Error ? error.message : "Failed to load contest entries");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (authLoading || loading) {
+  if (!user || bootstrapStatus !== "ready") {
+    return null;
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide">
+            {authError && (
+              <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                {authError}
+              </div>
+            )}
+            <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Trophy className="h-8 w-8 text-accent" /> Contest Entries
+            </h1>
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2 w-full">
+                      <div className="h-5 w-1/2 rounded bg-muted animate-pulse" />
+                      <div className="h-4 w-1/3 rounded bg-muted/70 animate-pulse" />
+                      <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse" />
+                    </div>
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
         <Footer />
       </div>
     );
   }
-
   const entered = entries.filter((e) => !e.is_winner);
   const won = entries.filter((e) => e.is_winner);
 
@@ -157,6 +190,16 @@ export default function ContestEntriesPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {loadError && (
+            <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {loadError}
+            </div>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>

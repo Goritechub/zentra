@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from
 "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { createJobPost, searchInviteExperts } from "@/api/jobs.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
@@ -86,13 +87,8 @@ export default function PostJobPage() {
     setExpertSearch(query);
     if (query.length < 2) {setExpertResults([]);return;}
     setSearchingExperts(true);
-    const { data } = await supabase.
-    from("profiles").
-    select("id, full_name, avatar_url").
-    eq("role", "freelancer").
-    ilike("full_name", `%${query}%`).
-    limit(10);
-    setExpertResults((data || []).filter((e) => !invitedExperts.find((ie) => ie.id === e.id)));
+    const data = await searchInviteExperts(query);
+    setExpertResults((data || []).filter((e: any) => !invitedExperts.find((ie) => ie.id === e.id)));
     setSearchingExperts(false);
   };
 
@@ -170,31 +166,29 @@ export default function PostJobPage() {
 
     const deliveryDays = deliveryValue ? toDays(parseInt(deliveryValue), deliveryUnit) : null;
 
-    const { error } = await supabase.from("jobs").insert({
-      client_id: user.id,
-      title: title.trim(),
-      description: description.trim(),
-      budget_min: budgetMin ? parseInt(budgetMin) : null,
-      budget_max: budgetMax ? parseInt(budgetMax) : null,
-      delivery_days: deliveryDays,
-      delivery_unit: deliveryUnit,
-      is_remote: locationType === "remote",
-      is_hourly: isHourly,
-      state: locationType === "physical" ? state || null : null,
-      city: locationType === "physical" ? city || null : null,
-      required_skills: selectedSkills,
-      required_software: selectedSoftware,
-      skill_level: overallSkillLevel,
-      attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
-      visibility,
-      invited_expert_ids: invitedExperts.map((e) => e.id)
-    } as any);
-
-    if (error) {
-      toast.error("Failed to post job");
-    } else {
+    try {
+      await createJobPost({
+        title: title.trim(),
+        description: description.trim(),
+        budget_min: budgetMin ? parseInt(budgetMin) : null,
+        budget_max: budgetMax ? parseInt(budgetMax) : null,
+        delivery_days: deliveryDays,
+        delivery_unit: deliveryUnit,
+        is_remote: locationType === "remote",
+        is_hourly: isHourly,
+        state: locationType === "physical" ? state || null : null,
+        city: locationType === "physical" ? city || null : null,
+        required_skills: selectedSkills,
+        required_software: selectedSoftware,
+        skill_level: overallSkillLevel,
+        attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
+        visibility,
+        invited_expert_ids: invitedExperts.map((invited) => invited.id),
+      });
       toast.success("Job posted successfully!");
       navigate("/dashboard");
+    } catch (error) {
+      toast.error("Failed to post job");
     }
     setLoading(false);
   };

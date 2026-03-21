@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  deleteAdminPlatformReview,
+  getAdminPlatformReviews,
+  setAdminPlatformReviewApproval,
+  setAdminPlatformReviewFeatured,
+} from "@/api/admin.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -9,42 +14,51 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Star, Trash2, CheckCircle2, Eye, Award } from "lucide-react";
 
 export default function AdminPlatformReviews() {
-  const { user } = useAuth();
+  useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchReviews(); }, []);
+  useEffect(() => { void fetchReviews(); }, []);
 
   const fetchReviews = async () => {
-    const { data } = await supabase
-      .from("platform_reviews")
-      .select("*, profiles:user_id(full_name, email)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setReviews(data || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getAdminPlatformReviews();
+      setReviews(data.reviews || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleApproval = async (id: string, current: boolean) => {
-    await supabase.from("platform_reviews").update({ is_approved: !current }).eq("id", id);
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, is_approved: !current } : r));
-    toast.success(!current ? "Review approved" : "Review unapproved");
+    try {
+      await setAdminPlatformReviewApproval(id, !current);
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, is_approved: !current } : r));
+      toast.success(!current ? "Review approved" : "Review unapproved");
+    } catch {
+      toast.error("Failed to update approval");
+    }
   };
 
   const toggleFeatured = async (id: string, current: boolean) => {
-    await supabase.from("platform_reviews").update({ is_featured: !current }).eq("id", id);
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, is_featured: !current } : r));
-    toast.success(!current ? "Review featured" : "Review unfeatured");
+    try {
+      await setAdminPlatformReviewFeatured(id, !current);
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, is_featured: !current } : r));
+      toast.success(!current ? "Review featured" : "Review unfeatured");
+    } catch {
+      toast.error("Failed to update featured status");
+    }
   };
 
   const deleteReview = async (id: string) => {
     if (!confirm("Delete this platform review?")) return;
-    await supabase.from("platform_reviews").delete().eq("id", id);
-    await supabase.from("admin_activity_log").insert({
-      admin_id: user!.id, action: "delete_platform_review", target_type: "platform_review", target_id: id, details: {},
-    });
-    setReviews(prev => prev.filter(r => r.id !== id));
-    toast.success("Review deleted");
+    try {
+      await deleteAdminPlatformReview(id);
+      setReviews(prev => prev.filter(r => r.id !== id));
+      toast.success("Review deleted");
+    } catch {
+      toast.error("Failed to delete review");
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

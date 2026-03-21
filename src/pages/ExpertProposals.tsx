@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getExpertProposalsOverview } from "@/api/proposals.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -15,7 +15,7 @@ import {
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function ExpertProposalsPage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState<any[]>([]);
@@ -23,49 +23,20 @@ export default function ExpertProposalsPage() {
   const [interviewContracts, setInterviewContracts] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
+    if (!user) navigate("/auth");
     if (user) fetchData();
-  }, [user, authLoading]);
+  }, [user]);
 
   const fetchData = async () => {
     if (!user) return;
-    const [proposalsRes, offersRes] = await Promise.all([
-      supabase
-        .from("proposals")
-        .select("*, job:jobs(id, title, client_id, budget_min, budget_max, is_hourly, status, client:profiles!jobs_client_id_fkey(full_name, avatar_url))")
-        .eq("freelancer_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("offers")
-        .select("*, client:profiles!offers_client_id_fkey(full_name, avatar_url)")
-        .eq("freelancer_id", user.id)
-        .order("created_at", { ascending: false }),
-    ]);
-    const allProposals = proposalsRes.data || [];
-    setProposals(allProposals);
-    setOffers((offersRes.data as any[]) || []);
+    const data = await getExpertProposalsOverview();
+    setProposals(data.proposals || []);
+    setOffers(data.offers || []);
+    setInterviewContracts(data.interviewContracts || {});
     setLoading(false);
-
-    // Fetch interview contracts
-    const interviewing = allProposals.filter((p: any) => p.status === "interviewing");
-    if (interviewing.length) {
-      const proposalIds = interviewing.map((p: any) => p.id);
-      const { data } = await supabase
-        .from("contracts")
-        .select("id, proposal_id")
-        .in("proposal_id", proposalIds)
-        .eq("status", "interviewing" as any);
-      if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((c: any) => { if (c.proposal_id) map[c.proposal_id] = c.id; });
-        setInterviewContracts(map);
-      }
-    }
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>;
-  }
+  if (!user || bootstrapStatus !== "ready") return null;
 
   const pendingOffers = offers.filter(o => o.status === "pending");
   const interviewingProposals = proposals.filter(p => p.status === "interviewing");
@@ -180,6 +151,14 @@ export default function ExpertProposalsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
+          {authError && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {authError}
+            </div>
+          )}
+          {loading && (
+            <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals and offers...</p>
+          )}
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -200,7 +179,25 @@ export default function ExpertProposalsPage() {
             </TabsList>
 
             <TabsContent value="offers">
-              {pendingOffers.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="rounded-xl border border-border bg-card p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="h-5 w-44 rounded bg-muted animate-pulse" />
+                          <div className="h-3 w-28 rounded bg-muted/80 animate-pulse" />
+                          <div className="h-3 w-56 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-5 w-20 rounded bg-muted animate-pulse" />
+                          <div className="h-6 w-16 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : pendingOffers.length === 0 ? (
                 <EmptyState icon={Inbox} text="No pending job offers at this time." />
               ) : (
                 <div className="space-y-4">{pendingOffers.map(o => <OfferCard key={o.id} o={o} />)}</div>
@@ -212,7 +209,25 @@ export default function ExpertProposalsPage() {
             </TabsContent>
 
             <TabsContent value="interviewing">
-              {interviewingProposals.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="rounded-xl border border-border bg-card p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="h-5 w-44 rounded bg-muted animate-pulse" />
+                          <div className="h-3 w-28 rounded bg-muted/80 animate-pulse" />
+                          <div className="h-3 w-56 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-5 w-20 rounded bg-muted animate-pulse" />
+                          <div className="h-6 w-16 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : interviewingProposals.length === 0 ? (
                 <EmptyState icon={UserCheck} text="No interviews currently in progress." />
               ) : (
                 <div className="space-y-4">{interviewingProposals.map(p => <ProposalCard key={p.id} p={p} />)}</div>
@@ -220,7 +235,25 @@ export default function ExpertProposalsPage() {
             </TabsContent>
 
             <TabsContent value="applications">
-              {applicationProposals.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="rounded-xl border border-border bg-card p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="h-5 w-44 rounded bg-muted animate-pulse" />
+                          <div className="h-3 w-28 rounded bg-muted/80 animate-pulse" />
+                          <div className="h-3 w-56 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-5 w-20 rounded bg-muted animate-pulse" />
+                          <div className="h-6 w-16 rounded bg-muted/70 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : applicationProposals.length === 0 ? (
                 <EmptyState icon={FileText} text="You haven't submitted any proposals yet." />
               ) : (
                 <div className="space-y-4">{applicationProposals.map(p => <ProposalCard key={p.id} p={p} />)}</div>
