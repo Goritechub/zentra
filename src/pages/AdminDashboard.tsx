@@ -80,7 +80,7 @@ export default function AdminDashboard() {
           <div className="text-center">
             <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-destructive" />
             <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">You don't have admin privileges.</p>
+            <p className="text-muted-foreground">You do not have admin privileges.</p>
             <Button className="mt-4" onClick={() => signOut()}>Sign Out</Button>
           </div>
         </div>
