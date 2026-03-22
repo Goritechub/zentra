@@ -182,7 +182,9 @@ export default function AuthPage() {
   const [googleRoleSelection, setGoogleRoleSelection] = useState<
     "client" | "freelancer"
   >(defaultRole as "client" | "freelancer");
-  const [oauthProcessing, setOauthProcessing] = useState(false);
+  const [googleRoleSaving, setGoogleRoleSaving] = useState(false);
+  const [googleRoleError, setGoogleRoleError] = useState<string | null>(null);
+  const [pendingGoogleSetup, setPendingGoogleSetup] = useState(false);
 
   // Stable callbacks via refs to avoid stale closures
   const recaptchaTokenRef = useRef(recaptchaToken);
@@ -290,31 +292,12 @@ export default function AuthPage() {
     apply();
   }, [user, profile, refreshProfile]);
 
-  // Handle OAuth callback hash and redirect to onboarding
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash || !hash.includes("access_token")) return;
-
-    setOauthProcessing(true);
-    const params = new URLSearchParams(hash.replace(/^#/, ""));
-    const access_token = params.get("access_token");
-    const refresh_token = params.get("refresh_token");
-    if (access_token && refresh_token) {
-      supabase.auth
-        .setSession({ access_token, refresh_token })
-        .then(() => {
-          window.history.replaceState(null, "", "/onboarding");
-          navigate("/onboarding", { replace: true });
-        })
-        .catch((error) => {
-          console.error("OAuth session set failed:", error);
-          window.history.replaceState(null, "", "/auth");
-          setOauthProcessing(false);
-        });
-    } else {
-      setOauthProcessing(false);
-    }
-  }, [navigate]);
+  const clearPendingGoogleState = useCallback(() => {
+    localStorage.removeItem("pending_oauth_role");
+    localStorage.removeItem("pending_oauth_intent");
+    localStorage.removeItem("pending_oauth_role_choice");
+    localStorage.removeItem("pending_oauth_ts");
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -970,15 +953,6 @@ export default function AuthPage() {
   // Helper for field error styling
   const fieldClass = (field: string, errors: Record<string, string>) =>
     errors[field] ? "border-destructive focus-visible:ring-destructive" : "";
-
-  // Show loading during OAuth processing
-  if (oauthProcessing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col">
