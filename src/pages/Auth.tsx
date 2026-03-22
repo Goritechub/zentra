@@ -7,7 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -18,7 +24,16 @@ import {
   updateAuthRole,
 } from "@/api/auth.api";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
-import { Briefcase, Users, Loader2, CheckCircle2, Eye, EyeOff, Check, ShieldCheck } from "lucide-react";
+import {
+  Briefcase,
+  Users,
+  Loader2,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Check,
+  ShieldCheck,
+} from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
@@ -37,7 +52,10 @@ const fullNameValidator = z
       .filter((p) => p.length >= 2);
     return parts.length >= 2;
   }, "Please enter your first and last name (e.g. Adewale Okonkwo)")
-  .refine((val) => /^[a-zA-ZÀ-ÿ\s'-]+$/.test(val.trim()), "Name should only contain letters, hyphens, and apostrophes");
+  .refine(
+    (val) => /^[a-zA-ZÀ-ÿ\s'-]+$/.test(val.trim()),
+    "Name should only contain letters, hyphens, and apostrophes",
+  );
 
 const signUpSchema = z.object({
   fullName: fullNameValidator,
@@ -67,7 +85,10 @@ const forgotPasswordSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
 });
 
-const sanitizeRedirectTarget = (rawRedirect: string | null, role: string | null | undefined) => {
+const sanitizeRedirectTarget = (
+  rawRedirect: string | null,
+  role: string | null | undefined,
+) => {
   if (!rawRedirect) return null;
   if (!rawRedirect.startsWith("/") || rawRedirect.startsWith("//")) return null;
 
@@ -106,11 +127,21 @@ const GeneralFormError = ({ message }: { message?: string }) => {
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, profile, signUp, signIn, loading: authLoading, refreshProfile, onboardingComplete, role } = useAuth();
+  const {
+    user,
+    profile,
+    signUp,
+    signIn,
+    loading: authLoading,
+    refreshProfile,
+    onboardingComplete,
+    role,
+  } = useAuth();
   const { signupsPaused, platformFrozen } = usePlatformFreeze();
 
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
-  const defaultRole = searchParams.get("role") === "freelancer" ? "freelancer" : "client";
+  const defaultRole =
+    searchParams.get("role") === "freelancer" ? "freelancer" : "client";
 
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
@@ -148,7 +179,9 @@ export default function AuthPage() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [googleRoleModalOpen, setGoogleRoleModalOpen] = useState(false);
-  const [googleRoleSelection, setGoogleRoleSelection] = useState<"client" | "freelancer">(defaultRole as "client" | "freelancer");
+  const [googleRoleSelection, setGoogleRoleSelection] = useState<
+    "client" | "freelancer"
+  >(defaultRole as "client" | "freelancer");
   const [googleRoleSaving, setGoogleRoleSaving] = useState(false);
   const [googleRoleError, setGoogleRoleError] = useState<string | null>(null);
   const [pendingGoogleSetup, setPendingGoogleSetup] = useState(false);
@@ -300,17 +333,19 @@ export default function AuthPage() {
     setSignUpErrors({});
     setGoogleLoading(true);
     try {
-
       // Determine desired role: signup tab uses radio, signin tab uses URL param or default
 
       // Only allow client/freelancer — never admin
 
       // Store role + timestamp so we can detect new users after redirect
-      const preselectedRole = activeTab === "signup" ? signUpData.role : defaultRole;
+      const preselectedRole =
+        activeTab === "signup" ? signUpData.role : defaultRole;
       localStorage.setItem("pending_oauth_role_choice", preselectedRole);
       localStorage.setItem("pending_oauth_ts", Date.now().toString());
 
-      const oauthStartUrl = buildGoogleOauthStartUrl(`${window.location.origin}/auth`);
+      const appOrigin =
+        import.meta.env.VITE_APP_ORIGIN || window.location.origin;
+      const oauthStartUrl = buildGoogleOauthStartUrl(`${appOrigin}/auth`);
       window.location.assign(oauthStartUrl);
       return;
     } catch (err: any) {
@@ -331,14 +366,30 @@ export default function AuthPage() {
     const applyPendingRole = async () => {
       return;
 
-      const pendingOauthRole = localStorage.getItem("pending_oauth_role") as "client" | "freelancer" | null;
+      const pendingOauthRole = localStorage.getItem("pending_oauth_role") as
+        | "client"
+        | "freelancer"
+        | null;
       const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
-      const pendingSignupRole = localStorage.getItem("pending_signup_role") as "client" | "freelancer" | null;
-      const metadataRole = user.user_metadata?.role as "client" | "freelancer" | "admin" | undefined;
+      const pendingSignupRole = localStorage.getItem("pending_signup_role") as
+        | "client"
+        | "freelancer"
+        | null;
+      const metadataRole = user.user_metadata?.role as
+        | "client"
+        | "freelancer"
+        | "admin"
+        | undefined;
 
       // Sanitize: only allow "client" or "freelancer" — never "admin"
-      const rawPending = pendingOauthRole ?? pendingSignupRole ?? (metadataRole === "freelancer" ? "freelancer" : null);
-      const pendingRole = (rawPending === "client" || rawPending === "freelancer") ? rawPending : null;
+      const rawPending =
+        pendingOauthRole ??
+        pendingSignupRole ??
+        (metadataRole === "freelancer" ? "freelancer" : null);
+      const pendingRole =
+        rawPending === "client" || rawPending === "freelancer"
+          ? rawPending
+          : null;
       if (!pendingRole || pendingRole === "client") return;
 
       if (pendingOauthRole && pendingOauthTs) {
@@ -392,7 +443,9 @@ export default function AuthPage() {
       return;
 
       const pendingOauthIntent = localStorage.getItem("pending_oauth_intent");
-      const pendingOauthRole = localStorage.getItem("pending_oauth_role_choice") as "client" | "freelancer" | null;
+      const pendingOauthRole = localStorage.getItem(
+        "pending_oauth_role_choice",
+      ) as "client" | "freelancer" | null;
       const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
       if (!pendingOauthIntent) return;
 
@@ -429,7 +482,9 @@ export default function AuthPage() {
         return;
       }
 
-      setGoogleRoleSelection(pendingOauthRole === "freelancer" ? "freelancer" : "client");
+      setGoogleRoleSelection(
+        pendingOauthRole === "freelancer" ? "freelancer" : "client",
+      );
       setGoogleRoleModalOpen(true);
       setPendingGoogleSetup(false);
     };
@@ -446,7 +501,9 @@ export default function AuthPage() {
     try {
       await updateAuthRole(googleRoleSelection);
     } catch {
-      setGoogleRoleError("We could not finish Google sign-up. Please try again.");
+      setGoogleRoleError(
+        "We could not finish Google sign-up. Please try again.",
+      );
       setGoogleRoleSaving(false);
       return;
     }
@@ -473,7 +530,8 @@ export default function AuthPage() {
       result.error.errors.forEach((err) => {
         if (err.path[0]) errors[err.path[0].toString()] = err.message;
       });
-      if (!termsAccepted) errors.terms = "You must agree to the Terms and Conditions";
+      if (!termsAccepted)
+        errors.terms = "You must agree to the Terms and Conditions";
       setSignUpErrors(errors);
       return;
     }
@@ -484,12 +542,20 @@ export default function AuthPage() {
     }
 
     // Validate occupation word count (max 5 words for text inputs)
-    const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
-    if (signUpData.role === "client" && signUpData.occupation.trim() && wordCount(signUpData.occupation) > 5) {
+    const wordCount = (text: string) =>
+      text.trim().split(/\s+/).filter(Boolean).length;
+    if (
+      signUpData.role === "client" &&
+      signUpData.occupation.trim() &&
+      wordCount(signUpData.occupation) > 5
+    ) {
       setSignUpErrors({ occupation: "Maximum 5 words allowed" });
       return;
     }
-    if (signUpData.role === "freelancer" && signUpData.occupation === "Others") {
+    if (
+      signUpData.role === "freelancer" &&
+      signUpData.occupation === "Others"
+    ) {
       if (!signUpData.occupationOther.trim()) {
         setSignUpErrors({ occupationOther: "Please specify your occupation" });
         return;
@@ -509,26 +575,36 @@ export default function AuthPage() {
     }
 
     try {
-      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-recaptcha", {
-        body: { token: recaptchaToken },
-      });
+      const { data: verifyData, error: verifyError } =
+        await supabase.functions.invoke("verify-recaptcha", {
+          body: { token: recaptchaToken },
+        });
 
       if (verifyError || !verifyData?.success) {
-        setSignUpErrors({ general: verifyData?.error || "reCAPTCHA verification failed. Please try again." });
+        setSignUpErrors({
+          general:
+            verifyData?.error ||
+            "reCAPTCHA verification failed. Please try again.",
+        });
         const grecaptcha = (window as any).grecaptcha;
-        if (grecaptcha && recaptchaWidgetIdRef.current !== null) grecaptcha.reset(recaptchaWidgetIdRef.current);
+        if (grecaptcha && recaptchaWidgetIdRef.current !== null)
+          grecaptcha.reset(recaptchaWidgetIdRef.current);
         setRecaptchaToken(null);
         setLoading(false);
         return;
       }
     } catch (err) {
       console.error("reCAPTCHA error:", err);
-      setSignUpErrors({ general: "Security verification failed. Please refresh and try again." });
+      setSignUpErrors({
+        general: "Security verification failed. Please refresh and try again.",
+      });
       setLoading(false);
       return;
     }
 
-    const usernameCheck = await checkAuthUsernameAvailability(signUpData.username);
+    const usernameCheck = await checkAuthUsernameAvailability(
+      signUpData.username,
+    );
     if (!usernameCheck.available) {
       setSignUpErrors({ username: "This username is already taken" });
       setLoading(false);
@@ -560,7 +636,9 @@ export default function AuthPage() {
     if (error) {
       localStorage.removeItem("pending_signup_role");
       if (error.message.includes("already registered")) {
-        setSignUpErrors({ email: "This email is already registered. Please sign in instead." });
+        setSignUpErrors({
+          email: "This email is already registered. Please sign in instead.",
+        });
       } else {
         setSignUpErrors({ general: error.message });
       }
@@ -577,24 +655,57 @@ export default function AuthPage() {
     setLoading(false);
   };
 
-  const mapSignInError = (error: Error): { field?: string; message: string } => {
+  const mapSignInError = (
+    error: Error,
+  ): { field?: string; message: string } => {
     const msg = error.message?.toLowerCase() || "";
-    if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials"))
+    if (
+      msg.includes("invalid login credentials") ||
+      msg.includes("invalid_credentials")
+    )
       return { message: "Incorrect email/username or password." };
-    if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed"))
-      return { field: "identifier", message: "Please confirm your email before signing in." };
-    if (msg.includes("too many requests") || msg.includes("rate limit") || msg.includes("429"))
-      return { message: "Too many login attempts. Please wait a moment and try again." };
-    if (msg.includes("user not found")) return { field: "identifier", message: "No account found with this email." };
-    if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network"))
-      return { message: "Network connection lost. Please check your internet and try again." };
+    if (
+      msg.includes("email not confirmed") ||
+      msg.includes("email_not_confirmed")
+    )
+      return {
+        field: "identifier",
+        message: "Please confirm your email before signing in.",
+      };
+    if (
+      msg.includes("too many requests") ||
+      msg.includes("rate limit") ||
+      msg.includes("429")
+    )
+      return {
+        message: "Too many login attempts. Please wait a moment and try again.",
+      };
+    if (msg.includes("user not found"))
+      return {
+        field: "identifier",
+        message: "No account found with this email.",
+      };
+    if (
+      msg.includes("failed to fetch") ||
+      msg.includes("networkerror") ||
+      msg.includes("network")
+    )
+      return {
+        message:
+          "Network connection lost. Please check your internet and try again.",
+      };
     if (msg.includes("503") || msg.includes("service unavailable"))
-      return { message: "Authentication service temporarily unavailable. Please try again shortly." };
+      return {
+        message:
+          "Authentication service temporarily unavailable. Please try again shortly.",
+      };
     if (msg.includes("500") || msg.includes("server error"))
       return { message: "Server error. Please try again shortly." };
     if (msg.includes("403") || msg.includes("forbidden"))
       return { message: "Your account is restricted. Please contact support." };
-    return { message: "Something went wrong during sign-in. Please try again." };
+    return {
+      message: "Something went wrong during sign-in. Please try again.",
+    };
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -603,7 +714,10 @@ export default function AuthPage() {
 
     // Check network before attempting
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setSignInErrors({ general: "Network connection lost. Please check your internet and try again." });
+      setSignInErrors({
+        general:
+          "Network connection lost. Please check your internet and try again.",
+      });
       return;
     }
 
@@ -627,27 +741,41 @@ export default function AuthPage() {
 
         const lookupResult = await Promise.race([
           lookupPromise,
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("TIMEOUT")), 10000),
+          ),
         ]);
 
-        const resolvedLookup = lookupResult as Awaited<ReturnType<typeof lookupAuthUser>>;
+        const resolvedLookup = lookupResult as Awaited<
+          ReturnType<typeof lookupAuthUser>
+        >;
         if (!resolvedLookup.found || !resolvedLookup.email) {
-          setSignInErrors({ identifier: "No account found with that username" });
+          setSignInErrors({
+            identifier: "No account found with that username",
+          });
           setLoading(false);
           return;
         }
         email = resolvedLookup.email;
       } else {
-        const emailLookupPromise = lookupAuthUser(signInData.identifier.toLowerCase());
+        const emailLookupPromise = lookupAuthUser(
+          signInData.identifier.toLowerCase(),
+        );
 
         const emailLookupResult = await Promise.race([
           emailLookupPromise,
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("TIMEOUT")), 10000),
+          ),
         ]);
 
-        const resolvedEmailLookup = emailLookupResult as Awaited<ReturnType<typeof lookupAuthUser>>;
+        const resolvedEmailLookup = emailLookupResult as Awaited<
+          ReturnType<typeof lookupAuthUser>
+        >;
         if (!resolvedEmailLookup.found) {
-          setSignInErrors({ identifier: "No account found with that email address" });
+          setSignInErrors({
+            identifier: "No account found with that email address",
+          });
           setLoading(false);
           return;
         }
@@ -657,7 +785,9 @@ export default function AuthPage() {
       const signInPromise = signIn(email, signInData.password);
       const { error } = await Promise.race([
         signInPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT")), 10000),
+        ),
       ]);
 
       if (error) {
@@ -677,11 +807,22 @@ export default function AuthPage() {
     } catch (err: any) {
       console.error("Sign-in error:", err);
       if (err?.message === "TIMEOUT") {
-        setSignInErrors({ general: "Connection timed out. Please check your internet connection and try again." });
-      } else if (err?.message?.toLowerCase().includes("fetch") || err?.message?.toLowerCase().includes("network")) {
-        setSignInErrors({ general: "Network connection lost. Please check your internet and try again." });
+        setSignInErrors({
+          general:
+            "Connection timed out. Please check your internet connection and try again.",
+        });
+      } else if (
+        err?.message?.toLowerCase().includes("fetch") ||
+        err?.message?.toLowerCase().includes("network")
+      ) {
+        setSignInErrors({
+          general:
+            "Network connection lost. Please check your internet and try again.",
+        });
       } else {
-        setSignInErrors({ general: "Something went wrong during sign-in. Please try again." });
+        setSignInErrors({
+          general: "Something went wrong during sign-in. Please try again.",
+        });
       }
       setLoading(false);
     }
@@ -721,7 +862,9 @@ export default function AuthPage() {
       const profileData = await lookupAuthUser(input.toLowerCase());
 
       if (!profileData.found) {
-        setForgotErrors({ identifier: "No account found with this email address" });
+        setForgotErrors({
+          identifier: "No account found with this email address",
+        });
         setForgotLoading(false);
         return;
       }
@@ -796,9 +939,12 @@ export default function AuthPage() {
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
 
-    if (score <= 2) return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
-    if (score <= 3) return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
-    if (score <= 4) return { label: "Good", color: "bg-accent", width: "w-3/4" };
+    if (score <= 2)
+      return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
+    if (score <= 3)
+      return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
+    if (score <= 4)
+      return { label: "Good", color: "bg-accent", width: "w-3/4" };
     return { label: "Strong", color: "bg-primary", width: "w-full" };
   };
 
@@ -821,7 +967,9 @@ export default function AuthPage() {
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {activeTab === "signin" ? "Sign in to access your dashboard" : "Join the #1 engineering & technical marketplace"}
+              {activeTab === "signin"
+                ? "Sign in to access your dashboard"
+                : "Join the #1 engineering & technical marketplace"}
             </p>
           </div>
 
@@ -837,11 +985,15 @@ export default function AuthPage() {
                   forgotSuccess ? (
                     <div className="text-center py-4 space-y-4">
                       <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
-                      <h3 className="text-lg font-semibold text-foreground">Check your email</h3>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Check your email
+                      </h3>
                       <p className="text-sm text-muted-foreground">
                         We've sent a password reset link to{" "}
-                        <span className="font-medium text-foreground">{forgotEmail}</span>. Please check your inbox and
-                        spam folder.
+                        <span className="font-medium text-foreground">
+                          {forgotEmail}
+                        </span>
+                        . Please check your inbox and spam folder.
                       </p>
                       <Button
                         variant="outline"
@@ -859,14 +1011,22 @@ export default function AuthPage() {
                   ) : (
                     <div className="space-y-4">
                       <div className="text-center mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Reset your password</h3>
+                        <h3 className="text-lg font-semibold text-foreground">
+                          Reset your password
+                        </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Enter your email or username and we'll send you a reset link
+                          Enter your email or username and we'll send you a
+                          reset link
                         </p>
                       </div>
-                      <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <form
+                        onSubmit={handleForgotPassword}
+                        className="space-y-4"
+                      >
                         <div className="space-y-2">
-                          <Label htmlFor="forgot-identifier">Email or Username</Label>
+                          <Label htmlFor="forgot-identifier">
+                            Email or Username
+                          </Label>
                           <Input
                             id="forgot-identifier"
                             name="forgot-identifier"
@@ -881,13 +1041,21 @@ export default function AuthPage() {
                             className={fieldClass("identifier", forgotErrors)}
                           />
                           {forgotErrors.identifier && (
-                            <p className="text-sm text-destructive">{forgotErrors.identifier}</p>
+                            <p className="text-sm text-destructive">
+                              {forgotErrors.identifier}
+                            </p>
                           )}
                         </div>
-                        <Button type="submit" className="w-full" size="lg" disabled={forgotLoading}>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          size="lg"
+                          disabled={forgotLoading}
+                        >
                           {forgotLoading ? (
                             <>
-                              <Loader2 className="h-4 w-4 animate-spin" /> Sending...
+                              <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                              Sending...
                             </>
                           ) : (
                             "Send Reset Link"
@@ -913,7 +1081,9 @@ export default function AuthPage() {
                   <>
                     <form onSubmit={handleSignIn} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="signin-identifier">Email or Username</Label>
+                        <Label htmlFor="signin-identifier">
+                          Email or Username
+                        </Label>
                         <Input
                           id="signin-identifier"
                           name="identifier"
@@ -922,7 +1092,10 @@ export default function AuthPage() {
                           placeholder="you@example.com or username"
                           value={signInData.identifier}
                           onChange={(e) => {
-                            setSignInData({ ...signInData, identifier: e.target.value });
+                            setSignInData({
+                              ...signInData,
+                              identifier: e.target.value,
+                            });
                             if (signInErrors.identifier)
                               setSignInErrors((prev) => {
                                 const { identifier, ...rest } = prev;
@@ -932,7 +1105,9 @@ export default function AuthPage() {
                           className={fieldClass("identifier", signInErrors)}
                         />
                         {signInErrors.identifier && (
-                          <p className="text-sm text-destructive">{signInErrors.identifier}</p>
+                          <p className="text-sm text-destructive">
+                            {signInErrors.identifier}
+                          </p>
                         )}
                       </div>
 
@@ -959,28 +1134,53 @@ export default function AuthPage() {
                             placeholder="Enter your password"
                             value={signInData.password}
                             onChange={(e) => {
-                              setSignInData({ ...signInData, password: e.target.value });
+                              setSignInData({
+                                ...signInData,
+                                password: e.target.value,
+                              });
                               if (signInErrors.password)
                                 setSignInErrors((prev) => {
                                   const { password, ...rest } = prev;
                                   return rest;
                                 });
                             }}
-                            className={cn("pr-10", fieldClass("password", signInErrors))}
+                            className={cn(
+                              "pr-10",
+                              fieldClass("password", signInErrors),
+                            )}
                           />
                           <button
                             type="button"
-                            onClick={() => setShowSignInPassword(!showSignInPassword)}
+                            onClick={() =>
+                              setShowSignInPassword(!showSignInPassword)
+                            }
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                            aria-label={
+                              showSignInPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
                           >
-                            {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showSignInPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
-                        {signInErrors.password && <p className="text-sm text-destructive">{signInErrors.password}</p>}
+                        {signInErrors.password && (
+                          <p className="text-sm text-destructive">
+                            {signInErrors.password}
+                          </p>
+                        )}
                       </div>
 
-                      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={loading}
+                      >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1004,36 +1204,52 @@ export default function AuthPage() {
                   <div className="text-center py-6 space-y-5">
                     <CheckCircle2 className="h-14 w-14 mx-auto text-primary" />
                     <div>
-                      <h3 className="text-xl font-bold text-foreground">Account Created!</h3>
+                      <h3 className="text-xl font-bold text-foreground">
+                        Account Created!
+                      </h3>
                       <p className="text-sm text-muted-foreground mt-2">
                         Please check your email at{" "}
-                        <span className="font-medium text-foreground">{signUpData.email}</span> to verify your account.
+                        <span className="font-medium text-foreground">
+                          {signUpData.email}
+                        </span>{" "}
+                        to verify your account.
                       </p>
                     </div>
 
                     <div className="bg-muted/50 rounded-xl border border-border p-5 text-left space-y-3">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="h-5 w-5 text-primary" />
-                        <h4 className="font-semibold text-foreground">Set Up Transaction Security</h4>
+                        <h4 className="font-semibold text-foreground">
+                          Set Up Transaction Security
+                        </h4>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         After verifying your email and signing in, go to{" "}
-                        <span className="font-medium text-foreground">Edit Profile</span> to set your{" "}
-                        <span className="font-medium text-foreground">6-digit authentication code</span>. This code is
-                        required for:
+                        <span className="font-medium text-foreground">
+                          Edit Profile
+                        </span>{" "}
+                        to set your{" "}
+                        <span className="font-medium text-foreground">
+                          6-digit authentication code
+                        </span>
+                        . This code is required for:
                       </p>
                       <ul className="text-sm text-muted-foreground space-y-1 ml-1">
                         <li className="flex items-center gap-2">
-                          <Check className="h-3.5 w-3.5 text-primary" /> Funding milestones & escrow
+                          <Check className="h-3.5 w-3.5 text-primary" /> Funding
+                          milestones & escrow
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-3.5 w-3.5 text-primary" /> Wallet withdrawals
+                          <Check className="h-3.5 w-3.5 text-primary" /> Wallet
+                          withdrawals
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-3.5 w-3.5 text-primary" /> Publishing contest winners
+                          <Check className="h-3.5 w-3.5 text-primary" />{" "}
+                          Publishing contest winners
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-3.5 w-3.5 text-primary" /> Deleting your account
+                          <Check className="h-3.5 w-3.5 text-primary" />{" "}
+                          Deleting your account
                         </li>
                       </ul>
                     </div>
@@ -1053,14 +1269,19 @@ export default function AuthPage() {
                   <div className="text-center py-8 space-y-3">
                     <ShieldCheck className="h-12 w-12 mx-auto text-destructive" />
                     <h3 className="text-lg font-semibold text-foreground">
-                      {platformFrozen ? "Platform Under Maintenance" : "Registrations Paused"}
+                      {platformFrozen
+                        ? "Platform Under Maintenance"
+                        : "Registrations Paused"}
                     </h3>
                     <p className="text-muted-foreground text-sm">
                       {platformFrozen
                         ? "The platform is temporarily under maintenance. Please check back later."
                         : "New account registrations are temporarily paused. Please check back later."}
                     </p>
-                    <Button variant="outline" onClick={() => setActiveTab("signin")}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("signin")}
+                    >
                       Sign In Instead
                     </Button>
                   </div>
@@ -1072,7 +1293,12 @@ export default function AuthPage() {
                         <RadioGroup
                           value={signUpData.role}
                           onValueChange={(value: "client" | "freelancer") =>
-                            setSignUpData({ ...signUpData, role: value, occupation: "", occupationOther: "" })
+                            setSignUpData({
+                              ...signUpData,
+                              role: value,
+                              occupation: "",
+                              occupationOther: "",
+                            })
                           }
                           className="grid grid-cols-2 gap-3"
                         >
@@ -1084,14 +1310,22 @@ export default function AuthPage() {
                                 : "border-border hover:border-muted-foreground"
                             }`}
                           >
-                            <RadioGroupItem value="client" id="role-client" className="sr-only" />
+                            <RadioGroupItem
+                              value="client"
+                              id="role-client"
+                              className="sr-only"
+                            />
                             <Briefcase
                               className={`h-6 w-6 ${signUpData.role === "client" ? "text-primary" : "text-muted-foreground"}`}
                             />
-                            <span className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}>
+                            <span
+                              className={`font-medium ${signUpData.role === "client" ? "text-primary" : ""}`}
+                            >
                               Hire Talent
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Find engineering experts</span>
+                            <span className="text-xs text-muted-foreground text-center">
+                              Find engineering experts
+                            </span>
                           </label>
                           <label
                             htmlFor="role-freelancer"
@@ -1101,14 +1335,22 @@ export default function AuthPage() {
                                 : "border-border hover:border-muted-foreground"
                             }`}
                           >
-                            <RadioGroupItem value="freelancer" id="role-freelancer" className="sr-only" />
+                            <RadioGroupItem
+                              value="freelancer"
+                              id="role-freelancer"
+                              className="sr-only"
+                            />
                             <Users
                               className={`h-6 w-6 ${signUpData.role === "freelancer" ? "text-primary" : "text-muted-foreground"}`}
                             />
-                            <span className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}>
+                            <span
+                              className={`font-medium ${signUpData.role === "freelancer" ? "text-primary" : ""}`}
+                            >
                               Find Work
                             </span>
-                            <span className="text-xs text-muted-foreground text-center">Offer technical services</span>
+                            <span className="text-xs text-muted-foreground text-center">
+                              Offer technical services
+                            </span>
                           </label>
                         </RadioGroup>
                       </div>
@@ -1116,7 +1358,10 @@ export default function AuthPage() {
                       {/* Occupation field */}
                       <div className="space-y-2">
                         <Label htmlFor="signup-occupation">
-                          Occupation <span className="text-muted-foreground font-normal">(optional)</span>
+                          Occupation{" "}
+                          <span className="text-muted-foreground font-normal">
+                            (optional)
+                          </span>
                         </Label>
                         {signUpData.role === "freelancer" ? (
                           <>
@@ -1126,7 +1371,10 @@ export default function AuthPage() {
                                 setSignUpData({
                                   ...signUpData,
                                   occupation: v,
-                                  occupationOther: v !== "Others" ? "" : signUpData.occupationOther,
+                                  occupationOther:
+                                    v !== "Others"
+                                      ? ""
+                                      : signUpData.occupationOther,
                                 });
                                 if (signUpErrors.occupation)
                                   setSignUpErrors((prev) => {
@@ -1140,11 +1388,23 @@ export default function AuthPage() {
                                   });
                               }}
                             >
-                              <SelectTrigger id="signup-occupation" className={fieldClass("occupation", signUpErrors)}>
+                              <SelectTrigger
+                                id="signup-occupation"
+                                className={fieldClass(
+                                  "occupation",
+                                  signUpErrors,
+                                )}
+                              >
                                 <SelectValue placeholder="Select your occupation" />
                               </SelectTrigger>
                               <SelectContent>
-                                {["Engineer", "Technician", "Maker", "Student", "Others"].map((opt) => (
+                                {[
+                                  "Engineer",
+                                  "Technician",
+                                  "Maker",
+                                  "Student",
+                                  "Others",
+                                ].map((opt) => (
                                   <SelectItem key={opt} value={opt}>
                                     {opt}
                                   </SelectItem>
@@ -1160,19 +1420,30 @@ export default function AuthPage() {
                                   value={signUpData.occupationOther}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    setSignUpData({ ...signUpData, occupationOther: val });
+                                    setSignUpData({
+                                      ...signUpData,
+                                      occupationOther: val,
+                                    });
                                     if (signUpErrors.occupationOther)
                                       setSignUpErrors((prev) => {
-                                        const { occupationOther, ...rest } = prev;
+                                        const { occupationOther, ...rest } =
+                                          prev;
                                         return rest;
                                       });
                                   }}
                                   maxLength={50}
-                                  className={fieldClass("occupationOther", signUpErrors)}
+                                  className={fieldClass(
+                                    "occupationOther",
+                                    signUpErrors,
+                                  )}
                                 />
-                                <p className="text-xs text-muted-foreground">Keep it brief — max 5 words</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Keep it brief — max 5 words
+                                </p>
                                 {signUpErrors.occupationOther && (
-                                  <p className="text-sm text-destructive">{signUpErrors.occupationOther}</p>
+                                  <p className="text-sm text-destructive">
+                                    {signUpErrors.occupationOther}
+                                  </p>
                                 )}
                               </div>
                             )}
@@ -1186,7 +1457,10 @@ export default function AuthPage() {
                               value={signUpData.occupation}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                setSignUpData({ ...signUpData, occupation: val });
+                                setSignUpData({
+                                  ...signUpData,
+                                  occupation: val,
+                                });
                                 if (signUpErrors.occupation)
                                   setSignUpErrors((prev) => {
                                     const { occupation, ...rest } = prev;
@@ -1196,9 +1470,13 @@ export default function AuthPage() {
                               maxLength={50}
                               className={fieldClass("occupation", signUpErrors)}
                             />
-                            <p className="text-xs text-muted-foreground">Keep it brief — max 5 words</p>
+                            <p className="text-xs text-muted-foreground">
+                              Keep it brief — max 5 words
+                            </p>
                             {signUpErrors.occupation && (
-                              <p className="text-sm text-destructive">{signUpErrors.occupation}</p>
+                              <p className="text-sm text-destructive">
+                                {signUpErrors.occupation}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1213,7 +1491,10 @@ export default function AuthPage() {
                           placeholder="Adewale Okonkwo"
                           value={signUpData.fullName}
                           onChange={(e) => {
-                            setSignUpData({ ...signUpData, fullName: e.target.value });
+                            setSignUpData({
+                              ...signUpData,
+                              fullName: e.target.value,
+                            });
                             if (signUpErrors.fullName)
                               setSignUpErrors((prev) => {
                                 const { fullName, ...rest } = prev;
@@ -1225,7 +1506,11 @@ export default function AuthPage() {
                         <p className="text-xs text-muted-foreground">
                           Enter your full legal name (first and last name)
                         </p>
-                        {signUpErrors.fullName && <p className="text-sm text-destructive">{signUpErrors.fullName}</p>}
+                        {signUpErrors.fullName && (
+                          <p className="text-sm text-destructive">
+                            {signUpErrors.fullName}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1239,7 +1524,9 @@ export default function AuthPage() {
                           onChange={(e) => {
                             setSignUpData({
                               ...signUpData,
-                              username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+                              username: e.target.value
+                                .toLowerCase()
+                                .replace(/[^a-z0-9_]/g, ""),
                             });
                             if (signUpErrors.username)
                               setSignUpErrors((prev) => {
@@ -1251,9 +1538,14 @@ export default function AuthPage() {
                           className={fieldClass("username", signUpErrors)}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Letters, numbers, and underscores only. Cannot be changed later.
+                          Letters, numbers, and underscores only. Cannot be
+                          changed later.
                         </p>
-                        {signUpErrors.username && <p className="text-sm text-destructive">{signUpErrors.username}</p>}
+                        {signUpErrors.username && (
+                          <p className="text-sm text-destructive">
+                            {signUpErrors.username}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1266,7 +1558,10 @@ export default function AuthPage() {
                           placeholder="you@example.com"
                           value={signUpData.email}
                           onChange={(e) => {
-                            setSignUpData({ ...signUpData, email: e.target.value });
+                            setSignUpData({
+                              ...signUpData,
+                              email: e.target.value,
+                            });
                             if (signUpErrors.email)
                               setSignUpErrors((prev) => {
                                 const { email, ...rest } = prev;
@@ -1275,7 +1570,11 @@ export default function AuthPage() {
                           }}
                           className={fieldClass("email", signUpErrors)}
                         />
-                        {signUpErrors.email && <p className="text-sm text-destructive">{signUpErrors.email}</p>}
+                        {signUpErrors.email && (
+                          <p className="text-sm text-destructive">
+                            {signUpErrors.email}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1289,22 +1588,38 @@ export default function AuthPage() {
                             placeholder="Create a password"
                             value={signUpData.password}
                             onChange={(e) => {
-                              setSignUpData({ ...signUpData, password: e.target.value });
+                              setSignUpData({
+                                ...signUpData,
+                                password: e.target.value,
+                              });
                               if (signUpErrors.password)
                                 setSignUpErrors((prev) => {
                                   const { password, ...rest } = prev;
                                   return rest;
                                 });
                             }}
-                            className={cn("pr-10", fieldClass("password", signUpErrors))}
+                            className={cn(
+                              "pr-10",
+                              fieldClass("password", signUpErrors),
+                            )}
                           />
                           <button
                             type="button"
-                            onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                            onClick={() =>
+                              setShowSignUpPassword(!showSignUpPassword)
+                            }
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                            aria-label={
+                              showSignUpPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
                           >
-                            {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showSignUpPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                         {signUpData.password && (
@@ -1335,25 +1650,66 @@ export default function AuthPage() {
                               </span>
                             </div>
                             <ul className="text-xs text-muted-foreground space-y-0.5">
-                              <li className={signUpData.password.length >= 8 ? "text-primary" : ""}>
-                                {signUpData.password.length >= 8 ? "✓" : "○"} At least 8 characters
+                              <li
+                                className={
+                                  signUpData.password.length >= 8
+                                    ? "text-primary"
+                                    : ""
+                                }
+                              >
+                                {signUpData.password.length >= 8 ? "✓" : "○"} At
+                                least 8 characters
                               </li>
-                              <li className={/[A-Z]/.test(signUpData.password) ? "text-primary" : ""}>
-                                {/[A-Z]/.test(signUpData.password) ? "✓" : "○"} One uppercase letter
+                              <li
+                                className={
+                                  /[A-Z]/.test(signUpData.password)
+                                    ? "text-primary"
+                                    : ""
+                                }
+                              >
+                                {/[A-Z]/.test(signUpData.password) ? "✓" : "○"}{" "}
+                                One uppercase letter
                               </li>
-                              <li className={/[a-z]/.test(signUpData.password) ? "text-primary" : ""}>
-                                {/[a-z]/.test(signUpData.password) ? "✓" : "○"} One lowercase letter
+                              <li
+                                className={
+                                  /[a-z]/.test(signUpData.password)
+                                    ? "text-primary"
+                                    : ""
+                                }
+                              >
+                                {/[a-z]/.test(signUpData.password) ? "✓" : "○"}{" "}
+                                One lowercase letter
                               </li>
-                              <li className={/[0-9]/.test(signUpData.password) ? "text-primary" : ""}>
-                                {/[0-9]/.test(signUpData.password) ? "✓" : "○"} One number
+                              <li
+                                className={
+                                  /[0-9]/.test(signUpData.password)
+                                    ? "text-primary"
+                                    : ""
+                                }
+                              >
+                                {/[0-9]/.test(signUpData.password) ? "✓" : "○"}{" "}
+                                One number
                               </li>
-                              <li className={/[^A-Za-z0-9]/.test(signUpData.password) ? "text-primary" : ""}>
-                                {/[^A-Za-z0-9]/.test(signUpData.password) ? "✓" : "○"} One special character
+                              <li
+                                className={
+                                  /[^A-Za-z0-9]/.test(signUpData.password)
+                                    ? "text-primary"
+                                    : ""
+                                }
+                              >
+                                {/[^A-Za-z0-9]/.test(signUpData.password)
+                                  ? "✓"
+                                  : "○"}{" "}
+                                One special character
                               </li>
                             </ul>
                           </div>
                         )}
-                        {signUpErrors.password && <p className="text-sm text-destructive">{signUpErrors.password}</p>}
+                        {signUpErrors.password && (
+                          <p className="text-sm text-destructive">
+                            {signUpErrors.password}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex justify-center">
@@ -1391,10 +1747,19 @@ export default function AuthPage() {
                             </button>
                           </p>
                         </div>
-                        {signUpErrors.terms && <p className="text-sm text-destructive ml-7">{signUpErrors.terms}</p>}
+                        {signUpErrors.terms && (
+                          <p className="text-sm text-destructive ml-7">
+                            {signUpErrors.terms}
+                          </p>
+                        )}
                       </div>
 
-                      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={loading}
+                      >
                         {loading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
