@@ -309,6 +309,11 @@ export default function AuthPage() {
   useEffect(() => {
     if (!user || authLoading) return;
 
+    if (role === "admin") {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
     const redirect = sanitizeRedirectTarget(searchParams.get("redirect"), role);
     if (redirect) {
       navigate(redirect, { replace: true });
@@ -317,11 +322,6 @@ export default function AuthPage() {
 
     if (!onboardingComplete) {
       navigate("/onboarding");
-      return;
-    }
-
-    if (role === "admin") {
-      navigate("/admin");
       return;
     }
 
