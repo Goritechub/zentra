@@ -1,5 +1,7 @@
 import { api } from "./axios";
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:4000").replace(/\/+$/, "");
+
 export type BootstrapUserRole = "client" | "freelancer" | "admin" | null;
 
 export interface AuthBootstrapResponse {
@@ -78,4 +80,14 @@ export async function completeAuthOnboarding(input: {
 }) {
   const response = await api.patch("/auth/onboarding", input);
   return response.data.data as { role: "client" | "freelancer"; username: string };
+}
+
+export async function verifyAuthCode(code: string) {
+  const response = await api.post("/auth/auth-code/verify", { code });
+  return response.data.data as { valid: boolean; error: string | null };
+}
+
+export function buildGoogleOauthStartUrl(redirectTo: string) {
+  const params = new URLSearchParams({ redirectTo });
+  return `${apiBaseUrl}/auth/oauth/google/start?${params.toString()}`;
 }

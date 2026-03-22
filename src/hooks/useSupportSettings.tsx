@@ -18,25 +18,45 @@ export function useSupportSettings() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      const { data } = await supabase
-        .from("platform_settings")
-        .select("key, value")
-        .in("key", ["support_email", "support_phone", "support_whatsapp"]);
+    let cancelled = false;
 
-      if (data) {
-        const result = { ...defaults };
-        for (const row of data) {
-          const key = row.key as keyof SupportSettings;
-          if (key in result) {
-            result[key] = typeof row.value === "string" ? row.value : JSON.stringify(row.value).replace(/^"|"$/g, "");
-          }
+    const fetchSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("platform_settings")
+          .select("key, value")
+          .in("key", ["support_email", "support_phone", "support_whatsapp"]);
+
+        if (error) {
+          throw error;
         }
-        setSettings(result);
+
+        if (!cancelled && data) {
+          const result = { ...defaults };
+          for (const row of data) {
+            const key = row.key as keyof SupportSettings;
+            if (key in result) {
+              result[key] = typeof row.value === "string" ? row.value : JSON.stringify(row.value).replace(/^"|"$/g, "");
+            }
+          }
+          setSettings(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setSettings(defaults);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
-    fetchSettings();
+
+    void fetchSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { settings, loading };

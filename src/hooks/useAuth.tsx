@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  startTransition,
+} from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getAuthBootstrap } from "@/api/auth.api";
@@ -79,7 +87,10 @@ const authDebug = (...args: unknown[]) => {
   console.info("[auth]", ...args);
 };
 
-const mapBootstrapProfile = (user: User, payload: BootstrapPayload): Profile => ({
+const mapBootstrapProfile = (
+  user: User,
+  payload: BootstrapPayload,
+): Profile => ({
   id: payload.user_id,
   email: user.email || "",
   full_name: payload.full_name,
@@ -127,115 +138,136 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [role, setRole] = useState<UserRole | null>(null);
-  const [bootstrapStatus, setBootstrapStatus] = useState<BootstrapStatus>("loading");
+  const [bootstrapStatus, setBootstrapStatus] =
+    useState<BootstrapStatus>("loading");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [lastBootstrapUserId, setLastBootstrapUserId] = useState<string | null>(null);
+  const [lastBootstrapUserId, setLastBootstrapUserId] = useState<string | null>(
+    null,
+  );
 
   const syncSessionOnly = useCallback((nextSession: Session | null) => {
     setSession(nextSession);
     setUser(nextSession?.user ?? null);
   }, []);
 
-  const applyBootstrapState = useCallback((authUser: User, nextSession: Session, payload: BootstrapPayload) => {
-    const mappedProfile = payload.profile_exists ? mapBootstrapProfile(authUser, payload) : null;
-    const effectiveRole: UserRole | null = payload.is_admin ? "admin" : payload.role ?? null;
+  const applyBootstrapState = useCallback(
+    (authUser: User, nextSession: Session, payload: BootstrapPayload) => {
+      const mappedProfile = payload.profile_exists
+        ? mapBootstrapProfile(authUser, payload)
+        : null;
+      const effectiveRole: UserRole | null = payload.is_admin
+        ? "admin"
+        : (payload.role ?? null);
 
-    setSession(nextSession);
-    setUser(authUser);
-    setProfile(mappedProfile);
-    setIsAdmin(payload.is_admin);
-    setRole(effectiveRole);
-    setOnboardingComplete(payload.onboarding_complete);
-    setBootstrapStatus("ready");
-    setAuthError(null);
-    setLoading(false);
-    setProfileLoading(false);
+      // Batch state updates to reduce re-renders
+      startTransition(() => {
+        setUser(authUser);
+        setProfile(mappedProfile);
+        setIsAdmin(payload.is_admin);
+        setRole(effectiveRole);
+        setOnboardingComplete(payload.onboarding_complete);
+        setBootstrapStatus("ready");
+        setAuthError(null);
+        setLoading(false);
+        setProfileLoading(false);
+      });
 
-    writeBootstrapCache({
-      userId: authUser.id,
-      profile: mappedProfile,
-      isAdmin: payload.is_admin,
-      role: effectiveRole,
-      onboardingComplete: payload.onboarding_complete,
-      cachedAt: Date.now(),
-    });
-  }, []);
+      writeBootstrapCache({
+        userId: authUser.id,
+        profile: mappedProfile,
+        isAdmin: payload.is_admin,
+        role: effectiveRole,
+        onboardingComplete: payload.onboarding_complete,
+        cachedAt: Date.now(),
+      });
+    },
+    [],
+  );
 
-  const applyCachedBootstrap = useCallback((authUser: User, nextSession: Session, cached: BootstrapCache) => {
-    setSession(nextSession);
-    setUser(authUser);
-    setProfile(
-      cached.profile
-        ? {
-            ...cached.profile,
-            email: authUser.email || cached.profile.email,
-          }
-        : null,
-    );
-    setIsAdmin(cached.isAdmin);
-    setRole(cached.role);
-    setOnboardingComplete(cached.onboardingComplete);
-    setBootstrapStatus("ready");
-    setAuthError(null);
-    setLoading(false);
-    setProfileLoading(false);
-  }, []);
+  const applyCachedBootstrap = useCallback(
+    (authUser: User, nextSession: Session, cached: BootstrapCache) => {
+      setSession(nextSession);
+      setUser(authUser);
+      setProfile(
+        cached.profile
+          ? {
+              ...cached.profile,
+              email: authUser.email || cached.profile.email,
+            }
+          : null,
+      );
+      setIsAdmin(cached.isAdmin);
+      setRole(cached.role);
+      setOnboardingComplete(cached.onboardingComplete);
+      setBootstrapStatus("ready");
+      setAuthError(null);
+      setLoading(false);
+      setProfileLoading(false);
+    },
+    [],
+  );
 
-  const fetchBootstrapState = useCallback(async (userId: string, timeoutMs = BOOTSTRAP_TIMEOUT_MS) => {
-    const startedAt = performance.now();
-    const timedRpc = Promise.race([
-      getAuthBootstrap().then((response) => {
-        const backendUser = response.data.user;
-        return {
-          data: backendUser
-            ? ({
-                user_id: backendUser.id,
-                profile_exists: true,
-                full_name: backendUser.fullName,
-                username: backendUser.username,
-                avatar_url: backendUser.avatarUrl,
-                role: backendUser.role,
-                is_verified: false,
-                created_at: null,
-                updated_at: null,
-                auth_code_dismissed_at: null,
-                is_admin: backendUser.isAdmin,
-                onboarding_complete: backendUser.onboardingComplete,
-              } satisfies BootstrapPayload)
-            : ({
-                user_id: userId,
-                profile_exists: false,
-                full_name: null,
-                username: null,
-                avatar_url: null,
-                role: null,
-                is_verified: false,
-                created_at: null,
-                updated_at: null,
-                auth_code_dismissed_at: null,
-                is_admin: false,
-                onboarding_complete: false,
-              } satisfies BootstrapPayload),
-          error: null,
-        };
-      }),
-      new Promise<never>((_, reject) =>
-        window.setTimeout(() => reject(new Error("Account bootstrap timed out.")), timeoutMs),
-      ),
-    ]) as Promise<{ data: BootstrapPayload | null; error: Error | null }>;
+  const fetchBootstrapState = useCallback(
+    async (userId: string, timeoutMs = BOOTSTRAP_TIMEOUT_MS) => {
+      const startedAt = performance.now();
+      const timedRpc = Promise.race([
+        getAuthBootstrap().then((response) => {
+          const backendUser = response.data.user;
+          return {
+            data: backendUser
+              ? ({
+                  user_id: backendUser.id,
+                  profile_exists: true,
+                  full_name: backendUser.fullName,
+                  username: backendUser.username,
+                  avatar_url: backendUser.avatarUrl,
+                  role: backendUser.role,
+                  is_verified: false,
+                  created_at: null,
+                  updated_at: null,
+                  auth_code_dismissed_at: null,
+                  is_admin: backendUser.isAdmin,
+                  onboarding_complete: backendUser.onboardingComplete,
+                } satisfies BootstrapPayload)
+              : ({
+                  user_id: userId,
+                  profile_exists: false,
+                  full_name: null,
+                  username: null,
+                  avatar_url: null,
+                  role: null,
+                  is_verified: false,
+                  created_at: null,
+                  updated_at: null,
+                  auth_code_dismissed_at: null,
+                  is_admin: false,
+                  onboarding_complete: false,
+                } satisfies BootstrapPayload),
+            error: null,
+          };
+        }),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(
+            () => reject(new Error("Account bootstrap timed out.")),
+            timeoutMs,
+          ),
+        ),
+      ]) as Promise<{ data: BootstrapPayload | null; error: Error | null }>;
 
-    const { data, error } = await timedRpc;
-    authDebug("bootstrap rpc resolved", {
-      userId,
-      durationMs: Math.round(performance.now() - startedAt),
-      hasData: !!data,
-      hasError: !!error,
-    });
-    if (error) throw error;
-    if (!data) throw new Error("Account bootstrap returned no data.");
-    return data;
-  }, []);
+      const { data, error } = await timedRpc;
+      authDebug("bootstrap rpc resolved", {
+        userId,
+        durationMs: Math.round(performance.now() - startedAt),
+        hasData: !!data,
+        hasError: !!error,
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Account bootstrap returned no data.");
+      return data;
+    },
+    [],
+  );
 
   const clearAuthState = useCallback(() => {
     setSession(null);
@@ -383,66 +415,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, nextSession) => {
-      authDebug("auth event", {
-        event,
-        hasSession: !!nextSession,
-        userId: nextSession?.user?.id ?? null,
-      });
+    } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, nextSession) => {
+        authDebug("auth event", {
+          event,
+          hasSession: !!nextSession,
+          userId: nextSession?.user?.id ?? null,
+        });
 
-      if (event === "TOKEN_REFRESHED" && nextSession?.user) {
-        syncSessionOnly(nextSession);
-        return;
-      }
-
-      if (event === "USER_UPDATED" && nextSession?.user) {
-        syncSessionOnly(nextSession);
-        void loadUserAndBootstrap(nextSession, { background: true, force: true });
-        return;
-      }
-
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && nextSession?.user) {
-        const sameUser = nextSession.user.id === lastBootstrapUserId && bootstrapStatus === "ready";
-        if (sameUser) {
-          authDebug("auth event short-circuited", {
-            event,
-            userId: nextSession.user.id,
-            reason: "same_user_already_ready",
-          });
+        if (event === "TOKEN_REFRESHED" && nextSession?.user) {
           syncSessionOnly(nextSession);
           return;
         }
-      }
 
-      void loadUserAndBootstrap(nextSession);
-    });
-
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      authDebug("initial getSession resolved", {
-        hasSession: !!existingSession,
-        userId: existingSession?.user?.id ?? null,
-      });
-      if (existingSession?.user) {
-        const cached = readBootstrapCache(existingSession.user.id);
-        if (cached) {
-          applyCachedBootstrap(existingSession.user, existingSession, cached);
-          setLastBootstrapUserId(existingSession.user.id);
-          void loadUserAndBootstrap(existingSession, { background: true });
+        if (event === "USER_UPDATED" && nextSession?.user) {
+          syncSessionOnly(nextSession);
+          void loadUserAndBootstrap(nextSession, {
+            background: true,
+            force: true,
+          });
           return;
         }
-      }
 
-      void loadUserAndBootstrap(existingSession);
-    });
+        if (
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+          nextSession?.user
+        ) {
+          const sameUser =
+            nextSession.user.id === lastBootstrapUserId &&
+            bootstrapStatus === "ready";
+          if (sameUser) {
+            authDebug("auth event short-circuited", {
+              event,
+              userId: nextSession.user.id,
+              reason: "same_user_already_ready",
+            });
+            syncSessionOnly(nextSession);
+            return;
+          }
+        }
+
+        void loadUserAndBootstrap(nextSession);
+      },
+    );
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: existingSession } }) => {
+        authDebug("initial getSession resolved", {
+          hasSession: !!existingSession,
+          userId: existingSession?.user?.id ?? null,
+        });
+        if (existingSession?.user) {
+          const cached = readBootstrapCache(existingSession.user.id);
+          if (cached) {
+            applyCachedBootstrap(existingSession.user, existingSession, cached);
+            setLastBootstrapUserId(existingSession.user.id);
+            void loadUserAndBootstrap(existingSession, { background: true });
+            return;
+          }
+        }
+
+        void loadUserAndBootstrap(existingSession);
+      });
 
     return () => {
       mounted = false;
       latestCallId++;
       subscription.unsubscribe();
     };
-  }, [applyBootstrapState, applyCachedBootstrap, bootstrapStatus, clearAuthState, fetchBootstrapState, lastBootstrapUserId, syncSessionOnly]);
+  }, [
+    applyBootstrapState,
+    applyCachedBootstrap,
+    bootstrapStatus,
+    clearAuthState,
+    fetchBootstrapState,
+    lastBootstrapUserId,
+    syncSessionOnly,
+  ]);
 
-  const signUp = async (email: string, password: string, role: UserRole, fullName: string, username: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    role: UserRole,
+    fullName: string,
+    username: string,
+  ) => {
     const redirectUrl = `${window.location.origin}/`;
 
     const { error } = await supabase.auth.signUp({
@@ -494,7 +552,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       for (let attempt = 0; attempt < retryDelaysMs.length; attempt += 1) {
         if (retryDelaysMs[attempt] > 0) {
-          await new Promise((resolve) => window.setTimeout(resolve, retryDelaysMs[attempt]));
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, retryDelaysMs[attempt]),
+          );
         }
 
         try {
@@ -518,7 +578,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ? error.message
               : "We could not refresh your account state.";
 
-          const canRetry = attempt < retryDelaysMs.length - 1 && isRetryableBootstrapError(lastMessage);
+          const canRetry =
+            attempt < retryDelaysMs.length - 1 &&
+            isRetryableBootstrapError(lastMessage);
           authDebug("manual refresh attempt failed", {
             userId: session.user.id,
             attempt: attempt + 1,
@@ -579,13 +641,13 @@ export function useAuth() {
   }
   return context;
 }
-  const isRetryableBootstrapError = (message: string) => {
-    const normalized = message.toLowerCase();
-    return (
-      normalized.includes("network error") ||
-      normalized.includes("connection refused") ||
-      normalized.includes("failed to fetch") ||
-      normalized.includes("timed out") ||
-      normalized.includes("timeout")
-    );
-  };
+const isRetryableBootstrapError = (message: string) => {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("network error") ||
+    normalized.includes("connection refused") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("timed out") ||
+    normalized.includes("timeout")
+  );
+};

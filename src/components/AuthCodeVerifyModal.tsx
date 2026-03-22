@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { AuthCodeSetupModal } from "@/components/AuthCodeSetupModal";
-import { supabase } from "@/integrations/supabase/client";
+import { verifyAuthCode } from "@/api/auth.api";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
+
+const AUTH_CODE_VERIFY_TIMEOUT_MS = 12000;
 
 interface AuthCodeVerifyModalProps {
   open: boolean;
@@ -28,18 +30,41 @@ export function AuthCodeVerifyModal({
   const [verifying, setVerifying] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setCode("");
+      setVerifying(false);
+      return;
+    }
+
+    setVerifying(false);
+  }, [open]);
+
   const handleVerify = async () => {
     if (code.length !== 6) {
       toast.error("Please enter all 6 digits");
       return;
     }
     setVerifying(true);
-    const { data, error } = await supabase.functions.invoke("auth-code", {
-      body: { action: "verify", code },
-    });
+    let data: any = null;
+    let error: any = null;
+    try {
+      const result = await Promise.race([
+        verifyAuthCode(code),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error("Authentication code verification timed out.")), AUTH_CODE_VERIFY_TIMEOUT_MS),
+        ),
+      ]);
+      data = result as any;
+      error = null;
+    } catch (err: any) {
+      setVerifying(false);
+      toast.error(err?.message || "Authentication code verification failed. Please try again.");
+      return;
+    }
     setVerifying(false);
 
-    if (error || !data?.success) {
+    if (error || !data?.valid) {
       // If the error indicates no code is set, redirect to setup
       if (data?.error?.toLowerCase().includes("no auth code") || data?.error?.toLowerCase().includes("not set")) {
         setNeedsSetup(true);
@@ -63,7 +88,16 @@ export function AuthCodeVerifyModal({
 
   return (
     <>
-      <Dialog open={open && !needsSetup} onOpenChange={(v) => { if (!v) setCode(""); onOpenChange(v); }}>
+      <Dialog
+        open={open && !needsSetup}
+        onOpenChange={(v) => {
+          if (!v) {
+            setCode("");
+            setVerifying(false);
+          }
+          onOpenChange(v);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

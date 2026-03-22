@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyAuthOccupation,
+  buildGoogleOauthStartUrl,
   checkAuthUsernameAvailability,
   lookupAuthUser,
   updateAuthRole,
@@ -65,6 +66,25 @@ const signInSchema = z.object({
 const forgotPasswordSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),
 });
+
+const sanitizeRedirectTarget = (rawRedirect: string | null, role: string | null | undefined) => {
+  if (!rawRedirect) return null;
+  if (!rawRedirect.startsWith("/") || rawRedirect.startsWith("//")) return null;
+
+  try {
+    const parsed = new URL(rawRedirect, window.location.origin);
+    if (parsed.origin !== window.location.origin) return null;
+
+    const normalizedPath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (normalizedPath.startsWith("/admin") && role !== "admin") {
+      return null;
+    }
+
+    return normalizedPath;
+  } catch {
+    return null;
+  }
+};
 
 const GeneralFormError = ({ message }: { message?: string }) => {
   if (!message) return null;
@@ -256,9 +276,9 @@ export default function AuthPage() {
   useEffect(() => {
     if (!user || authLoading) return;
 
-    const redirect = searchParams.get("redirect");
+    const redirect = sanitizeRedirectTarget(searchParams.get("redirect"), role);
     if (redirect) {
-      navigate(redirect);
+      navigate(redirect, { replace: true });
       return;
     }
 
@@ -290,33 +310,9 @@ export default function AuthPage() {
       localStorage.setItem("pending_oauth_role_choice", preselectedRole);
       localStorage.setItem("pending_oauth_ts", Date.now().toString());
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-        },
-      });
-
-      if (error) {
-        const message = error.message || "Google sign-in failed. Please try again.";
-        if (activeTab === "signup") {
-          setSignUpErrors({ general: message });
-        } else {
-          setSignInErrors({ general: message });
-        }
-        clearPendingGoogleState();
-        return;
-      }
-
-      if (!data?.url) {
-        const message = "Google sign-in could not be started.";
-        if (activeTab === "signup") {
-          setSignUpErrors({ general: message });
-        } else {
-          setSignInErrors({ general: message });
-        }
-        clearPendingGoogleState();
-      }
+      const oauthStartUrl = buildGoogleOauthStartUrl(`${window.location.origin}/auth`);
+      window.location.assign(oauthStartUrl);
+      return;
     } catch (err: any) {
       const message = "Google sign-in failed. Please try again.";
       if (activeTab === "signup") {

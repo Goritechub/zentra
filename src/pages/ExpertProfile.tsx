@@ -149,11 +149,19 @@ export default function ExpertProfile() {
   const isOwner = user?.id === id;
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
     const fetch = async () => {
-      setLoading(true);
+      if (!cancelled) {
+        setLoading(true);
+      }
       try {
         const response = await getExpertProfileOverview(id);
+        if (cancelled) return;
         setProfile(response.data.profile || null);
         setFreelancerProfile(response.data.freelancerProfile || null);
         setCertifications(response.data.certifications || []);
@@ -164,6 +172,7 @@ export default function ExpertProfile() {
         setCompletedContractCount(response.data.completedContractCount || 0);
         setReviews(response.data.reviews || []);
       } catch {
+        if (cancelled) return;
         setProfile(null);
         setFreelancerProfile(null);
         setCertifications([]);
@@ -174,11 +183,16 @@ export default function ExpertProfile() {
         setCompletedContractCount(0);
         setReviews([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     fetch();
-  }, [id, user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const getInitials = (name: string | null) => {
     if (!name) return "U";
@@ -267,6 +281,14 @@ export default function ExpertProfile() {
   }
 
   const isClient = authProfile?.role === "client";
+  const hasProfileOverviewData =
+    !!freelancerProfile?.bio ||
+    (freelancerProfile?.skills?.length || 0) > 0 ||
+    services.length > 0 ||
+    certifications.length > 0 ||
+    workExperience.length > 0 ||
+    portfolio.length > 0 ||
+    pastContracts.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -398,6 +420,24 @@ export default function ExpertProfile() {
 
             {/* Right column */}
             <div className="lg:col-span-2 space-y-6">
+              {!hasProfileOverviewData && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Profile Overview</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      This expert has not added detailed profile information yet.
+                    </p>
+                    {isOwner && (
+                      <Button className="mt-4" variant="outline" onClick={() => navigate("/my-profile")}>
+                        Complete Profile
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {freelancerProfile?.bio && (
                 <Card>
                   <CardHeader><CardTitle className="text-base">About</CardTitle></CardHeader>

@@ -49,19 +49,37 @@ Confirm:
 - Auth/bootstrap endpoint works with valid token.
 
 ## Step 4: Add backend env scaffolding
-Create:
-- `.env.example` with required keys (no secrets):
-  - `NODE_ENV`
-  - `PORT`
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `FRONTEND_ORIGIN`
+Create `.env.example` at backend repo root (no secrets):
 
-Ensure `.gitignore` excludes:
-- `.env`
-- `.env.*`
-- `dist`
-- `node_modules`
+```env
+NODE_ENV=development
+PORT=3000
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+FRONTEND_ORIGIN=http://localhost:8080/
+# FRONTEND_ORIGIN_PROD=https://zentragig.com
+```
+
+Create `.gitignore` at backend repo root:
+
+```gitignore
+node_modules/
+dist/
+.env
+.env.*
+```
+
+`FRONTEND_ORIGIN` is the exact frontend URL allowed by backend CORS.
+- Local dev example: `http://localhost:8080/`
+- Production example (keep commented until go-live): `https://zentragig.com`
+
+OAuth callback allowlist must be exact:
+- Dev callback: `http://localhost:8080/auth`
+- Prod callback: `https://zentragig.com/auth` (keep disabled until go-live)
+
+Frontend should start Google login via backend endpoint for cleaner UX:
+- `GET /auth/oauth/google/start?redirectTo=http://localhost:8080/auth`
+- Backend then redirects to Supabase OAuth URL.
 
 ## Step 5: Push backend repo
 
