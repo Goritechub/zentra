@@ -734,21 +734,27 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      // Username lookup with timeout
+      const lookupWithRetry = async (identifier: string): Promise<Awaited<ReturnType<typeof lookupAuthUser>>> => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return await Promise.race([
+              lookupAuthUser(identifier),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("TIMEOUT")), attempt === 0 ? 10000 : 20000),
+              ),
+            ]) as Awaited<ReturnType<typeof lookupAuthUser>>;
+          } catch (err) {
+            if (attempt === 0 && err instanceof Error && err.message === "TIMEOUT") continue;
+            throw err;
+          }
+        }
+        throw new Error("TIMEOUT");
+      };
+
+      // Username lookup with retry
       let email = signInData.identifier;
       if (!signInData.identifier.includes("@")) {
-        const lookupPromise = lookupAuthUser(signInData.identifier);
-
-        const lookupResult = await Promise.race([
-          lookupPromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("TIMEOUT")), 10000),
-          ),
-        ]);
-
-        const resolvedLookup = lookupResult as Awaited<
-          ReturnType<typeof lookupAuthUser>
-        >;
+        const resolvedLookup = await lookupWithRetry(signInData.identifier);
         if (!resolvedLookup.found || !resolvedLookup.email) {
           setSignInErrors({
             identifier: "No account found with that username",
@@ -758,20 +764,9 @@ export default function AuthPage() {
         }
         email = resolvedLookup.email;
       } else {
-        const emailLookupPromise = lookupAuthUser(
+        const resolvedEmailLookup = await lookupWithRetry(
           signInData.identifier.toLowerCase(),
         );
-
-        const emailLookupResult = await Promise.race([
-          emailLookupPromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("TIMEOUT")), 10000),
-          ),
-        ]);
-
-        const resolvedEmailLookup = emailLookupResult as Awaited<
-          ReturnType<typeof lookupAuthUser>
-        >;
         if (!resolvedEmailLookup.found) {
           setSignInErrors({
             identifier: "No account found with that email address",
@@ -786,7 +781,7 @@ export default function AuthPage() {
       const { error } = await Promise.race([
         signInPromise,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT")), 10000),
+          setTimeout(() => reject(new Error("TIMEOUT")), 30000),
         ),
       ]);
 
