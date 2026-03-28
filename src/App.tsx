@@ -71,6 +71,7 @@ const AdminPlatformReviews = lazy(() => import("./pages/admin/AdminPlatformRevie
 const AdminLegalDocuments = lazy(() => import("./pages/admin/AdminLegalDocuments"));
 const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyControls"));
+const AdminWaitlist = lazy(() => import("./pages/admin/AdminWaitlist"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 import { preloadCommissionTiers } from "./lib/service-charge";
@@ -187,6 +188,7 @@ const AppShell = () => {
                 <Route path="platform-reviews" element={<AdminPlatformReviews />} />
                 <Route path="legal-documents" element={<AdminLegalDocuments />} />
                 <Route path="emergency" element={<AdminEmergencyControls />} />
+                <Route path="waitlist" element={<AdminWaitlist />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
