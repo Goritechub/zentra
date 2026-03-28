@@ -351,9 +351,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(authUser);
       setAuthError(null);
 
+      const hasAdminJwtClaim = authUser.app_metadata?.is_admin === true;
+
       if (!isBackgroundRefresh) {
         setProfileLoading(true);
-        if (!cached || forceRefresh) {
+        if (hasAdminJwtClaim && !cached && !forceRefresh) {
+          // Fast path: JWT already tells us this is an admin — unblock the redirect
+          // immediately and let the full bootstrap fill in the profile in the background.
+          startTransition(() => {
+            setIsAdmin(true);
+            setRole("admin" as UserRole);
+            setOnboardingComplete(true);
+            setBootstrapStatus("ready");
+            setLoading(false);
+          });
+        } else if (!cached || forceRefresh) {
           setLoading(true);
           setBootstrapStatus("loading");
         }
