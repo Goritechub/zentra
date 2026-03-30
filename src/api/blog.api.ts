@@ -47,3 +47,18 @@ export async function unlikeBlogPost(postId: string) {
   const response = await api.delete<{ success: boolean }>(`/blog/posts/${postId}/like`);
   return response.data;
 }
+
+export async function getPendingBlogPosts() {
+  const response = await api.get<{ success: boolean; data: { posts: BlogPost[] } }>("/blog/posts/pending");
+  return response.data.data;
+}
+
+export async function publishBlogPost(postId: string) {
+  const response = await api.patch<{ success: boolean }>(`/blog/posts/${postId}/publish`);
+  return response.data;
+}
+
+export async function rejectBlogPost(postId: string) {
+  const response = await api.delete<{ success: boolean }>(`/blog/posts/${postId}`);
+  return response.data;
+}

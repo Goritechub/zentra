@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,8 @@ const allNavItems = [
 { label: "Admin Management", icon: UserCog, path: "/admin/management", permission: "admin_management" },
 { label: "Legal Documents", icon: Scale, path: "/admin/legal-documents", permission: "platform_settings" },
 { label: "Emergency Controls", icon: ShieldAlert, path: "/admin/emergency", permission: "platform_settings" },
-{ label: "Waitlist", icon: ClipboardList, path: "/admin/waitlist", permission: "platform_settings" }];
+{ label: "Waitlist", icon: ClipboardList, path: "/admin/waitlist", permission: "platform_settings" },
+{ label: "Blog", icon: BookOpen, path: "/admin/blog", permission: "platform_settings" }];
 
 
 export default function AdminLayout() {

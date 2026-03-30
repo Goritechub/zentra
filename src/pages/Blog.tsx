@@ -113,7 +113,7 @@ const Blog = () => {
         coverImage: coverImage.trim() || undefined,
         tags: parsedTags.length > 0 ? parsedTags : undefined,
       });
-      toast.success("Post published!");
+      toast.success("Post submitted for review!");
       setTitle("");
       setContent("");
       setTags("");
@@ -173,7 +173,7 @@ const Blog = () => {
                       <Input placeholder="Cover image URL (optional)" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} />
                       <Input placeholder="Tags (comma-separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
                       <Button onClick={handlePublish} disabled={publishing} className="w-full">
-                        {publishing ? "Publishing..." : "Publish"}
+                        {publishing ? "Submitting..." : "Submit for Review"}
                       </Button>
                     </div>
                   </DialogContent>
