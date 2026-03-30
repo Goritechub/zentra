@@ -51,6 +51,8 @@ const BrowseServices = lazy(() => import("./pages/BrowseServices"));
 const Terms = lazy(() => import("./pages/Terms"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const SavedExperts = lazy(() => import("./pages/SavedExperts"));
+const Blog = lazy(() => import("./pages/Blog"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -158,6 +160,8 @@ const AppShell = () => {
               <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
               <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/unsubscribe" element={<Unsubscribe />} />
               <Route path="/saved-experts" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><SavedExperts /></RoleGuard></AuthGuard>} />
 
               {/* Contests */}
