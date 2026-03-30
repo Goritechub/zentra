@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
@@ -46,8 +46,13 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { colorTheme, setColorTheme } = useColorTheme();
 
-  // Admin auth code gate - per session
-  const [codeVerified, setCodeVerified] = useState(false);
+  // Session keys — scoped per user so switching accounts stays clean
+  const sessionVerifiedKey = user ? `zentragig.admin-verified.${user.id}` : null;
+  const sessionPermsKey = user ? `zentragig.admin-perms.${user.id}` : null;
+
+  const [codeVerified, setCodeVerified] = useState(() =>
+    sessionVerifiedKey ? sessionStorage.getItem(sessionVerifiedKey) === "true" : false
+  );
   const [authCode, setAuthCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
@@ -64,36 +69,30 @@ export default function AdminLayout() {
   }, [bootstrapStatus, user, isAdmin]);
 
   const fetchPermissions = async () => {
-    // Fetch this admin's permissions
-    const { data: perms } = await supabase.
-    from("admin_permissions" as any).
-    select("permission").
-    eq("user_id", user!.id);
-
-    if (!perms || perms.length === 0) {
-      // Check if ANY permissions exist globally
-      const { count } = await supabase.
-      from("admin_permissions" as any).
-      select("id", { count: "exact", head: true });
-
-      if (count === 0) {
-        // First admin ever — bootstrap as super admin
+    // Check sessionStorage first — avoid re-fetching on every navigation
+    if (sessionPermsKey) {
+      const cached = sessionStorage.getItem(sessionPermsKey);
+      if (cached) {
         try {
-          const { data: bootstrapData } = await supabase.functions.invoke("manage-admin", {
-            body: { action: "bootstrap" }
-          });
-          if (bootstrapData?.permissions) {
-            setPermissions(bootstrapData.permissions);
-          }
-        } catch (err) {
-          console.error("Bootstrap failed:", err);
-        }
+          setPermissions(JSON.parse(cached));
+          setLoading(false);
+          return;
+        } catch { /* fall through to API */ }
       }
-    } else {
-      setPermissions(perms.map((p: any) => p.permission));
     }
 
-    setLoading(false);
+    try {
+      const res = await api.get<{ success: boolean; data: { permissions: string[] } }>(
+        "/admin/me/permissions",
+      );
+      const perms = res.data.data.permissions;
+      setPermissions(perms);
+      if (sessionPermsKey) sessionStorage.setItem(sessionPermsKey, JSON.stringify(perms));
+    } catch (err) {
+      console.error("Failed to fetch permissions", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyCode = async () => {
@@ -102,30 +101,36 @@ export default function AdminLayout() {
       return;
     }
     setVerifying(true);
-    const { data, error } = await supabase.functions.invoke("auth-code", {
-      body: { action: "verify", code: authCode },
-    });
-    setVerifying(false);
+    try {
+      // Run verify and suspension check in parallel — both hit NestJS (no cold start)
+      const [verifyRes, suspendedRes] = await Promise.all([
+        api.post<{ success: boolean; data: { valid: boolean; error: string | null } }>(
+          "/auth/auth-code/verify",
+          { code: authCode },
+        ),
+        api.get<{ is_suspended: boolean }>("/admin/me/suspended"),
+      ]);
 
-    if (error || !data?.success) {
-      toast.error(data?.error || "Invalid authentication code");
+      if (!verifyRes.data.data.valid) {
+        toast.error(verifyRes.data.data.error || "Invalid authentication code");
+        setAuthCode("");
+        return;
+      }
+
+      if (suspendedRes.data.is_suspended) {
+        setIsSuspended(true);
+        return;
+      }
+
+      if (sessionVerifiedKey) sessionStorage.setItem(sessionVerifiedKey, "true");
+      setCodeVerified(true);
+      toast.success("Admin access granted");
+    } catch {
+      toast.error("Verification failed. Please try again.");
       setAuthCode("");
-      return;
-    }
-
-    // Check suspension status
-    const { data: suspData } = await supabase.functions.invoke("manage-admin", {
-      body: { action: "check_suspended" },
-    });
-
-    if (suspData?.is_suspended) {
-      setIsSuspended(true);
+    } finally {
       setVerifying(false);
-      return;
     }
-
-    setCodeVerified(true);
-    toast.success("Admin access granted");
   };
 
   if (!user || bootstrapStatus !== "ready") {
