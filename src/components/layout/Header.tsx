@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Palette, ChevronDown,
   FileText, FolderOpen, Mail, Trophy, Eye, Send, CreditCard, Wallet, ArrowDownToLine,
-  Home, Bookmark, BarChart3, PenLine, Users, Settings,
+  Home, Bookmark, BarChart3, PenLine, Users, Settings, ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
@@ -217,35 +217,56 @@ export function Header() {
             >
               Home
             </Link>
-            {!user && (
-              <NavDropdown
-                label="Browse"
-                items={browseItems}
-                active={isActive(["/freelancers", "/browse-services", "/how-it-works", "/blog"])}
-              />
-            )}
-            {isAuthenticated && !needsSetup && profileLoaded && (
+            {isAdmin ? (
               <>
-                <NavDropdown
-                  label={isClient ? "Find Experts" : "Find Gigs"}
-                  items={findGigsItems}
-                  active={isActive(["/jobs", "/freelancers", "/browse-services", "/contests", "/saved-experts", "/dashboard/my-services"])}
-                />
-                <NavDropdown
-                  label="My Work"
-                  items={myWorkItems}
-                  active={isActive(["/dashboard/contracts", "/dashboard/received-offers", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
-                />
-                <NavDropdown
-                  label="Payments"
-                  items={paymentsItems}
-                  active={isActive(["/transactions"])}
-                />
                 <NavDropdown
                   label="Browse"
                   items={browseItems}
                   active={isActive(["/browse-services", "/freelancers", "/blog", "/how-it-works"])}
                 />
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                    isActive(["/admin"]) ? "text-primary" : "text-foreground/80 hover:text-foreground"
+                  }`}
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                  Admin Panel
+                </Link>
+              </>
+            ) : (
+              <>
+                {!user && (
+                  <NavDropdown
+                    label="Browse"
+                    items={browseItems}
+                    active={isActive(["/freelancers", "/browse-services", "/how-it-works", "/blog"])}
+                  />
+                )}
+                {isAuthenticated && !needsSetup && profileLoaded && (
+                  <>
+                    <NavDropdown
+                      label={isClient ? "Find Experts" : "Find Gigs"}
+                      items={findGigsItems}
+                      active={isActive(["/jobs", "/freelancers", "/browse-services", "/contests", "/saved-experts", "/dashboard/my-services"])}
+                    />
+                    <NavDropdown
+                      label="My Work"
+                      items={myWorkItems}
+                      active={isActive(["/dashboard/contracts", "/dashboard/received-offers", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
+                    />
+                    <NavDropdown
+                      label="Payments"
+                      items={paymentsItems}
+                      active={isActive(["/transactions"])}
+                    />
+                    <NavDropdown
+                      label="Browse"
+                      items={browseItems}
+                      active={isActive(["/browse-services", "/freelancers", "/blog", "/how-it-works"])}
+                    />
+                  </>
+                )}
               </>
             )}
           </nav>
@@ -296,45 +317,55 @@ export function Header() {
                   <DropdownMenuContent className="w-52" align="end">
                     <div className="px-2 py-1.5">
                       <p className="text-sm font-medium">{displayName}</p>
-                      {displayRole && <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>}
+                      <p className="text-xs text-muted-foreground capitalize">{isAdmin ? "Admin" : displayRole}</p>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to={isAdmin ? "/admin" : "/dashboard"} className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    {isFreelancer && (
+                    {isAdmin ? (
                       <DropdownMenuItem asChild>
-                        <Link to={profileHref} className="cursor-pointer">
-                          <Eye className="mr-2 h-4 w-4" />My Profile
+                        <Link to="/admin" className="cursor-pointer">
+                          <ShieldAlert className="mr-2 h-4 w-4" />Admin Panel
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    {isClient && (
+                    ) : (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link to="/my-profile" className="cursor-pointer">
-                            <Settings className="mr-2 h-4 w-4" />Edit Profile
+                          <Link to="/dashboard" className="cursor-pointer">
+                            <User className="mr-2 h-4 w-4" />Dashboard
                           </Link>
                         </DropdownMenuItem>
+                        {isFreelancer && (
+                          <DropdownMenuItem asChild>
+                            <Link to={profileHref} className="cursor-pointer">
+                              <Eye className="mr-2 h-4 w-4" />My Profile
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {isClient && (
+                          <>
+                            <DropdownMenuItem asChild>
+                              <Link to="/my-profile" className="cursor-pointer">
+                                <Settings className="mr-2 h-4 w-4" />Edit Profile
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link to="/post-job" className="cursor-pointer">
+                                <Briefcase className="mr-2 h-4 w-4" />Post a Job
+                              </Link>
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuItem asChild>
-                          <Link to="/post-job" className="cursor-pointer">
-                            <Briefcase className="mr-2 h-4 w-4" />Post a Job
+                          <Link to="/messages" className="cursor-pointer">
+                            <MessageSquare className="mr-2 h-4 w-4" />Messages
+                            {unreadCount > 0 && (
+                              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </span>
+                            )}
                           </Link>
                         </DropdownMenuItem>
                       </>
                     )}
-                    <DropdownMenuItem asChild>
-                      <Link to="/messages" className="cursor-pointer">
-                        <MessageSquare className="mr-2 h-4 w-4" />Messages
-                        {unreadCount > 0 && (
-                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                            {unreadCount > 99 ? "99+" : unreadCount}
-                          </span>
-                        )}
-                      </Link>
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />Sign Out
@@ -426,7 +457,7 @@ export function Header() {
             >
               <Home className="h-4 w-4" /> Home
             </Link>
-            {isAuthenticated && !needsSetup && profileLoaded && (
+            {isAuthenticated && !needsSetup && profileLoaded && !isAdmin && (
               <>
                 <MobileDropdown
                   label={isClient ? "Find Experts" : "Find Gigs"}
@@ -458,7 +489,7 @@ export function Header() {
               toggle={() => setMobileSubMenu(mobileSubMenu === "browse" ? null : "browse")}
               close={() => setMobileMenuOpen(false)}
             />
-            {isAuthenticated && !needsSetup && (
+            {isAuthenticated && !needsSetup && !isAdmin && (
               <Link
                 to="/messages"
                 className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted text-sm font-medium"
@@ -478,6 +509,12 @@ export function Header() {
                   {needsSetup ? (
                     <Link to="/onboarding" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="outline" className="w-full">Complete Setup</Button>
+                    </Link>
+                  ) : isAdmin ? (
+                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">
+                        <ShieldAlert className="h-4 w-4 mr-2" />Admin Panel
+                      </Button>
                     </Link>
                   ) : (
                     <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
