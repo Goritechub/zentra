@@ -23,8 +23,8 @@ export function CategoriesSection() {
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <div className="flex items-start gap-4">
-                <div className={`flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br ${category.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <category.icon className="h-6 w-6" />
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <category.icon className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">

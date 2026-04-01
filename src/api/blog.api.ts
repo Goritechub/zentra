@@ -48,6 +48,11 @@ export async function unlikeBlogPost(postId: string) {
   return response.data;
 }
 
+export async function getBlogPostById(id: string) {
+  const response = await api.get<{ success: boolean; data: { post: BlogPost } }>(`/blog/posts/${id}`);
+  return response.data.data.post;
+}
+
 export async function getPendingBlogPosts() {
   const response = await api.get<{ success: boolean; data: { posts: BlogPost[] } }>("/blog/posts/pending");
   return response.data.data;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const POSTS_PER_PAGE = 9;
 
 const Blog = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -82,12 +84,12 @@ const Blog = () => {
   };
 
   const handleShare = (post: BlogPost, platform: string) => {
-    const url = `${window.location.origin}/blog?post=${post.id}`;
+    const url = `${window.location.origin}/blog/${post.id}`;
     const text = `Check out "${post.title}" on ZentraGig`;
     const links: Record<string, string> = {
       twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      linkedin: `https://www.linkedin.com/shareArticet?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent(post.title)}`,
+      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent(post.title)}`,
       copy: url,
     };
 
@@ -231,8 +233,8 @@ const Blog = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {posts.map((post) => (
                 <Card key={post.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-                  {/* Cover */}
-                  <div className="h-40 bg-muted relative overflow-hidden">
+                  {/* Cover — click navigates to full post */}
+                  <div className="h-40 bg-muted relative overflow-hidden cursor-pointer" onClick={() => navigate(`/blog/${post.id}`)}>
                     {post.cover_image ? (
                       <img src={post.cover_image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
@@ -251,7 +253,7 @@ const Blog = () => {
                       </div>
                     )}
 
-                    <h3 className="font-semibold text-foreground line-clamp-2 leading-tight">{post.title}</h3>
+                    <h3 className="font-semibold text-foreground line-clamp-2 leading-tight cursor-pointer hover:text-primary transition-colors" onClick={() => navigate(`/blog/${post.id}`)}>{post.title}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
 
                     {/* Author + date */}

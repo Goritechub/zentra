@@ -5,34 +5,36 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { getDashboardOverview } from "@/api/dashboard.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
-  Eye, Loader2, ArrowRight, Trophy, Send, Heart,
-  Wallet, BarChart3, ShieldAlert, ImageIcon, Award, Inbox,
+  Eye, Loader2, ArrowRight, Trophy, Send, Heart, Wallet, BarChart3,
+  ShieldAlert, ImageIcon, Award, Inbox, CheckCircle2, ChevronRight,
+  CircleDot, ArrowUpRight,
 } from "lucide-react";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 
 interface DashboardData {
-  stats: {
-    jobs: number;
-    proposals: number;
-    messages: number;
-    contracts: number;
-  };
+  stats: { jobs: number; proposals: number; messages: number; contracts: number };
   recentJobs: any[];
   freelancerProfile: any;
+  walletBalance: number;
+  completedContracts: number;
+  recentActivity: any[];
 }
 
 const emptyDashboardData: DashboardData = {
   stats: { jobs: 0, proposals: 0, messages: 0, contracts: 0 },
   recentJobs: [],
   freelancerProfile: null,
+  walletBalance: 0,
+  completedContracts: 0,
+  recentActivity: [],
 };
 
 export default function DashboardPage() {
@@ -53,9 +55,7 @@ export default function DashboardPage() {
     queryFn: async (): Promise<DashboardData> => getDashboardOverview(),
   });
 
-  if (!user || bootstrapStatus !== "ready") {
-    return null;
-  }
+  if (!user || bootstrapStatus !== "ready") return null;
 
   if (!onboardingComplete || !profile) {
     return (
@@ -77,22 +77,36 @@ export default function DashboardPage() {
 
   const isFreelancer = profile.role === "freelancer";
   const isClient = profile.role === "client";
+  const firstName = profile.full_name?.split(" ")[0] || "User";
+
   const stats = dashboardQuery.data?.stats || emptyDashboardData.stats;
   const recentJobs = dashboardQuery.data?.recentJobs || [];
   const freelancerProfile = dashboardQuery.data?.freelancerProfile || null;
+  const walletBalance = dashboardQuery.data?.walletBalance ?? 0;
+  const completedContracts = dashboardQuery.data?.completedContracts ?? 0;
+  const recentActivity = dashboardQuery.data?.recentActivity || [];
+
+  const hasSkills = freelancerProfile?.skills?.length > 0;
+  const profileComplete = [
+    !!profile.state,
+    isFreelancer ? hasSkills : true,
+    !!profile.avatar_url,
+  ].filter(Boolean).length;
+  const profileTotal = isFreelancer ? 3 : 2;
+  const profilePct = Math.round((profileComplete / profileTotal) * 100);
 
   const statCards = isClient
     ? [
-        { label: "Posted Jobs", value: stats.jobs, icon: Briefcase, to: "/dashboard/jobs" },
-        { label: "Proposals Received", value: stats.proposals, icon: FileText, to: "/dashboard/proposals" },
-        { label: "Messages", value: stats.messages, icon: MessageSquare, to: "/messages" },
-        { label: "Contracts", value: stats.contracts, icon: BarChart3, to: "/dashboard/contracts" },
+        { label: "Wallet Balance", value: formatNaira(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
+        { label: "Posted Jobs", value: stats.jobs, icon: Briefcase, to: "/dashboard/jobs", accent: "accent" as const },
+        { label: "Proposals Received", value: stats.proposals, icon: FileText, to: "/dashboard/proposals", accent: "primary" as const },
+        { label: "Completed", value: completedContracts, icon: CheckCircle2, to: "/dashboard/contracts", accent: "accent" as const },
       ]
     : [
-        { label: "Active Projects", value: stats.jobs, icon: Briefcase, to: "/dashboard/contracts" },
-        { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/dashboard/expert-proposals" },
-        { label: "Messages", value: stats.messages, icon: MessageSquare, to: "/messages" },
-        { label: "Contracts", value: stats.contracts, icon: BarChart3, to: "/dashboard/contracts" },
+        { label: "Wallet Balance", value: formatNaira(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
+        { label: "Active Projects", value: stats.jobs, icon: Briefcase, to: "/dashboard/contracts", accent: "accent" as const },
+        { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/dashboard/expert-proposals", accent: "primary" as const },
+        { label: "Completed", value: completedContracts, icon: CheckCircle2, to: "/dashboard/contracts", accent: "accent" as const },
       ];
 
   const clientMenuItems = [
@@ -104,83 +118,122 @@ export default function DashboardPage() {
     { icon: Send, label: "Sent Offers", to: "/dashboard/offers", desc: "Offers sent to experts" },
     { icon: MessageSquare, label: "Messages", to: "/messages", desc: "Chat with experts" },
     { icon: BarChart3, label: "Contracts", to: "/dashboard/contracts", desc: "Manage active contracts" },
-    { icon: Users, label: "Search Experts", to: "/freelancers", desc: "Find CAD professionals" },
-    { icon: Heart, label: "Saved Experts", to: "/freelancers", desc: "Your bookmarked experts" },
+    { icon: Users, label: "Search Experts", to: "/freelancers", desc: "Find the right professional" },
+    { icon: Heart, label: "Saved Experts", to: "/saved-experts", desc: "Your bookmarked experts" },
     { icon: Eye, label: "Browse Services", to: "/browse-services", desc: "Find expert services" },
     { icon: Wallet, label: "Wallet & Transactions", to: "/transactions", desc: "Payments and balance" },
   ];
 
-  const hasSkills = freelancerProfile?.skills?.length > 0;
+  const freelancerMenuItems = [
+    { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
+    { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
+    { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
+    { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
+    { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
+    { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
+    { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
+    { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },
+    { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions" },
+    { icon: Award, label: "Contest Entries", to: "/dashboard/contest-entries", desc: "View your entries" },
+    { icon: Wallet, label: "Wallet & Earnings", to: "/transactions", desc: "Track payments" },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <PlatformReviewPrompt />
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 py-6 md:py-8">
         <div className="container-wide">
-          <div className="bg-hero-gradient text-white rounded-2xl p-8 mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {profile.full_name?.split(" ")[0] || "User"}!
-            </h1>
-            <p className="text-white/80">
-              {isFreelancer ? "Manage your profile, view proposals, and track your projects." : "Find talent, manage projects, and track progress."}
-            </p>
-            {dashboardQuery.isFetching && (
-              <p className="mt-2 text-sm text-white/70">Refreshing dashboard...</p>
-            )}
+
+          {/* Greeting row */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Welcome back, {firstName} 👋
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {dashboardQuery.isFetching && !!dashboardQuery.data
+                  ? "Refreshing dashboard..."
+                  : isFreelancer
+                  ? "Here's what's happening with your projects"
+                  : "Manage your projects and find talent"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {isClient && (
+                <>
+                  <Button onClick={() => navigate("/post-job")} className="gap-2">
+                    <PlusCircle className="h-4 w-4" /> Post a Job
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate("/launch-contest")} className="gap-2">
+                    <Trophy className="h-4 w-4" /> Launch Contest
+                  </Button>
+                </>
+              )}
+              {isFreelancer && (
+                <>
+                  <Button onClick={() => navigate("/jobs")} className="gap-2">
+                    <Briefcase className="h-4 w-4" /> Browse Jobs
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate("/contests")} className="gap-2">
+                    <Trophy className="h-4 w-4" /> Contests
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {statCards.map((card) => (
+              <StatCard
+                key={card.label}
+                label={card.label}
+                value={dashboardQuery.isPending && !dashboardQuery.data ? null : String(card.value)}
+                icon={card.icon}
+                to={card.to}
+                accent={card.accent}
+              />
+            ))}
+          </div>
+
+          {/* Platform notice */}
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary/5 border border-primary/15 mb-6 text-sm text-muted-foreground">
+            <ShieldAlert className="h-4 w-4 text-primary shrink-0" />
+            <span>All communication must stay on the platform. Sharing personal contact details is prohibited.</span>
           </div>
 
           {isFreelancer && <ExpertStatsBanner />}
 
-          <Alert className="mb-6 border-primary/30 bg-primary/5">
-            <ShieldAlert className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm text-muted-foreground">
-              All communication must stay on the platform. Sharing emails, phone numbers, WhatsApp, or financial details is strictly prohibited and will be blocked.
-            </AlertDescription>
-          </Alert>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main content */}
+            <div className="lg:col-span-8 space-y-6">
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {statCards.map((card) => (
-              <Link
-                key={card.label}
-                to={card.to}
-                className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <card.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    {dashboardQuery.isPending && !dashboardQuery.data ? (
-                      <div className="h-8 w-16 animate-pulse rounded bg-muted/70" />
-                    ) : (
-                      <p className="text-2xl font-bold text-foreground">{card.value}</p>
-                    )}
-                    <p className="text-sm text-muted-foreground">{card.label}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
+              {/* Dashboard Menu / Quick Actions */}
               {isClient && (
-                <div className="bg-card rounded-xl border border-border p-6 mb-8">
-                  <h2 className="text-lg font-semibold mb-4">Dashboard Menu</h2>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h2 className="text-base font-semibold text-foreground mb-4">Dashboard Menu</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {clientMenuItems.map((item) => {
-                      const isActive = location.pathname === item.to;
+                      const active = location.pathname === item.to;
                       return (
-                        <Link key={item.to} to={item.to} className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isActive ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"}`}>
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+                        <Link
+                          key={`${item.to}-${item.label}`}
+                          to={item.to}
+                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${
+                            active ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                            active ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"
+                          }`}>
                             <item.icon className="h-5 w-5 text-primary" />
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{item.label}</p>
-                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground text-sm">{item.label}</p>
+                            <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </Link>
                       );
                     })}
@@ -189,33 +242,29 @@ export default function DashboardPage() {
               )}
 
               {isFreelancer && (
-                <div className="bg-card rounded-xl border border-border p-6 mb-8">
-                  <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <h2 className="text-base font-semibold text-foreground mb-4">Quick Actions</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
-                      { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
-                      { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
-                      { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
-                      { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
-                      { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
-                      { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
-                      { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },
-                      { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions" },
-                      { icon: Award, label: "Contest Entries", to: "/dashboard/contest-entries", desc: "View your entries" },
-                      { icon: Wallet, label: "Wallet & Earnings", to: "/transactions", desc: "Track payments" },
-                    ].map((item) => {
-                      const isActive = location.pathname === item.to;
+                    {freelancerMenuItems.map((item) => {
+                      const active = location.pathname === item.to;
                       return (
-                        <Link key={item.to} to={item.to} className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${isActive ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"}`}>
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all group ${
+                            active ? "border-primary bg-primary/10" : "border-border hover:border-primary hover:bg-primary/5"
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                            active ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/20"
+                          }`}>
                             <item.icon className="h-5 w-5 text-primary" />
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{item.label}</p>
-                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground text-sm">{item.label}</p>
+                            <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </Link>
                       );
                     })}
@@ -223,74 +272,176 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* Recent Jobs (client) */}
               {isClient && (
-                <div className="bg-card rounded-xl border border-border p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold">Recent Jobs</h2>
-                    <Link to="/dashboard/jobs" className="text-sm text-primary hover:underline">View All</Link>
+                <div className="bg-card rounded-xl border border-border">
+                  <div className="flex items-center justify-between p-5 pb-0">
+                    <h2 className="text-base font-semibold text-foreground">Recent Jobs</h2>
+                    <Link to="/dashboard/jobs" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      View All <ChevronRight className="h-3 w-3" />
+                    </Link>
                   </div>
-                  {dashboardQuery.isPending && !dashboardQuery.data ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((item) => (
-                        <div key={item} className="rounded-lg border border-border p-4">
-                          <div className="h-4 w-40 animate-pulse rounded bg-muted/70 mb-2" />
-                          <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : recentJobs.length > 0 ? (
-                    <div className="space-y-3">
-                      {recentJobs.map((job) => (
-                        <Link key={job.id} to={`/job/${job.id}`} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                          <div>
-                            <p className="font-medium text-foreground">{job.title}</p>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                              <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">{job.status}</Badge>
-                              <span>{formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</span>
-                            </div>
+                  <div className="p-5">
+                    {dashboardQuery.isPending && !dashboardQuery.data ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="rounded-lg border border-border p-4">
+                            <div className="h-4 w-40 animate-pulse rounded bg-muted/70 mb-2" />
+                            <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
                           </div>
-                          {(job.budget_min || job.budget_max) && (
-                            <p className="text-sm font-semibold text-primary">{formatNaira(job.budget_max || job.budget_min)}</p>
-                          )}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                      No recent jobs yet.
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : recentJobs.length > 0 ? (
+                      <div className="space-y-2">
+                        {recentJobs.map((job) => (
+                          <Link
+                            key={job.id}
+                            to={`/job/${job.id}`}
+                            className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-2 h-2 rounded-full shrink-0 bg-primary" />
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm text-foreground truncate">{job.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">
+                                {job.status}
+                              </Badge>
+                              {(job.budget_max || job.budget_min) && (
+                                <span className="text-xs font-semibold text-primary">
+                                  {formatNaira(job.budget_max || job.budget_min)}
+                                </span>
+                              )}
+                              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                        No recent jobs yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Activity */}
+              {recentActivity.length > 0 && (
+                <div className="bg-card rounded-xl border border-border">
+                  <div className="flex items-center justify-between p-5 pb-0">
+                    <h2 className="text-base font-semibold text-foreground">Recent Activity</h2>
+                    <Link to="/notifications" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      View All <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                  <div className="p-5 space-y-1">
+                    {recentActivity.map((notif: any) => (
+                      <div key={notif.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors">
+                        <div className="mt-1.5">
+                          <CircleDot className={`h-3 w-3 ${notif.is_read ? "text-muted-foreground/40" : "text-primary"}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">{notif.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{notif.message}</p>
+                          <p className="text-xs text-muted-foreground/60 mt-0.5">
+                            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div>
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h2 className="text-lg font-semibold mb-4">Profile Status</h2>
-                <div className="space-y-4">
-                  <ProfileItem emoji="📍" title="Location" done={!!profile.state} label={profile.state ? `${profile.city || ""} ${profile.state}` : "Add location"} />
+            {/* Sidebar */}
+            <div className="lg:col-span-4 space-y-6">
+
+              {/* Profile Completion */}
+              <div className="bg-card rounded-xl border border-border p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-foreground">Profile Completion</h3>
+                  <span className="text-xs font-bold text-primary">{profilePct}%</span>
+                </div>
+                <Progress value={profilePct} className="h-2 mb-4" />
+                <div className="space-y-2.5">
+                  <ProfileCheckItem label="Location" done={!!profile.state} to="/my-profile" />
                   {isFreelancer && (
                     <>
-                      <Link to="/my-profile">
-                        <ProfileItem emoji="💼" title="Skills" done={hasSkills} label={hasSkills ? `${freelancerProfile.skills.length} skills` : "Add skills"} />
-                      </Link>
-                      <Link to="/manage-portfolio">
-                        <ProfileItem emoji="🖼️" title="Portfolio" done={false} label="Add portfolio items" />
-                      </Link>
+                      <ProfileCheckItem label="Skills" done={hasSkills} to="/my-profile" />
+                      <ProfileCheckItem label="Portfolio" done={false} to="/manage-portfolio" />
                     </>
                   )}
+                  <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/my-profile" />
                 </div>
-                <Link to="/my-profile">
-                  <Button variant="outline" className="w-full mt-4" size="sm">
-                    <Settings className="h-4 w-4 mr-2" />Edit Profile
+                <div className="mt-4 flex gap-2">
+                  <Link to="/my-profile" className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs">
+                      <Settings className="h-3.5 w-3.5" /> Edit Profile
+                    </Button>
+                  </Link>
+                  {isFreelancer && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => navigate(`/expert/${user.id}/profile`)}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> View
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Overview quick stats */}
+              <div className="bg-card rounded-xl border border-border p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-3">Overview</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Unread Messages</span>
+                    <span className="text-sm font-semibold text-foreground">{stats.messages}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Active Contracts</span>
+                    <span className="text-sm font-semibold text-foreground">{stats.contracts}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Completed</span>
+                    <span className="text-sm font-semibold text-foreground">{completedContracts}</span>
+                  </div>
+                </div>
+                <Link to="/messages" className="mt-4 block">
+                  <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs">
+                    <MessageSquare className="h-3.5 w-3.5" /> Open Messages
+                    {stats.messages > 0 && (
+                      <Badge variant="destructive" className="ml-auto text-[10px] h-4 px-1.5">
+                        {stats.messages}
+                      </Badge>
+                    )}
                   </Button>
                 </Link>
-                {isFreelancer && (
-                  <Button variant="ghost" className="w-full mt-2" size="sm" onClick={() => navigate(`/expert/${user.id}/profile`)}>
-                    <Eye className="h-4 w-4 mr-2" />View Profile
-                  </Button>
-                )}
               </div>
+
+              {/* Wallet card */}
+              <Link to="/transactions" className="block">
+                <div className="bg-gradient-to-br from-primary to-primary/80 rounded-xl p-5 text-primary-foreground hover:shadow-lg transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wallet className="h-4 w-4 opacity-80" />
+                    <span className="text-xs font-medium opacity-80">Wallet Balance</span>
+                  </div>
+                  <p className="text-2xl font-bold">{formatNaira(walletBalance)}</p>
+                  <div className="mt-3 flex items-center gap-1 text-xs opacity-70">
+                    <span>View transactions</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </div>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
@@ -300,19 +451,51 @@ export default function DashboardPage() {
   );
 }
 
-function ProfileItem({ emoji, title, done, label }: { emoji: string; title: string; done: boolean; label: string }) {
+/* ── Sub-components ── */
+
+function StatCard({
+  label, value, icon: Icon, to, accent,
+}: {
+  label: string;
+  value: string | null;
+  icon: React.ElementType;
+  to: string;
+  accent: "primary" | "accent";
+}) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-      <span className="text-lg">{emoji}</span>
-      <div className="flex-1">
-        <p className="font-medium text-sm text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+    <Link
+      to={to}
+      className="bg-card rounded-xl border border-border p-4 hover:border-primary/30 hover:shadow-sm transition-all group"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+          accent === "primary" ? "bg-primary/10" : "bg-accent/15"
+        }`}>
+          <Icon className={`h-[18px] w-[18px] ${accent === "primary" ? "text-primary" : "text-accent-foreground"}`} />
+        </div>
+        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-      {done ? (
-        <Badge variant="default" className="text-xs">✓</Badge>
+      {value === null ? (
+        <div className="h-7 w-16 animate-pulse rounded bg-muted/70 mb-1" />
       ) : (
-        <Badge variant="secondary" className="text-xs">Add</Badge>
+        <p className="text-xl font-bold text-foreground">{value}</p>
       )}
-    </div>
+      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+    </Link>
+  );
+}
+
+function ProfileCheckItem({ label, done, to }: { label: string; done: boolean; to: string }) {
+  return (
+    <Link to={to} className="flex items-center gap-2.5 group">
+      {done ? (
+        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+      ) : (
+        <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+      )}
+      <span className={`text-xs ${done ? "text-muted-foreground line-through" : "text-foreground group-hover:text-primary transition-colors"}`}>
+        {label}
+      </span>
+    </Link>
   );
 }

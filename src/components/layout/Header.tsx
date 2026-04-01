@@ -1,35 +1,126 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Bell, Palette, ChevronRight, FileText, FolderOpen, Mail } from "lucide-react";
-
+import {
+  Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Palette, ChevronDown,
+  FileText, FolderOpen, Mail, Trophy, Eye, Send, CreditCard, Wallet, ArrowDownToLine,
+  Home, Bookmark, BarChart3, PenLine, Users, Settings,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { NotificationBell } from "@/components/layout/NotificationBell";
-import { useNotifications } from "@/hooks/useNotifications";
 import { useColorTheme, THEME_OPTIONS } from "@/hooks/useTheme";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+/* ── Dropdown helpers ── */
+
+interface NavDropdownProps {
+  label: string;
+  items: { to: string; icon: React.ElementType; label: string }[];
+  active?: boolean;
+}
+
+function NavDropdown({ label, items, active }: NavDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 text-sm font-medium transition-colors px-1 py-1 ${
+          active ? "text-primary" : "text-foreground/80 hover:text-foreground"
+        }`}
+      >
+        {label}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-2 w-52 rounded-xl border border-border bg-popover shadow-xl py-1.5 z-50 animate-fade-in">
+          {items.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <item.icon className="h-4 w-4 text-muted-foreground" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileDropdown({
+  label, items, open, toggle, close,
+}: {
+  label: string;
+  items: { to: string; icon: React.ElementType; label: string }[];
+  open: boolean;
+  toggle: () => void;
+  close: () => void;
+}) {
+  return (
+    <div>
+      <button
+        onClick={toggle}
+        className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-muted text-sm font-medium"
+      >
+        {label}
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="ml-4 flex flex-col gap-0.5 animate-fade-in">
+          {items.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-muted text-sm text-muted-foreground"
+              onClick={close}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Header ── */
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [jobsMenuOpen, setJobsMenuOpen] = useState(false);
-  const [mobileJobsOpen, setMobileJobsOpen] = useState(false);
+  const [mobileSubMenu, setMobileSubMenu] = useState<string | null>(null);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [bootstrapStalled, setBootstrapStalled] = useState(false);
-  const { user, profile, signOut, isAdmin, bootstrapStatus, onboardingComplete, role, authError, refreshProfile, profileLoading } = useAuth();
+
+  const {
+    user, profile, signOut, isAdmin,
+    bootstrapStatus, onboardingComplete,
+    role, authError, refreshProfile, profileLoading,
+  } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const location = useLocation();
   const unreadCount = useUnreadMessages();
-  const { unreadCount: notifUnreadCount } = useNotifications();
   const { colorTheme, setColorTheme } = useColorTheme();
 
   const isAuthenticated = !!user && bootstrapStatus === "ready";
@@ -37,29 +128,22 @@ export function Header() {
   const needsSetup = isAuthenticated && !onboardingComplete;
   const isClient = role === "client";
   const isFreelancer = role === "freelancer";
+  const profileLoaded = !!profile;
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || "User";
   const displayRole = role || profile?.role || null;
   const profileHref = isFreelancer && user ? `/expert/${user.id}/profile` : "/my-profile";
 
   useEffect(() => {
-    if (!user || bootstrapStatus !== "loading") {
-      setBootstrapStalled(false);
-      return;
-    }
-
+    if (!user || bootstrapStatus !== "loading") { setBootstrapStalled(false); return; }
     const timer = window.setTimeout(() => setBootstrapStalled(true), 5000);
     return () => window.clearTimeout(timer);
   }, [bootstrapStatus, user]);
 
-  const handleSignOut = async () => {
-    setMobileMenuOpen(false);
-    await signOut();
-  };
+  const handleSignOut = async () => { setMobileMenuOpen(false); await signOut(); };
 
   const handleRetryAccountSync = async () => {
     const recovered = await refreshProfile();
     if (!recovered) return;
-
     await queryClient.invalidateQueries();
     await queryClient.refetchQueries({ type: "active" });
   };
@@ -69,89 +153,114 @@ export function Header() {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const navLinkClass = (path: string) =>
-    `text-sm font-medium transition-colors ${
-      location.pathname === path
-        ? "text-primary"
-        : "text-muted-foreground hover:text-foreground"
-    }`;
+  const isActive = (paths: string[]) => paths.some((p) => location.pathname.startsWith(p));
+
+  /* ── Nav item arrays ── */
+  const findGigsItems = isFreelancer
+    ? [
+        { to: "/jobs", icon: Search, label: "Job Listings" },
+        { to: "/contests", icon: Trophy, label: "Browse Contests" },
+        { to: "/dashboard/my-services", icon: Briefcase, label: "My Services" },
+      ]
+    : [
+        { to: "/freelancers", icon: Search, label: "Find Experts" },
+        { to: "/saved-experts", icon: Bookmark, label: "Saved Experts" },
+        { to: "/contests", icon: Trophy, label: "Browse Contests" },
+        { to: "/browse-services", icon: Briefcase, label: "Browse Services" },
+      ];
+
+  const myWorkItems = isFreelancer
+    ? [
+        { to: "/dashboard/received-offers", icon: Mail, label: "Offers" },
+        { to: "/dashboard/contracts", icon: FolderOpen, label: "Contracts" },
+        { to: "/dashboard/contest-entries", icon: Trophy, label: "Contest Entries" },
+        { to: "/dashboard/expert-proposals", icon: FileText, label: "My Proposals" },
+      ]
+    : [
+        { to: "/dashboard/offers", icon: Send, label: "Offers" },
+        { to: "/dashboard/contracts", icon: FolderOpen, label: "Contracts" },
+        { to: "/dashboard/my-contests", icon: Trophy, label: "My Contests" },
+        { to: "/dashboard/proposals", icon: FileText, label: "Proposals" },
+      ];
+
+  const paymentsItems = [
+    { to: "/transactions", icon: BarChart3, label: "History" },
+    { to: "/transactions?tab=balance", icon: Wallet, label: "Balance" },
+    { to: "/transactions?tab=withdrawals", icon: ArrowDownToLine, label: "Withdrawals" },
+    { to: "/transactions", icon: CreditCard, label: "My Wallet" },
+  ];
+
+  const browseItems = [
+    { to: "/browse-services", icon: Eye, label: "Services" },
+    { to: "/freelancers", icon: Users, label: "Experts" },
+    { to: "/blog", icon: PenLine, label: "Blog" },
+    { to: "/how-it-works", icon: FileText, label: "How It Works" },
+  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-wide">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 shrink-0">
             <ZentraGigLogo size="md" />
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
-            {isAuthenticated && !needsSetup && isClient && (
-              <Link to="/freelancers" className={navLinkClass("/freelancers")}>
-                Find Talent
-              </Link>
-            )}
-            {isAuthenticated && !needsSetup && isFreelancer && (
-              <div className="relative">
-                <button
-                  onClick={() => setJobsMenuOpen(!jobsMenuOpen)}
-                  onBlur={() => setTimeout(() => setJobsMenuOpen(false), 150)}
-                  className={`flex items-center gap-1 text-sm font-medium transition-colors ${
-                    ["/jobs", "/expert-proposals", "/contracts", "/received-offers"].includes(location.pathname)
-                      ? "text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Jobs
-                  <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${jobsMenuOpen ? "rotate-90" : ""}`} />
-                </button>
-                {jobsMenuOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50 animate-fade-in">
-                    <Link to="/jobs" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
-                      <Search className="h-3.5 w-3.5" />Browse Jobs
-                    </Link>
-                    <Link to="/dashboard/expert-proposals" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
-                      <FileText className="h-3.5 w-3.5" />View Proposals
-                    </Link>
-                    <Link to="/dashboard/contracts" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
-                      <FolderOpen className="h-3.5 w-3.5" />View Contracts
-                    </Link>
-                    <Link to="/dashboard/received-offers" onClick={() => setJobsMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
-                      <Mail className="h-3.5 w-3.5" />View Received Offers
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-            {isAuthenticated && !needsSetup && (
-              <Link to="/messages" className={`relative ${navLinkClass("/messages")}`}>
-                Messages
-                {unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-4 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </Link>
-            )}
-            <Link to="/how-it-works" className={navLinkClass("/how-it-works")}>
-              How It Works
+          {/* Desktop nav */}
+          <nav className="hidden lg:flex items-center gap-1 ml-8">
+            <Link
+              to="/"
+              className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                location.pathname === "/" ? "text-primary" : "text-foreground/80 hover:text-foreground"
+              }`}
+            >
+              Home
             </Link>
+            {!user && (
+              <NavDropdown
+                label="Browse"
+                items={browseItems}
+                active={isActive(["/freelancers", "/browse-services", "/how-it-works", "/blog"])}
+              />
+            )}
+            {isAuthenticated && !needsSetup && profileLoaded && (
+              <>
+                <NavDropdown
+                  label={isClient ? "Find Experts" : "Find Gigs"}
+                  items={findGigsItems}
+                  active={isActive(["/jobs", "/freelancers", "/browse-services", "/contests", "/saved-experts", "/dashboard/my-services"])}
+                />
+                <NavDropdown
+                  label="My Work"
+                  items={myWorkItems}
+                  active={isActive(["/dashboard/contracts", "/dashboard/received-offers", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
+                />
+                <NavDropdown
+                  label="Payments"
+                  items={paymentsItems}
+                  active={isActive(["/transactions"])}
+                />
+                <NavDropdown
+                  label="Browse"
+                  items={browseItems}
+                  active={isActive(["/browse-services", "/freelancers", "/blog", "/how-it-works"])}
+                />
+              </>
+            )}
           </nav>
 
-          <div className="hidden md:flex items-center gap-3">
-            {/* Theme Switcher */}
+          {/* Desktop right */}
+          <div className="hidden lg:flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
                   <Palette className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
                 {THEME_OPTIONS.map((t) => (
-                  <DropdownMenuItem
-                    key={t.value}
-                    onClick={() => setColorTheme(t.value)}
-                    className="gap-2 cursor-pointer"
-                  >
+                  <DropdownMenuItem key={t.value} onClick={() => setColorTheme(t.value)} className="gap-2 cursor-pointer">
                     <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: t.color }} />
                     <span>{t.label}</span>
                     {colorTheme === t.value && <span className="ml-auto text-xs">✓</span>}
@@ -159,68 +268,79 @@ export function Header() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
             {needsSetup ? (
               <>
-                <Button variant="outline" asChild>
-                  <Link to="/onboarding">Complete setup</Link>
-                </Button>
-                <Button variant="ghost" onClick={handleSignOut}>
-                  Sign Out
-                </Button>
+                <Button variant="outline" asChild><Link to="/onboarding">Complete setup</Link></Button>
+                <Button variant="ghost" onClick={handleSignOut}>Sign Out</Button>
               </>
             ) : isAuthenticated ? (
               <>
-              <NotificationBell />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(displayName)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <div className="flex items-center gap-2 p-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {getInitials(displayName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
+                <NotificationBell />
+                {/* Avatar → individual profile */}
+                <Link to={profileHref} className="rounded-full shrink-0 mx-1">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {getInitials(displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+                {/* User menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-52" align="end">
+                    <div className="px-2 py-1.5">
                       <p className="text-sm font-medium">{displayName}</p>
                       {displayRole && <p className="text-xs text-muted-foreground capitalize">{displayRole}</p>}
                     </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to={isAdmin ? "/admin" : "/dashboard"} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  {isFreelancer && (
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to={profileHref} className="cursor-pointer">
-                        <Briefcase className="mr-2 h-4 w-4" />My Profile
+                      <Link to={isAdmin ? "/admin" : "/dashboard"} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />Dashboard
                       </Link>
                     </DropdownMenuItem>
-                  )}
-                  {isClient && (
+                    {isFreelancer && (
+                      <DropdownMenuItem asChild>
+                        <Link to={profileHref} className="cursor-pointer">
+                          <Eye className="mr-2 h-4 w-4" />My Profile
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {isClient && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/my-profile" className="cursor-pointer">
+                            <Settings className="mr-2 h-4 w-4" />Edit Profile
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/post-job" className="cursor-pointer">
+                            <Briefcase className="mr-2 h-4 w-4" />Post a Job
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuItem asChild>
-                      <Link to="/post-job" className="cursor-pointer">
-                        <Briefcase className="mr-2 h-4 w-4" />Post a Job
+                      <Link to="/messages" className="cursor-pointer">
+                        <MessageSquare className="mr-2 h-4 w-4" />Messages
+                        {unreadCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                       </Link>
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : isBootstrapPending ? (
               bootstrapStalled ? (
@@ -228,27 +348,48 @@ export function Header() {
                   <Button variant="outline" onClick={() => void handleRetryAccountSync()} disabled={profileLoading}>
                     {profileLoading ? "Retrying..." : "Retry"}
                   </Button>
-                  <Button variant="ghost" onClick={handleSignOut}>
-                    Sign Out
-                  </Button>
+                  <Button variant="ghost" onClick={handleSignOut}>Sign Out</Button>
                 </>
               ) : (
-                <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
               )
             ) : (
               <>
-                <Button variant="ghost" asChild>
-                  <Link to="/auth">Sign In</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/auth?tab=signup">Get Started</Link>
-                </Button>
+                <Button variant="ghost" size="sm" asChild><Link to="/auth">Sign In</Link></Button>
+                <Button size="sm" asChild><Link to="/auth?tab=signup">Get Started</Link></Button>
               </>
             )}
           </div>
 
-          <div className="flex md:hidden items-center gap-2">
-            {isAuthenticated && <NotificationBell />}
+          {/* Mobile right */}
+          <div className="flex lg:hidden items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setThemeOpen((o) => !o)}
+                className="p-2 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
+                aria-label="Change color theme"
+              >
+                <Palette className="h-4 w-4 text-muted-foreground" />
+              </button>
+              {themeOpen && (
+                <div className="absolute right-0 mt-2 bg-popover border border-border rounded-lg shadow-lg p-2 flex gap-2 z-50">
+                  {THEME_OPTIONS.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => { setColorTheme(t.value); setThemeOpen(false); }}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${
+                        colorTheme === t.value ? "border-foreground scale-110" : "border-transparent hover:scale-105"
+                      }`}
+                      style={{ backgroundColor: t.color }}
+                      aria-label={`${t.label} theme`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            {user && <NotificationBell />}
             <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -256,6 +397,7 @@ export function Header() {
         </div>
       </div>
 
+      {/* Auth error banner */}
       {isAuthenticated && authError && (
         <div className="border-t border-border/60 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
           <div className="container-wide flex flex-col gap-2 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
@@ -273,66 +415,64 @@ export function Header() {
         </div>
       )}
 
+      {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background">
-          <div className="container-wide py-4 space-y-4">
-            <nav className="flex flex-col gap-2">
-              {isAuthenticated && !needsSetup && isClient && (
-                <Link to="/freelancers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
-                  <Search className="h-4 w-4" />Find Talent
-                </Link>
-              )}
-              {isAuthenticated && !needsSetup && isFreelancer && (
-                <>
-                  <button
-                    onClick={() => setMobileJobsOpen(!mobileJobsOpen)}
-                    className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />Jobs
-                    </span>
-                    <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${mobileJobsOpen ? "rotate-90" : ""}`} />
-                  </button>
-                  {mobileJobsOpen && (
-                    <div className="ml-6 flex flex-col gap-1 animate-fade-in">
-                      <Link to="/jobs" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
-                        <Search className="h-3.5 w-3.5" />Browse Jobs
-                      </Link>
-                      <Link to="/dashboard/expert-proposals" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
-                        <FileText className="h-3.5 w-3.5" />View Proposals
-                      </Link>
-                      <Link to="/dashboard/contracts" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
-                        <FolderOpen className="h-3.5 w-3.5" />View Contracts
-                      </Link>
-                      <Link to="/dashboard/received-offers" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setMobileMenuOpen(false)}>
-                        <Mail className="h-3.5 w-3.5" />View Received Offers
-                      </Link>
-                    </div>
-                  )}
-                </>
-              )}
-              {isAuthenticated && !needsSetup && (
-                <Link to="/messages" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
-                  <MessageSquare className="h-4 w-4" />Messages
-                  {unreadCount > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </Link>
-              )}
-              {isAuthenticated && !needsSetup && (
-                <Link to="/notifications" className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted" onClick={() => setMobileMenuOpen(false)}>
-                  <Bell className="h-4 w-4" />Notifications
-                  {notifUnreadCount > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                      {notifUnreadCount > 99 ? "99+" : notifUnreadCount}
-                    </span>
-                  )}
-                </Link>
-              )}
-            </nav>
-            <div className="pt-4 border-t border-border space-y-2">
+        <div className="lg:hidden border-t border-border bg-background">
+          <div className="container-wide py-4 space-y-1">
+            <Link
+              to="/"
+              className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted text-sm font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Home className="h-4 w-4" /> Home
+            </Link>
+            {isAuthenticated && !needsSetup && profileLoaded && (
+              <>
+                <MobileDropdown
+                  label={isClient ? "Find Experts" : "Find Gigs"}
+                  items={findGigsItems}
+                  open={mobileSubMenu === "find"}
+                  toggle={() => setMobileSubMenu(mobileSubMenu === "find" ? null : "find")}
+                  close={() => setMobileMenuOpen(false)}
+                />
+                <MobileDropdown
+                  label="My Work"
+                  items={myWorkItems}
+                  open={mobileSubMenu === "work"}
+                  toggle={() => setMobileSubMenu(mobileSubMenu === "work" ? null : "work")}
+                  close={() => setMobileMenuOpen(false)}
+                />
+                <MobileDropdown
+                  label="Payments"
+                  items={paymentsItems}
+                  open={mobileSubMenu === "pay"}
+                  toggle={() => setMobileSubMenu(mobileSubMenu === "pay" ? null : "pay")}
+                  close={() => setMobileMenuOpen(false)}
+                />
+              </>
+            )}
+            <MobileDropdown
+              label="Browse"
+              items={browseItems}
+              open={mobileSubMenu === "browse"}
+              toggle={() => setMobileSubMenu(mobileSubMenu === "browse" ? null : "browse")}
+              close={() => setMobileMenuOpen(false)}
+            />
+            {isAuthenticated && !needsSetup && (
+              <Link
+                to="/messages"
+                className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <MessageSquare className="h-4 w-4" />Messages
+                {unreadCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
+            <div className="pt-3 mt-2 border-t border-border space-y-2">
               {isAuthenticated ? (
                 <>
                   {needsSetup ? (
@@ -344,19 +484,15 @@ export function Header() {
                       <Button variant="outline" className="w-full">Dashboard</Button>
                     </Link>
                   )}
-                  <Button variant="ghost" className="w-full text-destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
+                  <Button variant="ghost" className="w-full text-destructive" onClick={handleSignOut}>
                     Sign Out
                   </Button>
                 </>
               ) : isBootstrapPending ? (
                 bootstrapStalled ? (
                   <>
-                    <Button variant="outline" className="w-full" onClick={() => void handleRetryAccountSync()}>
-                      Refresh
-                    </Button>
-                    <Button variant="ghost" className="w-full text-destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
-                      Sign Out
-                    </Button>
+                    <Button variant="outline" className="w-full" onClick={() => void handleRetryAccountSync()}>Refresh</Button>
+                    <Button variant="ghost" className="w-full text-destructive" onClick={handleSignOut}>Sign Out</Button>
                   </>
                 ) : (
                   <div className="h-10 rounded-lg bg-muted animate-pulse" />

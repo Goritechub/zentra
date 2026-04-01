@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { createNotification as createNotificationApi } from "@/api/notifications.api";
 
 /**
  * Insert a notification for a user. Call from client-side after contract status changes.
@@ -18,14 +18,7 @@ export async function createNotification({
   contractId?: string | null;
   linkUrl?: string | null;
 }) {
-  return supabase.from("notifications").insert({
-    user_id: userId,
-    type,
-    title,
-    message,
-    contract_id: contractId || null,
-    link_url: linkUrl || null,
-  } as any);
+  return createNotificationApi({ userId, type, title, message, contractId, linkUrl });
 }
 
 /**

@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getNotificationsList } from "@/api/notifications.api";
+import { getNotificationsList, markNotificationRead, markAllNotificationsRead } from "@/api/notifications.api";
 
 export interface Notification {
   id: string;
@@ -54,16 +54,16 @@ export function useNotifications() {
   }, [enabled, queryClient, queryKey, user]);
 
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ is_read: true } as any).eq("id", id);
-    await queryClient.setQueryData<Notification[]>(queryKey, (prev = []) =>
+    await markNotificationRead(id);
+    queryClient.setQueryData<Notification[]>(queryKey, (prev = []) =>
       prev.map((notification) => notification.id === id ? { ...notification, is_read: true } : notification),
     );
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
-    await supabase.from("notifications").update({ is_read: true } as any).eq("user_id", user.id).eq("is_read", false);
-    await queryClient.setQueryData<Notification[]>(queryKey, (prev = []) =>
+    await markAllNotificationsRead();
+    queryClient.setQueryData<Notification[]>(queryKey, (prev = []) =>
       prev.map((notification) => ({ ...notification, is_read: true })),
     );
   };
