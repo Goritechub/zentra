@@ -5,6 +5,7 @@ import { filterMessageContent } from "@/lib/message-filters";
 import { vetAttachmentName } from "@/lib/content-vetting";
 import { FILE_SIZE_LIMIT, LARGE_FILE_MESSAGE } from "@/lib/google-drive-validator";
 import { toast } from "sonner";
+import { getContractMessages, sendContractMessage } from "@/api/contracts.api";
 
 export interface ContractMessage {
   id: string;
@@ -26,42 +27,14 @@ export function useContractMessages(contractId?: string) {
 
   const fetchMessages = useCallback(async () => {
     if (!contractId || !user) { setLoading(false); return; }
-
-    const [{ data: msgs }, { data: attachments }] = await Promise.all([
-      supabase
-        .from("contract_messages")
-        .select("*")
-        .eq("contract_id", contractId)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("contract_attachments")
-        .select("id, message_id, file_url, file_name, file_type")
-        .eq("contract_id", contractId)
-        .eq("context", "chat"),
-    ]);
-
-    const attachmentMap = new Map<string, any[]>();
-    (attachments || []).forEach((a: any) => {
-      if (!a.message_id) return;
-      if (!attachmentMap.has(a.message_id)) attachmentMap.set(a.message_id, []);
-      attachmentMap.get(a.message_id)!.push(a);
-    });
-
-    const enriched: ContractMessage[] = (msgs || []).map((m: any) => ({
-      ...m,
-      attachments: attachmentMap.get(m.id) || [],
-    }));
-
-    setMessages(enriched);
-    setLoading(false);
-
-    // Mark unread as read
-    await supabase
-      .from("contract_messages")
-      .update({ is_read: true } as any)
-      .eq("contract_id", contractId)
-      .neq("sender_id", user.id)
-      .eq("is_read", false);
+    try {
+      const msgs = await getContractMessages(contractId);
+      setMessages(msgs);
+    } catch {
+      // silently fail on background refresh
+    } finally {
+      setLoading(false);
+    }
   }, [contractId, user]);
 
   const sendMessage = async (content: string, files?: File[]): Promise<boolean> => {
@@ -76,55 +49,26 @@ export function useContractMessages(contractId?: string) {
       }
     }
 
+    if (files?.length) {
+      for (const file of files) {
+        if (file.size > FILE_SIZE_LIMIT) {
+          toast.error(LARGE_FILE_MESSAGE);
+          return false;
+        }
+        const nameCheck = vetAttachmentName(file.name);
+        if (nameCheck.blocked) {
+          toast.error(`${file.name}: ${nameCheck.reason}`);
+          return false;
+        }
+      }
+    }
+
     setSending(true);
     try {
-      // Upload files first
-      const uploadedFiles: { url: string; name: string; type: string }[] = [];
-      if (files?.length) {
-        for (const file of files) {
-          const nameCheck = vetAttachmentName(file.name);
-          if (nameCheck.blocked) {
-            toast.error(`${file.name}: ${nameCheck.reason}`);
-            continue;
-          }
-          const path = `${contractId}/${user.id}/${Date.now()}_${file.name}`;
-          const { error } = await supabase.storage.from("contract-attachments").upload(path, file);
-          if (error) { toast.error(`Failed to upload ${file.name}`); continue; }
-          const { data } = supabase.storage.from("contract-attachments").getPublicUrl(path);
-          uploadedFiles.push({ url: data.publicUrl, name: file.name, type: file.type });
-        }
-      }
-
-      const { data: msg, error } = await supabase
-        .from("contract_messages")
-        .insert({
-          contract_id: contractId,
-          sender_id: user.id,
-          content: content.trim() || "📎 Attachment",
-        } as any)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Insert attachment records
-      if (uploadedFiles.length > 0 && msg) {
-        for (const f of uploadedFiles) {
-          await supabase.from("contract_attachments").insert({
-            contract_id: contractId,
-            message_id: msg.id,
-            uploaded_by: user.id,
-            file_url: f.url,
-            file_name: f.name,
-            file_type: f.type,
-            context: "chat",
-          } as any);
-        }
-      }
-
+      await sendContractMessage(contractId, content, files);
       return true;
     } catch (error: any) {
-      toast.error(error?.message || "Failed to send message");
+      toast.error(error?.response?.data?.message || error?.message || "Failed to send message");
       return false;
     } finally {
       setSending(false);

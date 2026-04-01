@@ -11,10 +11,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import {
   cancelClientJob,
   createClientJobDispute,
+  deleteClientJob,
   getClientJobCancelState,
   getClientJobs,
 } from "@/api/jobs.api";
@@ -77,15 +77,12 @@ export default function ClientJobsPage() {
     if (!deleteDialog.job) return;
     setDeleting(true);
 
-    const { data, error } = await supabase.functions.invoke("cancel-delete-job", {
-      body: { job_id: deleteDialog.job.id },
-    });
-
-    if (error || !data?.success) {
-      toast.error(data?.error || "Failed to delete job. Please try again.");
-    } else {
+    try {
+      const data = await deleteClientJob(deleteDialog.job.id);
       toast.success(`Job deleted. ${data.notified} applicant(s) notified.`);
       queryClient.invalidateQueries({ queryKey: ["client-jobs", user?.id] });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to delete job. Please try again.");
     }
 
     setDeleting(false);

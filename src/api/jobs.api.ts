@@ -39,3 +39,8 @@ export async function trackJobView(jobId: string) {
   const response = await api.post(`/jobs/${jobId}/views`);
   return response.data.data;
 }
+
+export async function deleteClientJob(jobId: string): Promise<{ notified: number }> {
+  const response = await api.delete(`/jobs/${jobId}`);
+  return response.data.data;
+}

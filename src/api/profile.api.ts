@@ -24,3 +24,12 @@ export async function updateMyProfileData(payload: Record<string, any>) {
   const response = await api.patch("/profile/me", payload);
   return response.data.data;
 }
+
+export async function getPlatformReviewEligibility(): Promise<{ hasReviewed: boolean; completedContracts: number }> {
+  const response = await api.get("/profile/platform-review/eligibility");
+  return response.data.data;
+}
+
+export async function submitPlatformReview(rating: number, comment: string | null, completedContracts: number): Promise<void> {
+  await api.post("/profile/platform-review", { rating, comment, completedContracts });
+}

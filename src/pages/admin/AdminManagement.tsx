@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { ALL_ADMIN_PERMISSIONS, PERMISSION_PRESETS } from "@/lib/admin-permissions";
+import {
+  listAdmins,
+  createAdmin,
+  updateAdminPermissions,
+  removeAdmin,
+  suspendAdmin,
+  resetAdminAuthCode,
+} from "@/api/admin.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,14 +63,10 @@ export default function AdminManagement() {
 
   const fetchAdmins = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: { action: "list_admins" },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setAdmins(data.admins || []);
+      const admins = await listAdmins();
+      setAdmins(admins);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -84,18 +87,7 @@ export default function AdminManagement() {
     }
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: {
-          action: "create_admin",
-          email: newEmail,
-          password: newPassword,
-          fullName: newFullName,
-          permissions: newPermissions,
-          authCode: newAuthCode,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await createAdmin({ email: newEmail, password: newPassword, fullName: newFullName, permissions: newPermissions, authCode: newAuthCode });
       toast({ title: "Admin Created", description: `${newFullName} has been added as an admin. Share their auth code securely.` });
       setShowCreate(false);
       setNewEmail("");
@@ -105,7 +97,7 @@ export default function AdminManagement() {
       setNewAuthCode("");
       fetchAdmins();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -115,20 +107,12 @@ export default function AdminManagement() {
     if (!editingAdmin) return;
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: {
-          action: "update_permissions",
-          targetUserId: editingAdmin.id,
-          permissions: editPermissions,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await updateAdminPermissions(editingAdmin.id, editPermissions);
       toast({ title: "Permissions Updated", description: `Permissions for ${editingAdmin.full_name || editingAdmin.email} updated.` });
       setEditingAdmin(null);
       fetchAdmins();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -138,15 +122,11 @@ export default function AdminManagement() {
     if (!confirm(`Remove admin access for ${admin.full_name || admin.email}? They will become a regular user.`)) return;
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: { action: "remove_admin", targetUserId: admin.id },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await removeAdmin(admin.id);
       toast({ title: "Admin Removed", description: "Admin access has been revoked." });
       fetchAdmins();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -157,15 +137,11 @@ export default function AdminManagement() {
     if (!confirm(`${willSuspend ? "Suspend" : "Unsuspend"} ${admin.full_name || admin.email}?`)) return;
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: { action: "suspend_admin", targetUserId: admin.id, suspend: willSuspend },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await suspendAdmin(admin.id, willSuspend);
       toast({ title: willSuspend ? "Admin Suspended" : "Admin Unsuspended", description: `${admin.full_name || admin.email} has been ${willSuspend ? "suspended" : "restored"}.` });
       fetchAdmins();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -179,16 +155,12 @@ export default function AdminManagement() {
     }
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-admin", {
-        body: { action: "reset_admin_code", targetUserId: resetCodeAdmin.id, newCode: resetCode },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await resetAdminAuthCode(resetCodeAdmin.id, resetCode);
       toast({ title: "Auth Code Reset", description: `Auth code for ${resetCodeAdmin.full_name || resetCodeAdmin.email} has been reset. Share the new code securely.` });
       setResetCodeAdmin(null);
       setResetCode("");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { DollarSign, ShieldCheck, AlertTriangle } from "lucide-react";
+import { getFundingStatus } from "@/api/wallet.api";
 
 export type FundingStatus = "escrow_funded" | "payment_ready" | "funding_needed" | "negotiable";
 
@@ -44,17 +45,13 @@ export function FundingStatusBadge({ clientId, budgetMin, budgetMax, contractId,
     let cancelled = false;
 
     const compute = async () => {
-      const { data } = await supabase.rpc("get_funding_status", {
-        _client_id: clientId,
-        _budget_min: budgetMin ?? null,
-        _budget_max: budgetMax ?? null,
-        _contract_id: contractId ?? null,
-      } as any);
-      if (cancelled) return;
-      const result = data as any;
-      const walletBalance = result?.wallet_balance ?? 0;
-      const escrowHeld = result?.escrow_held ?? 0;
-      setStatus(computeFundingStatus(walletBalance, budgetMin, budgetMax, escrowHeld));
+      try {
+        const result = await getFundingStatus(clientId, budgetMin, budgetMax, contractId);
+        if (cancelled) return;
+        setStatus(computeFundingStatus(result.wallet_balance, budgetMin, budgetMax, result.escrow_held));
+      } catch {
+        // silently skip badge if fetch fails
+      }
     };
 
     compute();

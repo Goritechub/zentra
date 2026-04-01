@@ -1,4 +1,5 @@
 import { api } from "./axios";
+import type { ContractMessage } from "@/hooks/useContractMessages";
 
 export async function getContracts() {
   const response = await api.get("/contracts");
@@ -43,4 +44,24 @@ export async function addContractMilestone(contractId: string, payload: Record<s
 export async function submitContractReview(contractId: string, payload: Record<string, any>) {
   const response = await api.patch(`/contracts/${contractId}/reviews`, payload);
   return response.data.data;
+}
+
+export async function getContractMessages(contractId: string): Promise<ContractMessage[]> {
+  const response = await api.get(`/contracts/${contractId}/messages`);
+  return response.data.data.messages || [];
+}
+
+export async function sendContractMessage(
+  contractId: string,
+  content: string,
+  files?: File[],
+): Promise<void> {
+  const form = new FormData();
+  form.append("content", content);
+  if (files?.length) {
+    for (const file of files) form.append("files", file);
+  }
+  await api.post(`/contracts/${contractId}/messages`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 }

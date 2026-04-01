@@ -226,3 +226,39 @@ export async function updateAdminCommissionTiers(tiers: any[]) {
   const response = await api.patch("/admin/settings/commission-tiers", { tiers });
   return response.data.data;
 }
+
+export async function listAdmins() {
+  const response = await api.get("/admin/admins");
+  return response.data.data.admins as any[];
+}
+
+export async function createAdmin(payload: {
+  email: string;
+  password: string;
+  fullName: string;
+  permissions: string[];
+  authCode: string;
+}) {
+  const response = await api.post("/admin/admins", payload);
+  return response.data.data as { id: string };
+}
+
+export async function updateAdminPermissions(targetUserId: string, permissions: string[]) {
+  const response = await api.patch(`/admin/admins/${targetUserId}/permissions`, { permissions });
+  return response.data.data;
+}
+
+export async function removeAdmin(targetUserId: string) {
+  const response = await api.delete(`/admin/admins/${targetUserId}`);
+  return response.data.data;
+}
+
+export async function suspendAdmin(targetUserId: string, suspend: boolean) {
+  const response = await api.patch(`/admin/admins/${targetUserId}/suspend`, { suspend });
+  return response.data.data;
+}
+
+export async function resetAdminAuthCode(targetUserId: string, newCode: string) {
+  const response = await api.patch(`/admin/admins/${targetUserId}/auth-code`, { newCode });
+  return response.data.data;
+}

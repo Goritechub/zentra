@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getPlatformReviewEligibility, submitPlatformReview } from "@/api/profile.api";
 
 const FIRST_PROMPT_THRESHOLD = 3;
 const RE_PROMPT_INTERVAL = 2;
@@ -26,35 +26,24 @@ export function PlatformReviewPrompt() {
   const checkEligibility = async () => {
     if (!user) return;
 
-    // Check if user already left a platform review
-    const { data: existing } = await supabase
-      .from("platform_reviews")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (existing) return; // Already reviewed, never prompt again
-
-    // Check if user dismissed this session
     const dismissed = sessionStorage.getItem(`platform_review_dismissed_${user.id}`);
     if (dismissed) return;
 
-    // Count completed contracts
-    const { count } = await supabase
-      .from("contracts")
-      .select("id", { count: "exact", head: true })
-      .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
-      .eq("status", "completed");
+    try {
+      const { hasReviewed, completedContracts } = await getPlatformReviewEligibility();
+      if (hasReviewed) return;
 
-    const total = count || 0;
-    setCompletedCount(total);
+      const total = completedContracts;
+      setCompletedCount(total);
 
-    // First prompt at 3, then every 2 more (5, 7, 9...)
-    if (total >= FIRST_PROMPT_THRESHOLD) {
-      const pastThreshold = total - FIRST_PROMPT_THRESHOLD;
-      if (pastThreshold === 0 || pastThreshold % RE_PROMPT_INTERVAL === 0) {
-        setShow(true);
+      if (total >= FIRST_PROMPT_THRESHOLD) {
+        const pastThreshold = total - FIRST_PROMPT_THRESHOLD;
+        if (pastThreshold === 0 || pastThreshold % RE_PROMPT_INTERVAL === 0) {
+          setShow(true);
+        }
       }
+    } catch {
+      // silently skip — non-critical
     }
   };
 
@@ -66,12 +55,11 @@ export function PlatformReviewPrompt() {
   const handleNeverAsk = async () => {
     if (!user) return;
     setLoading(true);
-    await supabase.from("platform_reviews").insert({
-      user_id: user.id,
-      rating: 0,
-      comment: "__never_ask__",
-      contracts_at_review: completedCount,
-    } as any);
+    try {
+      await submitPlatformReview(0, "__never_ask__", completedCount);
+    } catch {
+      // best-effort
+    }
     setShow(false);
     setLoading(false);
   };
@@ -82,18 +70,12 @@ export function PlatformReviewPrompt() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("platform_reviews").insert({
-      user_id: user.id,
-      rating,
-      comment: comment.trim() || null,
-      contracts_at_review: completedCount,
-    } as any);
-
-    if (error) {
-      toast.error("Failed to submit review");
-    } else {
+    try {
+      await submitPlatformReview(rating, comment.trim() || null, completedCount);
       toast.success("Thank you for your feedback!");
       setShow(false);
+    } catch {
+      toast.error("Failed to submit review");
     }
     setLoading(false);
   };
