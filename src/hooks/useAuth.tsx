@@ -440,6 +440,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        if (event === "PASSWORD_RECOVERY") {
+          // Just keep the session alive for the reset form — no profile bootstrap needed
+          if (nextSession?.user) syncSessionOnly(nextSession);
+          return;
+        }
+
         if (event === "USER_UPDATED" && nextSession?.user) {
           syncSessionOnly(nextSession);
           void loadUserAndBootstrap(nextSession, {
@@ -540,17 +546,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = async () => {
-    try {
-      setLoading(true);
-      setBootstrapStatus("loading");
-      clearAuthState();
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error("Sign out error:", e);
-    } finally {
-      window.location.href = "/auth";
-    }
+  const signOut = () => {
+    clearAuthState();
+    window.location.href = "/auth";
+    void supabase.auth.signOut().catch((e) => console.error("Sign out error:", e));
   };
 
   const refreshProfile = async () => {

@@ -197,6 +197,12 @@ export function Header() {
     { to: "/how-it-works", icon: FileText, label: "How It Works" },
   ];
 
+  // Admins and unauthenticated users cannot access Services or Experts routes
+  const browseItemsLimited = [
+    { to: "/blog", icon: PenLine, label: "Blog" },
+    { to: "/how-it-works", icon: FileText, label: "How It Works" },
+  ];
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-wide">
@@ -221,8 +227,8 @@ export function Header() {
               <>
                 <NavDropdown
                   label="Browse"
-                  items={browseItems}
-                  active={isActive(["/browse-services", "/freelancers", "/blog", "/how-it-works"])}
+                  items={browseItemsLimited}
+                  active={isActive(["/blog", "/how-it-works"])}
                 />
                 <Link
                   to="/admin"
@@ -239,8 +245,8 @@ export function Header() {
                 {!user && (
                   <NavDropdown
                     label="Browse"
-                    items={browseItems}
-                    active={isActive(["/freelancers", "/browse-services", "/how-it-works", "/blog"])}
+                    items={browseItemsLimited}
+                    active={isActive(["/blog", "/how-it-works"])}
                   />
                 )}
                 {isAuthenticated && !needsSetup && profileLoaded && (
@@ -484,7 +490,7 @@ export function Header() {
             )}
             <MobileDropdown
               label="Browse"
-              items={browseItems}
+              items={isAdmin || !user ? browseItemsLimited : browseItems}
               open={mobileSubMenu === "browse"}
               toggle={() => setMobileSubMenu(mobileSubMenu === "browse" ? null : "browse")}
               close={() => setMobileMenuOpen(false)}
