@@ -44,3 +44,8 @@ export async function deleteClientJob(jobId: string): Promise<{ notified: number
   const response = await api.delete(`/jobs/${jobId}`);
   return response.data.data;
 }
+
+export async function updateJobPost(jobId: string, payload: Record<string, any>) {
+  const response = await api.patch(`/jobs/${jobId}`, payload);
+  return response.data.data;
+}

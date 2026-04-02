@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,12 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from
 "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { createJobPost, searchInviteExperts } from "@/api/jobs.api";
+import { createJobPost, updateJobPost, searchInviteExperts } from "@/api/jobs.api";
+import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus } from "lucide-react";
+import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock } from "lucide-react";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
@@ -28,8 +29,13 @@ type JobVisibility = "public" | "private";
 export default function PostJobPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { jobId } = useParams<{ jobId?: string }>();
+  const isEditMode = !!jobId;
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingJob, setLoadingJob] = useState(isEditMode);
+  const [jobLocked, setJobLocked] = useState(false);
+  const [existingAttachmentUrls, setExistingAttachmentUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
@@ -68,6 +74,54 @@ export default function PostJobPage() {
       setInvitedExperts([{ id: inviteId, full_name: decodeURIComponent(inviteName) }]);
     }
   }, [searchParams]);
+
+  // Edit mode: fetch existing job and prefill form
+  useEffect(() => {
+    if (!isEditMode || !jobId) return;
+    const fromDays = (days: number, unit: string): number => {
+      if (unit === "weeks") return Math.round(days / 7);
+      if (unit === "months") return Math.round(days / 30);
+      return days;
+    };
+    setLoadingJob(true);
+    getJobDetailsOverview(jobId)
+      .then((overview) => {
+        const j = overview.job;
+        if (!j) { navigate("/dashboard"); return; }
+        if (["in_progress", "completed", "cancelled"].includes(j.status)) {
+          setJobLocked(true);
+          setLoadingJob(false);
+          return;
+        }
+        setTitle(j.title || "");
+        setDescription(j.description || "");
+        setBudgetMin(j.budget_min?.toString() ?? "");
+        setBudgetMax(j.budget_max?.toString() ?? "");
+        const unit: DurationUnit = (j.delivery_unit as DurationUnit) || "days";
+        setDeliveryUnit(unit);
+        setDeliveryValue(j.delivery_days ? fromDays(j.delivery_days, unit).toString() : "");
+        setLocationType(j.is_remote ? "remote" : "physical");
+        setIsHourly(j.is_hourly || false);
+        setState(j.state || "");
+        setCity(j.city || "");
+        setSelectedSkills(j.required_skills || []);
+        setSelectedSoftware(j.required_software || []);
+        setOverallSkillLevel(j.skill_level || "Intermediate");
+        setVisibility(j.visibility || "public");
+        setExistingAttachmentUrls(j.attachments || []);
+        if (j.invited_expert_ids?.length) {
+          supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", j.invited_expert_ids)
+            .then(({ data }) => {
+              setInvitedExperts((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name })));
+            });
+        }
+        setLoadingJob(false);
+      })
+      .catch(() => { setLoadingJob(false); navigate("/dashboard"); });
+  }, [isEditMode, jobId]);
 
   const states = getAllStates();
   const cities = state ? getCitiesByState(state) : [];
@@ -165,30 +219,39 @@ export default function PostJobPage() {
     const uploadedUrls = await uploadAttachments();
 
     const deliveryDays = deliveryValue ? toDays(parseInt(deliveryValue), deliveryUnit) : null;
+    const allAttachments = [...existingAttachmentUrls, ...uploadedUrls];
+
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      budget_min: budgetMin ? parseInt(budgetMin) : null,
+      budget_max: budgetMax ? parseInt(budgetMax) : null,
+      delivery_days: deliveryDays,
+      delivery_unit: deliveryUnit,
+      is_remote: locationType === "remote",
+      is_hourly: isHourly,
+      state: locationType === "physical" ? state || null : null,
+      city: locationType === "physical" ? city || null : null,
+      required_skills: selectedSkills,
+      required_software: selectedSoftware,
+      skill_level: overallSkillLevel,
+      attachments: allAttachments.length > 0 ? allAttachments : null,
+      visibility,
+      invited_expert_ids: invitedExperts.map((invited) => invited.id),
+    };
 
     try {
-      await createJobPost({
-        title: title.trim(),
-        description: description.trim(),
-        budget_min: budgetMin ? parseInt(budgetMin) : null,
-        budget_max: budgetMax ? parseInt(budgetMax) : null,
-        delivery_days: deliveryDays,
-        delivery_unit: deliveryUnit,
-        is_remote: locationType === "remote",
-        is_hourly: isHourly,
-        state: locationType === "physical" ? state || null : null,
-        city: locationType === "physical" ? city || null : null,
-        required_skills: selectedSkills,
-        required_software: selectedSoftware,
-        skill_level: overallSkillLevel,
-        attachments: uploadedUrls.length > 0 ? uploadedUrls : null,
-        visibility,
-        invited_expert_ids: invitedExperts.map((invited) => invited.id),
-      });
-      toast.success("Job posted successfully!");
-      navigate("/dashboard");
+      if (isEditMode && jobId) {
+        await updateJobPost(jobId, payload);
+        toast.success("Job updated successfully!");
+        navigate(`/job/${jobId}`);
+      } else {
+        await createJobPost(payload);
+        toast.success("Job posted successfully!");
+        navigate("/dashboard");
+      }
     } catch (error) {
-      toast.error("Failed to post job");
+      toast.error(isEditMode ? "Failed to update job" : "Failed to post job");
     }
     setLoading(false);
   };
@@ -206,7 +269,35 @@ export default function PostJobPage() {
         </div>
         <Footer />
       </div>);
+  }
 
+  if (loadingJob) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (jobLocked) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
+            <h2 className="text-xl font-bold">Job cannot be edited</h2>
+            <p className="text-muted-foreground">This job has an active contract or has been closed.</p>
+            <Button onClick={() => navigate(`/job/${jobId}`)}>View Job</Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   const levels: SkillLevel[] = ["Beginner", "Intermediate", "Advanced"];
@@ -216,8 +307,8 @@ export default function PostJobPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-tight">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Post a New Job</h1>
-          <p className="text-muted-foreground mb-8">Describe your engineering project and find the right expert.</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{isEditMode ? "Edit Job" : "Post a New Job"}</h1>
+          <p className="text-muted-foreground mb-8">{isEditMode ? "Update your job details below." : "Describe your engineering project and find the right expert."}</p>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
@@ -441,7 +532,22 @@ export default function PostJobPage() {
                 className="hidden"
                 onChange={handleFileChange} />
 
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={attachments.length >= 5}>
+              {existingAttachmentUrls.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">Existing attachments:</p>
+                  {existingAttachmentUrls.map((url, idx) => {
+                    const name = url.split("/").pop()?.split("?")[0] || `file-${idx + 1}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm flex-1 truncate">{decodeURIComponent(name)}</span>
+                        <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-destructive" onClick={() => setExistingAttachmentUrls(existingAttachmentUrls.filter((_, i) => i !== idx))} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={existingAttachmentUrls.length + attachments.length >= 5}>
                 <Paperclip className="h-4 w-4 mr-2" /> Add Files
               </Button>
               {attachments.length > 0 &&
@@ -459,7 +565,9 @@ export default function PostJobPage() {
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={loading || uploading}>
-              {loading || uploading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{uploading ? "Uploading files..." : "Posting..."}</> : <><Plus className="h-4 w-4 mr-2" />Post Job</>}
+              {loading || uploading
+                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{uploading ? "Uploading files..." : isEditMode ? "Saving..." : "Posting..."}</>
+                : <><Plus className="h-4 w-4 mr-2" />{isEditMode ? "Save Changes" : "Post Job"}</>}
             </Button>
           </form>
         </div>

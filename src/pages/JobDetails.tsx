@@ -20,6 +20,7 @@ import {
   rejectClientProposal,
   startClientProposalInterview,
 } from "@/api/client-proposals.api";
+import { withdrawMyJobProposal } from "@/api/proposals.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
@@ -29,7 +30,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye,
-  CheckCircle2, X, Wallet, ShieldCheck, MessageSquare
+  CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { toast } from "sonner";
@@ -66,6 +67,9 @@ export default function JobDetailsPage() {
   const { isVerified: kycVerified } = useKycVerification();
   const [showKycModal, setShowKycModal] = useState(false);
   const [jobAssigned, setJobAssigned] = useState(false);
+  const [myProposal, setMyProposal] = useState<{ id: string; status: string; notified_of_change: boolean } | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [changesBannerDismissed, setChangesBannerDismissed] = useState(false);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
 
@@ -95,6 +99,7 @@ export default function JobDetailsPage() {
     setInterviewingCount(overview.interviewingCount || 0);
     setWallet(overview.wallet || null);
     setHasApplied(!!overview.hasApplied);
+    setMyProposal(overview.myProposal || null);
     setProposals(overview.proposals || []);
     setInterviewContracts(overview.interviewContracts || []);
     setSimilarJobs(overview.similarJobs || []);
@@ -235,6 +240,23 @@ export default function JobDetailsPage() {
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
+  const isJobEditable = isClient && !isAssigned;
+  const showChangesBanner = profile?.role === "freelancer" && hasApplied && job.has_material_changes && !changesBannerDismissed;
+
+  const handleWithdrawProposal = async () => {
+    if (!myProposal) return;
+    setWithdrawing(true);
+    try {
+      await withdrawMyJobProposal(myProposal.id);
+      setHasApplied(false);
+      setMyProposal(null);
+      setChangesBannerDismissed(true);
+      toast.success("Proposal withdrawn.");
+    } catch {
+      toast.error("Failed to withdraw proposal.");
+    }
+    setWithdrawing(false);
+  };
   const paymentReady = wallet && wallet.balance > 0;
 
   const deliveryLabel = () => {
@@ -300,6 +322,31 @@ export default function JobDetailsPage() {
               </div>
             </div>
           </div>
+
+          {/* ===== Material Changes Banner (freelancer with active proposal) ===== */}
+          {showChangesBanner && (
+            <Alert className="mb-6 border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <span className="flex-1 text-sm">
+                  The client has updated key terms on this job (budget, deadline, or requirements). Review the changes and decide whether to keep or withdraw your proposal.
+                </span>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleWithdrawProposal}
+                    disabled={withdrawing}
+                  >
+                    {withdrawing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Withdraw"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setChangesBannerDismissed(true)}>
+                    Keep Proposal
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* ===== Client View: Tabbed Layout ===== */}
           {isClient ? (
@@ -519,6 +566,17 @@ export default function JobDetailsPage() {
                     <FundingStatusBadge clientId={job.client_id} budgetMin={job.budget_min} budgetMax={job.budget_max} />
                   </div>
                 </div>
+
+                {isJobEditable && (
+                  <Button variant="outline" className="w-full" onClick={() => navigate(`/job/${id}/edit`)}>
+                    <Pencil className="h-4 w-4 mr-2" /> Edit Job
+                  </Button>
+                )}
+                {isAssigned && isClient && (
+                  <p className="text-sm text-muted-foreground text-center p-3 rounded-lg bg-muted/50 border border-border">
+                    Job is locked — a contract is active or the job is closed.
+                  </p>
+                )}
 
                 <div className="bg-card rounded-xl border border-border p-6">
                   <h3 className="font-semibold mb-4">Quick Stats</h3>

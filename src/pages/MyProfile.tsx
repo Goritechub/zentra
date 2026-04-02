@@ -243,13 +243,16 @@ export default function MyProfilePage() {
     try {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/avatar.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      const uploadPromise = supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Upload timed out. Please try again.")), 15000)
+      );
+      const { error: uploadError } = await Promise.race([uploadPromise, timeout]);
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
       const newUrl = `${data.publicUrl}?t=${Date.now()}`;
       await updateMyAvatarUrl(newUrl);
       setAvatarUrl(newUrl);
-      await refreshProfile();
       toast({ title: "Avatar updated!" });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });

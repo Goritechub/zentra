@@ -143,6 +143,7 @@ const AppShell = () => {
               <Route path="/jobs" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><Jobs /></RoleGuard></AuthGuard>} />
               <Route path="/job/:id" element={<AuthGuard><JobDetails /></AuthGuard>} />
               <Route path="/job/:id/apply" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ApplyJob /></RoleGuard></AuthGuard>} />
+              <Route path="/job/:jobId/edit" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><PostJob /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
               <Route path="/dashboard/jobs" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><ClientJobs /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard/proposals" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><ProposalsReceived /></RoleGuard></AuthGuard>} />

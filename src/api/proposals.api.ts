@@ -22,3 +22,8 @@ export async function updateMyJobProposal(proposalId: string, payload: Record<st
   const response = await api.patch(`/proposals/${proposalId}/mine`, payload);
   return response.data.data as { proposal: any };
 }
+
+export async function withdrawMyJobProposal(proposalId: string) {
+  const response = await api.post(`/proposals/${proposalId}/withdraw`);
+  return response.data.data as { id: string; status: string };
+}
