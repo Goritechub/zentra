@@ -546,10 +546,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = () => {
+  const signOut = async () => {
     clearAuthState();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Sign out error:", e);
+    }
     window.location.href = "/auth";
-    void supabase.auth.signOut().catch((e) => console.error("Sign out error:", e));
   };
 
   const refreshProfile = async () => {
