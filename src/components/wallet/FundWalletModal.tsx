@@ -152,13 +152,32 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
 
   const checkPending = async () => {
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-charge", {
-      body: { action: "check_pending", reference },
-    });
-    setLoading(false);
+    try {
+      const result = await Promise.race([
+        supabase.functions.invoke("paystack-charge", {
+          body: { action: "check_pending", reference },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 15000)
+        ),
+      ]);
 
-    if (data) {
+      const { data, error } = result;
+
+      if (error || !data) {
+        toast.error("Could not verify payment status. Please try again.");
+        return;
+      }
+
       handleStepTransition(data.status, data.data);
+    } catch (err: any) {
+      if (err?.message === "timeout") {
+        toast.error("Verification timed out. Your payment may still be processing — try checking again.");
+      } else {
+        toast.error("Could not verify payment. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
