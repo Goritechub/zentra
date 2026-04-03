@@ -21,7 +21,7 @@ export function useKycVerification(userId?: string) {
   const { user } = useAuth();
   const targetUserId = userId || user?.id;
   const [kycData, setKycData] = useState<KycVerification | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchKyc = async () => {
     if (!targetUserId) { setLoading(false); return; }

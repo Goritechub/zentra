@@ -7,7 +7,10 @@ const SESSION_RESOLVE_TIMEOUT_MS = 1500;
 
 type SupabaseStoredSession = {
   access_token?: string;
+  expires_at?: number;
 };
+
+const TOKEN_EXPIRY_BUFFER_S = 30;
 
 const getLocalStorageToken = (): string | null => {
   try {
@@ -21,7 +24,11 @@ const getLocalStorageToken = (): string | null => {
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw) as SupabaseStoredSession | { currentSession?: SupabaseStoredSession };
-      const token = parsed?.access_token || parsed?.currentSession?.access_token;
+      const session = (parsed as any)?.currentSession ?? parsed;
+      const token = session?.access_token;
+      const expiresAt = session?.expires_at;
+      // Skip expired or soon-to-expire tokens so getSession() runs and refreshes them
+      if (expiresAt && Date.now() / 1000 > expiresAt - TOKEN_EXPIRY_BUFFER_S) continue;
       if (token) return token;
     }
   } catch {
@@ -109,12 +116,27 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     if (isDev) {
       const method = (error?.config?.method || "GET").toUpperCase();
       const url = error?.config?.url || "";
       const status = error?.response?.status ?? null;
       console.error("[api] response error", { method, url, status, message: error?.message || "unknown_error" });
+    }
+
+    // On 401, attempt a one-time token refresh and retry the request
+    if (error?.response?.status === 401 && !error.config?._retried) {
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        const freshToken = data.session?.access_token;
+        if (freshToken) {
+          error.config._retried = true;
+          error.config.headers.Authorization = `Bearer ${freshToken}`;
+          return api.request(error.config);
+        }
+      } catch {
+        // Refresh failed — fall through to error
+      }
     }
 
     const message =
