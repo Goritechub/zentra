@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { getWalletBalance } from "@/api/wallet.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -98,8 +99,8 @@ export default function LaunchContestPage() {
     }
 
     // Call the secure backend function
-    const { data, error } = await supabase.functions.invoke("launch-contest", {
-      body: {
+    try {
+      const res = await api.post("/contests/launch", {
         title: title.trim(),
         description: description.trim(),
         category: category || null,
@@ -114,35 +115,26 @@ export default function LaunchContestPage() {
         rules: rules.trim() || null,
         banner_image: bannerUrl,
         winner_selection_method: "client_selects",
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error("Failed to launch contest");
-      return;
-    }
-
-    if (data?.error === "insufficient_funds") {
-      setInsufficientData({
-        total: data.total_prize_pool,
-        balance: data.wallet_balance,
-        shortfall: data.shortfall,
       });
-      setWalletBalance(data.wallet_balance);
-      setShowInsufficientModal(true);
-      return;
-    }
-
-    if (data?.error) {
-      toast.error(data.error);
-      return;
-    }
-
-    if (data?.success) {
-      toast.success("Contest launched! Prize pool moved to escrow.");
-      navigate("/dashboard/my-contests");
+      setLoading(false);
+      const data = res.data;
+      if (data?.success) {
+        toast.success("Contest launched! Prize pool moved to escrow.");
+        navigate("/dashboard/my-contests");
+      }
+    } catch (err: any) {
+      setLoading(false);
+      // Check if it's an insufficient funds error (backend throws BadRequestException with JSON body)
+      try {
+        const parsed = JSON.parse(err?.message || "{}");
+        if (parsed.error === "insufficient_funds") {
+          setInsufficientData({ total: parsed.total_prize_pool, balance: parsed.wallet_balance, shortfall: parsed.shortfall });
+          setWalletBalance(parsed.wallet_balance);
+          setShowInsufficientModal(true);
+          return;
+        }
+      } catch { /* not JSON */ }
+      toast.error(err?.message || "Failed to launch contest");
     }
   };
 

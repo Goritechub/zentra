@@ -1,7 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 
 /**
- * Sends a broadcast notification to all users via the edge function.
+ * Sends a broadcast notification to all users via NestJS.
  * Only callable by super admins.
  */
 export async function broadcastNotification({
@@ -15,11 +15,7 @@ export async function broadcastNotification({
   type?: string;
   link_url?: string;
 }) {
-  const { data, error } = await supabase.functions.invoke("broadcast-notification", {
-    body: { title, message, type, link_url },
-  });
-
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
+  const res = await api.post("/admin/broadcast", { title, message, type, link_url });
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
 }

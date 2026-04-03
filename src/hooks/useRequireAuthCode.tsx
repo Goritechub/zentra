@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/api/axios";
 
 /**
  * Hook that gates sensitive actions behind auth code setup + verification.
@@ -32,9 +32,8 @@ export function useRequireAuthCode() {
     setChecking(true);
 
     try {
-      const { data } = await supabase.functions.invoke("auth-code", {
-        body: { action: "check" },
-      });
+      const res = await api.post("/auth/auth-code", { action: "check" });
+      const data = res.data;
 
       if (data?.has_code) {
         // User has code, ask them to verify

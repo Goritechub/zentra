@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
@@ -67,23 +68,20 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
     // If no escrow, route through edge function with no_funds type
     if (totalHeld <= 0) {
       setActionLoading(true);
-      const response = await supabase.functions.invoke("escrow-release", {
-        body: {
-          action: "resolve_dispute",
-          dispute_id: dispute.id,
-          contract_id: dispute.contract_id,
-          resolution_type: "no_funds",
-          resolution_explanation: resolutionExplanation.trim(),
-        },
-      });
-
-      if (response.error || response.data?.error) {
-        console.error("Dispute close error:", response.error || response.data?.error);
-        toast.error(response.data?.error || "Failed to close dispute");
-      } else {
-        toast.success("Dispute closed successfully");
-        setShowResolve(false);
-        onResolved();
+      try {
+        const response = await api.post("/contracts/escrow", {
+          action: "resolve_dispute", dispute_id: dispute.id, contract_id: dispute.contract_id,
+          resolution_type: "no_funds", resolution_explanation: resolutionExplanation.trim(),
+        });
+        if (response.data?.error) {
+          toast.error(response.data.error);
+        } else {
+          toast.success("Dispute closed successfully");
+          setShowResolve(false);
+          onResolved();
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to close dispute");
       }
       setActionLoading(false);
       return;
@@ -100,25 +98,26 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       }
     }
     setActionLoading(true);
-
-    const response = await supabase.functions.invoke("escrow-release", {
-      body: {
-        action: "resolve_dispute",
-        dispute_id: dispute.id,
-        contract_id: dispute.contract_id,
-        resolution_type: resolutionType,
-        resolution_explanation: resolutionExplanation.trim(),
-        split_client: resolutionType === "partial_split" ? parseInt(splitClient) || 0 : 0,
-        split_freelancer: resolutionType === "partial_split" ? parseInt(splitFreelancer) || 0 : 0,
-      },
+    try {
+    const response = await api.post("/contracts/escrow", {
+      action: "resolve_dispute",
+      dispute_id: dispute.id,
+      contract_id: dispute.contract_id,
+      resolution_type: resolutionType,
+      resolution_explanation: resolutionExplanation.trim(),
+      split_client: resolutionType === "partial_split" ? parseInt(splitClient) || 0 : 0,
+      split_freelancer: resolutionType === "partial_split" ? parseInt(splitFreelancer) || 0 : 0,
     });
 
-    if (response.error || response.data?.error) {
-      toast.error(response.data?.error || "Failed to resolve dispute");
+    if (response.data?.error) {
+      toast.error(response.data.error);
     } else {
       toast.success("Dispute resolved successfully");
       setShowResolve(false);
       onResolved();
+    }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to resolve dispute");
     }
     setActionLoading(false);
   };

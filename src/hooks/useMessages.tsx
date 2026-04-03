@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -144,38 +145,15 @@ export function useMessages(selectedUserId?: string) {
 
     setSending(true);
     try {
-      const response = await supabase.functions.invoke("moderate-message", {
-        body: {
-          receiver_id: selectedUserId,
-          content: content.trim(),
-          attachments: attachments || [],
-        },
+      await api.post("/messages/send", {
+        receiver_id: selectedUserId,
+        content: content.trim(),
+        attachments: attachments || [],
       });
-
-      if (response.error) {
-        const errorData = response.error;
-        toast({
-          title: "Message blocked",
-          description: typeof errorData === 'object' && errorData.message
-            ? errorData.message
-            : "Your message contains content that violates our policies.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      if (response.data?.warnings?.length > 0) {
-        toast({
-          title: "Warning",
-          description: response.data.warnings.join(", "),
-        });
-      }
-
       return true;
     } catch (error: any) {
-      console.error("Error sending message:", error);
       toast({
-        title: "Error",
+        title: error?.message?.includes("allowed") ? "Message blocked" : "Error",
         description: error?.message || "Failed to send message. Please try again.",
         variant: "destructive",
       });

@@ -4,7 +4,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Check } from "lucide-react";
 
@@ -39,10 +39,10 @@ export function AuthCodeSetupModal({ open, onOpenChange, onComplete }: AuthCodeS
       return;
     }
     setStep("saving");
-    const { data, error } = await supabase.functions.invoke("auth-code", {
-      body: { action: "set", code },
-    });
-    if (error || !data?.success) {
+    try {
+    const res = await api.post("/auth/auth-code", { action: "set", code });
+    const data = res.data;
+    if (!data?.success) {
       toast.error(data?.error || "Failed to set authentication code");
       setStep("confirm");
       return;
@@ -52,6 +52,10 @@ export function AuthCodeSetupModal({ open, onOpenChange, onComplete }: AuthCodeS
     setConfirmCode("");
     setStep("enter");
     onComplete();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to set authentication code");
+      setStep("confirm");
+    }
   };
 
   const handleClose = (v: boolean) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/api/axios";
 
 export type KycStatus = "not_started" | "pending" | "verified" | "failed" | "manual_review";
 export type VerificationLevel = "basic" | "identity_verified" | "zentra_verified";
@@ -42,12 +43,9 @@ export function useKycVerification(userId?: string) {
     if (!user) return null;
     try {
       const callbackUrl = `${window.location.origin}/expert/${user.id}/profile?kyc=complete`;
-      const { data, error } = await supabase.functions.invoke("kyc-create-session", {
-        body: { callback_url: callbackUrl },
-      });
-      if (error) throw error;
+      const res = await api.post("/kyc/session", { callback_url: callbackUrl });
       await fetchKyc();
-      return data;
+      return res.data;
     } catch (err) {
       console.error("Failed to start KYC:", err);
       throw err;
@@ -57,10 +55,9 @@ export function useKycVerification(userId?: string) {
   const checkStatus = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase.functions.invoke("kyc-check-status");
-      if (error) throw error;
+      const res = await api.get("/kyc/status");
       await fetchKyc();
-      return data;
+      return res.data;
     } catch (err) {
       console.error("Failed to check KYC status:", err);
     }

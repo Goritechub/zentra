@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import { Loader2, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -56,22 +57,25 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
 
   const fetchBanks = async () => {
     setLoading(true);
-    const { data } = await supabase.functions.invoke("paystack-transfer", {
-      body: { action: "list_banks" },
-    });
-    if (data?.banks) setBanks(data.banks);
+    try {
+      const res = await api.post("/wallet/paystack-transfer", { action: "list_banks" });
+      if (res.data?.banks) setBanks(res.data.banks);
+    } catch { /* ignore */ }
     setLoading(false);
   };
 
   const resolveAccount = async () => {
     if (accountNumber.length !== 10 || !bankCode) return;
     setResolving(true);
-    const { data } = await supabase.functions.invoke("paystack-transfer", {
-      body: { action: "resolve_account", account_number: accountNumber, bank_code: bankCode },
-    });
-    if (data?.success && data.data?.account_name) {
-      setResolvedName(data.data.account_name);
-    } else {
+    try {
+      const res = await api.post("/wallet/paystack-transfer", { action: "resolve_account", account_number: accountNumber, bank_code: bankCode });
+      if (res.data?.success && res.data.data?.account_name) {
+        setResolvedName(res.data.data.account_name);
+      } else {
+        toast.error("Could not resolve account. Check details.");
+        setResolvedName("");
+      }
+    } catch {
       toast.error("Could not resolve account. Check details.");
       setResolvedName("");
     }
@@ -84,27 +88,25 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-transfer", {
-      body: {
-        action: "save_bank",
-        account_number: accountNumber,
-        bank_code: bankCode,
-        bank_name: selectedBankName,
-        account_name: resolvedName,
-      },
-    });
-    setLoading(false);
-    if (data?.success) {
-      toast.success("Bank account saved");
-      await fetchBankDetails();
-      setSelectedBank(data.bank_detail);
-      setStep("amount");
-      setBankCode("");
-      setAccountNumber("");
-      setResolvedName("");
-    } else {
-      toast.error(data?.error || "Failed to save bank details");
+    try {
+      const res = await api.post("/wallet/paystack-transfer", {
+        action: "save_bank", account_number: accountNumber, bank_code: bankCode, bank_name: selectedBankName, account_name: resolvedName,
+      });
+      if (res.data?.success) {
+        toast.success("Bank account saved");
+        await fetchBankDetails();
+        setSelectedBank(res.data.bank_detail);
+        setStep("amount");
+        setBankCode("");
+        setAccountNumber("");
+        setResolvedName("");
+      } else {
+        toast.error(res.data?.error || "Failed to save bank details");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save bank details");
     }
+    setLoading(false);
   };
 
   const initiateWithdrawal = async () => {
@@ -123,22 +125,23 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   const confirmWithdrawal = async () => {
     setStep("processing");
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-transfer", {
-      body: {
-        action: "withdraw",
-        amount: parseFloat(amount),
-        bank_detail_id: selectedBank.id,
-      },
-    });
-    setLoading(false);
-
-    if (data?.success) {
-      setStep("success");
-      toast.success("Withdrawal initiated!");
-      onSuccess();
-    } else {
+    try {
+      const res = await api.post("/wallet/paystack-transfer", {
+        action: "withdraw", amount: parseFloat(amount), bank_detail_id: selectedBank.id,
+      });
+      setLoading(false);
+      if (res.data?.success) {
+        setStep("success");
+        toast.success("Withdrawal initiated!");
+        onSuccess();
+      } else {
+        setStep("failed");
+        toast.error(res.data?.error || "Withdrawal failed");
+      }
+    } catch (err: any) {
+      setLoading(false);
       setStep("failed");
-      toast.error(data?.error || "Withdrawal failed");
+      toast.error(err?.message || "Withdrawal failed");
     }
   };
 

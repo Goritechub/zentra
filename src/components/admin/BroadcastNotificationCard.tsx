@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,16 +44,13 @@ export function BroadcastNotificationCard() {
     setShowConfirm(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke("broadcast-notification", {
-        body: {
-          title: title.trim(),
-          message: message.trim(),
-          type,
-          link_url: linkUrl.trim() || undefined,
-        },
+      const res = await api.post("/admin/broadcast", {
+        title: title.trim(),
+        message: message.trim(),
+        type,
+        link_url: linkUrl.trim() || undefined,
       });
-
-      if (error) throw error;
+      const data = res.data;
       if (data?.error) throw new Error(data.error);
 
       setResult({ recipients: data.recipients, total: data.total_users });

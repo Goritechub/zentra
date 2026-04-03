@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Check, Clock } from "lucide-react";
@@ -23,9 +24,8 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
     if (!user) { setStep("idle"); return; }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.functions.invoke("auth-code", {
-        body: { action: "check" },
-      });
+      const res = await api.post("/auth/auth-code", { action: "check" });
+      const data = res.data;
       if (cancelled) return;
       if (data?.has_code) {
         setStep("idle");
@@ -72,16 +72,20 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
       return;
     }
     setStep("saving");
-    const { data, error } = await supabase.functions.invoke("auth-code", {
-      body: { action: "set", code },
-    });
-    if (error || !data?.success) {
-      toast.error(data?.error || "Failed to set authentication code");
+    try {
+      const res = await api.post("/auth/auth-code", { action: "set", code });
+      const data = res.data;
+      if (!data?.success) {
+        toast.error(data?.error || "Failed to set authentication code");
+        setStep("confirm");
+        return;
+      }
+      toast.success("Authentication code set successfully!");
+      setStep("idle");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to set authentication code");
       setStep("confirm");
-      return;
     }
-    toast.success("Authentication code set successfully!");
-    setStep("idle");
   };
 
   const isOpen = step === "enter" || step === "confirm" || step === "saving";

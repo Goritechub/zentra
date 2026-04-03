@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,17 +63,19 @@ export function ChangeAuthCodeCard() {
     }
 
     setSaving(true);
-    const { data, error } = await supabase.functions.invoke("auth-code", {
-      body: { action: "change", current_code: currentCode, new_code: newCode },
-    });
-    setSaving(false);
-
-    if (error || !data?.success) {
-      toast.error(data?.error || "Failed to change code");
+    try {
+      const res = await api.post("/auth/auth-code", { action: "change", current_code: currentCode, new_code: newCode });
+      setSaving(false);
+      if (!res.data?.success) {
+        toast.error(res.data?.error || "Failed to change code");
+        return;
+      }
+      toast.success("Authentication code changed successfully!");
+    } catch (err: any) {
+      setSaving(false);
+      toast.error(err?.message || "Failed to change code");
       return;
     }
-
-    toast.success("Authentication code changed successfully!");
     setStep("idle");
     setCurrentCode("");
     setNewCode("");

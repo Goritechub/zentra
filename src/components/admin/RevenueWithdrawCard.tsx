@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
@@ -86,67 +87,69 @@ export function RevenueWithdrawCard() {
   const handleVerified = async () => {
     const amt = parseInt(amount);
     setWithdrawing(true);
-    const { data, error } = await supabase.functions.invoke("paystack-transfer", {
-      body: { action: "admin_withdraw_revenue", amount: amt, bank_detail_id: selectedBank },
-    });
-    setWithdrawing(false);
-
-    if (error || !data?.success) {
-      toast.error(data?.error || "Withdrawal failed");
-      return;
+    try {
+      const res = await api.post("/wallet/paystack-transfer", { action: "admin_withdraw_revenue", amount: amt, bank_detail_id: selectedBank });
+      if (!res.data?.success) {
+        toast.error(res.data?.error || "Withdrawal failed");
+      } else {
+        toast.success(`${formatNaira(amt)} withdrawal initiated!`);
+        setAmount("");
+        await fetchData();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Withdrawal failed");
     }
-
-    toast.success(`${formatNaira(amt)} withdrawal initiated!`);
-    setAmount("");
-    await fetchData();
+    setWithdrawing(false);
   };
 
   const loadBanks = async () => {
-    const { data } = await supabase.functions.invoke("paystack-transfer", {
-      body: { action: "list_banks" },
-    });
-    if (data?.banks) setBanks(data.banks);
+    try {
+      const res = await api.post("/wallet/paystack-transfer", { action: "list_banks" });
+      if (res.data?.banks) setBanks(res.data.banks);
+    } catch { /* ignore */ }
   };
 
   const resolveAccount = async () => {
     if (accountNumber.length !== 10 || !bankCode) return;
     setResolving(true);
-    const { data } = await supabase.functions.invoke("paystack-transfer", {
-      body: { action: "resolve_account", account_number: accountNumber, bank_code: bankCode },
-    });
-    setResolving(false);
-    if (data?.success && data?.data?.account_name) {
-      setResolvedName(data.data.account_name);
-    } else {
+    try {
+      const res = await api.post("/wallet/paystack-transfer", { action: "resolve_account", account_number: accountNumber, bank_code: bankCode });
+      if (res.data?.success && res.data?.data?.account_name) {
+        setResolvedName(res.data.data.account_name);
+      } else {
+        toast.error("Could not resolve account");
+        setResolvedName("");
+      }
+    } catch {
       toast.error("Could not resolve account");
       setResolvedName("");
     }
+    setResolving(false);
   };
 
   const saveBank = async () => {
     if (!resolvedName || !bankCode || accountNumber.length !== 10) return;
     const selectedBankObj = banks.find((b) => b.code === bankCode);
     setSavingBank(true);
-    const { data, error } = await supabase.functions.invoke("paystack-transfer", {
-      body: {
-        action: "save_bank",
-        account_number: accountNumber,
-        bank_code: bankCode,
-        bank_name: selectedBankObj?.name || "",
-        account_name: resolvedName,
-      },
-    });
-    setSavingBank(false);
-    if (error || !data?.success) {
-      toast.error("Failed to save bank");
-      return;
+    try {
+      const res = await api.post("/wallet/paystack-transfer", {
+        action: "save_bank", account_number: accountNumber, bank_code: bankCode,
+        bank_name: selectedBankObj?.name || "", account_name: resolvedName,
+      });
+      if (!res.data?.success) {
+        toast.error("Failed to save bank");
+      } else {
+        toast.success("Bank account saved!");
+        setNeedsBankSetup(false);
+        setBankCode("");
+        setAccountNumber("");
+        setResolvedName("");
+        await fetchData();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save bank");
     }
-    toast.success("Bank account saved!");
-    setNeedsBankSetup(false);
-    setBankCode("");
-    setAccountNumber("");
-    setResolvedName("");
-    await fetchData();
+    setSavingBank(false);
   };
 
   if (loading) return null;

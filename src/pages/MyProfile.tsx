@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import {
   getMyProfileDeleteChecks,
   getMyProfileOverview,
@@ -129,8 +130,8 @@ export default function MyProfilePage() {
     enabled: bootstrapStatus === "ready" && !!user,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.functions.invoke("auth-code", { body: { action: "check" } });
-      return !!data?.has_code;
+      const res = await api.post("/auth/auth-code", { action: "check" });
+      return !!res.data?.has_code;
     },
   });
 
@@ -799,9 +800,11 @@ export default function MyProfilePage() {
                   <Button variant="outline" size="sm" className="mt-3" onClick={async () => {
                     const current = prompt("Enter your current 6-digit code to reset:");
                     if (!current || current.length !== 6) return;
-                    const { data } = await supabase.functions.invoke("auth-code", { body: { action: "reset", code: current } });
-                    if (data?.success) { setHasAuthCode(false); toast({ title: "Auth code cleared", description: "You can now set a new code." }); }
-                    else { toast({ title: "Error", description: data?.error || "Invalid code", variant: "destructive" }); }
+                    try {
+                      const res = await api.post("/auth/auth-code", { action: "reset", code: current });
+                      if (res.data?.success) { setHasAuthCode(false); toast({ title: "Auth code cleared", description: "You can now set a new code." }); }
+                      else { toast({ title: "Error", description: res.data?.error || "Invalid code", variant: "destructive" }); }
+                    } catch (err: any) { toast({ title: "Error", description: err?.message || "Invalid code", variant: "destructive" }); }
                   }}>Reset Auth Code</Button>
                 </div>
               ) : (
@@ -811,10 +814,12 @@ export default function MyProfilePage() {
                   <Button onClick={async () => {
                     if (authCode.length !== 6) { toast({ title: "Enter all 6 digits", variant: "destructive" }); return; }
                     setSavingAuthCode(true);
-                    const { data } = await supabase.functions.invoke("auth-code", { body: { action: "set", code: authCode } });
+                    try {
+                      const res = await api.post("/auth/auth-code", { action: "set", code: authCode });
+                      if (res.data?.success) { setHasAuthCode(true); setAuthCode(""); toast({ title: "Auth code set!", description: "Your authentication code has been saved securely." }); }
+                      else { toast({ title: "Error", description: res.data?.error || "Failed to set code", variant: "destructive" }); }
+                    } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed to set code", variant: "destructive" }); }
                     setSavingAuthCode(false);
-                    if (data?.success) { setHasAuthCode(true); setAuthCode(""); toast({ title: "Auth code set!", description: "Your authentication code has been saved securely." }); }
-                    else { toast({ title: "Error", description: data?.error || "Failed to set code", variant: "destructive" }); }
                   }} disabled={savingAuthCode || authCode.length !== 6} className="w-full">
                     {savingAuthCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
                     Save Authentication Code

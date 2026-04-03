@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import {
   applyAuthOccupation,
   buildGoogleOauthStartUrl,
@@ -575,12 +576,10 @@ export default function AuthPage() {
     }
 
     try {
-      const { data: verifyData, error: verifyError } =
-        await supabase.functions.invoke("verify-recaptcha", {
-          body: { token: recaptchaToken },
-        });
+      const verifyRes = await api.post("/auth/verify-recaptcha", { token: recaptchaToken });
+      const verifyData = verifyRes.data;
 
-      if (verifyError || !verifyData?.success) {
+      if (!verifyData?.success) {
         setSignUpErrors({
           general:
             verifyData?.error ||

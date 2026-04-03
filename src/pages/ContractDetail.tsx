@@ -15,6 +15,7 @@ import {
 import { ContractChat } from "@/components/contract/ContractChat";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import {
   addContractMilestone,
   getContractDetail,
@@ -171,24 +172,26 @@ export default function ContractDetail() {
       const { error } = await supabase.storage.from('contract-attachments').upload(path, file);
       if (!error) { const { data } = supabase.storage.from('contract-attachments').getPublicUrl(path); urls.push(data.publicUrl); }
     }
-    const response = await supabase.functions.invoke("escrow-release", {
-      body: { action: "submit_delivery", milestone_id: selectedMilestoneId, contract_id: id, submission_notes: submissionNotes.trim(), submission_attachments: urls },
-    });
-    if (response.error || response.data?.error) toast.error(response.data?.error || "Submission failed");
-    else { toast.success("Delivery submitted!"); setShowSubmitDelivery(false); setSubmissionNotes(""); setSubmissionFiles([]); setSelectedMilestoneId(null); fetchData(); }
+    try {
+      const response = await api.post("/contracts/escrow", { action: "submit_delivery", milestone_id: selectedMilestoneId, contract_id: id, submission_notes: submissionNotes.trim(), submission_attachments: urls });
+      if (response.data?.error) toast.error(response.data.error);
+      else { toast.success("Delivery submitted!"); setShowSubmitDelivery(false); setSubmissionNotes(""); setSubmissionFiles([]); setSelectedMilestoneId(null); fetchData(); }
+    } catch (err: any) { toast.error(err?.message || "Submission failed"); }
     setActionLoading(false);
   };
 
   const handleMilestoneAction = async (action: string, milestoneId: string, extra?: Record<string, string>) => {
     setActionLoading(true);
-    const response = await supabase.functions.invoke("escrow-release", { body: { action, milestone_id: milestoneId, contract_id: id, ...extra } });
-    if (response.error || response.data?.error) toast.error(response.data?.error || "Action failed");
-    else {
-      if (action === "fund_milestone") toast.success("Milestone funded! Funds held in escrow.");
-      else if (action === "approve_release") toast.success("Payment released to expert!");
-      else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
-      fetchData();
-    }
+    try {
+      const response = await api.post("/contracts/escrow", { action, milestone_id: milestoneId, contract_id: id, ...extra });
+      if (response.data?.error) toast.error(response.data.error);
+      else {
+        if (action === "fund_milestone") toast.success("Milestone funded! Funds held in escrow.");
+        else if (action === "approve_release") toast.success("Payment released to expert!");
+        else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
+        fetchData();
+      }
+    } catch (err: any) { toast.error(err?.message || "Action failed"); }
     setActionLoading(false);
   };
 
@@ -209,11 +212,11 @@ export default function ContractDetail() {
       const { error } = await supabase.storage.from('contract-attachments').upload(path, file);
       if (!error) { const { data } = supabase.storage.from('contract-attachments').getPublicUrl(path); evidenceUrls.push(data.publicUrl); }
     }
-    const response = await supabase.functions.invoke("escrow-release", {
-      body: { action: "raise_dispute", contract_id: id, reason: disputeReason, evidence_urls: evidenceUrls },
-    });
-    if (response.error || response.data?.error) toast.error(response.data?.error || "Failed to raise dispute");
-    else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeFiles([]); fetchData(); }
+    try {
+      const response = await api.post("/contracts/escrow", { action: "raise_dispute", contract_id: id, reason: disputeReason, evidence_urls: evidenceUrls });
+      if (response.data?.error) toast.error(response.data.error);
+      else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeFiles([]); fetchData(); }
+    } catch (err: any) { toast.error(err?.message || "Failed to raise dispute"); }
     setActionLoading(false);
   };
 

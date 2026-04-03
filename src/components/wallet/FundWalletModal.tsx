@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import { Loader2, CreditCard, Building2, Smartphone } from "lucide-react";
+import { api } from "@/api/axios";
 
 interface FundWalletModalProps {
   open: boolean;
@@ -76,11 +76,19 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
       chargeBody.ussd = { type: ussdType };
     }
 
-    const { data, error } = await supabase.functions.invoke("paystack-charge", { body: chargeBody });
+    let data: any;
+    try {
+      const res = await api.post("/wallet/paystack-charge", chargeBody);
+      data = res.data;
+    } catch (err: any) {
+      setLoading(false);
+      toast.error(err?.message || "Failed to initiate payment");
+      return;
+    }
 
     setLoading(false);
 
-    if (error || !data?.success) {
+    if (!data?.success) {
       toast.error(data?.error || "Failed to initiate payment");
       return;
     }
@@ -136,46 +144,34 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
 
   const submitVerification = async (action: string, payload: Record<string, string>) => {
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-charge", {
-      body: { action, reference, ...payload },
-    });
-    setLoading(false);
-
-    if (error || !data?.success) {
-      toast.error(data?.error || "Verification failed");
-      return;
+    try {
+      const res = await api.post("/wallet/paystack-charge", { action, reference, ...payload });
+      const data = res.data;
+      if (!data?.success) {
+        toast.error(data?.error || "Verification failed");
+        return;
+      }
+      setPaystackData(data.data);
+      handleStepTransition(data.status, data.data);
+    } catch (err: any) {
+      toast.error(err?.message || "Verification failed");
+    } finally {
+      setLoading(false);
     }
-
-    setPaystackData(data.data);
-    handleStepTransition(data.status, data.data);
   };
 
   const checkPending = async () => {
     setLoading(true);
     try {
-      const result = await Promise.race([
-        supabase.functions.invoke("paystack-charge", {
-          body: { action: "check_pending", reference },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), 15000)
-        ),
-      ]);
-
-      const { data, error } = result;
-
-      if (error || !data) {
+      const res = await api.post("/wallet/paystack-charge", { action: "check_pending", reference });
+      const data = res.data;
+      if (!data) {
         toast.error("Could not verify payment status. Please try again.");
         return;
       }
-
       handleStepTransition(data.status, data.data);
     } catch (err: any) {
-      if (err?.message === "timeout") {
-        toast.error("Verification timed out. Your payment may still be processing — try checking again.");
-      } else {
-        toast.error("Could not verify payment. Please try again.");
-      }
+      toast.error(err?.message || "Could not verify payment. Please try again.");
     } finally {
       setLoading(false);
     }
