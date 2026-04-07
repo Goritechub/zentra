@@ -84,7 +84,8 @@ const Blog = () => {
   };
 
   const handleShare = (post: BlogPost, platform: string) => {
-    const url = `${window.location.origin}/blog/${post.id}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    const url = `${apiBase}/blog/posts/${post.id}/preview`;
     const text = `Check out "${post.title}" on ZentraGig`;
     const links: Record<string, string> = {
       twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,

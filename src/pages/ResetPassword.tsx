@@ -33,22 +33,35 @@ export default function ResetPassword() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setIsRecovery(true);
-    }
+    let settled = false;
 
-    // Listen for auth state changes (Supabase processes the recovery token)
+    const settle = (recovery: boolean) => {
+      if (settled) return;
+      settled = true;
+      setIsRecovery(recovery);
+      setChecking(false);
+    };
+
+    // Listen for auth state changes — only treat PASSWORD_RECOVERY as valid
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setIsRecovery(true);
+        settle(true);
+      } else if (event === "SIGNED_OUT") {
+        settle(false);
       }
-      setChecking(false);
+      // Ignore INITIAL_SESSION / SIGNED_IN — the form must not show
+      // until Supabase confirms this is a recovery session.
     });
 
-    // Fallback timeout
-    const timeout = setTimeout(() => setChecking(false), 3000);
+    // Fallback: if PASSWORD_RECOVERY never fires within 5 s, check URL hash
+    // as a last resort (covers edge cases where the event was emitted before
+    // this component mounted).
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        const hash = window.location.hash;
+        settle(hash.includes("type=recovery"));
+      }
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();
@@ -74,29 +87,35 @@ export default function ResetPassword() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
 
-    if (error) {
-      if (error.message.includes("same")) {
-        setErrors({ password: "New password must be different from your current password" });
-      } else {
-        setErrors({ password: error.message });
+      if (error) {
+        if (error.message.includes("same")) {
+          setErrors({ password: "New password must be different from your current password" });
+        } else {
+          setErrors({ password: error.message });
+        }
+        setLoading(false);
+        return;
       }
+
+      setSuccess(true);
       setLoading(false);
-      return;
+
+      // Redirect to dashboard after a brief delay
+      setTimeout(() => navigate("/dashboard"), 3000);
+    } catch {
+      setErrors({ password: "An unexpected error occurred. Please try again." });
+      setLoading(false);
     }
-
-    setSuccess(true);
-    setLoading(false);
-
-    // Redirect to dashboard after a brief delay
-    setTimeout(() => navigate("/dashboard"), 3000);
   };
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verifying reset link…</p>
       </div>
     );
   }
