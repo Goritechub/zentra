@@ -51,7 +51,6 @@ Deno.serve(async (req) => {
     const { data: result, error: rpcError } = await supabaseAdmin.rpc("publish_contest_winners_atomic", {
       _user_id: user.id,
       _contest_id: contest_id,
-      _is_auto_award: false,
     });
 
     if (rpcError) {

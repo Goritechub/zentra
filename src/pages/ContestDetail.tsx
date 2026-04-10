@@ -68,6 +68,8 @@ import {
   MapPin,
   Trash2,
   Edit3,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -274,6 +276,85 @@ const CommentItem = ({
 };
 
 // ---------------------------------------------------------------------------
+// FileViewer — inline attachment viewer for the split-pane entry detail
+// ---------------------------------------------------------------------------
+
+function FileViewer({ attachments }: { attachments: string[] }) {
+  const [idx, setIdx] = useState(0);
+  const url = attachments[Math.min(idx, attachments.length - 1)];
+  const filename = decodeURIComponent(url.split("/").pop()?.split("?")[0] || `file-${idx + 1}`);
+
+  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url);
+  const isPdf = /\.pdf(\?|$)/i.test(url);
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
+      <div className="relative bg-black/5 flex items-center justify-center" style={{ minHeight: 240 }}>
+        {isImage ? (
+          <img
+            src={url}
+            alt={filename}
+            className="w-full max-h-[480px] object-contain"
+          />
+        ) : isPdf ? (
+          <iframe
+            src={url}
+            title={filename}
+            className="w-full border-0"
+            style={{ height: 480 }}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 px-4">
+            <FileText className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground text-center break-all max-w-xs">{filename}</p>
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="outline">
+                <Eye className="h-4 w-4 mr-2" /> Open File
+              </Button>
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation bar — only shown when there are multiple attachments */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-background">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={idx === 0}
+          onClick={() => setIdx((i) => i - 1)}
+          className="h-7 w-7 p-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {attachments.length > 1 ? `${idx + 1} / ${attachments.length}` : filename.slice(0, 30)}
+          </span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <Eye className="h-3 w-3" /> Open
+          </a>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={idx === attachments.length - 1}
+          onClick={() => setIdx((i) => i + 1)}
+          className="h-7 w-7 p-0"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // WinnerCard
 // ---------------------------------------------------------------------------
 function WinnerCard({
@@ -415,6 +496,11 @@ export default function ContestDetailPage() {
   const [newDeadline, setNewDeadline] = useState("");
   const [extendingDeadline, setExtendingDeadline] = useState(false);
 
+  // Split-pane entry review (host in selecting_winners mode)
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [swapDialogOpen, setSwapDialogOpen] = useState(false);
+  const [pendingNomineeId, setPendingNomineeId] = useState<string | null>(null);
+
   // Follow
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -507,6 +593,14 @@ export default function ContestDetailPage() {
       }
     }
   }, [contest?.id, deadlinePassed, contest?.status, winners.length, user?.id]);
+
+  // Auto-select first entry when host enters split-pane review mode
+  useEffect(() => {
+    if (isOwner && isSelectingWinners && !selectedEntryId) {
+      const first = [...entries, ...nominees, ...winners][0];
+      if (first) setSelectedEntryId(first.id);
+    }
+  }, [isOwner, isSelectingWinners, entries.length, nominees.length, winners.length, selectedEntryId]);
 
   const fetchFollowState = async () => {
     if (!user || !id) return;
@@ -692,7 +786,8 @@ export default function ContestDetailPage() {
   const handleNominate = async (entryId: string) => {
     const max = getMaxNominees();
     if (nominees.length >= max) {
-      toast.error(`You can only nominate up to ${max} entr${max === 1 ? "y" : "ies"} based on your prize structure.`);
+      setPendingNomineeId(entryId);
+      setSwapDialogOpen(true);
       return;
     }
     await setContestEntryNominee(entryId, true);
@@ -704,6 +799,20 @@ export default function ContestDetailPage() {
     await setContestEntryNominee(entryId, false);
     toast.success("Nominee removed");
     fetchContest();
+  };
+
+  const handleSwapNominee = async (removeId: string) => {
+    if (!pendingNomineeId) return;
+    try {
+      await setContestEntryNominee(removeId, false);
+      await setContestEntryNominee(pendingNomineeId, true);
+      toast.success("Nominee swapped!");
+      setSwapDialogOpen(false);
+      setPendingNomineeId(null);
+      fetchContest();
+    } catch {
+      toast.error("Failed to swap nominee");
+    }
   };
 
   const handlePublishWinners = async () => {
@@ -752,6 +861,7 @@ export default function ContestDetailPage() {
 
   const handleViewEntry = (entryId: string) => {
     setActiveTab("entries");
+    setSelectedEntryId(entryId);
     setTimeout(() => {
       const el = document.getElementById(`entry-${entryId}`);
       if (el) {
@@ -944,6 +1054,7 @@ export default function ContestDetailPage() {
   // ---------------------------------------------------------------------------
 
   const maxNominees = getMaxNominees();
+  const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? null;
   const prizeLabels = ["🥇 1st Place", "🥈 2nd Place", "🥉 3rd Place", "🏅 4th Place", "🏅 5th Place"];
   const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
   const nomineeEmojis = ["🥇", "🥈", "🥉", "🏅", "🏅"];
@@ -979,7 +1090,7 @@ export default function ContestDetailPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
-        <div className="container-wide max-w-4xl">
+        <div className={`container-wide${isOwner && isSelectingWinners && activeTab === "entries" ? "" : " max-w-4xl"}`}>
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
@@ -1247,178 +1358,405 @@ export default function ContestDetailPage() {
             {/* ENTRIES                                                           */}
             {/* ---------------------------------------------------------------- */}
             <TabsContent value="entries">
-              <div className="bg-card rounded-xl border border-border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
-                  {isOwner && !isCompleted && (
-                    <p className="text-xs text-muted-foreground">
-                      Nominees: {nominees.length}/{maxNominees}
-                    </p>
-                  )}
-                </div>
+              {isOwner && isSelectingWinners && !isCompleted ? (
+                <>
+                  {/* ── Desktop: split-pane review mode ── */}
+                  <div className="hidden md:flex border border-border rounded-xl overflow-hidden bg-card h-[70vh] min-h-[520px]">
 
-                {trueEntryCount === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No entries yet</p>
-                  </div>
-                ) : !isOpen && !isOwner ? (
-                  /* Closed contest — blurred ghost list + overlay */
-                  <div className="relative">
-                    <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
-                      {Array.from({ length: trueEntryCount }).map((_, i) => (
-                        <div key={i} className="border border-border rounded-lg p-4 bg-muted/30">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 w-32 bg-muted rounded" />
-                              <div className="h-3 w-full bg-muted rounded" />
-                              <div className="h-3 w-2/3 bg-muted rounded" />
+                    {/* Left ⅓ — scrollable entry list */}
+                    <div className="w-1/3 border-r border-border flex flex-col min-h-0 shrink-0">
+                      <div className="px-4 py-3 border-b border-border bg-muted/30 shrink-0 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">
+                          {trueEntryCount} {trueEntryCount === 1 ? "Entry" : "Entries"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Nominees: {nominees.length}/{maxNominees}
+                        </p>
+                      </div>
+
+                      <div className="overflow-y-auto flex-1">
+                        {allEntries.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6">
+                            <FileText className="h-10 w-10 mb-3 opacity-40" />
+                            <p className="text-sm text-center">No entries yet</p>
+                          </div>
+                        ) : (
+                          allEntries.map((entry: any) => {
+                            const isSelected = entry.id === selectedEntryId;
+                            const isNominee = !!(entry as any).is_nominee;
+                            const entryName = (entry.freelancer as any)?.full_name || "Expert";
+                            const attachCount = entry.attachments?.length || 0;
+
+                            return (
+                              <div
+                                key={entry.id}
+                                onClick={() => setSelectedEntryId(entry.id)}
+                                className={`cursor-pointer px-4 py-3 border-b border-border transition-colors relative group border-l-2 ${
+                                  isSelected
+                                    ? "bg-primary/10 border-l-primary"
+                                    : isNominee
+                                      ? "border-l-amber-400 hover:bg-muted/40"
+                                      : "border-l-transparent hover:bg-muted/40"
+                                }`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{entryName}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {format(new Date(entry.created_at), "MMM d")}
+                                      {attachCount > 0 && ` · ${attachCount} file${attachCount !== 1 ? "s" : ""}`}
+                                    </p>
+                                    {entry.description && (
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                                        {entry.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {/* Star — nominate / remove on click */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isNominee) handleRemoveNominee(entry.id);
+                                      else handleNominate(entry.id);
+                                    }}
+                                    title={isNominee ? "Remove nominee" : "Nominate"}
+                                    className="shrink-0 mt-0.5 p-1 rounded hover:bg-muted transition-colors"
+                                  >
+                                    <Star
+                                      className={`h-4 w-4 transition-colors ${
+                                        isNominee
+                                          ? "fill-amber-400 text-amber-400"
+                                          : "text-muted-foreground/30 group-hover:text-amber-300"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right ⅔ — entry detail */}
+                    <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                      {selectedEntry ? (
+                        <>
+                          {/* Detail header */}
+                          <div className="px-5 py-4 border-b border-border shrink-0 flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                                {((selectedEntry.freelancer as any)?.full_name || "?")
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                                  .toUpperCase()
+                                  .slice(0, 2)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground truncate">
+                                  {(selectedEntry.freelancer as any)?.full_name || "Expert"}
+                                </p>
+                                {(selectedEntry.freelancer as any)?.username && (
+                                  <p className="text-xs text-muted-foreground">
+                                    @{(selectedEntry.freelancer as any).username}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  Submitted {format(new Date(selectedEntry.created_at), "PPP")}
+                                </p>
+                              </div>
                             </div>
-                            <div className="h-4 w-20 bg-muted rounded" />
+                            {(selectedEntry as any).is_nominee && (
+                              <Badge className="shrink-0 bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-300">
+                                <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" /> Nominated
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Scrollable body */}
+                          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 min-h-0">
+                            <div>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                Description
+                              </p>
+                              {selectedEntry.description ? (
+                                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                  {selectedEntry.description}
+                                </p>
+                              ) : (
+                                <p className="text-sm italic text-muted-foreground">No description provided.</p>
+                              )}
+                            </div>
+
+                            {selectedEntry.attachments?.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                  Attachments ({selectedEntry.attachments.length})
+                                </p>
+                                <FileViewer attachments={selectedEntry.attachments} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Nominate / Remove footer */}
+                          <div className="px-5 py-3 border-t border-border shrink-0">
+                            {(selectedEntry as any).is_nominee ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => handleRemoveNominee(selectedEntry.id)}
+                              >
+                                Remove from Nominees
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                                onClick={() => handleNominate(selectedEntry.id)}
+                              >
+                                <Star className="h-4 w-4 mr-2" /> Nominate this Entry
+                              </Button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                          <div className="text-center">
+                            <FileText className="h-14 w-14 mx-auto mb-3 opacity-25" />
+                            <p className="text-sm font-medium">Select an entry to review</p>
+                            <p className="text-xs mt-1 text-muted-foreground">
+                              Click any entry on the left to view details
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 rounded-lg">
-                      <Lock className="h-10 w-10 text-muted-foreground mb-3" />
-                      <p className="font-semibold text-foreground">
-                        {trueEntryCount} {trueEntryCount === 1 ? "entry" : "entries"} submitted
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1 text-center px-8">
-                        This is a closed contest. Entry details are only visible to the contest owner.
-                      </p>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  /* Open contest or owner — full list */
-                  <div className="space-y-4">
-                    {allEntries.map((entry: any) => {
-                      const isMyEntry = entry.freelancer_id === user?.id;
-                      const editable = canEditEntry(entry);
-                      const deletable = canDeleteEntry(entry);
-                      const editsLeft = 2 - (entry.edit_count || 0);
 
-                      return (
-                        <div
-                          key={entry.id}
-                          id={`entry-${entry.id}`}
-                          className={`border rounded-lg p-4 transition-all ${
-                            (entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
+                  {/* ── Mobile: standard list with inline nominate buttons ── */}
+                  <div className="md:hidden bg-card rounded-xl border border-border p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
+                      <p className="text-xs text-muted-foreground">Nominees: {nominees.length}/{maxNominees}</p>
+                    </div>
+                    {allEntries.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No entries yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {allEntries.map((entry: any) => (
+                          <div
+                            key={entry.id}
+                            id={`entry-${entry.id}`}
+                            className={`border rounded-lg p-4 transition-all ${
+                              (entry as any).is_nominee
+                                ? "border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/10"
+                                : "border-border"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
                                 <p className="font-medium text-foreground">
                                   {(entry.freelancer as any)?.full_name || "Expert"}
                                 </p>
-                                {(entry.freelancer as any)?.username && (
-                                  <span className="text-xs text-muted-foreground">
-                                    @{(entry.freelancer as any).username}
-                                  </span>
-                                )}
-                                {(entry as any).is_nominee && !entry.is_winner && isOwner && (
-                                  <Badge variant="outline" className="text-primary border-primary/50">
-                                    <Star className="h-3 w-3 mr-1" /> Nominee
+                                {(entry as any).is_nominee && (
+                                  <Badge className="mt-1 bg-amber-50 text-amber-800 border border-amber-300 text-xs dark:bg-amber-950/30 dark:text-amber-300">
+                                    <Star className="h-2.5 w-2.5 mr-1 fill-amber-500 text-amber-500" /> Nominee
                                   </Badge>
                                 )}
-                                {entry.is_winner && (
-                                  <Badge variant="default" className="bg-accent text-accent-foreground">
-                                    <Award className="h-3 w-3 mr-1" />
-                                    {entry.prize_position <= 3
-                                      ? `${
-                                          entry.prize_position === 1
-                                            ? "1st"
-                                            : entry.prize_position === 2
-                                              ? "2nd"
-                                              : "3rd"
-                                        } Place`
-                                      : `${entry.prize_position}th Place`}
-                                  </Badge>
-                                )}
-                                {isMyEntry && entry.edit_count > 0 && (
-                                  <span className="text-xs text-muted-foreground">(edited {entry.edit_count}x)</span>
-                                )}
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{entry.description}</p>
                               </div>
-                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-2 shrink-0">
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(entry.created_at), "MMM d, yyyy")}
-                              </p>
-                              {isOwner &&
-                                !entry.is_winner &&
-                                !isCompleted &&
-                                ((entry as any).is_nominee ? (
-                                  <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
-                                    Remove
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleNominate(entry.id)}
-                                    disabled={nominees.length >= maxNominees}
-                                  >
-                                    <Star className="h-3 w-3 mr-1" /> Nominate
-                                  </Button>
-                                ))}
-                              {isMyEntry && !entry.is_winner && (
-                                <div className="flex gap-1">
-                                  {editable && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => {
-                                            setEditingEntry(entry);
-                                            setEditDesc(entry.description || "");
-                                          }}
-                                        >
-                                          <Edit3 className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                  {deletable && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteEntry(entry.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
+                              {(entry as any).is_nominee ? (
+                                <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
+                                  Remove
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+                                  onClick={() => handleNominate(entry.id)}
+                                >
+                                  <Star className="h-3 w-3 mr-1" /> Nominate
+                                </Button>
                               )}
                             </div>
+                            {entry.attachments?.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {entry.attachments.map((url: string, i: number) => (
+                                  <a
+                                    key={i}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    <Eye className="h-3 w-3" /> File {i + 1}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {entry.attachments?.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {entry.attachments.map((url: string, i: number) => (
-                                <a
-                                  key={i}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-primary hover:underline flex items-center gap-1"
-                                >
-                                  <Eye className="h-3 w-3" /> Attachment {i + 1}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                /* ── Standard view (non-owner, active contest, or completed) ── */
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
+                    {isOwner && !isCompleted && (
+                      <p className="text-xs text-muted-foreground">
+                        Nominees: {nominees.length}/{maxNominees}
+                      </p>
+                    )}
+                  </div>
+
+                  {trueEntryCount === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No entries yet</p>
+                    </div>
+                  ) : !isOpen && !isOwner ? (
+                    /* Closed contest — blurred ghost list + overlay */
+                    <div className="relative">
+                      <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
+                        {Array.from({ length: trueEntryCount }).map((_, i) => (
+                          <div key={i} className="border border-border rounded-lg p-4 bg-muted/30">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 w-32 bg-muted rounded" />
+                                <div className="h-3 w-full bg-muted rounded" />
+                                <div className="h-3 w-2/3 bg-muted rounded" />
+                              </div>
+                              <div className="h-4 w-20 bg-muted rounded" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 rounded-lg">
+                        <Lock className="h-10 w-10 text-muted-foreground mb-3" />
+                        <p className="font-semibold text-foreground">
+                          {trueEntryCount} {trueEntryCount === 1 ? "entry" : "entries"} submitted
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1 text-center px-8">
+                          This is a closed contest. Entry details are only visible to the contest owner.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Open contest or completed — full list */
+                    <div className="space-y-4">
+                      {allEntries.map((entry: any) => {
+                        const isMyEntry = entry.freelancer_id === user?.id;
+                        const editable = canEditEntry(entry);
+                        const deletable = canDeleteEntry(entry);
+                        const editsLeft = 2 - (entry.edit_count || 0);
+
+                        return (
+                          <div
+                            key={entry.id}
+                            id={`entry-${entry.id}`}
+                            className={`border rounded-lg p-4 transition-all ${
+                              (entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-foreground">
+                                    {(entry.freelancer as any)?.full_name || "Expert"}
+                                  </p>
+                                  {(entry.freelancer as any)?.username && (
+                                    <span className="text-xs text-muted-foreground">
+                                      @{(entry.freelancer as any).username}
+                                    </span>
+                                  )}
+                                  {(entry as any).is_nominee && !entry.is_winner && isOwner && (
+                                    <Badge variant="outline" className="text-primary border-primary/50">
+                                      <Star className="h-3 w-3 mr-1" /> Nominee
+                                    </Badge>
+                                  )}
+                                  {entry.is_winner && (
+                                    <Badge variant="default" className="bg-accent text-accent-foreground">
+                                      <Award className="h-3 w-3 mr-1" />
+                                      {entry.prize_position <= 3
+                                        ? `${entry.prize_position === 1 ? "1st" : entry.prize_position === 2 ? "2nd" : "3rd"} Place`
+                                        : `${entry.prize_position}th Place`}
+                                    </Badge>
+                                  )}
+                                  {isMyEntry && entry.edit_count > 0 && (
+                                    <span className="text-xs text-muted-foreground">(edited {entry.edit_count}x)</span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2 ml-2 shrink-0">
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(entry.created_at), "MMM d, yyyy")}
+                                </p>
+                                {isMyEntry && !entry.is_winner && (
+                                  <div className="flex gap-1">
+                                    {editable && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              setEditingEntry(entry);
+                                              setEditDesc(entry.description || "");
+                                            }}
+                                          >
+                                            <Edit3 className="h-3 w-3" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    {deletable && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => handleDeleteEntry(entry.id)}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {entry.attachments?.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {entry.attachments.map((url: string, i: number) => (
+                                  <a
+                                    key={i}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    <Eye className="h-3 w-3" /> Attachment {i + 1}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </TabsContent>
 
             {/* ---------------------------------------------------------------- */}
@@ -1713,6 +2051,55 @@ export default function ContestDetailPage() {
         title="Verify to Publish Winners"
         description="Enter your 6-digit authentication code to publish winners and release prize money."
       />
+
+      {/* Swap Nominee Dialog */}
+      <Dialog
+        open={swapDialogOpen}
+        onOpenChange={(open) => {
+          setSwapDialogOpen(open);
+          if (!open) setPendingNomineeId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>All nominee slots are filled</DialogTitle>
+            <DialogDescription>
+              You already have {maxNominees} nominee{maxNominees !== 1 ? "s" : ""}. Choose one to replace:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {nominees.map((n: any, idx: number) => (
+              <button
+                key={n.id}
+                onClick={() => handleSwapNominee(n.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors text-left"
+              >
+                <span className="text-xl">{nomineeEmojis[idx] || "🏅"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {(n.freelancer as any)?.full_name || "Expert"}
+                  </p>
+                  {n.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">{n.description}</p>
+                  )}
+                </div>
+                <span className="text-xs text-destructive font-medium shrink-0">Replace</span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSwapDialogOpen(false);
+                setPendingNomineeId(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Extend Deadline Dialog */}
       <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>

@@ -85,16 +85,17 @@ export default function BlogPostPage() {
   const handleShare = (platform: string) => {
     if (!post) return;
     const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-    const url = `${apiBase}/blog/posts/${post.id}/preview`;
+    const previewUrl = `${apiBase}/blog/posts/${post.id}/preview`;
+    const frontendUrl = `${window.location.origin}/blog/${post.id}`;
     const text = `Check out "${post.title}" on ZentraGig`;
     const links: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent(post.title)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(previewUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewUrl)}`,
+      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(previewUrl)}&title=${encodeURIComponent(post.title)}`,
     };
 
     if (platform === "copy") {
-      navigator.clipboard.writeText(url);
+      navigator.clipboard.writeText(frontendUrl);
       toast.success("Link copied!");
     } else {
       window.open(links[platform], "_blank", "noopener,noreferrer");

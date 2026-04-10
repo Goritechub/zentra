@@ -5,12 +5,46 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Escalating notification schedule (days past deadline → message)
+// Winners are NEVER auto-published — only the host can do that.
+const REMINDER_SCHEDULE: { day: number; title: string; message: (title: string) => string }[] = [
+  {
+    day: 1,
+    title: "Contest deadline reached — select your winners",
+    message: (t) => `Your contest "${t}" has ended. Review the entries and select your nominees to publish winners.`,
+  },
+  {
+    day: 3,
+    title: "Reminder: Winners not yet published",
+    message: (t) => `It's been 3 days since your contest "${t}" ended. Please select your nominees and publish the winners.`,
+  },
+  {
+    day: 7,
+    title: "Action required: Select contest winners",
+    message: (t) => `Your contest "${t}" ended 7 days ago and winners have not been published. Participants are waiting — please select your nominees now.`,
+  },
+  {
+    day: 14,
+    title: "Urgent: Contest winners overdue",
+    message: (t) => `It has been 2 weeks since your contest "${t}" ended. Please publish the winners as soon as possible. Continued delays may affect your standing on the platform.`,
+  },
+  {
+    day: 21,
+    title: "Final notice: Publish contest winners",
+    message: (t) => `3 weeks have passed since your contest "${t}" ended without published winners. This is your final notice — please select nominees and publish winners immediately or contact support.`,
+  },
+];
+
+// After day 21, send a weekly escalation indefinitely
+const WEEKLY_ESCALATION_TITLE = "Overdue: Contest winners still unpublished";
+const weeklyEscalationMessage = (title: string, days: number) =>
+  `Your contest "${title}" ended ${days} days ago and winners remain unpublished. Please act immediately or contact Zentra support.`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Authenticate: only allow calls with a valid cron secret
   const cronSecret = req.headers.get("x-cron-secret");
   if (!cronSecret || cronSecret !== Deno.env.get("CRON_SECRET")) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
@@ -45,99 +79,41 @@ Deno.serve(async (req) => {
         (Date.now() - new Date(contest.deadline).getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Auto-update active contests past deadline to selecting_winners
+      // Transition active → selecting_winners at deadline
       if (contest.status === "active") {
         await supabase
           .from("contests")
           .update({ status: "selecting_winners" })
           .eq("id", contest.id);
 
+        results.push({ contest_id: contest.id, action: "status_updated_to_selecting" });
+        // Fall through so the day-1 notification fires in the same run
+      }
+
+      // Check fixed reminder schedule
+      const scheduledReminder = REMINDER_SCHEDULE.find((r) => r.day === daysSinceDeadline);
+      if (scheduledReminder) {
         await supabase.from("notifications").insert({
           user_id: contest.client_id,
-          type: "contest_deadline",
-          title: "Contest deadline reached",
-          message: `Your contest "${contest.title}" has ended. Please select winners.`,
+          type: "contest_reminder",
+          title: scheduledReminder.title,
+          message: scheduledReminder.message(contest.title),
           contract_id: null,
         });
-
-        results.push({ contest_id: contest.id, action: "status_updated_to_selecting" });
+        results.push({ contest_id: contest.id, action: `reminder_day_${daysSinceDeadline}` });
         continue;
       }
 
-      // Send reminder at 22 days (3 days before 25-day limit)
-      if (daysSinceDeadline === 22) {
+      // Weekly escalation after day 21 (every 7 days: 28, 35, 42, …)
+      if (daysSinceDeadline > 21 && (daysSinceDeadline - 21) % 7 === 0) {
         await supabase.from("notifications").insert({
           user_id: contest.client_id,
           type: "contest_reminder",
-          title: "Select winners soon",
-          message: `You have 3 days left to select winners for "${contest.title}" before auto-award.`,
+          title: WEEKLY_ESCALATION_TITLE,
+          message: weeklyEscalationMessage(contest.title, daysSinceDeadline),
           contract_id: null,
         });
-        results.push({ contest_id: contest.id, action: "reminder_3_days" });
-      }
-
-      // Send reminder at 24 days (1 day before 25-day limit)
-      if (daysSinceDeadline === 24) {
-        await supabase.from("notifications").insert({
-          user_id: contest.client_id,
-          type: "contest_reminder",
-          title: "Final reminder — select winners",
-          message: `Tomorrow is the last day to select winners for "${contest.title}". After that, nominees will be auto-awarded.`,
-          contract_id: null,
-        });
-        results.push({ contest_id: contest.id, action: "reminder_1_day" });
-      }
-
-      // Auto-award at 25 days — uses the SAME atomic RPC as manual publishing
-      if (daysSinceDeadline >= 25) {
-        // Check if there are nominees
-        const { data: nominees } = await supabase
-          .from("contest_entries")
-          .select("id")
-          .eq("contest_id", contest.id)
-          .eq("is_nominee", true);
-
-        if (nominees && nominees.length > 0) {
-          // Use the atomic RPC with _is_auto_award = true
-          const { data: result, error: rpcError } = await supabase.rpc("publish_contest_winners_atomic", {
-            _user_id: contest.client_id,
-            _contest_id: contest.id,
-            _is_auto_award: true,
-          });
-
-          if (rpcError) {
-            console.error(`Auto-award RPC error for contest ${contest.id}:`, rpcError);
-            results.push({ contest_id: contest.id, action: "auto_award_failed", error: rpcError.message });
-            continue;
-          }
-
-          if (!result?.success) {
-            console.error(`Auto-award failed for contest ${contest.id}:`, result?.error);
-            results.push({ contest_id: contest.id, action: "auto_award_failed", error: result?.error });
-            continue;
-          }
-
-          await supabase.from("notifications").insert({
-            user_id: contest.client_id,
-            type: "contest_auto_award",
-            title: "Winners auto-awarded",
-            message: `Winners for "${contest.title}" have been automatically awarded based on your nominees. ${result.total_paid > 0 ? `₦${result.total_paid.toLocaleString()} in prizes paid out.` : ''}`,
-            contract_id: null,
-          });
-
-          results.push({ contest_id: contest.id, action: "auto_awarded", winners: result.winners, total_paid: result.total_paid });
-        } else {
-          // No nominees - flag for admin review
-          await supabase.from("notifications").insert({
-            user_id: contest.client_id,
-            type: "contest_no_nominees",
-            title: "Action required — No nominees selected",
-            message: `Your contest "${contest.title}" has no nominees after 25 days. Please select nominees or contact support.`,
-            contract_id: null,
-          });
-
-          results.push({ contest_id: contest.id, action: "no_nominees_flagged" });
-        }
+        results.push({ contest_id: contest.id, action: `escalation_day_${daysSinceDeadline}` });
       }
     }
 
