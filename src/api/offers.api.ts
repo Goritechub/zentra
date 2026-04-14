@@ -15,6 +15,11 @@ export async function cancelSentOfferJob(jobId: string) {
   return response.data.data;
 }
 
+export async function acceptDirectOffer(offerId: string) {
+  const response = await api.patch(`/offers/${offerId}/accept`);
+  return response.data.data;
+}
+
 export async function declineReceivedOffer(payload: {
   offerType: "direct_offer" | "job_offer";
   offerId: string | null;

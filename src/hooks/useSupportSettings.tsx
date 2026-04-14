@@ -15,7 +15,7 @@ const defaults: SupportSettings = {
 
 export function useSupportSettings() {
   const [settings, setSettings] = useState<SupportSettings>(defaults);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;

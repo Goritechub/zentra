@@ -15,6 +15,8 @@ export interface AuthBootstrapResponse {
       role: BootstrapUserRole;
       onboardingComplete: boolean;
       isAdmin: boolean;
+      state: string | null;
+      city: string | null;
     } | null;
   };
 }

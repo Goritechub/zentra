@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -42,6 +44,12 @@ export default function LaunchContestPage() {
   const [visibility, setVisibility] = useState("open");
   const [rules, setRules] = useState("");
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
   // Wallet / insufficient funds state
@@ -66,6 +74,70 @@ export default function LaunchContestPage() {
     void fetchWallet();
   }, [user]);
 
+  const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Banner image must be less than 10MB");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    setCrop(undefined);
+    setCompletedCrop(null);
+    setShowCropModal(true);
+  };
+
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+    const initial = centerCrop(makeAspectCrop({ unit: "%", width: 90 }, 16 / 9, w, h), w, h);
+    setCrop(initial);
+  }, []);
+
+  const applyCrop = useCallback(() => {
+    if (!imgRef.current || !completedCrop) return;
+    const img = imgRef.current;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(completedCrop.width * scaleX);
+    canvas.height = Math.round(completedCrop.height * scaleY);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(
+      img,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0, 0, canvas.width, canvas.height,
+    );
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const croppedFile = new File([blob], `banner_${Date.now()}.jpg`, { type: "image/jpeg" });
+      setBannerFile(croppedFile);
+      const preview = URL.createObjectURL(blob);
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+      setBannerPreview(preview);
+      setShowCropModal(false);
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }, "image/jpeg", 0.92);
+  }, [completedCrop, cropSrc, bannerPreview]);
+
+  const cancelCrop = useCallback(() => {
+    setShowCropModal(false);
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }, [cropSrc]);
+
+  const clearBanner = useCallback(() => {
+    setBannerFile(null);
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setBannerPreview(null);
+  }, [bannerPreview]);
+
   const calcTotalPrize = () => {
     return (parseInt(prizeFirst) || 0) + (parseInt(prizeSecond) || 0) + (parseInt(prizeThird) || 0) +
       (parseInt(prizeFourth) || 0) + (parseInt(prizeFifth) || 0);
@@ -84,6 +156,10 @@ export default function LaunchContestPage() {
       toast.error("Prize pool must be greater than zero");
       return;
     }
+    if ((parseInt(prizeFirst) || 0) < 50000) {
+      toast.error("1st prize must be at least ₦50,000");
+      return;
+    }
 
     setLoading(true);
 
@@ -91,10 +167,12 @@ export default function LaunchContestPage() {
     let bannerUrl: string | null = null;
     if (bannerFile) {
       const path = `banners/${user.id}/${Date.now()}_${bannerFile.name}`;
-      const { error } = await supabase.storage.from("contest-banners").upload(path, bannerFile);
-      if (!error) {
+      const { error: bannerError } = await supabase.storage.from("contest-banners").upload(path, bannerFile);
+      if (!bannerError) {
         const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
         bannerUrl = data.publicUrl;
+      } else {
+        toast.error("Banner upload failed — launching contest without banner.");
       }
     }
 
@@ -245,14 +323,34 @@ export default function LaunchContestPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Banner Image (optional)</Label>
-                <div className="flex items-center gap-3">
-                  <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
-                    <Upload className="h-4 w-4 mr-1" /> {bannerFile ? bannerFile.name : "Upload Banner"}
-                  </Button>
-                  {bannerFile && <button type="button" onClick={() => setBannerFile(null)} className="text-muted-foreground"><X className="h-4 w-4" /></button>}
-                </div>
-                <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={e => setBannerFile(e.target.files?.[0] || null)} />
+                <Label>Banner Image (optional, max 10MB)</Label>
+                {bannerPreview ? (
+                  <div className="space-y-2">
+                    <img src={bannerPreview} alt="Banner preview" className="w-full max-h-48 object-cover rounded-lg border border-border" />
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
+                        <Upload className="h-4 w-4 mr-1" /> Re-crop
+                      </Button>
+                      <button type="button" onClick={clearBanner} className="text-muted-foreground hover:text-destructive transition-colors">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-1" /> Upload Banner
+                    </Button>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, WebP — max 10MB. You'll crop after selecting.</p>
+                  </div>
+                )}
+                <input
+                  ref={bannerRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBannerSelect}
+                />
               </div>
             </div>
 
@@ -262,26 +360,27 @@ export default function LaunchContestPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>🥇 1st Prize (₦) *</Label>
-                  <Input type="number" placeholder="e.g. 50000" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
+                  <Input type="number" placeholder="Min. 50,000" min="50000" step="1" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Minimum ₦50,000</p>
                 </div>
                 <div className="space-y-2">
                   <Label>🥈 2nd Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" value={prizeSecond} onChange={(e) => setPrizeSecond(e.target.value)} />
+                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeSecond} onChange={(e) => setPrizeSecond(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>🥉 3rd Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
+                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>🏅 4th Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
+                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
                   {!prizeThird && <p className="text-xs text-muted-foreground">Set 3rd prize first</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>🏅 5th Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
+                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
                   {!prizeFourth && <p className="text-xs text-muted-foreground">Set 4th prize first</p>}
                 </div>
               </div>
@@ -349,6 +448,41 @@ export default function LaunchContestPage() {
             <Button className="w-full" onClick={() => { setShowInsufficientModal(false); setShowFundWallet(true); }}>
               <Wallet className="h-4 w-4 mr-2" />
               Fund Wallet
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Banner Crop Modal */}
+      <Dialog open={showCropModal} onOpenChange={(open) => { if (!open) cancelCrop(); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Crop Banner Image</DialogTitle>
+            <DialogDescription>Drag to adjust. The crop is locked to 16:9 for consistent banner display.</DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[60vh] flex items-center justify-center bg-muted rounded-lg p-2">
+            {cropSrc && (
+              <ReactCrop
+                crop={crop}
+                onChange={(c) => setCrop(c)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={16 / 9}
+                minWidth={100}
+              >
+                <img
+                  ref={imgRef}
+                  src={cropSrc}
+                  alt="Crop preview"
+                  onLoad={onImageLoad}
+                  style={{ maxHeight: "55vh", maxWidth: "100%" }}
+                />
+              </ReactCrop>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={cancelCrop}>Cancel</Button>
+            <Button type="button" onClick={applyCrop} disabled={!completedCrop}>
+              Apply Crop
             </Button>
           </div>
         </DialogContent>

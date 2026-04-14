@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
+import { useKycVerification } from "@/hooks/useKycVerification";
 
 interface DashboardData {
   stats: { jobs: number; proposals: number; messages: number; contracts: number };
@@ -87,12 +88,15 @@ export default function DashboardPage() {
   const recentActivity = dashboardQuery.data?.recentActivity || [];
 
   const hasSkills = freelancerProfile?.skills?.length > 0;
+  const { isVerified: kycVerified, isZentraVerified } = useKycVerification();
   const profileComplete = [
     !!profile.state,
     isFreelancer ? hasSkills : true,
     !!profile.avatar_url,
+    isFreelancer && kycVerified,
+    isFreelancer && isZentraVerified,
   ].filter(Boolean).length;
-  const profileTotal = isFreelancer ? 3 : 2;
+  const profileTotal = isFreelancer ? 5 : 2;
   const profilePct = Math.round((profileComplete / profileTotal) * 100);
 
   const statCards = isClient
@@ -375,7 +379,8 @@ export default function DashboardPage() {
                   {isFreelancer && (
                     <>
                       <ProfileCheckItem label="Skills" done={hasSkills} to="/my-profile" />
-                      <ProfileCheckItem label="Portfolio" done={false} to="/manage-portfolio" />
+                      <ProfileCheckItem label="KYC Verified" done={kycVerified} to="/my-profile" />
+                      <ProfileCheckItem label="Zentra Badge" done={isZentraVerified} to="/my-profile" />
                     </>
                   )}
                   <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/my-profile" />

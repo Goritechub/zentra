@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { declineReceivedOffer, getReceivedOffers } from "@/api/offers.api";
+import { acceptDirectOffer, declineReceivedOffer, getReceivedOffers } from "@/api/offers.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -39,9 +39,23 @@ export default function ReceivedOffersPage() {
     setLoading(false);
   };
 
-  // Accept handler removed — Accept now navigates to /job/:id/apply
-
-
+  const handleAcceptDirect = async (offer: any) => {
+    setActionLoading(true);
+    try {
+      await acceptDirectOffer(offer.id);
+      if (offer.job_id) {
+        // Linked to a job — send expert to the apply page to submit their bid
+        navigate(`/job/${offer.job_id}/apply`);
+      } else {
+        // Standalone offer with client-set terms — acceptance is all that's needed
+        toast.success("Offer accepted! The client has been notified and can now create a contract.");
+        await fetchOffers();
+      }
+    } catch {
+      toast.error("Failed to accept offer");
+    }
+    setActionLoading(false);
+  };
 
   const handleDecline = async () => {
     if (!selected || !user) return;
@@ -142,23 +156,32 @@ export default function ReceivedOffersPage() {
 
           {offer.status === "pending" && (
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button size="sm" onClick={() => navigate(`/job/${offer._type === "job_offer" ? offer.job_id : offer.job_id || offer.id}/apply`)}>
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Accept
-              </Button>
+              {offer._type === "job_offer" ? (
+                <Button size="sm" onClick={() => navigate(`/job/${offer.job_id}/apply`)}>
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Apply to Job
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => handleAcceptDirect(offer)} disabled={actionLoading}>
+                  {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                  Accept Offer
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
                 className="text-destructive hover:text-destructive"
                 onClick={() => { setSelected(offer); setShowDecline(true); }}
               >
-                <XCircle className="h-3.5 w-3.5 mr-1" /> Bow Out
+                <XCircle className="h-3.5 w-3.5 mr-1" /> Decline
               </Button>
             </div>
           )}
-          {offer.status === "accepted" && offer._type === "job_offer" && (
+          {offer.status === "accepted" && (
             <div className="mt-3">
               <Button size="sm" variant="outline" asChild>
-                <Link to={`/job/${offer.job_id}`}>View Job Details</Link>
+                <Link to={offer._type === "job_offer" ? `/job/${offer.job_id}` : "/dashboard"}>
+                  {offer._type === "job_offer" ? "View Job Details" : "Go to Dashboard"}
+                </Link>
               </Button>
             </div>
           )}

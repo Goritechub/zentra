@@ -44,6 +44,8 @@ interface BootstrapPayload {
   auth_code_dismissed_at: string | null;
   is_admin: boolean;
   onboarding_complete: boolean;
+  state: string | null;
+  city: string | null;
 }
 
 interface BootstrapCache {
@@ -97,8 +99,8 @@ const mapBootstrapProfile = (
   username: payload.username,
   phone: null,
   whatsapp: null,
-  state: null,
-  city: null,
+  state: payload.state,
+  city: payload.city,
   avatar_url: payload.avatar_url,
   role: payload.role,
   is_verified: payload.is_verified,
@@ -229,6 +231,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   auth_code_dismissed_at: null,
                   is_admin: backendUser.isAdmin,
                   onboarding_complete: backendUser.onboardingComplete,
+                  state: backendUser.state,
+                  city: backendUser.city,
                 } satisfies BootstrapPayload)
               : ({
                   user_id: userId,
@@ -243,6 +247,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   auth_code_dismissed_at: null,
                   is_admin: false,
                   onboarding_complete: false,
+                  state: null,
+                  city: null,
                 } satisfies BootstrapPayload),
             error: null,
           };
