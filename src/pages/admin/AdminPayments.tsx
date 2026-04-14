@@ -108,6 +108,30 @@ export default function AdminPayments() {
   );
   const totalRev = revenue.reduce((s, r) => s + (r.commission_amount || 0), 0);
 
+  const q = search.toLowerCase();
+  const filteredWallets = q
+    ? wallets.filter(
+        (w) =>
+          w.profile?.full_name?.toLowerCase().includes(q) ||
+          w.profile?.email?.toLowerCase().includes(q),
+      )
+    : wallets;
+  const filteredTransactions = q
+    ? transactions.filter(
+        (t) =>
+          t.profile?.full_name?.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.type?.toLowerCase().includes(q),
+      )
+    : transactions;
+  const filteredWithdrawals = q
+    ? withdrawals.filter(
+        (w) =>
+          w.profile?.full_name?.toLowerCase().includes(q) ||
+          w.bank?.bank_name?.toLowerCase().includes(q),
+      )
+    : withdrawals;
+
   if (loading)
     return (
       <div className="flex items-center justify-center py-20">
@@ -209,6 +233,16 @@ export default function AdminPayments() {
         <RevenueWithdrawCard />
       </div>
 
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search by name, email, description…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <Tabs defaultValue="wallets">
         <TabsList>
           <TabsTrigger value="wallets">Wallets</TabsTrigger>
@@ -220,10 +254,10 @@ export default function AdminPayments() {
 
         <TabsContent value="wallets">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
-            {wallet.length === 0 ? (
+            {filteredWallets.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No payments</p>
+                <p>{q ? "No wallets match your search" : "No wallets found"}</p>
               </div>
             ) : (
               <Table>
@@ -239,7 +273,7 @@ export default function AdminPayments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {wallets.map((w) => (
+                  {filteredWallets.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell>
                         <div>
@@ -324,10 +358,10 @@ export default function AdminPayments() {
 
         <TabsContent value="transactions">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
-            {transactions.length === 0 ? (
+            {filteredTransactions.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No transactions found</p>
+                <p>{q ? "No transactions match your search" : "No transactions found"}</p>
               </div>
             ) : (
               <Table>
@@ -342,7 +376,7 @@ export default function AdminPayments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((t) => (
+                  {filteredTransactions.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="text-sm">
                         {t.profile?.full_name || "—"}
@@ -378,10 +412,10 @@ export default function AdminPayments() {
 
         <TabsContent value="withdrawals">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
-            {withdrawals.length === 0 ? (
+            {filteredWithdrawals.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No withdrawals found</p>
+                <p>{q ? "No withdrawals match your search" : "No withdrawals found"}</p>
               </div>
             ) : (
               <Table>
@@ -396,7 +430,7 @@ export default function AdminPayments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {withdrawals.map((w) => (
+                  {filteredWithdrawals.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell className="text-sm font-medium">
                         {w.profile?.full_name || "—"}

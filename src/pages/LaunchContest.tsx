@@ -168,16 +168,8 @@ export default function LaunchContestPage() {
 
         // Upload happens in background while user continues filling the form
         setBannerUploading(true);
+        bannerUrlRef.current = null;
 
-        console.time("banner upload");
-        const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from("contest-banners")
-          .upload(path, croppedFile);
-        console.timeEnd("banner upload");
-        console.log("Upload result:", { uploadError, uploadData });
-
-        bannerUrlRef.current = null; // reset previous URL
         try {
           const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
           const { error: uploadError } = await supabase.storage
@@ -185,7 +177,7 @@ export default function LaunchContestPage() {
             .upload(path, croppedFile);
           if (uploadError) {
             toast.error(
-              "Banner upload failed. You can re-upload or continue without one.",
+              `Banner upload failed: ${uploadError.message}. You can re-select or continue without one.`,
             );
             setBannerPreview(null);
             setBannerFile(null);
@@ -196,8 +188,9 @@ export default function LaunchContestPage() {
               .getPublicUrl(path);
             bannerUrlRef.current = data.publicUrl;
           }
-        } catch {
-          toast.error("Banner upload failed.");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          toast.error(`Banner upload failed: ${msg}. You can re-select or continue without one.`);
           setBannerPreview(null);
           setBannerFile(null);
           bannerUrlRef.current = null;
