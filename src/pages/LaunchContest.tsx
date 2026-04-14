@@ -28,7 +28,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import { getWalletBalance } from "@/api/wallet.api";
 import { useAuth } from "@/hooks/useAuth";
@@ -166,28 +165,17 @@ export default function LaunchContestPage() {
         if (cropSrc) URL.revokeObjectURL(cropSrc);
         setCropSrc(null);
 
-        // Upload happens in background while user continues filling the form
+        // Upload through backend (service role) like all other file uploads
         setBannerUploading(true);
         bannerUrlRef.current = null;
 
         try {
-          const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from("contest-banners")
-            .upload(path, croppedFile);
-          if (uploadError) {
-            toast.error(
-              `Banner upload failed: ${uploadError.message}. You can re-select or continue without one.`,
-            );
-            setBannerPreview(null);
-            setBannerFile(null);
-            bannerUrlRef.current = null;
-          } else {
-            const { data } = supabase.storage
-              .from("contest-banners")
-              .getPublicUrl(path);
-            bannerUrlRef.current = data.publicUrl;
-          }
+          const formData = new FormData();
+          formData.append("banner", croppedFile);
+          const res = await api.post("/contests/upload-banner", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          bannerUrlRef.current = res.data?.url ?? null;
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Unknown error";
           toast.error(`Banner upload failed: ${msg}. You can re-select or continue without one.`);
