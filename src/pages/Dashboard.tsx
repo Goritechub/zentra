@@ -89,14 +89,15 @@ export default function DashboardPage() {
 
   const hasSkills = freelancerProfile?.skills?.length > 0;
   const { isVerified: kycVerified, isZentraVerified } = useKycVerification();
-  const profileComplete = [
-    !!profile.state,
-    isFreelancer ? hasSkills : true,
+  const profileItems = [
     !!profile.avatar_url,
-    isFreelancer && kycVerified,
-    isFreelancer && isZentraVerified,
-  ].filter(Boolean).length;
-  const profileTotal = isFreelancer ? 5 : 2;
+    !!profile.state,
+    ...(isFreelancer ? [hasSkills] : []),
+    kycVerified,
+    isZentraVerified,
+  ];
+  const profileComplete = profileItems.filter(Boolean).length;
+  const profileTotal = profileItems.length;
   const profilePct = Math.round((profileComplete / profileTotal) * 100);
 
   const statCards = isClient
@@ -375,15 +376,13 @@ export default function DashboardPage() {
                 </div>
                 <Progress value={profilePct} className="h-2 mb-4" />
                 <div className="space-y-2.5">
+                  <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/my-profile" />
                   <ProfileCheckItem label="Location" done={!!profile.state} to="/my-profile" />
                   {isFreelancer && (
-                    <>
-                      <ProfileCheckItem label="Skills" done={hasSkills} to="/my-profile" />
-                      <ProfileCheckItem label="KYC Verified" done={kycVerified} to="/my-profile" />
-                      <ProfileCheckItem label="Zentra Badge" done={isZentraVerified} to="/my-profile" />
-                    </>
+                    <ProfileCheckItem label="Skills" done={hasSkills} to="/my-profile" />
                   )}
-                  <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/my-profile" />
+                  <ProfileCheckItem label="KYC Verified" done={kycVerified} to="/my-profile" />
+                  <ProfileCheckItem label="Zentra Badge" done={isZentraVerified} to="/my-profile" />
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Link to="/my-profile" className="flex-1">
