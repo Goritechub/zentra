@@ -241,8 +241,11 @@ export default function LaunchContestPage() {
       }
     } catch (err: any) {
       setLoading(false);
+      console.error("[LaunchContest] launch error:", err);
+      console.error("[LaunchContest] error message:", err?.message);
       try {
         const parsed = JSON.parse(err?.message || "{}");
+        console.log("[LaunchContest] parsed error:", parsed);
         if (parsed.error === "insufficient_funds") {
           setInsufficientData({
             total: parsed.total_prize_pool,
