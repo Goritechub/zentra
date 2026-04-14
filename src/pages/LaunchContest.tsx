@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import ReactCrop, {
+  type Crop,
+  type PixelCrop,
+  centerCrop,
+  makeAspectCrop,
+} from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -10,10 +15,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
@@ -23,7 +36,14 @@ import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
 import { categoryNames } from "@/lib/categories";
 import { formatNaira } from "@/lib/nigerian-data";
-import { Loader2, X, Trophy, Upload, Wallet, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  X,
+  Trophy,
+  Upload,
+  Wallet,
+  AlertTriangle,
+} from "lucide-react";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 
 export default function LaunchContestPage() {
@@ -31,6 +51,7 @@ export default function LaunchContestPage() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const bannerRef = useRef<HTMLInputElement>(null);
+  const bannerUrlRef = useRef<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -55,8 +76,14 @@ export default function LaunchContestPage() {
   // Wallet / insufficient funds state
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
-  const [insufficientData, setInsufficientData] = useState({ total: 0, balance: 0, shortfall: 0 });
+  const [insufficientData, setInsufficientData] = useState({
+    total: 0,
+    balance: 0,
+    shortfall: 0,
+  });
   const [showFundWallet, setShowFundWallet] = useState(false);
+
+  const [bannerUploading, setBannerUploading] = useState(false);
 
   const categories = categoryNames;
 
@@ -89,14 +116,21 @@ export default function LaunchContestPage() {
     setShowCropModal(true);
   };
 
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-    const initial = centerCrop(makeAspectCrop({ unit: "%", width: 90 }, 16 / 9, w, h), w, h);
-    setCrop(initial);
-  }, []);
+  const onImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+      const initial = centerCrop(
+        makeAspectCrop({ unit: "%", width: 90 }, 16 / 9, w, h),
+        w,
+        h,
+      );
+      setCrop(initial);
+    },
+    [],
+  );
 
-  const applyCrop = useCallback(() => {
-    if (!imgRef.current || !completedCrop) return;
+  const applyCrop = useCallback(async () => {
+    if (!imgRef.current || !completedCrop || !user) return;
     const img = imgRef.current;
     const scaleX = img.naturalWidth / img.width;
     const scaleY = img.naturalHeight / img.height;
@@ -111,20 +145,61 @@ export default function LaunchContestPage() {
       completedCrop.y * scaleY,
       completedCrop.width * scaleX,
       completedCrop.height * scaleY,
-      0, 0, canvas.width, canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
     );
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const croppedFile = new File([blob], `banner_${Date.now()}.jpg`, { type: "image/jpeg" });
-      setBannerFile(croppedFile);
-      const preview = URL.createObjectURL(blob);
-      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-      setBannerPreview(preview);
-      setShowCropModal(false);
-      if (cropSrc) URL.revokeObjectURL(cropSrc);
-      setCropSrc(null);
-    }, "image/jpeg", 0.92);
-  }, [completedCrop, cropSrc, bannerPreview]);
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) return;
+        const croppedFile = new File([blob], `banner_${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+        setBannerFile(croppedFile);
+
+        // Show preview immediately, then start uploading
+        const preview = URL.createObjectURL(blob);
+        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+        setBannerPreview(preview);
+        setShowCropModal(false);
+        if (cropSrc) URL.revokeObjectURL(cropSrc);
+        setCropSrc(null);
+
+        // Upload happens in background while user continues filling the form
+        setBannerUploading(true);
+        bannerUrlRef.current = null; // reset previous URL
+        try {
+          const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from("contest-banners")
+            .upload(path, croppedFile);
+          if (uploadError) {
+            toast.error(
+              "Banner upload failed. You can re-upload or continue without one.",
+            );
+            setBannerPreview(null);
+            setBannerFile(null);
+            bannerUrlRef.current = null;
+          } else {
+            const { data } = supabase.storage
+              .from("contest-banners")
+              .getPublicUrl(path);
+            bannerUrlRef.current = data.publicUrl;
+          }
+        } catch {
+          toast.error("Banner upload failed.");
+          setBannerPreview(null);
+          setBannerFile(null);
+          bannerUrlRef.current = null;
+        } finally {
+          setBannerUploading(false);
+        }
+      },
+      "image/jpeg",
+      0.92,
+    );
+  }, [completedCrop, cropSrc, bannerPreview, user]);
 
   const cancelCrop = useCallback(() => {
     setShowCropModal(false);
@@ -139,18 +214,25 @@ export default function LaunchContestPage() {
   }, [bannerPreview]);
 
   const calcTotalPrize = () => {
-    return (parseInt(prizeFirst) || 0) + (parseInt(prizeSecond) || 0) + (parseInt(prizeThird) || 0) +
-      (parseInt(prizeFourth) || 0) + (parseInt(prizeFifth) || 0);
+    return (
+      (parseInt(prizeFirst) || 0) +
+      (parseInt(prizeSecond) || 0) +
+      (parseInt(prizeThird) || 0) +
+      (parseInt(prizeFourth) || 0) +
+      (parseInt(prizeFifth) || 0)
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { navigate("/auth"); return; }
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     if (!title.trim() || !description.trim() || !prizeFirst || !deadline) {
       toast.error("Please fill in all required fields");
       return;
     }
-
     const totalPrize = calcTotalPrize();
     if (totalPrize <= 0) {
       toast.error("Prize pool must be greater than zero");
@@ -163,20 +245,9 @@ export default function LaunchContestPage() {
 
     setLoading(true);
 
-    // Upload banner first if present
-    let bannerUrl: string | null = null;
-    if (bannerFile) {
-      const path = `banners/${user.id}/${Date.now()}_${bannerFile.name}`;
-      const { error: bannerError } = await supabase.storage.from("contest-banners").upload(path, bannerFile);
-      if (!bannerError) {
-        const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
-        bannerUrl = data.publicUrl;
-      } else {
-        toast.error("Banner upload failed — launching contest without banner.");
-      }
-    }
+    // ✅ No upload here — already done in applyCrop, just read the ref
+    const bannerUrl = bannerUrlRef.current ?? null;
 
-    // Call the secure backend function
     try {
       const res = await api.post("/contests/launch", {
         title: title.trim(),
@@ -202,16 +273,21 @@ export default function LaunchContestPage() {
       }
     } catch (err: any) {
       setLoading(false);
-      // Check if it's an insufficient funds error (backend throws BadRequestException with JSON body)
       try {
         const parsed = JSON.parse(err?.message || "{}");
         if (parsed.error === "insufficient_funds") {
-          setInsufficientData({ total: parsed.total_prize_pool, balance: parsed.wallet_balance, shortfall: parsed.shortfall });
+          setInsufficientData({
+            total: parsed.total_prize_pool,
+            balance: parsed.wallet_balance,
+            shortfall: parsed.shortfall,
+          });
           setWalletBalance(parsed.wallet_balance);
           setShowInsufficientModal(true);
           return;
         }
-      } catch { /* not JSON */ }
+      } catch {
+        /* not JSON */
+      }
       toast.error(err?.message || "Failed to launch contest");
     }
   };
@@ -234,7 +310,11 @@ export default function LaunchContestPage() {
       setShowInsufficientModal(false);
       toast.success("Wallet funded! You can now launch the contest.");
     } else {
-      setInsufficientData({ total, balance: newBal, shortfall: total - newBal });
+      setInsufficientData({
+        total,
+        balance: newBal,
+        shortfall: total - newBal,
+      });
     }
   };
 
@@ -260,8 +340,12 @@ export default function LaunchContestPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-tight">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Launch a Contest</h1>
-          <p className="text-muted-foreground mb-8">Get multiple design submissions and pick the best one.</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Launch a Contest
+          </h1>
+          <p className="text-muted-foreground mb-8">
+            Get multiple design submissions and pick the best one.
+          </p>
 
           {/* Wallet balance indicator */}
           <div className="bg-card rounded-xl border border-border p-4 mb-6 flex items-center justify-between">
@@ -269,13 +353,19 @@ export default function LaunchContestPage() {
               <Wallet className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                <p className="font-semibold text-foreground">{formatNaira(walletBalance)}</p>
+                <p className="font-semibold text-foreground">
+                  {formatNaira(walletBalance)}
+                </p>
               </div>
             </div>
             {totalPrizePreview > 0 && (
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Prize Pool Required</p>
-                <p className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}>
+                <p className="text-sm text-muted-foreground">
+                  Prize Pool Required
+                </p>
+                <p
+                  className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}
+                >
                   {formatNaira(totalPrizePreview)}
                 </p>
               </div>
@@ -287,37 +377,67 @@ export default function LaunchContestPage() {
               <h2 className="text-lg font-semibold">Contest Details</h2>
               <div className="space-y-2">
                 <Label>Contest Title *</Label>
-                <Input placeholder="e.g. Office Building Floor Plan Design" value={title} onChange={(e) => setTitle(e.target.value)} />
+                <Input
+                  placeholder="e.g. Office Building Floor Plan Design"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Description *</Label>
-                <Textarea placeholder="Describe what you want contestants to design..." rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
+                <Textarea
+                  placeholder="Describe what you want contestants to design..."
+                  rows={6}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Rules / How to Enter</Label>
-                <Textarea placeholder="Explain the rules and submission guidelines..." rows={4} value={rules} onChange={(e) => setRules(e.target.value)} />
+                <Textarea
+                  placeholder="Explain the rules and submission guidelines..."
+                  rows={4}
+                  value={rules}
+                  onChange={(e) => setRules(e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Submission Deadline *</Label>
-                  <Input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                  <Input
+                    type="datetime-local"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Contest Visibility</Label>
                   <Select value={visibility} onValueChange={setVisibility}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open">Open (entries visible to all)</SelectItem>
-                      <SelectItem value="closed">Closed (only entry count shown)</SelectItem>
+                      <SelectItem value="open">
+                        Open (entries visible to all)
+                      </SelectItem>
+                      <SelectItem value="closed">
+                        Closed (only entry count shown)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -326,22 +446,59 @@ export default function LaunchContestPage() {
                 <Label>Banner Image (optional, max 10MB)</Label>
                 {bannerPreview ? (
                   <div className="space-y-2">
-                    <img src={bannerPreview} alt="Banner preview" className="w-full max-h-48 object-cover rounded-lg border border-border" />
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
+                    {/* Preview container with spinner overlay while uploading */}
+                    <div className="relative w-full">
+                      <img
+                        src={bannerPreview}
+                        alt="Banner preview"
+                        className={`w-full max-h-48 object-cover rounded-lg border border-border transition-opacity duration-200 ${
+                          bannerUploading ? "opacity-40" : "opacity-100"
+                        }`}
+                      />
+                      {bannerUploading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg">
+                          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                          <span className="text-xs font-medium text-foreground">
+                            Uploading banner...
+                          </span>
+                        </div>
+                      )}
+                      {/* X button — always visible so user can cancel even mid-upload */}
+                      {!bannerUploading && (
+                        <button
+                          type="button"
+                          onClick={clearBanner}
+                          className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1 text-muted-foreground hover:text-destructive transition-colors shadow"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {/* Re-crop button only shown after upload is done */}
+                    {!bannerUploading && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => bannerRef.current?.click()}
+                      >
                         <Upload className="h-4 w-4 mr-1" /> Re-crop
                       </Button>
-                      <button type="button" onClick={clearBanner} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="outline" size="sm" onClick={() => bannerRef.current?.click()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bannerRef.current?.click()}
+                    >
                       <Upload className="h-4 w-4 mr-1" /> Upload Banner
                     </Button>
-                    <p className="text-xs text-muted-foreground">JPG, PNG, WebP — max 10MB. You'll crop after selecting.</p>
+                    <p className="text-xs text-muted-foreground">
+                      JPG, PNG, WebP — max 10MB. You'll crop after selecting.
+                    </p>
                   </div>
                 )}
                 <input
@@ -355,33 +512,86 @@ export default function LaunchContestPage() {
             </div>
 
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" />Prize Structure</h2>
-              <p className="text-sm text-muted-foreground">Set up to 5 prize positions. Only 1st prize is required. Prize amounts are in Naira (₦).</p>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-accent" />
+                Prize Structure
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Set up to 5 prize positions. Only 1st prize is required. Prize
+                amounts are in Naira (₦).
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>🥇 1st Prize (₦) *</Label>
-                  <Input type="number" placeholder="Min. 50,000" min="50000" step="1" value={prizeFirst} onChange={(e) => setPrizeFirst(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">Minimum ₦50,000</p>
+                  <Input
+                    type="number"
+                    placeholder="Min. 50,000"
+                    min="50000"
+                    step="1"
+                    value={prizeFirst}
+                    onChange={(e) => setPrizeFirst(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Minimum ₦50,000
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>🥈 2nd Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeSecond} onChange={(e) => setPrizeSecond(e.target.value)} />
+                  <Input
+                    type="number"
+                    placeholder="Optional"
+                    min="0"
+                    step="1"
+                    value={prizeSecond}
+                    onChange={(e) => setPrizeSecond(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>🥉 3rd Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeThird} onChange={(e) => setPrizeThird(e.target.value)} />
+                  <Input
+                    type="number"
+                    placeholder="Optional"
+                    min="0"
+                    step="1"
+                    value={prizeThird}
+                    onChange={(e) => setPrizeThird(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>🏅 4th Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeFourth} onChange={(e) => setPrizeFourth(e.target.value)} disabled={!prizeThird} />
-                  {!prizeThird && <p className="text-xs text-muted-foreground">Set 3rd prize first</p>}
+                  <Input
+                    type="number"
+                    placeholder="Optional"
+                    min="0"
+                    step="1"
+                    value={prizeFourth}
+                    onChange={(e) => setPrizeFourth(e.target.value)}
+                    disabled={!prizeThird}
+                  />
+                  {!prizeThird && (
+                    <p className="text-xs text-muted-foreground">
+                      Set 3rd prize first
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>🏅 5th Prize (₦)</Label>
-                  <Input type="number" placeholder="Optional" min="0" step="1" value={prizeFifth} onChange={(e) => setPrizeFifth(e.target.value)} disabled={!prizeFourth} />
-                  {!prizeFourth && <p className="text-xs text-muted-foreground">Set 4th prize first</p>}
+                  <Input
+                    type="number"
+                    placeholder="Optional"
+                    min="0"
+                    step="1"
+                    value={prizeFifth}
+                    onChange={(e) => setPrizeFifth(e.target.value)}
+                    disabled={!prizeFourth}
+                  />
+                  {!prizeFourth && (
+                    <p className="text-xs text-muted-foreground">
+                      Set 4th prize first
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -390,26 +600,65 @@ export default function LaunchContestPage() {
               <h2 className="text-lg font-semibold">Requirements</h2>
               <div className="space-y-2">
                 <Label>Required Skills</Label>
-                <Select onValueChange={(s) => { if (!selectedSkills.includes(s)) setSelectedSkills([...selectedSkills, s]); }}>
-                  <SelectTrigger><SelectValue placeholder="Add skill" /></SelectTrigger>
+                <Select
+                  onValueChange={(s) => {
+                    if (!selectedSkills.includes(s))
+                      setSelectedSkills([...selectedSkills, s]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Add skill" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {cadSkills.filter(s => !selectedSkills.includes(s)).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    {cadSkills
+                      .filter((s) => !selectedSkills.includes(s))
+                      .map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedSkills.map(s => (
+                  {selectedSkills.map((s) => (
                     <Badge key={s} variant="secondary" className="gap-1">
-                      {s} <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSkills(selectedSkills.filter(x => x !== s))} />
+                      {s}{" "}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() =>
+                          setSelectedSkills(
+                            selectedSkills.filter((x) => x !== s),
+                          )
+                        }
+                      />
                     </Badge>
                   ))}
                 </div>
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Launching...</> : <><Trophy className="h-4 w-4 mr-2" />Launch Contest</>}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={loading || bannerUploading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Launching...
+                </>
+              ) : bannerUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Uploading Banner...
+                </>
+              ) : (
+                <>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Launch Contest
+                </>
+              )}
             </Button>
           </form>
         </div>
@@ -417,7 +666,10 @@ export default function LaunchContestPage() {
       <Footer />
 
       {/* Insufficient Funds Modal */}
-      <Dialog open={showInsufficientModal} onOpenChange={setShowInsufficientModal}>
+      <Dialog
+        open={showInsufficientModal}
+        onOpenChange={setShowInsufficientModal}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -425,27 +677,46 @@ export default function LaunchContestPage() {
               Fund Your Wallet to Host This Contest
             </DialogTitle>
             <DialogDescription>
-              Your wallet balance is not enough to cover the prize pool. The full prize amount must be available before launching.
+              Your wallet balance is not enough to cover the prize pool. The
+              full prize amount must be available before launching.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="bg-muted rounded-lg p-4 space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Total Prize Pool</span>
-                <span className="font-semibold text-foreground">{formatNaira(insufficientData.total)}</span>
+                <span className="text-sm text-muted-foreground">
+                  Total Prize Pool
+                </span>
+                <span className="font-semibold text-foreground">
+                  {formatNaira(insufficientData.total)}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Your Wallet Balance</span>
-                <span className="font-semibold text-foreground">{formatNaira(insufficientData.balance)}</span>
+                <span className="text-sm text-muted-foreground">
+                  Your Wallet Balance
+                </span>
+                <span className="font-semibold text-foreground">
+                  {formatNaira(insufficientData.balance)}
+                </span>
               </div>
               <hr className="border-border" />
               <div className="flex justify-between">
-                <span className="text-sm font-medium text-destructive">Amount Needed</span>
-                <span className="font-bold text-destructive">{formatNaira(insufficientData.shortfall)}</span>
+                <span className="text-sm font-medium text-destructive">
+                  Amount Needed
+                </span>
+                <span className="font-bold text-destructive">
+                  {formatNaira(insufficientData.shortfall)}
+                </span>
               </div>
             </div>
 
-            <Button className="w-full" onClick={() => { setShowInsufficientModal(false); setShowFundWallet(true); }}>
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowInsufficientModal(false);
+                setShowFundWallet(true);
+              }}
+            >
               <Wallet className="h-4 w-4 mr-2" />
               Fund Wallet
             </Button>
@@ -454,11 +725,19 @@ export default function LaunchContestPage() {
       </Dialog>
 
       {/* Banner Crop Modal */}
-      <Dialog open={showCropModal} onOpenChange={(open) => { if (!open) cancelCrop(); }}>
+      <Dialog
+        open={showCropModal}
+        onOpenChange={(open) => {
+          if (!open) cancelCrop();
+        }}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Crop Banner Image</DialogTitle>
-            <DialogDescription>Drag to adjust. The crop is locked to 16:9 for consistent banner display.</DialogDescription>
+            <DialogDescription>
+              Drag to adjust. The crop is locked to 16:9 for consistent banner
+              display.
+            </DialogDescription>
           </DialogHeader>
           <div className="overflow-auto max-h-[60vh] flex items-center justify-center bg-muted rounded-lg p-2">
             {cropSrc && (
@@ -480,7 +759,9 @@ export default function LaunchContestPage() {
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={cancelCrop}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={cancelCrop}>
+              Cancel
+            </Button>
             <Button type="button" onClick={applyCrop} disabled={!completedCrop}>
               Apply Crop
             </Button>
