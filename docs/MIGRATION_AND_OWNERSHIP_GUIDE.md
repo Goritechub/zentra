@@ -275,8 +275,8 @@ INSERT INTO platform_settings (key, value) VALUES
 -- Support settings
 INSERT INTO platform_settings (key, value) VALUES
 ('support_email', '"hello@zentragig.com"'),
-('support_phone', '"+234 801 234 5678"'),
-('support_whatsapp', '"+234 801 234 5678"');
+('support_phone', '"+234 814 780 0542"'),
+('support_whatsapp', '"+234 814 780 0542"');
 ```
 
 ---

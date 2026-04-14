@@ -168,6 +168,15 @@ export default function LaunchContestPage() {
 
         // Upload happens in background while user continues filling the form
         setBannerUploading(true);
+
+        console.time("banner upload");
+        const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
+        const { error: uploadError, data: uploadData } = await supabase.storage
+          .from("contest-banners")
+          .upload(path, croppedFile);
+        console.timeEnd("banner upload");
+        console.log("Upload result:", { uploadError, uploadData });
+
         bannerUrlRef.current = null; // reset previous URL
         try {
           const path = `banners/${user.id}/${Date.now()}_${croppedFile.name}`;
