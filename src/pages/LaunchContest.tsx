@@ -50,7 +50,6 @@ export default function LaunchContestPage() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const bannerRef = useRef<HTMLInputElement>(null);
-  const bannerUrlRef = useRef<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -81,8 +80,6 @@ export default function LaunchContestPage() {
     shortfall: 0,
   });
   const [showFundWallet, setShowFundWallet] = useState(false);
-
-  const [bannerUploading, setBannerUploading] = useState(false);
 
   const categories = categoryNames;
 
@@ -165,26 +162,7 @@ export default function LaunchContestPage() {
         if (cropSrc) URL.revokeObjectURL(cropSrc);
         setCropSrc(null);
 
-        // Upload through backend (service role) like all other file uploads
-        setBannerUploading(true);
-        bannerUrlRef.current = null;
-
-        try {
-          const formData = new FormData();
-          formData.append("banner", croppedFile);
-          const res = await api.post("/contests/upload-banner", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          bannerUrlRef.current = res.data?.url ?? null;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Unknown error";
-          toast.error(`Banner upload failed: ${msg}. You can re-select or continue without one.`);
-          setBannerPreview(null);
-          setBannerFile(null);
-          bannerUrlRef.current = null;
-        } finally {
-          setBannerUploading(false);
-        }
+        // Banner is ready — it will be uploaded together with the launch request
       },
       "image/jpeg",
       0.92,
@@ -235,25 +213,25 @@ export default function LaunchContestPage() {
 
     setLoading(true);
 
-    // ✅ No upload here — already done in applyCrop, just read the ref
-    const bannerUrl = bannerUrlRef.current ?? null;
-
     try {
-      const res = await api.post("/contests/launch", {
-        title: title.trim(),
-        description: description.trim(),
-        category: category || null,
-        prize_first: parseInt(prizeFirst),
-        prize_second: prizeSecond ? parseInt(prizeSecond) : 0,
-        prize_third: prizeThird ? parseInt(prizeThird) : 0,
-        prize_fourth: prizeFourth ? parseInt(prizeFourth) : 0,
-        prize_fifth: prizeFifth ? parseInt(prizeFifth) : 0,
-        deadline,
-        required_skills: selectedSkills,
-        visibility,
-        rules: rules.trim() || null,
-        banner_image: bannerUrl,
-        winner_selection_method: "client_selects",
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("description", description.trim());
+      if (category) formData.append("category", category);
+      formData.append("prize_first", String(parseInt(prizeFirst) || 0));
+      formData.append("prize_second", String(prizeSecond ? parseInt(prizeSecond) : 0));
+      formData.append("prize_third", String(prizeThird ? parseInt(prizeThird) : 0));
+      formData.append("prize_fourth", String(prizeFourth ? parseInt(prizeFourth) : 0));
+      formData.append("prize_fifth", String(prizeFifth ? parseInt(prizeFifth) : 0));
+      formData.append("deadline", deadline);
+      formData.append("required_skills", JSON.stringify(selectedSkills));
+      formData.append("visibility", visibility);
+      if (rules.trim()) formData.append("rules", rules.trim());
+      formData.append("winner_selection_method", "client_selects");
+      if (bannerFile) formData.append("banner", bannerFile);
+
+      const res = await api.post("/contests/launch", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       setLoading(false);
       const data = res.data;
@@ -436,45 +414,28 @@ export default function LaunchContestPage() {
                 <Label>Banner Image (optional, max 10MB)</Label>
                 {bannerPreview ? (
                   <div className="space-y-2">
-                    {/* Preview container with spinner overlay while uploading */}
                     <div className="relative w-full">
                       <img
                         src={bannerPreview}
                         alt="Banner preview"
-                        className={`w-full max-h-48 object-cover rounded-lg border border-border transition-opacity duration-200 ${
-                          bannerUploading ? "opacity-40" : "opacity-100"
-                        }`}
+                        className="w-full max-h-48 object-cover rounded-lg border border-border"
                       />
-                      {bannerUploading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg">
-                          <Loader2 className="h-7 w-7 animate-spin text-primary" />
-                          <span className="text-xs font-medium text-foreground">
-                            Uploading banner...
-                          </span>
-                        </div>
-                      )}
-                      {/* X button — always visible so user can cancel even mid-upload */}
-                      {!bannerUploading && (
-                        <button
-                          type="button"
-                          onClick={clearBanner}
-                          className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1 text-muted-foreground hover:text-destructive transition-colors shadow"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    {/* Re-crop button only shown after upload is done */}
-                    {!bannerUploading && (
-                      <Button
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => bannerRef.current?.click()}
+                        onClick={clearBanner}
+                        className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1 text-muted-foreground hover:text-destructive transition-colors shadow"
                       >
-                        <Upload className="h-4 w-4 mr-1" /> Re-crop
-                      </Button>
-                    )}
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bannerRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-1" /> Re-crop
+                    </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
@@ -631,17 +592,12 @@ export default function LaunchContestPage() {
               type="submit"
               size="lg"
               className="w-full"
-              disabled={loading || bannerUploading}
+              disabled={loading}
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Launching...
-                </>
-              ) : bannerUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Uploading Banner...
                 </>
               ) : (
                 <>
