@@ -38,6 +38,11 @@ export async function getMyContestsList() {
   return response.data;
 }
 
+export async function cancelContest(contestId: string, body?: { reason?: string; note?: string }) {
+  const response = await api.patch(`/contests/${contestId}/cancel`, body ?? {});
+  return response.data;
+}
+
 export async function getSavedExpertsList() {
   const response = await api.get<SavedExpertsResponse>("/saved-experts/mine");
   return response.data;
