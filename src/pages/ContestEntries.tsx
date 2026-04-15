@@ -12,7 +12,15 @@ import { format, isPast } from "date-fns";
 import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award } from "lucide-react";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
-function deriveContestStatus(contest: any, isWinner: boolean): "active" | "selecting_winners" | "completed" {
+function deriveContestStatus(
+  contest: any,
+  isWinner: boolean,
+): "active" | "selecting_winners" | "completed" | "pending_review" | "rejected" | "cancelled" | "cancellation_requested" {
+  // Non-live statuses short-circuit before any date logic
+  if (contest.status === "pending_review") return "pending_review";
+  if (contest.status === "rejected") return "rejected";
+  if (contest.status === "cancelled") return "cancelled";
+  if (contest.status === "cancellation_requested") return "cancellation_requested";
   // An entry with is_winner=true means winners are published → completed
   if (isWinner || contest.status === "ended" || contest.status === "completed") return "completed";
   if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
@@ -114,14 +122,26 @@ export default function ContestEntriesPage() {
         ? ("secondary" as const)
         : derived === "selecting_winners"
           ? ("outline" as const)
-          : ("default" as const);
+          : derived === "cancelled" || derived === "rejected"
+            ? ("destructive" as const)
+            : derived === "pending_review" || derived === "cancellation_requested"
+              ? ("outline" as const)
+              : ("default" as const);
 
     const statusText =
       derived === "completed"
         ? "Ended"
         : derived === "selecting_winners"
           ? "Selecting Winners"
-          : "Active";
+          : derived === "pending_review"
+            ? "Under Review"
+            : derived === "rejected"
+              ? "Rejected"
+              : derived === "cancelled"
+                ? "Cancelled"
+                : derived === "cancellation_requested"
+                  ? "Cancellation Pending"
+                  : "Active";
 
     const prizePositionLabel =
       entry.prize_position === 1
@@ -169,7 +189,9 @@ export default function ContestEntriesPage() {
                   ? `Ends ${format(new Date(contest.deadline), "MMM d, yyyy")}`
                   : derived === "completed"
                     ? `Ended ${format(new Date(contest.deadline), "MMM d, yyyy")}`
-                    : statusText}
+                    : derived === "selecting_winners"
+                      ? `Deadline passed ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                      : statusText}
               </span>
             </div>
           </div>

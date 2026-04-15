@@ -75,6 +75,36 @@ export async function getAdminContests() {
   return response.data.data as { contests: any[] };
 }
 
+export async function getAdminPendingContests() {
+  const response = await api.get("/admin/contests/pending-review");
+  return response.data.data as { contests: any[] };
+}
+
+export async function approveAdminContest(contestId: string) {
+  const response = await api.patch(`/admin/contests/${contestId}/approve`);
+  return response.data.data;
+}
+
+export async function rejectAdminContest(contestId: string, message: string) {
+  const response = await api.patch(`/admin/contests/${contestId}/reject`, { message });
+  return response.data.data;
+}
+
+export async function getAdminCancellationRequests() {
+  const response = await api.get("/admin/contests/cancellation-requests");
+  return response.data.data as { requests: any[] };
+}
+
+export async function approveAdminCancellationRequest(requestId: string) {
+  const response = await api.patch(`/admin/contests/cancellation-requests/${requestId}/approve`);
+  return response.data.data;
+}
+
+export async function rejectAdminCancellationRequest(requestId: string, message: string) {
+  const response = await api.patch(`/admin/contests/cancellation-requests/${requestId}/reject`, { message });
+  return response.data.data;
+}
+
 export async function updateAdminContestStatus(contestId: string, status: string) {
   const response = await api.patch(`/admin/contests/${contestId}/status`, { status });
   return response.data.data;

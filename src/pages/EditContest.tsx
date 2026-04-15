@@ -6,7 +6,7 @@ import ReactCrop, {
   makeAspectCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { api } from "@/api/axios";
-import { getWalletBalance } from "@/api/wallet.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
@@ -40,15 +39,19 @@ import {
   X,
   Trophy,
   Upload,
-  Wallet,
   AlertTriangle,
+  ArrowLeft,
+  Save,
 } from "lucide-react";
-import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 
-export default function LaunchContestPage() {
+export default function EditContestPage() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [contestStatus, setContestStatus] = useState<string>("");
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
@@ -62,6 +65,7 @@ export default function LaunchContestPage() {
   const [deadline, setDeadline] = useState("");
   const [visibility, setVisibility] = useState("open");
   const [rules, setRules] = useState("");
+  const [existingBannerUrl, setExistingBannerUrl] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -71,31 +75,50 @@ export default function LaunchContestPage() {
   const imgRef = useRef<HTMLImageElement>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
-  // Wallet / insufficient funds state
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
-  const [insufficientData, setInsufficientData] = useState({
-    total: 0,
-    balance: 0,
-    shortfall: 0,
-  });
-  const [showFundWallet, setShowFundWallet] = useState(false);
-
   const categories = categoryNames;
 
-  // Fetch wallet balance
   useEffect(() => {
-    if (!user) return;
-    const fetchWallet = async () => {
-      try {
-        const data = await getWalletBalance();
-        setWalletBalance(data.balance || 0);
-      } catch {
-        setWalletBalance(0);
+    if (!id || !user) return;
+    void loadContest();
+  }, [id, user]);
+
+  const loadContest = async () => {
+    setPageLoading(true);
+    try {
+      const res = await api.get(`/contests/${id}/edit-data`);
+      const c = res.data.data.contest;
+      setContestStatus(c.status);
+      setReviewMessage(c.review_message || null);
+      setTitle(c.title || "");
+      setDescription(c.description || "");
+      setCategory(c.category || "");
+      setPrizeFirst(String(c.prize_first || ""));
+      setPrizeSecond(String(c.prize_second || ""));
+      setPrizeThird(String(c.prize_third || ""));
+      setPrizeFourth(String(c.prize_fourth || ""));
+      setPrizeFifth(String(c.prize_fifth || ""));
+      // Format deadline to datetime-local format
+      if (c.deadline) {
+        const d = new Date(c.deadline);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setDeadline(
+          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+        );
       }
-    };
-    void fetchWallet();
-  }, [user]);
+      setVisibility(c.visibility || "open");
+      setRules(c.rules || "");
+      setSelectedSkills(c.required_skills || []);
+      if (c.banner_image) {
+        setExistingBannerUrl(c.banner_image);
+        setBannerPreview(c.banner_image);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load contest");
+      navigate("/dashboard/my-contests");
+    } finally {
+      setPageLoading(false);
+    }
+  };
 
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,7 +149,7 @@ export default function LaunchContestPage() {
   );
 
   const applyCrop = useCallback(async () => {
-    if (!imgRef.current || !completedCrop || !user) return;
+    if (!imgRef.current || !completedCrop) return;
     const img = imgRef.current;
     const scaleX = img.naturalWidth / img.width;
     const scaleY = img.naturalHeight / img.height;
@@ -153,21 +176,19 @@ export default function LaunchContestPage() {
           type: "image/jpeg",
         });
         setBannerFile(croppedFile);
-
-        // Show preview immediately, then start uploading
         const preview = URL.createObjectURL(blob);
-        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+        if (bannerPreview && bannerPreview !== existingBannerUrl) {
+          URL.revokeObjectURL(bannerPreview);
+        }
         setBannerPreview(preview);
         setShowCropModal(false);
         if (cropSrc) URL.revokeObjectURL(cropSrc);
         setCropSrc(null);
-
-        // Banner is ready — it will be uploaded together with the launch request
       },
       "image/jpeg",
       0.92,
     );
-  }, [completedCrop, cropSrc, bannerPreview, user]);
+  }, [completedCrop, cropSrc, bannerPreview, existingBannerUrl]);
 
   const cancelCrop = useCallback(() => {
     setShowCropModal(false);
@@ -177,115 +198,47 @@ export default function LaunchContestPage() {
 
   const clearBanner = useCallback(() => {
     setBannerFile(null);
-    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setExistingBannerUrl(null);
+    if (bannerPreview && bannerPreview !== existingBannerUrl) {
+      URL.revokeObjectURL(bannerPreview);
+    }
     setBannerPreview(null);
-  }, [bannerPreview]);
-
-  const calcTotalPrize = () => {
-    return (
-      (parseInt(prizeFirst) || 0) +
-      (parseInt(prizeSecond) || 0) +
-      (parseInt(prizeThird) || 0) +
-      (parseInt(prizeFourth) || 0) +
-      (parseInt(prizeFifth) || 0)
-    );
-  };
+  }, [bannerPreview, existingBannerUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-    if (!title.trim() || !description.trim() || !prizeFirst || !deadline) {
+    if (!title.trim() || !description.trim() || !deadline) {
       toast.error("Please fill in all required fields");
       return;
     }
-    const totalPrize = calcTotalPrize();
-    if (totalPrize <= 0) {
-      toast.error("Prize pool must be greater than zero");
-      return;
-    }
-    if ((parseInt(prizeFirst) || 0) < 50000) {
-      toast.error("1st prize must be at least ₦50,000");
-      return;
-    }
 
-    setLoading(true);
-
+    setSaving(true);
     try {
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("description", description.trim());
       if (category) formData.append("category", category);
-      formData.append("prize_first", String(parseInt(prizeFirst) || 0));
-      formData.append("prize_second", String(prizeSecond ? parseInt(prizeSecond) : 0));
-      formData.append("prize_third", String(prizeThird ? parseInt(prizeThird) : 0));
-      formData.append("prize_fourth", String(prizeFourth ? parseInt(prizeFourth) : 0));
-      formData.append("prize_fifth", String(prizeFifth ? parseInt(prizeFifth) : 0));
       formData.append("deadline", deadline);
+      if (rules.trim()) formData.append("rules", rules.trim());
+      else formData.append("rules", "");
       formData.append("required_skills", JSON.stringify(selectedSkills));
       formData.append("visibility", visibility);
-      if (rules.trim()) formData.append("rules", rules.trim());
-      formData.append("winner_selection_method", "client_selects");
       if (bannerFile) formData.append("banner", bannerFile);
 
-      const res = await api.post("/contests/launch", formData, {
+      await api.patch(`/contests/${id}/resubmit`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setLoading(false);
-      const data = res.data;
-      if (data?.success) {
-        toast.success("Contest submitted for review. You'll be notified once it's approved and goes live.");
-        navigate("/dashboard/my-contests");
-      }
-    } catch (err: any) {
-      setLoading(false);
-      console.error("[LaunchContest] launch error:", err);
-      console.error("[LaunchContest] error message:", err?.message);
-      try {
-        const parsed = JSON.parse(err?.message || "{}");
-        console.log("[LaunchContest] parsed error:", parsed);
-        if (parsed.error === "insufficient_funds") {
-          setInsufficientData({
-            total: parsed.total_prize_pool,
-            balance: parsed.wallet_balance,
-            shortfall: parsed.shortfall,
-          });
-          setWalletBalance(parsed.wallet_balance);
-          setShowInsufficientModal(true);
-          return;
-        }
-      } catch {
-        /* not JSON */
-      }
-      toast.error(err?.message || "Failed to launch contest");
-    }
-  };
 
-  const handleFundSuccess = async () => {
-    // Refresh wallet balance
-    if (!user) return;
-    let newBal = 0;
-    try {
-      const data = await getWalletBalance();
-      newBal = data.balance || 0;
-    } catch {
-      newBal = 0;
-    }
-    setWalletBalance(newBal);
-    setShowFundWallet(false);
-    // Update insufficient modal data
-    const total = calcTotalPrize();
-    if (newBal >= total) {
-      setShowInsufficientModal(false);
-      toast.success("Wallet funded! You can now launch the contest.");
-    } else {
-      setInsufficientData({
-        total,
-        balance: newBal,
-        shortfall: total - newBal,
-      });
+      toast.success(
+        contestStatus === "rejected"
+          ? "Contest updated and resubmitted for review."
+          : "Contest updated. Admin has been notified of your changes.",
+      );
+      navigate("/dashboard/my-contests");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save changes");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -304,44 +257,57 @@ export default function LaunchContestPage() {
     );
   }
 
-  const totalPrizePreview = calcTotalPrize();
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isRejected = contestStatus === "rejected";
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-tight">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/dashboard/my-contests")}
+            className="mb-6"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to My Contests
+          </Button>
+
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Launch a Contest
+            {isRejected ? "Edit & Resubmit Contest" : "Edit Contest"}
           </h1>
-          <p className="text-muted-foreground mb-8">
-            Get multiple design submissions and pick the best one.
+          <p className="text-muted-foreground mb-2">
+            {isRejected
+              ? "Address the rejection reason below and resubmit for review."
+              : "Make changes while your contest is pending review. Admin will be notified."}
           </p>
 
-          {/* Wallet balance indicator */}
-          <div className="bg-card rounded-xl border border-border p-4 mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wallet className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                <p className="font-semibold text-foreground">
-                  {formatNaira(walletBalance)}
-                </p>
-              </div>
+          {/* Rejection message banner */}
+          {isRejected && reviewMessage && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 mb-6 text-sm text-destructive">
+              <span className="font-semibold">Rejection reason: </span>
+              {reviewMessage}
             </div>
-            {totalPrizePreview > 0 && (
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">
-                  Prize Pool Required
-                </p>
-                <p
-                  className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}
-                >
-                  {formatNaira(totalPrizePreview)}
-                </p>
-              </div>
-            )}
-          </div>
+          )}
+
+          {/* Pending review notice */}
+          {!isRejected && (
+            <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 mb-6 text-sm text-amber-800 dark:text-amber-200">
+              <span className="font-semibold">Under review — </span>
+              your contest is currently being reviewed. Saving changes will notify the admin to re-review.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
@@ -465,88 +431,34 @@ export default function LaunchContestPage() {
               </div>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
+            {/* Prize structure — read-only display (prizes can't change after escrow deducted) */}
+            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <div className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-accent" />
-                Prize Structure
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Set up to 5 prize positions. Only 1st prize is required. Prize
-                amounts are in Naira (₦).
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>🥇 1st Prize (₦) *</Label>
-                  <Input
-                    type="number"
-                    placeholder="Min. 50,000"
-                    min="50000"
-                    step="1"
-                    value={prizeFirst}
-                    onChange={(e) => setPrizeFirst(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Minimum ₦50,000
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>🥈 2nd Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeSecond}
-                    onChange={(e) => setPrizeSecond(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>🥉 3rd Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeThird}
-                    onChange={(e) => setPrizeThird(e.target.value)}
-                  />
-                </div>
+                <h2 className="text-lg font-semibold">Prize Structure</h2>
+                <Badge variant="outline" className="text-xs ml-auto">Locked</Badge>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>🏅 4th Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeFourth}
-                    onChange={(e) => setPrizeFourth(e.target.value)}
-                    disabled={!prizeThird}
-                  />
-                  {!prizeThird && (
-                    <p className="text-xs text-muted-foreground">
-                      Set 3rd prize first
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>🏅 5th Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeFifth}
-                    onChange={(e) => setPrizeFifth(e.target.value)}
-                    disabled={!prizeFourth}
-                  />
-                  {!prizeFourth && (
-                    <p className="text-xs text-muted-foreground">
-                      Set 4th prize first
-                    </p>
-                  )}
-                </div>
+              <p className="text-sm text-muted-foreground">
+                Prize amounts are locked once a contest is submitted. They cannot be changed during review.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {parseInt(prizeFirst) > 0 && (
+                  <Badge variant="outline" className="gap-1">
+                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {formatNaira(parseInt(prizeFirst))}
+                  </Badge>
+                )}
+                {parseInt(prizeSecond) > 0 && (
+                  <Badge variant="outline">2nd: {formatNaira(parseInt(prizeSecond))}</Badge>
+                )}
+                {parseInt(prizeThird) > 0 && (
+                  <Badge variant="outline">3rd: {formatNaira(parseInt(prizeThird))}</Badge>
+                )}
+                {parseInt(prizeFourth) > 0 && (
+                  <Badge variant="outline">4th: {formatNaira(parseInt(prizeFourth))}</Badge>
+                )}
+                {parseInt(prizeFifth) > 0 && (
+                  <Badge variant="outline">5th: {formatNaira(parseInt(prizeFifth))}</Badge>
+                )}
               </div>
             </div>
 
@@ -580,9 +492,7 @@ export default function LaunchContestPage() {
                       <X
                         className="h-3 w-3 cursor-pointer"
                         onClick={() =>
-                          setSelectedSkills(
-                            selectedSkills.filter((x) => x !== s),
-                          )
+                          setSelectedSkills(selectedSkills.filter((x) => x !== s))
                         }
                       />
                     </Badge>
@@ -595,17 +505,17 @@ export default function LaunchContestPage() {
               type="submit"
               size="lg"
               className="w-full"
-              disabled={loading}
+              disabled={saving}
             >
-              {loading ? (
+              {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Launching...
+                  Saving...
                 </>
               ) : (
                 <>
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Launch Contest
+                  <Save className="h-4 w-4 mr-2" />
+                  {isRejected ? "Save & Resubmit for Review" : "Save Changes"}
                 </>
               )}
             </Button>
@@ -613,65 +523,6 @@ export default function LaunchContestPage() {
         </div>
       </main>
       <Footer />
-
-      {/* Insufficient Funds Modal */}
-      <Dialog
-        open={showInsufficientModal}
-        onOpenChange={setShowInsufficientModal}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Fund Your Wallet to Host This Contest
-            </DialogTitle>
-            <DialogDescription>
-              Your wallet balance is not enough to cover the prize pool. The
-              full prize amount must be available before launching.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-muted rounded-lg p-4 space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Total Prize Pool
-                </span>
-                <span className="font-semibold text-foreground">
-                  {formatNaira(insufficientData.total)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Your Wallet Balance
-                </span>
-                <span className="font-semibold text-foreground">
-                  {formatNaira(insufficientData.balance)}
-                </span>
-              </div>
-              <hr className="border-border" />
-              <div className="flex justify-between">
-                <span className="text-sm font-medium text-destructive">
-                  Amount Needed
-                </span>
-                <span className="font-bold text-destructive">
-                  {formatNaira(insufficientData.shortfall)}
-                </span>
-              </div>
-            </div>
-
-            <Button
-              className="w-full"
-              onClick={() => {
-                setShowInsufficientModal(false);
-                setShowFundWallet(true);
-              }}
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Fund Wallet
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Banner Crop Modal */}
       <Dialog
@@ -684,8 +535,7 @@ export default function LaunchContestPage() {
           <DialogHeader>
             <DialogTitle>Crop Banner Image</DialogTitle>
             <DialogDescription>
-              Drag to adjust. The crop is locked to 16:9 for consistent banner
-              display.
+              Drag to adjust. The crop is locked to 16:9 for consistent banner display.
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-auto max-h-[60vh] flex items-center justify-center bg-muted rounded-lg p-2">
@@ -717,14 +567,6 @@ export default function LaunchContestPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Fund Wallet Modal */}
-      <FundWalletModal
-        open={showFundWallet}
-        onOpenChange={setShowFundWallet}
-        onSuccess={handleFundSuccess}
-        userEmail={profile?.email}
-      />
     </div>
   );
 }

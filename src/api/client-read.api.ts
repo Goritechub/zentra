@@ -43,6 +43,13 @@ export async function cancelContest(contestId: string, body?: { reason?: string;
   return response.data;
 }
 
+export async function resubmitContest(contestId: string, formData: FormData) {
+  const response = await api.patch(`/contests/${contestId}/resubmit`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+}
+
 export async function getSavedExpertsList() {
   const response = await api.get<SavedExpertsResponse>("/saved-experts/mine");
   return response.data;

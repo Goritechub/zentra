@@ -17,7 +17,10 @@ import { getMyContestsList, cancelContest } from "@/api/client-read.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, Trophy, ArrowLeft, PlusCircle, Users, Calendar, XCircle } from "lucide-react";
+import {
+  Loader2, Trophy, ArrowLeft, PlusCircle, Users, Calendar, XCircle,
+  Clock, AlertCircle, Edit2,
+} from "lucide-react";
 
 const CANCELLATION_REASONS = [
   { value: "insufficient_entries", label: "Not enough entries received" },
@@ -28,23 +31,33 @@ const CANCELLATION_REASONS = [
   { value: "other", label: "Other (please specify)" },
 ];
 
-// Canonical status derivation — mirrors ContestDetail.tsx
+type SpecialStatus = "pending_review" | "rejected" | "cancelled" | "cancellation_requested";
+
+function getSpecialStatus(contest: any): SpecialStatus | null {
+  if (contest.status === "pending_review") return "pending_review";
+  if (contest.status === "rejected") return "rejected";
+  if (contest.status === "cancelled") return "cancelled";
+  if (contest.status === "cancellation_requested") return "cancellation_requested";
+  return null;
+}
+
 function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
   if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
   if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
   return "active";
 }
 
-function statusLabel(s: ReturnType<typeof deriveContestStatus>) {
-  if (s === "completed") return "Completed";
-  if (s === "selecting_winners") return "Selecting Winners";
-  return "Active";
-}
+function StatusBadge({ contest }: { contest: any }) {
+  const special = getSpecialStatus(contest);
+  if (special === "pending_review") return <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3 mr-1" />Under Review</Badge>;
+  if (special === "rejected") return <Badge variant="destructive">Rejected</Badge>;
+  if (special === "cancelled") return <Badge variant="secondary">Cancelled</Badge>;
+  if (special === "cancellation_requested") return <Badge variant="outline" className="border-orange-400 text-orange-600 dark:text-orange-400"><AlertCircle className="h-3 w-3 mr-1" />Cancellation Requested</Badge>;
 
-function statusVariant(s: ReturnType<typeof deriveContestStatus>): "default" | "secondary" | "outline" {
-  if (s === "completed") return "secondary";
-  if (s === "selecting_winners") return "outline";
-  return "default";
+  const derived = deriveContestStatus(contest, contest._winnersCount || 0);
+  if (derived === "completed") return <Badge variant="secondary">Completed</Badge>;
+  if (derived === "selecting_winners") return <Badge variant="outline">Selecting Winners</Badge>;
+  return <Badge variant="default">Active</Badge>;
 }
 
 export default function MyContestsPage() {
@@ -86,8 +99,12 @@ export default function MyContestsPage() {
       const body = requiresReason
         ? { reason: cancelReason, note: cancelReason === "other" ? cancelNote.trim() : undefined }
         : undefined;
-      await cancelContest(cancelTarget.id, body);
-      toast.success("Contest cancelled. Prize pool has been refunded to your wallet.");
+      const res = await cancelContest(cancelTarget.id, body);
+      if (res?.data?.requested) {
+        toast.success("Cancellation request submitted. An admin will review it shortly.");
+      } else {
+        toast.success("Contest cancelled. Prize pool has been refunded to your wallet.");
+      }
       setCancelTarget(null);
       setCancelReason("");
       setCancelNote("");
@@ -99,7 +116,6 @@ export default function MyContestsPage() {
     }
   };
 
-  // All five prize tiers
   const totalPrize = (c: any) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
@@ -152,37 +168,79 @@ export default function MyContestsPage() {
           ) : (
             <div className="space-y-4">
               {contests.map((contest: any) => {
-                const derived = deriveContestStatus(contest, contest._winnersCount || 0);
-                const label = statusLabel(derived);
-                const variant = statusVariant(derived);
+                const special = getSpecialStatus(contest);
+                const isActive = !special && !isPast(new Date(contest.deadline));
+                // Cancellable: active contests or pending_review contests
+                const canCancel = (special === null && isActive) || special === "pending_review";
+                // Editable: pending_review or rejected (not yet live)
+                const canEdit = special === "pending_review" || special === "rejected";
 
                 return (
-                  <div key={contest.id} className="bg-card rounded-xl border border-border p-6">
+                  <div
+                    key={contest.id}
+                    className={`bg-card rounded-xl border p-6 ${special === "rejected" ? "border-destructive/40" : special === "pending_review" ? "border-amber-400/40" : "border-border"}`}
+                  >
                     <div className="flex items-start justify-between">
                       <Link to={`/contest/${contest.id}`} className="flex-1 min-w-0 group">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{contest.title}</h3>
-                          <Badge variant={variant}>{label}</Badge>
+                          <StatusBadge contest={contest} />
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{contest.description}</p>
+
+                        {/* Rejection message */}
+                        {special === "rejected" && contest.review_message && (
+                          <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                            <span className="font-medium">Rejection reason:</span> {contest.review_message}
+                          </div>
+                        )}
+
+                        {/* Pending review info */}
+                        {special === "pending_review" && (
+                          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                            Awaiting admin approval before going live.
+                          </p>
+                        )}
+
+                        {/* Cancellation requested info */}
+                        {special === "cancellation_requested" && (
+                          <p className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                            Your cancellation request is being reviewed by an admin.
+                          </p>
+                        )}
+
                         <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {derived === "active" ? `${formatDistanceToNow(new Date(contest.deadline))} left` : label}
-                          </span>
+                          {isActive && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {formatDistanceToNow(new Date(contest.deadline))} left
+                            </span>
+                          )}
                         </div>
                       </Link>
+
                       <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
                         <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
-                        {derived === "active" && (
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={(e) => { e.preventDefault(); navigate(`/contest/${contest.id}/edit`); }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5 mr-1" />
+                            {special === "rejected" ? "Edit & Resubmit" : "Edit"}
+                          </Button>
+                        )}
+                        {canCancel && (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
-                            onClick={() => setCancelTarget(contest)}
+                            onClick={(e) => { e.preventDefault(); setCancelTarget(contest); }}
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1" /> Cancel Contest
                           </Button>
@@ -198,6 +256,7 @@ export default function MyContestsPage() {
       </main>
       <Footer />
 
+      {/* Cancel dialog */}
       <Dialog open={!!cancelTarget} onOpenChange={(open) => { if (!open) { setCancelTarget(null); setCancelReason(""); setCancelNote(""); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -211,9 +270,13 @@ export default function MyContestsPage() {
                   <span className="font-medium text-foreground">{formatNaira(cancelTarget ? totalPrize(cancelTarget) : 0)}</span>{" "}
                   will be refunded to your wallet.
                 </p>
-                {hasEntries && (
+                {hasEntries ? (
                   <p className="mt-2 text-amber-600 dark:text-amber-400 text-sm">
-                    {cancelTarget._entryCount} entrant{cancelTarget._entryCount !== 1 ? "s" : ""} will be notified of the cancellation.
+                    This contest has {cancelTarget._entryCount} entr{cancelTarget._entryCount !== 1 ? "ies" : "y"}. Your cancellation request will be reviewed by an admin before taking effect.
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    This contest has no entries, so it will be cancelled immediately.
                   </p>
                 )}
               </div>
@@ -257,11 +320,12 @@ export default function MyContestsPage() {
             </Button>
             <Button variant="destructive" onClick={handleCancel} disabled={cancelling || !canSubmitCancel}>
               {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-              Cancel Contest
+              {requiresReason ? "Submit Request" : "Cancel Contest"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

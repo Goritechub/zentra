@@ -128,6 +128,15 @@ export async function createContestComment(
   return response.data.data as { comment: any };
 }
 
+export async function uploadEntryAttachments(files: File[]): Promise<string[]> {
+  const formData = new FormData();
+  for (const file of files) formData.append("files", file);
+  const response = await api.post("/contests/entry-attachments", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return (response.data?.data?.urls as string[]) || [];
+}
+
 export async function submitContestEntry(contestId: string, payload: { description: string; attachments: string[] }) {
   const response = await api.post(`/contests/${contestId}/entries`, payload);
   return response.data.data;

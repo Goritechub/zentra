@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import {
   createContestComment,
   createCommentMention,
@@ -38,6 +37,7 @@ import {
   toggleContestCommentLike,
   unfollowContest,
   updateContestEntry,
+  uploadEntryAttachments,
   updateContestStatus,
   updateContestWinnerJustifications,
 } from "@/api/marketplace.api";
@@ -532,6 +532,10 @@ export default function ContestDetailPage() {
   const isOpen = contest?.visibility === "open";
   const isOwner = contest?.client_id === user?.id;
 
+  // Non-live statuses that aren't captured by deriveContestStatus
+  const NON_LIVE_STATUSES = ["pending_review", "rejected", "cancelled", "cancellation_requested"];
+  const isNonLive = NON_LIVE_STATUSES.includes(contest?.status);
+
   const totalPrize = contest
     ? (contest.prize_first || 0) +
       (contest.prize_second || 0) +
@@ -542,7 +546,8 @@ export default function ContestDetailPage() {
 
   const allEntries = [...entries, ...nominees, ...winners];
   const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
-  const acceptingEntries = isActive && !deadlinePassed;
+  // Must be DB-active (not pending_review etc.) AND derived-active AND before deadline
+  const acceptingEntries = isActive && !deadlinePassed && !isNonLive;
 
   // "Proceed to select winners" banner: owner only, selecting state, no winners yet
   const canSelectWinners = isOwner && isSelectingWinners && winners.length === 0;
@@ -556,7 +561,7 @@ export default function ContestDetailPage() {
     winners.length === 0;
 
   // Comments locked once contest is completed
-  const commentsLocked = isCompleted;
+  const commentsLocked = isCompleted || isNonLive;
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -690,7 +695,7 @@ export default function ContestDetailPage() {
 
   const canEditEntry = (entry: any) => {
     if (entry.freelancer_id !== user?.id) return false;
-    if (isCompleted || deadlinePassed) return false;
+    if (isNonLive || isCompleted || deadlinePassed) return false;
     if ((entry.edit_count || 0) >= 2) return false;
     const createdAt = new Date(entry.last_edited_at || entry.created_at);
     if (differenceInHours(new Date(), createdAt) > 8) return false;
@@ -699,7 +704,7 @@ export default function ContestDetailPage() {
 
   const canDeleteEntry = (entry: any) => {
     if (entry.freelancer_id !== user?.id) return false;
-    if (deadlinePassed || isCompleted) return false;
+    if (isNonLive || deadlinePassed || isCompleted) return false;
     return true;
   };
 
@@ -713,26 +718,19 @@ export default function ContestDetailPage() {
       return;
     }
     setSubmitting(true);
-    const urls: string[] = [];
-    for (const file of submissionFiles) {
-      const path = `entries/${user!.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from("contest-banners").upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
-    }
     try {
+      const urls = submissionFiles.length > 0 ? await uploadEntryAttachments(submissionFiles) : [];
       await submitContestEntry(id!, { description: submissionDesc.trim(), attachments: urls });
       toast.success("Entry submitted!");
       setShowSubmitDialog(false);
       setSubmissionDesc("");
       setSubmissionFiles([]);
       fetchContest();
-    } catch {
-      toast.error("Failed to submit entry");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit entry");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleEditEntry = async () => {
@@ -743,16 +741,7 @@ export default function ContestDetailPage() {
     setEditSubmitting(true);
     let newAttachments = editingEntry.attachments || [];
     if (editFiles.length > 0) {
-      const urls: string[] = [];
-      for (const file of editFiles) {
-        const path = `entries/${user!.id}/${Date.now()}_${file.name}`;
-        const { error } = await supabase.storage.from("contest-banners").upload(path, file);
-        if (!error) {
-          const { data } = supabase.storage.from("contest-banners").getPublicUrl(path);
-          urls.push(data.publicUrl);
-        }
-      }
-      newAttachments = urls;
+      newAttachments = await uploadEntryAttachments(editFiles);
     }
     try {
       await updateContestEntry(editingEntry.id, {
@@ -1106,6 +1095,20 @@ export default function ContestDetailPage() {
               {getStatusLabel(contestStatus)}
             </Badge>
           </div>
+
+          {/* Non-live contest notice — pending_review, cancelled, rejected */}
+          {isNonLive && (
+            <div className="bg-muted/50 border border-border rounded-lg p-4 mb-6 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                {contest.status === "pending_review"
+                  ? "This contest is currently under admin review and is not yet open for entries."
+                  : contest.status === "rejected"
+                    ? "This contest was not approved and is not accepting entries."
+                    : "This contest has been cancelled and is not accepting entries."}
+              </p>
+            </div>
+          )}
 
           {/* Owner "select winners" banner — hidden once winners are published */}
           {canSelectWinners && (
@@ -1922,7 +1925,7 @@ export default function ContestDetailPage() {
               <input
                 type="file"
                 multiple
-                accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dwg,.dxf,.zip,.rvt,.skp,.3ds,.obj,.fbx,.stl,.ifc,.step,.stp,.igs,.iges"
                 onChange={(e) => setSubmissionFiles(Array.from(e.target.files || []).slice(0, 5))}
                 className="text-sm"
               />
@@ -1963,7 +1966,7 @@ export default function ContestDetailPage() {
               <input
                 type="file"
                 multiple
-                accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dwg,.dxf,.zip,.rvt,.skp,.3ds,.obj,.fbx,.stl,.ifc,.step,.stp,.igs,.iges"
                 onChange={(e) => setEditFiles(Array.from(e.target.files || []).slice(0, 5))}
                 className="text-sm"
               />

@@ -46,6 +46,7 @@ const ReceivedOffers = lazy(() => import("./pages/ReceivedOffers"));
 const BrowseContests = lazy(() => import("./pages/BrowseContests"));
 const ContestDetailPage = lazy(() => import("./pages/ContestDetail"));
 const MyContests = lazy(() => import("./pages/MyContests"));
+const EditContest = lazy(() => import("./pages/EditContest"));
 const MyServices = lazy(() => import("./pages/MyServices"));
 const BrowseServices = lazy(() => import("./pages/BrowseServices"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -172,6 +173,7 @@ const AppShell = () => {
               <Route path="/contests" element={<AuthGuard><BrowseContests /></AuthGuard>} />
               <Route path="/contest/:id" element={<AuthGuard><ContestDetailPage /></AuthGuard>} />
               <Route path="/dashboard/my-contests" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><MyContests /></RoleGuard></AuthGuard>} />
+              <Route path="/contest/:id/edit" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><EditContest /></RoleGuard></AuthGuard>} />
 
               {/* Services */}
               <Route path="/dashboard/my-services" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><MyServices /></RoleGuard></AuthGuard>} />
