@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getJobDetailsOverview } from "@/api/job-details.api";
-import { trackJobView } from "@/api/jobs.api";
+import { trackJobView, saveJob, unsaveJob } from "@/api/jobs.api";
 import {
   acceptAndAssignClientProposal,
   rejectClientProposal,
@@ -30,7 +30,8 @@ import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye,
-  CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle
+  CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle,
+  Shield, CreditCard, Bookmark, BookmarkCheck, TrendingUp
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { toast } from "sonner";
@@ -70,6 +71,9 @@ export default function JobDetailsPage() {
   const [myProposal, setMyProposal] = useState<{ id: string; status: string; notified_of_change: boolean } | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
   const [changesBannerDismissed, setChangesBannerDismissed] = useState(false);
+  const [clientStats, setClientStats] = useState<{ totalJobs: number; hiredJobs: number; hireRate: number } | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savingJob, setSavingJob] = useState(false);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
 
@@ -103,6 +107,8 @@ export default function JobDetailsPage() {
     setProposals(overview.proposals || []);
     setInterviewContracts(overview.interviewContracts || []);
     setSimilarJobs(overview.similarJobs || []);
+    setClientStats(overview.clientStats || null);
+    setIsSaved(!!overview.isSaved);
 
     setLoading(false);
   };
@@ -259,6 +265,26 @@ export default function JobDetailsPage() {
   };
   const paymentReady = wallet && wallet.balance > 0;
 
+  const handleToggleSave = async () => {
+    if (!user) { navigate("/login"); return; }
+    setSavingJob(true);
+    try {
+      if (isSaved) {
+        await unsaveJob(id!);
+        setIsSaved(false);
+        toast.success("Job removed from saved list.");
+      } else {
+        await saveJob(id!);
+        setIsSaved(true);
+        toast.success("Job saved!");
+      }
+    } catch {
+      toast.error("Could not update saved status.");
+    } finally {
+      setSavingJob(false);
+    }
+  };
+
   const deliveryLabel = () => {
     const d = job.delivery_days || 0;
     const u = job.delivery_unit || "days";
@@ -287,6 +313,16 @@ export default function JobDetailsPage() {
               <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status}</Badge>
               {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
               <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
+              {job.is_nda && (
+                <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+                  <Shield className="h-3 w-3" /> NDA Required
+                </Badge>
+              )}
+              {job.payment_ready && (
+                <Badge variant="outline" className="gap-1 border-green-500/50 text-green-600 bg-green-50 dark:bg-green-950/30">
+                  <CreditCard className="h-3 w-3" /> Payment Ready
+                </Badge>
+              )}
               {isAssigned && (
                 <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/30">
                   Assigned — No longer accepting proposals
@@ -612,7 +648,25 @@ export default function JobDetailsPage() {
               {/* Freelancer Sidebar */}
               <div className="space-y-6">
                 <div className="bg-card rounded-xl border border-border p-6">
-                  <h3 className="font-semibold mb-4">Budget</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Budget</h3>
+                    {profile?.role === "freelancer" && (
+                      <button
+                        onClick={handleToggleSave}
+                        disabled={savingJob}
+                        className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                        title={isSaved ? "Remove from saved" : "Save job"}
+                      >
+                        {savingJob ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : isSaved ? (
+                          <BookmarkCheck className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Bookmark className="h-5 w-5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-2xl font-bold text-primary">
                     {job.budget_min && job.budget_max
                       ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
@@ -662,6 +716,14 @@ export default function JobDetailsPage() {
                     </div>
                     {client.is_verified && (
                       <Badge variant="default" className="gap-1 text-xs mb-2">✓ Verified Client</Badge>
+                    )}
+                    {clientStats && clientStats.totalJobs > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-sm">
+                        <TrendingUp className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-muted-foreground">Hire rate:</span>
+                        <span className="font-semibold text-foreground">{clientStats.hireRate}%</span>
+                        <span className="text-xs text-muted-foreground">({clientStats.hiredJobs}/{clientStats.totalJobs} jobs)</span>
+                      </div>
                     )}
                   </div>
                 )}

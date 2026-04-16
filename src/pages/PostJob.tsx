@@ -14,6 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from
 "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { createJobPost, updateJobPost, searchInviteExperts } from "@/api/jobs.api";
 import { getJobDetailsOverview } from "@/api/job-details.api";
@@ -62,6 +63,9 @@ export default function PostJobPage() {
   const [expertResults, setExpertResults] = useState<any[]>([]);
   const [searchingExperts, setSearchingExperts] = useState(false);
 
+  const [isNda, setIsNda] = useState(false);
+  const [paymentReady, setPaymentReady] = useState(false);
+
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
 
@@ -108,6 +112,8 @@ export default function PostJobPage() {
         setSelectedSoftware(j.required_software || []);
         setOverallSkillLevel(j.skill_level || "Intermediate");
         setVisibility(j.visibility || "public");
+        setIsNda(j.is_nda || false);
+        setPaymentReady(j.payment_ready || false);
         setExistingAttachmentUrls(j.attachments || []);
         if (j.invited_expert_ids?.length) {
           supabase
@@ -238,6 +244,8 @@ export default function PostJobPage() {
       attachments: allAttachments.length > 0 ? allAttachments : null,
       visibility,
       invited_expert_ids: invitedExperts.map((invited) => invited.id),
+      is_nda: isNda,
+      payment_ready: paymentReady,
     };
 
     try {
@@ -562,6 +570,41 @@ export default function PostJobPage() {
                 )}
                 </div>
               }
+            </div>
+
+            {/* Job Options */}
+            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <h2 className="text-lg font-semibold">Job Options</h2>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="is-nda"
+                    checked={isNda}
+                    onCheckedChange={(checked) => setIsNda(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <Label htmlFor="is-nda" className="cursor-pointer font-medium">NDA Required</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Expert must sign a Non-Disclosure Agreement before starting work.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="payment-ready"
+                    checked={paymentReady}
+                    onCheckedChange={(checked) => setPaymentReady(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <Label htmlFor="payment-ready" className="cursor-pointer font-medium">Payment Ready</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Mark this job as funded and ready to pay — makes it more attractive to top experts.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={loading || uploading}>

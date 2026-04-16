@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
   useCallback,
@@ -76,7 +77,7 @@ interface AuthContextType {
     username: string,
   ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signOut: () => void;
   refreshProfile: () => Promise<boolean>;
 }
 
@@ -147,6 +148,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lastBootstrapUserId, setLastBootstrapUserId] = useState<string | null>(
     null,
   );
+
+  // Stable refs so the auth subscription effect never re-mounts just because
+  // bootstrapStatus or lastBootstrapUserId changed. Without refs, every status
+  // transition (e.g. "loading" → "ready") tears down and recreates the
+  // onAuthStateChange listener, resets the in-flight guard, and fires a
+  // getSession() that races the one already in flight — causing 2-3 redundant
+  // bootstraps on admin login and the signout race that briefly restores user.
+  const bootstrapStatusRef = useRef<BootstrapStatus>("loading");
+  bootstrapStatusRef.current = bootstrapStatus;
+  const lastBootstrapUserIdRef = useRef<string | null>(null);
+  lastBootstrapUserIdRef.current = lastBootstrapUserId;
 
   const syncSessionOnly = useCallback((nextSession: Session | null) => {
     setSession(nextSession);
@@ -313,8 +325,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = readBootstrapCache(authUser.id);
       const sameUserAlreadyReady =
         !forceRefresh &&
-        bootstrapStatus === "ready" &&
-        lastBootstrapUserId === authUser.id;
+        bootstrapStatusRef.current === "ready" &&
+        lastBootstrapUserIdRef.current === authUser.id;
 
       if (sameUserAlreadyReady) {
         authDebug("bootstrap skipped", {
@@ -466,8 +478,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           nextSession?.user
         ) {
           const sameUser =
-            nextSession.user.id === lastBootstrapUserId &&
-            bootstrapStatus === "ready";
+            nextSession.user.id === lastBootstrapUserIdRef.current &&
+            bootstrapStatusRef.current === "ready";
           if (sameUser) {
             authDebug("auth event short-circuited", {
               event,
@@ -511,10 +523,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [
     applyBootstrapState,
     applyCachedBootstrap,
-    bootstrapStatus,
     clearAuthState,
     fetchBootstrapState,
-    lastBootstrapUserId,
     syncSessionOnly,
   ]);
 
@@ -552,13 +562,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = async () => {
-    clearAuthState();
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error("Sign out error:", e);
-    }
+  const signOut = () => {
+    // Clear the cache immediately so the next getSession() finds nothing.
+    writeBootstrapCache(null);
+    // Fire signOut in the background — Supabase clears the local session
+    // first (synchronously) before hitting the server, so even if the network
+    // call fails the JWT is gone from storage.
+    supabase.auth.signOut().catch(console.error);
+    // Hard redirect immediately instead of waiting for the Supabase round-trip.
+    // This prevents the dep-array race where a remounted effect calls
+    // getSession() before signOut completes and briefly restores the user.
     window.location.href = "/auth";
   };
 
