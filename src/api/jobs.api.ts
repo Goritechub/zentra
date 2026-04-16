@@ -49,18 +49,3 @@ export async function updateJobPost(jobId: string, payload: Record<string, any>)
   const response = await api.patch(`/jobs/${jobId}`, payload);
   return response.data.data;
 }
-
-export async function getSavedJobIds(): Promise<string[]> {
-  const response = await api.get("/jobs/saved-ids");
-  return response.data.data.jobIds || [];
-}
-
-export async function saveJob(jobId: string) {
-  const response = await api.put(`/jobs/${jobId}/save`);
-  return response.data;
-}
-
-export async function unsaveJob(jobId: string) {
-  const response = await api.delete(`/jobs/${jobId}/save`);
-  return response.data;
-}

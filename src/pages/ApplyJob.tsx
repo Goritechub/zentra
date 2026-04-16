@@ -20,13 +20,12 @@ import { toast } from "sonner";
 import { formatNaira } from "@/lib/nigerian-data";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
-import { calculateServiceCharge, getServiceChargeLabel } from "@/lib/service-charge";
+import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow } from "date-fns";
 import { vetContent } from "@/lib/content-vetting";
 import {
   ArrowLeft, Send, Loader2, FileText, Download, Info, DollarSign,
-  Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye, Plus, Trash2,
-  CheckCircle2, ArrowRight
+  Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye, Plus, Trash2
 } from "lucide-react";
 
 // Format number with commas: 1000 -> 1,000
@@ -159,7 +158,6 @@ export default function ApplyJobPage() {
   const [editPaymentType, setEditPaymentType] = useState<"project" | "milestone">("project");
   const [editMilestones, setEditMilestones] = useState<{ title: string; duration: string; durationUnit: DurationUnit; amount: string; amountFormatted: string }[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
-  const [submittedConfirmation, setSubmittedConfirmation] = useState(false);
 
   useEffect(() => {
     if (id && user) fetchData();
@@ -314,11 +312,11 @@ export default function ApplyJobPage() {
         milestones: milestonesData,
       });
 
+      toast.success("Proposal submitted!");
       if (proposal) {
         setExistingProposal(proposal);
         populateEditFields(proposal);
       }
-      setSubmittedConfirmation(true);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Your proposal was blocked due to policy violations.");
       setSubmitting(false);
@@ -673,40 +671,6 @@ export default function ApplyJobPage() {
     );
   };
 
-  if (submittedConfirmation) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 bg-muted/30 py-8 flex items-center justify-center">
-          <div className="max-w-md w-full mx-auto px-4">
-            <div className="bg-card rounded-xl border border-border p-10 text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <CheckCircle2 className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-foreground">Proposal Submitted!</h2>
-                <p className="text-muted-foreground">
-                  Your proposal has been sent to the client. They typically reach out within 1–3 business days.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 pt-2">
-                <Button onClick={() => navigate("/jobs")} className="w-full">
-                  Keep Browsing Gigs <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => setSubmittedConfirmation(false)}>
-                  View My Proposal
-                </Button>
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -756,12 +720,6 @@ export default function ApplyJobPage() {
                               onChange={(raw, formatted) => { setBidAmount(raw); setBidAmountFormatted(formatted); }}
                               placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250,000"}
                             />
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Info className="h-3 w-3 shrink-0" />
-                              {parseCommaNumber(bidAmountFormatted) > 0
-                                ? `Service fee: ${getServiceChargeLabel(parseCommaNumber(bidAmountFormatted))} on this bid.`
-                                : "Service fee: 7–20% depending on bid amount."}
-                            </p>
                           </div>
                           <div className="space-y-2">
                             <Label>Completion Time</Label>
@@ -884,9 +842,6 @@ export default function ApplyJobPage() {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground border border-border rounded-lg p-3 bg-muted/30">
-                      <strong>NB:</strong> You may attach up to 5 files. Submissions are reviewed by the client and you will be notified of any updates to your proposal status.
-                    </p>
                     <div className="flex gap-3">
                       <Button type="submit" disabled={submitting}>
                         {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}

@@ -10,9 +10,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Heart, Clock, Twitter, Facebook, Linkedin,
-  Link as LinkIcon, ArrowLeft, Loader2, Trash2,
+  Link as LinkIcon, ArrowLeft, Loader2,
 } from "lucide-react";
-import { getBlogPostById, likeBlogPost, unlikeBlogPost, rejectBlogPost, type BlogPost } from "@/api/blog.api";
+import { getBlogPostById, likeBlogPost, unlikeBlogPost, type BlogPost } from "@/api/blog.api";
 
 const getInitials = (name: string | null) => {
   if (!name) return "U";
@@ -22,11 +22,10 @@ const getInitials = (name: string | null) => {
 export default function BlogPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return; }
@@ -100,23 +99,6 @@ export default function BlogPostPage() {
       toast.success("Link copied!");
     } else {
       window.open(links[platform], "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const isAuthor = !!user && !!post && user.id === post.author.id;
-  const isAdmin = profile?.role === "admin";
-  const canDelete = isAuthor || isAdmin;
-
-  const handleDelete = async () => {
-    if (!post || !window.confirm("Delete this post? This cannot be undone.")) return;
-    setDeleting(true);
-    try {
-      await rejectBlogPost(post.id);
-      toast.success("Post deleted.");
-      navigate("/blog");
-    } catch {
-      toast.error("Failed to delete post.");
-      setDeleting(false);
     }
   };
 
@@ -206,32 +188,15 @@ export default function BlogPostPage() {
 
           {/* Reactions */}
           <div className="flex items-center justify-between pt-6 border-t border-border">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleLike}
-                className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-                  post.liked_by_user ? "text-destructive" : "text-muted-foreground hover:text-destructive"
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${post.liked_by_user ? "fill-current" : ""}`} />
-                {post.likes_count} {post.likes_count === 1 ? "like" : "likes"}
-              </button>
-
-              {canDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
-                >
-                  {deleting
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Trash2 className="h-4 w-4" />}
-                  Delete post
-                </Button>
-              )}
-            </div>
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+                post.liked_by_user ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+              }`}
+            >
+              <Heart className={`h-5 w-5 ${post.liked_by_user ? "fill-current" : ""}`} />
+              {post.likes_count} {post.likes_count === 1 ? "like" : "likes"}
+            </button>
 
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted-foreground mr-2">Share</span>

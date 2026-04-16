@@ -25,7 +25,7 @@ import {
 import { formatNaira } from "@/lib/nigerian-data";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, ShoppingBag, Edit, Trash2, X, Clock, Upload, Pause, Play
+  Loader2, ArrowLeft, ShoppingBag, PlusCircle, Edit, Pause, Play, Trash2, X, Clock, Upload, ImageIcon
 } from "lucide-react";
 
 import { categoryNames } from "@/lib/categories";
@@ -204,19 +204,16 @@ export default function MyServicesPage() {
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
           <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <ShoppingBag className="h-8 w-8 text-primary" /> My Services
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage your service offerings</p>
-            </div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <ShoppingBag className="h-8 w-8 text-primary" /> My Services
+            </h1>
             <Button onClick={() => { resetForm(); setShowForm(true); }}>
-              + Create Service
+              <PlusCircle className="h-4 w-4 mr-2" /> Post Service
             </Button>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="bg-card rounded-xl border border-border p-5 space-y-3">
                   <div className="h-32 rounded-lg bg-muted animate-pulse" />
@@ -232,11 +229,11 @@ export default function MyServicesPage() {
               <p>You haven't posted any services yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {services.map((svc: any) => (
-                <div key={svc.id} className={`bg-card rounded-xl border border-border overflow-hidden transition-opacity ${!svc.is_active ? "opacity-50" : ""}`}>
+                <div key={svc.id} className={`bg-card rounded-xl border border-border overflow-hidden ${!svc.is_active ? "opacity-60" : ""}`}>
                   {/* Thumbnail */}
-                  <div className="h-36 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                  <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                     {svc.images?.length > 0 ? (
                       <img src={svc.images[0]} alt={svc.title} className="w-full h-full object-cover" />
                     ) : svc.banner_image ? (
@@ -246,9 +243,14 @@ export default function MyServicesPage() {
                     )}
                   </div>
                   <div className="p-5">
-                    <div className="mb-3">
-                      {svc.category && <Badge variant="secondary" className="mb-1 text-xs">{svc.category}</Badge>}
-                      <h3 className="font-semibold text-foreground">{svc.title}</h3>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        {svc.category && <Badge variant="secondary" className="mb-1 text-xs">{svc.category}</Badge>}
+                        <h3 className="font-semibold text-foreground">{svc.title}</h3>
+                      </div>
+                      <Badge variant={svc.is_active ? "default" : "outline"}>
+                        {svc.is_active ? "Active" : "Paused"}
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{svc.description}</p>
                     <div className="flex items-center justify-between text-sm mb-4">
@@ -267,12 +269,7 @@ export default function MyServicesPage() {
                       <Button size="sm" variant="outline" onClick={() => openEditForm(svc)} className="flex-1">
                         <Edit className="h-3 w-3 mr-1" /> Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleActive(svc)}
-                        title={svc.is_active ? "Pause service" : "Activate service"}
-                      >
+                      <Button size="sm" variant="outline" onClick={() => toggleActive(svc)}>
                         {svc.is_active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                       </Button>
                       <Button size="sm" variant="outline" className="text-destructive" onClick={() => deleteService(svc.id)}>

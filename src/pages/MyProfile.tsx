@@ -451,8 +451,9 @@ export default function MyProfilePage() {
         return;
       }
 
+      await signOut();
       toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
-      signOut();
+      navigate("/");
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to delete account", variant: "destructive" });
       setDeleting(false);

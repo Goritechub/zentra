@@ -139,7 +139,7 @@ export function Header() {
     return () => window.clearTimeout(timer);
   }, [bootstrapStatus, user]);
 
-  const handleSignOut = () => { setMobileMenuOpen(false); signOut(); };
+  const handleSignOut = async () => { setMobileMenuOpen(false); await signOut(); };
 
   const handleRetryAccountSync = async () => {
     const recovered = await refreshProfile();
