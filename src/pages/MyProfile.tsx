@@ -30,6 +30,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle, Camera } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
 
 interface FreelancerProfile {
@@ -468,8 +469,47 @@ export default function MyProfilePage() {
 
   if (bootstrapStatus === "loading" || showInitialFreelancerLoad) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide max-w-3xl">
+            <Skeleton className="h-9 w-20 mb-4" />
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-72 mb-8" />
+            <div className="space-y-6">
+              {/* Avatar section */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <Skeleton className="h-5 w-36 mb-4" />
+                <div className="flex items-center gap-6">
+                  <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+                  <Skeleton className="h-9 w-32" />
+                </div>
+              </div>
+              {/* Info section */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <Skeleton className="h-5 w-32 mb-5" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i}>
+                      <Skeleton className="h-3 w-20 mb-1.5" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Skills section */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <Skeleton className="h-5 w-24 mb-5" />
+                <div className="flex flex-wrap gap-2">
+                  {[80, 64, 88, 56, 72, 96].map((w, i) => (
+                    <Skeleton key={i} className="h-7 rounded-full" style={{ width: w }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }

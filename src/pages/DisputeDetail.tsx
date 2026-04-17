@@ -22,6 +22,7 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
   Loader2,
@@ -135,9 +136,43 @@ export default function DisputeDetail() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide max-w-3xl">
+            <Skeleton className="h-9 w-44 mb-4" />
+            {/* Dispute header */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Skeleton className="h-6 w-48 mb-2" />
+                  <Skeleton className="h-3 w-40 mb-1.5" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+            </div>
+            {/* Timeline / evidence */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <Skeleton className="h-5 w-32 mb-5" />
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-32 mb-2" />
+                      <Skeleton className="h-3 w-full mb-1" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Response box */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <Skeleton className="h-24 w-full mb-3" />
+              <Skeleton className="h-10 w-28" />
+            </div>
+          </div>
+        </main>
         <Footer />
       </div>
     );

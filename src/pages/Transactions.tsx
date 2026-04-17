@@ -21,8 +21,9 @@ import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import {
-  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Loader2, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
+  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
+import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 
@@ -301,23 +302,7 @@ export default function TransactionsPage() {
             </div>
 
             {transactionsQuery.isPending && !transactionsQuery.data ? (
-              <div className="p-6 space-y-4">
-                {[1, 2, 3, 4].map((item) => (
-                  <div key={item} className="flex items-center justify-between rounded-lg border border-border p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
-                      <div className="space-y-2">
-                        <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-                        <div className="h-3 w-24 rounded bg-muted/70 animate-pulse" />
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-right">
-                      <div className="h-4 w-24 rounded bg-muted animate-pulse" />
-                      <div className="h-3 w-16 rounded bg-muted/70 animate-pulse" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <TransactionRowSkeleton count={4} />
             ) : filteredTransactions.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />

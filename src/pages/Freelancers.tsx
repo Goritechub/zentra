@@ -25,8 +25,9 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   Search, MapPin, Star, CheckCircle2, SlidersHorizontal, X, MessageSquare, Heart,
-  Loader2, ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { FreelancerCardSkeleton } from "@/components/skeletons/FreelancerCardSkeleton";
 
 const PAGE_SIZE = 9;
 
@@ -304,18 +305,6 @@ export default function FreelancersPage() {
     toast.success("Expert removed from saved list");
   };
 
-  if (freelancersQuery.isPending && !freelancersQuery.data) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
   const sidebarProps: SidebarProps = {
     selectedCategory, setSelectedCategory: (v) => { setSelectedCategory(v); setPage(1); },
     selectedPrices, togglePrice: (l) => { togglePrice(l); setPage(1); },
@@ -432,7 +421,9 @@ export default function FreelancersPage() {
                     Showing <span className="font-semibold text-foreground">{filtered.length}</span> expert{filtered.length !== 1 ? "s" : ""}
                   </p>
 
-                  {paginated.length === 0 ? (
+                  {freelancersQuery.isPending && !freelancersQuery.data ? (
+                    <FreelancerCardSkeleton count={6} />
+                  ) : paginated.length === 0 ? (
                     <div className="text-center py-16">
                       <Search className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">No experts found</h3>

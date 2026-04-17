@@ -21,8 +21,9 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { cadSoftwareList } from "@/lib/nigerian-data";
 import { categoryNames } from "@/lib/categories";
 import {
-  Search, X, SlidersHorizontal, Star, Clock, Send, ChevronLeft, ChevronRight, Loader2,
+  Search, X, SlidersHorizontal, Star, Clock, Send, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { ServiceCardSkeleton } from "@/components/skeletons/ServiceCardSkeleton";
 
 const PAGE_SIZE = 9;
 
@@ -298,9 +299,7 @@ export default function BrowseServicesPage() {
               </p>
 
               {servicesQuery.isPending && !servicesQuery.data ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
+                <ServiceCardSkeleton count={6} />
               ) : paginated.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
                   <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />

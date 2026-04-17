@@ -12,10 +12,12 @@ import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
-  Eye, Loader2, ArrowRight, Trophy, Send, Heart, Wallet, BarChart3,
+  Eye, ArrowRight, Trophy, Send, Heart, Wallet, BarChart3,
   ShieldAlert, ImageIcon, Award, Inbox, CheckCircle2, ChevronRight,
   CircleDot, ArrowUpRight,
 } from "lucide-react";
+import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 import { useKycVerification } from "@/hooks/useKycVerification";
@@ -190,16 +192,20 @@ export default function DashboardPage() {
 
           {/* Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {statCards.map((card) => (
-              <StatCard
-                key={card.label}
-                label={card.label}
-                value={dashboardQuery.isPending && !dashboardQuery.data ? null : String(card.value)}
-                icon={card.icon}
-                to={card.to}
-                accent={card.accent}
-              />
-            ))}
+            {dashboardQuery.isPending && !dashboardQuery.data ? (
+              <StatCardSkeleton count={4} />
+            ) : (
+              statCards.map((card) => (
+                <StatCard
+                  key={card.label}
+                  label={card.label}
+                  value={String(card.value)}
+                  icon={card.icon}
+                  to={card.to}
+                  accent={card.accent}
+                />
+              ))
+            )}
           </div>
 
           {/* Platform notice */}
@@ -291,8 +297,8 @@ export default function DashboardPage() {
                       <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
                           <div key={i} className="rounded-lg border border-border p-4">
-                            <div className="h-4 w-40 animate-pulse rounded bg-muted/70 mb-2" />
-                            <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
+                            <Skeleton className="h-4 w-40 mb-2" />
+                            <Skeleton className="h-3 w-28" />
                           </div>
                         ))}
                       </div>

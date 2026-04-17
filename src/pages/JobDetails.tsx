@@ -34,6 +34,7 @@ import {
   Shield, CreditCard, Bookmark, BookmarkCheck, TrendingUp
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 function formatDurationDisplay(days: number, unit?: string): string {
@@ -221,9 +222,62 @@ export default function JobDetailsPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide">
+            <Skeleton className="h-9 w-20 mb-6" />
+            {/* Header card */}
+            <div className="bg-card rounded-xl border border-border p-8 mb-6">
+              <div className="flex gap-2 mb-4">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-28 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-2/3 mb-4" />
+              <div className="flex flex-wrap gap-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+            {/* Two-column layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex gap-3 mb-6">
+                    <Skeleton className="h-9 w-28 rounded-md" />
+                    <Skeleton className="h-9 w-28 rounded-md" />
+                  </div>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-3/4 mb-6" />
+                  <div className="flex flex-wrap gap-2">
+                    {[64, 80, 56, 72, 60].map((w, i) => (
+                      <Skeleton key={i} className="h-6 rounded-full" style={{ width: w }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-7 w-32 mb-4" />
+                  <Skeleton className="h-11 w-full mb-3" />
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-5 w-28 mb-4" />
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                    <div>
+                      <Skeleton className="h-4 w-32 mb-1.5" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
         <Footer />
       </div>
     );

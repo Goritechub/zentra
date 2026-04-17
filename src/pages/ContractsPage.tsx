@@ -11,8 +11,9 @@ import { getContracts } from "@/api/contracts.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { formatDistanceToNow } from "date-fns";
 import {
-  FileText, Loader2, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle
+  FileText, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle
 } from "lucide-react";
+import { ContractRowSkeleton } from "@/components/skeletons/ContractRowSkeleton";
 
 export default function ContractsPage() {
   const { user, role, bootstrapStatus, authError } = useAuth();
@@ -77,25 +78,7 @@ export default function ContractsPage() {
             {["all", "interviewing", "active", "completed", "rejected", "disputed", "cancelled"].map((status) => (
               <TabsContent key={status} value={status}>
                 {contractsQuery.isPending && !contractsQuery.data ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((item) => (
-                      <div key={item} className="rounded-xl border border-border bg-card p-6">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
-                            <div className="space-y-2">
-                              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-                              <div className="h-3 w-28 rounded bg-muted/70 animate-pulse" />
-                            </div>
-                          </div>
-                          <div className="space-y-2 text-right">
-                            <div className="h-5 w-24 rounded bg-muted animate-pulse" />
-                            <div className="h-5 w-20 rounded bg-muted/70 animate-pulse" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ContractRowSkeleton count={3} />
                 ) : filterByStatus(status).length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />

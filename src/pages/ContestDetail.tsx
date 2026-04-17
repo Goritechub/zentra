@@ -54,6 +54,7 @@ import {
   differenceInHours,
 } from "date-fns";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Loader2,
   ArrowLeft,
@@ -1174,9 +1175,45 @@ export default function ContestDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide">
+            <Skeleton className="h-9 w-40 mb-6" />
+            {/* Banner */}
+            <Skeleton className="h-48 w-full rounded-xl mb-6" />
+            {/* Title + meta */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <Skeleton className="h-7 w-1/2 mb-3" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-4/5 mb-4" />
+              <div className="flex flex-wrap gap-4">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-5 w-32" />
+              </div>
+            </div>
+            {/* Prize grid */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="bg-card rounded-xl border border-border p-4">
+                  <Skeleton className="h-4 w-12 mb-2" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+              ))}
+            </div>
+            {/* Entry grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-card rounded-xl border border-border overflow-hidden">
+                  <Skeleton className="h-40 w-full rounded-none" />
+                  <div className="p-4">
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
         <Footer />
       </div>
     );

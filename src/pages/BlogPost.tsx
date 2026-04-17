@@ -13,6 +13,7 @@ import {
   Link as LinkIcon, ArrowLeft, Loader2, Trash2,
 } from "lucide-react";
 import { getBlogPostById, likeBlogPost, unlikeBlogPost, rejectBlogPost, type BlogPost } from "@/api/blog.api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const getInitials = (name: string | null) => {
   if (!name) return "U";
@@ -122,10 +123,38 @@ export default function BlogPostPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background">
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <main className="flex-1">
+          {/* Cover placeholder */}
+          <Skeleton className="w-full h-64 md:h-80 rounded-none" />
+          <div className="container-wide max-w-3xl mx-auto px-4 py-8">
+            <Skeleton className="h-5 w-24 mb-6" />
+            {/* Tags */}
+            <div className="flex gap-2 mb-4">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            {/* Title */}
+            <Skeleton className="h-10 w-4/5 mb-2" />
+            <Skeleton className="h-10 w-3/5 mb-6" />
+            {/* Author row */}
+            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
+              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-20 ml-auto" />
+            </div>
+            {/* Body */}
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          </div>
         </main>
         <Footer />
       </div>

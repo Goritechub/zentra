@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Loader2, ArrowLeft, Trash2, X, Archive, RotateCcw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 interface ContractConversation {
@@ -173,14 +174,14 @@ const Messages = () => {
       <div className="overflow-y-auto flex-1 p-4 space-y-3">
         {[1, 2, 3, 4].map((item) => (
           <div key={item} className="flex items-start gap-4 rounded-lg border border-border p-4">
-            <div className="h-11 w-11 rounded-full bg-muted animate-pulse" />
+            <Skeleton className="h-11 w-11 rounded-full shrink-0" />
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-                <div className="h-3 w-16 rounded bg-muted/80 animate-pulse" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-16" />
               </div>
-              <div className="h-3 w-24 rounded bg-muted/70 animate-pulse" />
-              <div className="h-3 w-56 rounded bg-muted/60 animate-pulse" />
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-56" />
             </div>
           </div>
         ))}

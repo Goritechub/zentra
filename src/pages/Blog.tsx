@@ -17,6 +17,7 @@ import {
   Twitter, Facebook, Linkedin, Link as LinkIcon, Image as ImageIcon,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { BlogCardSkeleton } from "@/components/skeletons/BlogCardSkeleton";
 import {
   getBlogPosts,
   createBlogPost,
@@ -212,18 +213,7 @@ const Blog = () => {
         {/* Posts Grid */}
         <section className="container-wide max-w-5xl mx-auto px-4 py-8">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <div className="h-40 bg-muted rounded-t-lg" />
-                  <CardContent className="p-4 space-y-3">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <BlogCardSkeleton count={6} />
           ) : posts.length === 0 ? (
             <div className="text-center py-16">
               <PenLine className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />

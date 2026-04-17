@@ -8,7 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getBrowseContestsList } from "@/api/client-read.api";
 import { formatNaira } from "@/lib/nigerian-data";
 import { isPast, formatDistanceToNow } from "date-fns";
-import { Loader2, Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
+import { Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
+import { ContestCardSkeleton } from "@/components/skeletons/ContestCardSkeleton";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
 function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
@@ -79,15 +80,7 @@ export default function BrowseContestsPage() {
           </h1>
 
           {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-card rounded-xl border border-border p-6">
-                  <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
-                  <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse mb-3" />
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                </div>
-              ))}
-            </div>
+            <ContestCardSkeleton count={4} />
           ) : contests.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />

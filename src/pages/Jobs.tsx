@@ -16,9 +16,10 @@ import { formatNaira, cadSoftwareList, cadSkills, getAllStates } from "@/lib/nig
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  Search, MapPin, Clock, Briefcase, X, ArrowRight, Loader2,
+  Search, MapPin, Clock, Briefcase, X, ArrowRight,
   Bookmark, BookmarkCheck, Shield, CreditCard, ChevronDown, ChevronUp, Building2, Wrench,
 } from "lucide-react";
+import { JobCardSkeleton } from "@/components/skeletons/JobCardSkeleton";
 
 const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
@@ -449,9 +450,8 @@ export default function JobsPage() {
 
             <TabsContent value="all">
               {jobsQuery.isPending && !jobsQuery.data ? (
-                <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-                  <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin opacity-50" />
-                  <p>Loading jobs…</p>
+                <div className="space-y-3">
+                  <JobCardSkeleton count={5} />
                 </div>
               ) : allFiltered.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">

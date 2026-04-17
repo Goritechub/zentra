@@ -32,6 +32,7 @@ import {
   Wallet, History, XCircle, Star
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   interviewing: { variant: "outline", label: "Interviewing" },
@@ -261,7 +262,53 @@ export default function ContractDetail() {
 
 
   if (loading) {
-    return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div><Footer /></div>);
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/30 py-8">
+          <div className="container-wide max-w-5xl">
+            <Skeleton className="h-9 w-44 mb-4" />
+            {/* Contract header */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-12 rounded-full shrink-0" />
+                  <div>
+                    <Skeleton className="h-5 w-48 mb-1.5" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            </div>
+            {/* Milestone list */}
+            <div className="bg-card rounded-xl border border-border">
+              <div className="p-5 border-b border-border">
+                <Skeleton className="h-5 w-32" />
+              </div>
+              <div className="divide-y divide-border">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                      <div>
+                        <Skeleton className="h-4 w-40 mb-1.5" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-20" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
   if (!contract) {
     return (<div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><p>Contract not found</p></div><Footer /></div>);

@@ -12,8 +12,9 @@ import {
 import {
   Star, MapPin, ArrowLeft, ChevronLeft, ChevronRight, X,
   Send, Briefcase, Award, Building2, Settings, Share2, Download, Link as LinkIcon,
-  Image, Clock, Loader2, MessageSquare, Package,
+  Image, Clock, MessageSquare, Package,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getExpertProfileOverview } from "@/api/expert-read.api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatNaira } from "@/lib/nigerian-data";
@@ -246,8 +247,62 @@ export default function ExpertProfile() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <main className="flex-1">
+          <div className="container-wide py-8">
+            <Skeleton className="h-9 w-20 mb-6" />
+            {/* Hero card */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+                <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-7 w-48" />
+                  <Skeleton className="h-4 w-36" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Content + sidebar */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-5 w-28 mb-4" />
+                  <Skeleton className="aspect-video w-full rounded-lg mb-4" />
+                  <div className="flex flex-wrap gap-2">
+                    {[80, 64, 72, 56, 88, 60].map((w, i) => (
+                      <Skeleton key={i} className="h-6 rounded-full" style={{ width: w }} />
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-5 w-20 mb-4" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-11 w-full mb-3" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <Skeleton className="h-5 w-28 mb-4" />
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex justify-between">
+                        <Skeleton className="h-3 w-24" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
         <Footer />
       </div>
