@@ -8,7 +8,7 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const { user, loading, role, bootstrapStatus } = useAuth();
+  const { user, loading, role, isAdmin, bootstrapStatus } = useAuth();
 
   if (loading || bootstrapStatus === "loading") {
     return (
@@ -22,7 +22,10 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (!role || !allowedRoles.includes(role)) {
+  // Admins bypass role-specific guards — they access these pages via their
+  // own panel. Without this, role === "admin" (not in allowedRoles) would loop
+  // admin → /dashboard → AuthGuard → /admin.
+  if (!isAdmin && (!role || !allowedRoles.includes(role))) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -134,6 +134,7 @@ export default function AuthPage() {
     signUp,
     signIn,
     loading: authLoading,
+    bootstrapStatus,
     refreshProfile,
     onboardingComplete,
     role,
@@ -308,7 +309,7 @@ export default function AuthPage() {
 
   // Redirect if user is already authenticated (e.g. page refresh while logged in)
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || bootstrapStatus !== "ready") return;
 
     if (role === "admin") {
       navigate("/admin", { replace: true });
@@ -327,7 +328,7 @@ export default function AuthPage() {
     }
 
     navigate(role === "freelancer" ? "/jobs" : "/dashboard");
-  }, [user, authLoading, navigate, onboardingComplete, role, searchParams]);
+  }, [user, bootstrapStatus, navigate, onboardingComplete, role, searchParams]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setSignInErrors({});
@@ -362,98 +363,46 @@ export default function AuthPage() {
     }
   }, [activeTab, clearPendingGoogleState, defaultRole, signUpData.role]);
 
-  // Apply intended freelancer role after the profile exists.
+  // After email/password signup: if the Supabase trigger didn't set the
+  // freelancer role (pending_signup_role fallback), apply it via the backend.
   useEffect(() => {
     const applyPendingRole = async () => {
-      return;
+      if (!user || !profile) return;
 
-      const pendingOauthRole = localStorage.getItem("pending_oauth_role") as
-        | "client"
-        | "freelancer"
-        | null;
-      const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
       const pendingSignupRole = localStorage.getItem("pending_signup_role") as
         | "client"
         | "freelancer"
         | null;
-      const metadataRole = user.user_metadata?.role as
-        | "client"
-        | "freelancer"
-        | "admin"
-        | undefined;
+      if (!pendingSignupRole || pendingSignupRole !== "freelancer") return;
 
-      // Sanitize: only allow "client" or "freelancer" — never "admin"
-      const rawPending =
-        pendingOauthRole ??
-        pendingSignupRole ??
-        (metadataRole === "freelancer" ? "freelancer" : null);
-      const pendingRole =
-        rawPending === "client" || rawPending === "freelancer"
-          ? rawPending
-          : null;
-      if (!pendingRole || pendingRole === "client") return;
-
-      if (pendingOauthRole && pendingOauthTs) {
-        const elapsed = Date.now() - parseInt(pendingOauthTs);
-        if (elapsed > 60000) {
-          localStorage.removeItem("pending_oauth_role");
-          localStorage.removeItem("pending_oauth_ts");
-          return;
-        }
-      }
-
-      if (pendingOauthRole && !pendingOauthTs) {
-        localStorage.removeItem("pending_oauth_role");
-        localStorage.removeItem("pending_oauth_ts");
+      if (profile.role === pendingSignupRole) {
+        localStorage.removeItem("pending_signup_role");
         return;
       }
 
-      // Poll for profile to exist (trigger may not have run yet)
-      let profileData: any = null;
-      for (let i = 0; i < 10; i++) {
-        const data = null as any;
-        if (data) {
-          profileData = data;
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 300));
+      try {
+        await updateAuthRole(pendingSignupRole);
+        localStorage.removeItem("pending_signup_role");
+        await refreshProfile();
+      } catch {
+        // Best-effort — silently skip if it fails
       }
-
-      if (!profileData) {
-        localStorage.removeItem("pending_oauth_role");
-        localStorage.removeItem("pending_oauth_ts");
-        return;
-      }
-
-      if (profileData.role !== pendingRole) {
-        const error = new Error("disabled");
-        if (!error) {
-          await refreshProfile();
-        }
-      }
-      localStorage.removeItem("pending_oauth_role");
-      localStorage.removeItem("pending_oauth_ts");
-      localStorage.removeItem("pending_signup_role");
     };
 
     void applyPendingRole();
-  }, [user, refreshProfile]);
+  }, [user, profile, refreshProfile]);
 
+  // After Google OAuth redirect: apply the role the user selected before
+  // clicking "Continue with Google". Only fires when a fresh OAuth flow is
+  // detected (pending_oauth_role_choice + pending_oauth_ts in localStorage).
   useEffect(() => {
     const handlePendingGoogleOAuth = async () => {
-      return;
-
-      const pendingOauthIntent = localStorage.getItem("pending_oauth_intent");
-      const pendingOauthRole = localStorage.getItem(
+      const pendingOauthRoleChoice = localStorage.getItem(
         "pending_oauth_role_choice",
       ) as "client" | "freelancer" | null;
       const pendingOauthTs = localStorage.getItem("pending_oauth_ts");
-      if (!pendingOauthIntent) return;
 
-      if (!pendingOauthTs) {
-        clearPendingGoogleState();
-        return;
-      }
+      if (!pendingOauthRoleChoice || !pendingOauthTs) return;
 
       const elapsed = Date.now() - parseInt(pendingOauthTs);
       if (elapsed > 60000) {
@@ -461,37 +410,32 @@ export default function AuthPage() {
         return;
       }
 
+      // Wait until auth bootstrap is complete before making decisions
+      if (!user || bootstrapStatus !== "ready") return;
+
+      // Existing user who already completed onboarding — nothing to do
+      if (onboardingComplete) {
+        clearPendingGoogleState();
+        return;
+      }
+
+      // New Google user — auto-apply the role they selected pre-redirect
       setPendingGoogleSetup(true);
-
-      let profileData: any = null;
-      for (let i = 0; i < 10; i++) {
-        const data = null as any;
-        if (data) {
-          profileData = data;
-          break;
+      try {
+        if (pendingOauthRoleChoice === "freelancer") {
+          await updateAuthRole("freelancer");
         }
-        await new Promise((r) => setTimeout(r, 300));
-      }
-
-      if (!profileData) {
         clearPendingGoogleState();
-        return;
-      }
-
-      if (profileData.username) {
+        await refreshProfile();
+      } catch {
         clearPendingGoogleState();
-        return;
+      } finally {
+        setPendingGoogleSetup(false);
       }
-
-      setGoogleRoleSelection(
-        pendingOauthRole === "freelancer" ? "freelancer" : "client",
-      );
-      setGoogleRoleModalOpen(true);
-      setPendingGoogleSetup(false);
     };
 
     void handlePendingGoogleOAuth();
-  }, [clearPendingGoogleState, user]);
+  }, [clearPendingGoogleState, user, bootstrapStatus, onboardingComplete, refreshProfile]);
 
   const handleGoogleRoleConfirm = async () => {
     if (!user) return;

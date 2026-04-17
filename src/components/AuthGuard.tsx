@@ -23,7 +23,7 @@ export function AuthGuard({ children, allowIncomplete = false }: AuthGuardProps)
     return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  if (!user && bootstrapStatus === "error") {
+  if (bootstrapStatus === "error") {
     return <Navigate to={`/auth?error=${encodeURIComponent(authError || "auth_bootstrap_failed")}`} replace />;
   }
 
@@ -31,7 +31,14 @@ export function AuthGuard({ children, allowIncomplete = false }: AuthGuardProps)
     return <Navigate to="/onboarding" replace />;
   }
 
-  if (isAdmin && !location.pathname.startsWith("/admin")) {
+  // Redirect admins to the admin panel unless they're visiting a personal page
+  // or the admin panel itself.
+  const ADMIN_PERSONAL_PATHS = ["/my-profile", "/transactions", "/messages", "/notifications"];
+  if (
+    isAdmin &&
+    !location.pathname.startsWith("/admin") &&
+    !ADMIN_PERSONAL_PATHS.some((p) => location.pathname.startsWith(p))
+  ) {
     return <Navigate to="/admin" replace />;
   }
 

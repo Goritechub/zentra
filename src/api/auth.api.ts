@@ -84,6 +84,11 @@ export async function completeAuthOnboarding(input: {
   return response.data.data as { role: "client" | "freelancer"; username: string };
 }
 
+export async function signOutUser() {
+  const response = await api.post("/auth/sign-out");
+  return response.data as { success: boolean };
+}
+
 export async function verifyAuthCode(code: string) {
   const response = await api.post("/auth/auth-code/verify", { code });
   return response.data.data as { valid: boolean; error: string | null };

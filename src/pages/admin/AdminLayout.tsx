@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/api/axios";
@@ -53,14 +53,31 @@ export default function AdminLayout() {
   const [codeVerified, setCodeVerified] = useState(() =>
     sessionVerifiedKey ? sessionStorage.getItem(sessionVerifiedKey) === "true" : false
   );
+
+  // Re-read from sessionStorage whenever the key changes (e.g. account switch).
+  // The lazy useState initializer only runs once, so without this a user who
+  // signs in as a different admin would keep the previous account's verified state.
+  useEffect(() => {
+    if (!sessionVerifiedKey) return;
+    setCodeVerified(sessionStorage.getItem(sessionVerifiedKey) === "true");
+  }, [sessionVerifiedKey]);
+
   const [authCode, setAuthCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
 
+  // Guard against the fast-path + full-bootstrap double-fire: only fetch
+  // permissions once per mounted session, regardless of how many times
+  // bootstrapStatus transitions to "ready".
+  const permsFetchedForUser = useRef<string | null>(null);
+
   useEffect(() => {
     if (bootstrapStatus !== "ready") return;
     if (user && isAdmin) {
-      void fetchPermissions();
+      if (permsFetchedForUser.current !== user.id) {
+        permsFetchedForUser.current = user.id;
+        void fetchPermissions();
+      }
       return;
     }
     if (user && !isAdmin) {

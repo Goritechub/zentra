@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
   useCallback,
@@ -9,7 +10,7 @@ import {
 } from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuthBootstrap } from "@/api/auth.api";
+import { getAuthBootstrap, signOutUser } from "@/api/auth.api";
 
 type UserRole = "client" | "freelancer" | "admin";
 type BootstrapStatus = "loading" | "ready" | "unauthenticated" | "error";
@@ -76,7 +77,7 @@ interface AuthContextType {
     username: string,
   ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signOut: () => void;
   refreshProfile: () => Promise<boolean>;
 }
 
@@ -147,6 +148,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lastBootstrapUserId, setLastBootstrapUserId] = useState<string | null>(
     null,
   );
+
+  // Stable refs so the auth subscription effect never re-mounts just because
+  // bootstrapStatus or lastBootstrapUserId changed. Without refs, every status
+  // transition (e.g. "loading" → "ready") tears down and recreates the
+  // onAuthStateChange listener, resets the in-flight guard, and fires a
+  // getSession() that races the one already in flight — causing 2-3 redundant
+  // bootstraps on admin login and the signout race that briefly restores user.
+  const bootstrapStatusRef = useRef<BootstrapStatus>("loading");
+  bootstrapStatusRef.current = bootstrapStatus;
+  const lastBootstrapUserIdRef = useRef<string | null>(null);
+  lastBootstrapUserIdRef.current = lastBootstrapUserId;
 
   const syncSessionOnly = useCallback((nextSession: Session | null) => {
     setSession(nextSession);
@@ -313,8 +325,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = readBootstrapCache(authUser.id);
       const sameUserAlreadyReady =
         !forceRefresh &&
-        bootstrapStatus === "ready" &&
-        lastBootstrapUserId === authUser.id;
+        bootstrapStatusRef.current === "ready" &&
+        lastBootstrapUserIdRef.current === authUser.id;
 
       if (sameUserAlreadyReady) {
         authDebug("bootstrap skipped", {
@@ -461,13 +473,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Explicit SIGNED_OUT handling — clear state immediately instead of
+        // falling through to loadUserAndBootstrap(null) which does the same
+        // thing but less clearly.
+        if (event === "SIGNED_OUT") {
+          clearAuthState();
+          return;
+        }
+
         if (
           (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
           nextSession?.user
         ) {
           const sameUser =
-            nextSession.user.id === lastBootstrapUserId &&
-            bootstrapStatus === "ready";
+            nextSession.user.id === lastBootstrapUserIdRef.current &&
+            bootstrapStatusRef.current === "ready";
           if (sameUser) {
             authDebug("auth event short-circuited", {
               event,
@@ -511,12 +531,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [
     applyBootstrapState,
     applyCachedBootstrap,
-    bootstrapStatus,
     clearAuthState,
     fetchBootstrapState,
-    lastBootstrapUserId,
     syncSessionOnly,
   ]);
+
+  // Cross-tab signout: when another tab removes the Supabase auth token from
+  // localStorage (via our signOut()), clear auth state in this tab too.
+  // The `storage` event only fires in tabs OTHER than the one that made the change.
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key &&
+        e.key.startsWith("sb-") &&
+        e.key.endsWith("-auth-token") &&
+        e.newValue === null
+      ) {
+        clearAuthState();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [clearAuthState]);
 
   const signUp = async (
     email: string,
@@ -552,13 +588,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signOut = async () => {
-    clearAuthState();
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error("Sign out error:", e);
+  const signOut = () => {
+    // 1. Fire backend invalidation first — the axios interceptor reads the token
+    //    from localStorage, which is still present at this point.
+    //    Fire-and-forget: we don't wait for the response because we're about to
+    //    clear the token locally anyway. The backend call is a security bonus
+    //    (global server-side revocation), not a gate for the local sign-out.
+    signOutUser().catch(() => {});
+
+    // 2. Clear admin session keys from sessionStorage so the next login always
+    //    re-prompts for the auth code (sessionStorage survives same-tab navigation).
+    if (user) {
+      sessionStorage.removeItem(`zentragig.admin-verified.${user.id}`);
+      sessionStorage.removeItem(`zentragig.admin-perms.${user.id}`);
     }
+
+    // 3. Clear the bootstrap cache.
+    writeBootstrapCache(null);
+
+    // 4. Synchronously remove the Supabase auth token from localStorage so the
+    //    page reload finds no session and getSession() returns null immediately.
+    //    This is the critical step — without it the page reloads with the token
+    //    still present and the auth flow bootstraps the user again before the
+    //    async signOut round-trip completes.
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        window.localStorage.removeItem(key);
+      }
+    }
+
+    // 5. Hard redirect. The session is gone from localStorage so getSession()
+    //    on the fresh page load returns null → clearAuthState() → /auth stays put.
     window.location.href = "/auth";
   };
 

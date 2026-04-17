@@ -9,7 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +47,12 @@ import {
 } from "@/api/marketplace.api";
 import { createNotification } from "@/lib/notifications";
 import { formatNaira } from "@/lib/nigerian-data";
-import { isPast, format, formatDistanceToNow, differenceInHours } from "date-fns";
+import {
+  isPast,
+  format,
+  formatDistanceToNow,
+  differenceInHours,
+} from "date-fns";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -84,10 +93,22 @@ import {
  *  "completed"         — winners published (winners.length > 0)
  *                        OR db status is "ended" / "completed"
  */
-function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+function deriveContestStatus(
+  contest: any,
+  winnersCount: number,
+): "active" | "selecting_winners" | "completed" {
   if (!contest) return "active";
-  if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
-  if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
+  if (
+    winnersCount > 0 ||
+    contest.status === "ended" ||
+    contest.status === "completed"
+  )
+    return "completed";
+  if (
+    contest.status === "selecting_winners" ||
+    isPast(new Date(contest.deadline))
+  )
+    return "selecting_winners";
   return "active";
 }
 
@@ -97,7 +118,9 @@ function getStatusLabel(status: ReturnType<typeof deriveContestStatus>) {
   return "Active";
 }
 
-function getStatusVariant(status: ReturnType<typeof deriveContestStatus>): "default" | "secondary" | "outline" {
+function getStatusVariant(
+  status: ReturnType<typeof deriveContestStatus>,
+): "default" | "secondary" | "outline" {
   if (status === "completed") return "secondary";
   if (status === "selecting_winners") return "outline";
   return "default";
@@ -163,11 +186,17 @@ const CommentItem = ({
 
   return (
     <div className={`${depth > 0 ? "ml-6 pl-4 border-l-2 border-border" : ""}`}>
-      <div className={`p-3 rounded-lg ${clientLiked ? "bg-primary/5 border border-primary/20" : "bg-muted/30"}`}>
+      <div
+        className={`p-3 rounded-lg ${clientLiked ? "bg-primary/5 border border-primary/20" : "bg-muted/30"}`}
+      >
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-medium text-foreground">{(comment.user as any)?.full_name || "User"}</span>
+          <span className="text-sm font-medium text-foreground">
+            {(comment.user as any)?.full_name || "User"}
+          </span>
           {(comment.user as any)?.username && (
-            <span className="text-xs text-muted-foreground">@{(comment.user as any).username}</span>
+            <span className="text-xs text-muted-foreground">
+              @{(comment.user as any).username}
+            </span>
           )}
           {comment.user_id === contest.client_id && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
@@ -175,20 +204,29 @@ const CommentItem = ({
             </Badge>
           )}
           {clientLiked && (
-            <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary/20 text-primary border-0">
+            <Badge
+              variant="default"
+              className="text-[10px] px-1.5 py-0 bg-primary/20 text-primary border-0"
+            >
               <Heart className="h-2.5 w-2.5 mr-0.5" /> Liked by Client
             </Badge>
           )}
           <span className="text-xs text-muted-foreground ml-auto">
-            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+            {formatDistanceToNow(new Date(comment.created_at), {
+              addSuffix: true,
+            })}
           </span>
         </div>
-        <p className="text-sm text-foreground/80">{renderCommentText(comment.content)}</p>
+        <p className="text-sm text-foreground/80">
+          {renderCommentText(comment.content)}
+        </p>
         <div className="flex items-center gap-3 mt-2">
           <button
             onClick={() => onLike(comment.id)}
             className={`flex items-center gap-1 text-xs ${
-              liked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+              liked
+                ? "text-primary font-medium"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <ThumbsUp className="h-3 w-3" /> {likeCount > 0 && likeCount}
@@ -212,7 +250,9 @@ const CommentItem = ({
               value={replyText}
               onChange={(e) => onReplyTextChange(e.target.value)}
               className="flex-1 h-8 text-sm"
-              onKeyDown={(e) => e.key === "Enter" && !showMentions && onPostReply(comment.id)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !showMentions && onPostReply(comment.id)
+              }
             />
             <Button
               size="sm"
@@ -232,7 +272,11 @@ const CommentItem = ({
                   onClick={() => onInsertMention(p)}
                 >
                   <span className="font-medium">{p.full_name}</span>
-                  {p.username && <span className="text-muted-foreground ml-1">@{p.username}</span>}
+                  {p.username && (
+                    <span className="text-muted-foreground ml-1">
+                      @{p.username}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -282,14 +326,19 @@ const CommentItem = ({
 function FileViewer({ attachments }: { attachments: string[] }) {
   const [idx, setIdx] = useState(0);
   const url = attachments[Math.min(idx, attachments.length - 1)];
-  const filename = decodeURIComponent(url.split("/").pop()?.split("?")[0] || `file-${idx + 1}`);
+  const filename = decodeURIComponent(
+    url.split("/").pop()?.split("?")[0] || `file-${idx + 1}`,
+  );
 
   const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url);
   const isPdf = /\.pdf(\?|$)/i.test(url);
 
   return (
     <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
-      <div className="relative bg-black/5 flex items-center justify-center" style={{ minHeight: 240 }}>
+      <div
+        className="relative bg-black/5 flex items-center justify-center"
+        style={{ minHeight: 240 }}
+      >
         {isImage ? (
           <img
             src={url}
@@ -306,7 +355,9 @@ function FileViewer({ attachments }: { attachments: string[] }) {
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 py-10 px-4">
             <FileText className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground text-center break-all max-w-xs">{filename}</p>
+            <p className="text-xs text-muted-foreground text-center break-all max-w-xs">
+              {filename}
+            </p>
             <a href={url} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline">
                 <Eye className="h-4 w-4 mr-2" /> Open File
@@ -329,7 +380,9 @@ function FileViewer({ attachments }: { attachments: string[] }) {
         </Button>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {attachments.length > 1 ? `${idx + 1} / ${attachments.length}` : filename.slice(0, 30)}
+            {attachments.length > 1
+              ? `${idx + 1} / ${attachments.length}`
+              : filename.slice(0, 30)}
           </span>
           <a
             href={url}
@@ -375,10 +428,22 @@ function WinnerCard({
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const medals = ["🥇", "🥈", "🥉", "🏅", "🏅"];
-  const posLabels = ["1st Place", "2nd Place", "3rd Place", "4th Place", "5th Place"];
+  const posLabels = [
+    "1st Place",
+    "2nd Place",
+    "3rd Place",
+    "4th Place",
+    "5th Place",
+  ];
   const medal = medals[position - 1] || "🏅";
   const posLabel = posLabels[position - 1] || `${position}th Place`;
-  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+  const prizeKeys = [
+    "prize_first",
+    "prize_second",
+    "prize_third",
+    "prize_fourth",
+    "prize_fifth",
+  ];
   const prize = contest[prizeKeys[position - 1]] || 0;
   const name = (winner.freelancer as any)?.full_name || "Expert";
   const username = (winner.freelancer as any)?.username;
@@ -392,7 +457,8 @@ function WinnerCard({
 
   const justifications = contest.winner_justifications || {};
   const justification = justifications[String(position)] || "";
-  const clientLocation = (contest.client as any)?.state || (contest.client as any)?.city || "";
+  const clientLocation =
+    (contest.client as any)?.state || (contest.client as any)?.city || "";
 
   const JUSTIFICATION_TRUNCATE = 100;
   const isTruncated = justification.length > JUSTIFICATION_TRUNCATE;
@@ -403,20 +469,36 @@ function WinnerCard({
         isLarge ? "scale-105 z-10 border-primary/40 shadow-xl" : ""
       }`}
     >
-      <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-3xl">{medal}</div>
+      <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-3xl">
+        {medal}
+      </div>
       <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-        <Avatar className={`border-4 border-background shadow-md ${isLarge ? "h-16 w-16" : "h-14 w-14"}`}>
+        <Avatar
+          className={`border-4 border-background shadow-md ${isLarge ? "h-16 w-16" : "h-14 w-14"}`}
+        >
           <AvatarImage src={avatarUrl || undefined} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+            {initials}
+          </AvatarFallback>
         </Avatar>
       </div>
 
       <div className="mt-2">
-        <button onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)} className="hover:underline">
-          <p className={`font-bold text-foreground ${isLarge ? "text-lg" : "text-base"}`}>{name}</p>
+        <button
+          onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
+          className="hover:underline"
+        >
+          <p
+            className={`font-bold text-foreground ${isLarge ? "text-lg" : "text-base"}`}
+          >
+            {name}
+          </p>
         </button>
         {username && (
-          <button onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)} className="hover:underline">
+          <button
+            onClick={() => navigate(`/expert/${winner.freelancer_id}/profile`)}
+            className="hover:underline"
+          >
             <p className="text-xs text-muted-foreground">@{username}</p>
           </button>
         )}
@@ -431,15 +513,26 @@ function WinnerCard({
         {posLabel}
       </Badge>
 
-      <p className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}>{formatNaira(prize)}</p>
+      <p
+        className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}
+      >
+        {formatNaira(prize)}
+      </p>
 
       {justification && (
         <div className="mt-3 text-left">
           <p className="text-xs text-muted-foreground italic">
-            "{expanded || !isTruncated ? justification : justification.slice(0, JUSTIFICATION_TRUNCATE) + "..."}"
+            "
+            {expanded || !isTruncated
+              ? justification
+              : justification.slice(0, JUSTIFICATION_TRUNCATE) + "..."}
+            "
           </p>
           {isTruncated && (
-            <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary hover:underline mt-1">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-primary hover:underline mt-1"
+            >
               {expanded ? "show less" : "...view more"}
             </button>
           )}
@@ -447,7 +540,12 @@ function WinnerCard({
       )}
 
       {isOpen && (
-        <Button size="sm" variant="ghost" className="mt-3 text-xs" onClick={() => onViewEntry(winner.id)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-3 text-xs"
+          onClick={() => onViewEntry(winner.id)}
+        >
           <Eye className="h-3 w-3 mr-1" /> View Entry
         </Button>
       )}
@@ -489,7 +587,9 @@ export default function ContestDetailPage() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [showAuthCode, setShowAuthCode] = useState(false);
   const [publishingWinners, setPublishingWinners] = useState(false);
-  const [justifications, setJustifications] = useState<Record<string, string>>({});
+  const [justifications, setJustifications] = useState<Record<string, string>>(
+    {},
+  );
 
   // Extend deadline
   const [showExtendDialog, setShowExtendDialog] = useState(false);
@@ -514,7 +614,9 @@ export default function ContestDetailPage() {
   const [postingComment, setPostingComment] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
   const [showMentions, setShowMentions] = useState(false);
-  const [mentionTarget, setMentionTarget] = useState<"comment" | "reply">("comment");
+  const [mentionTarget, setMentionTarget] = useState<"comment" | "reply">(
+    "comment",
+  );
   const [contestParticipants, setContestParticipants] = useState<any[]>([]);
   const commentsRef = useRef<HTMLDivElement>(null);
 
@@ -531,9 +633,16 @@ export default function ContestDetailPage() {
   const deadlinePassed = contest ? isPast(new Date(contest.deadline)) : false;
   const isOpen = contest?.visibility === "open";
   const isOwner = contest?.client_id === user?.id;
+  // Blind-active: closed contest AND deadline has not yet elapsed (nobody can see entries)
+  const isBlindActive = !isOpen && !deadlinePassed && !isCompleted;
 
   // Non-live statuses that aren't captured by deriveContestStatus
-  const NON_LIVE_STATUSES = ["pending_review", "rejected", "cancelled", "cancellation_requested"];
+  const NON_LIVE_STATUSES = [
+    "pending_review",
+    "rejected",
+    "cancelled",
+    "cancellation_requested",
+  ];
   const isNonLive = NON_LIVE_STATUSES.includes(contest?.status);
 
   const totalPrize = contest
@@ -545,12 +654,15 @@ export default function ContestDetailPage() {
     : 0;
 
   const allEntries = [...entries, ...nominees, ...winners];
-  const hasAlreadyEntered = allEntries.some((e) => e.freelancer_id === user?.id);
+  const hasAlreadyEntered = allEntries.some(
+    (e) => e.freelancer_id === user?.id,
+  );
   // Must be DB-active (not pending_review etc.) AND derived-active AND before deadline
   const acceptingEntries = isActive && !deadlinePassed && !isNonLive;
 
   // "Proceed to select winners" banner: owner only, selecting state, no winners yet
-  const canSelectWinners = isOwner && isSelectingWinners && winners.length === 0;
+  const canSelectWinners =
+    isOwner && isSelectingWinners && winners.length === 0;
 
   const canExtendDeadline =
     isOwner &&
@@ -578,18 +690,29 @@ export default function ContestDetailPage() {
 
   useEffect(() => {
     if (location.hash === "#comments" && commentsRef.current) {
-      setTimeout(() => commentsRef.current?.scrollIntoView({ behavior: "smooth" }), 500);
+      setTimeout(
+        () => commentsRef.current?.scrollIntoView({ behavior: "smooth" }),
+        500,
+      );
     }
   }, [location.hash, comments]);
 
   // Auto-promote status to "selecting_winners" — only the contest owner triggers the DB write;
   // other viewers just see the derived state locally.
   useEffect(() => {
-    if (contest && deadlinePassed && contest.status === "active" && winners.length === 0) {
+    if (
+      contest &&
+      deadlinePassed &&
+      contest.status === "active" &&
+      winners.length === 0
+    ) {
       if (user && contest.client_id === user.id) {
         updateContestStatus(id!, "selecting_winners")
           .then(() => {
-            setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
+            setContest((prev: any) => ({
+              ...prev,
+              status: "selecting_winners",
+            }));
           })
           .catch(() => {});
       } else {
@@ -605,7 +728,14 @@ export default function ContestDetailPage() {
       const first = [...entries, ...nominees, ...winners][0];
       if (first) setSelectedEntryId(first.id);
     }
-  }, [isOwner, isSelectingWinners, entries.length, nominees.length, winners.length, selectedEntryId]);
+  }, [
+    isOwner,
+    isSelectingWinners,
+    entries.length,
+    nominees.length,
+    winners.length,
+    selectedEntryId,
+  ]);
 
   const fetchFollowState = async () => {
     if (!user || !id) return;
@@ -719,8 +849,14 @@ export default function ContestDetailPage() {
     }
     setSubmitting(true);
     try {
-      const urls = submissionFiles.length > 0 ? await uploadEntryAttachments(submissionFiles) : [];
-      await submitContestEntry(id!, { description: submissionDesc.trim(), attachments: urls });
+      const urls =
+        submissionFiles.length > 0
+          ? await uploadEntryAttachments(submissionFiles)
+          : [];
+      await submitContestEntry(id!, {
+        description: submissionDesc.trim(),
+        attachments: urls,
+      });
       toast.success("Entry submitted!");
       setShowSubmitDialog(false);
       setSubmissionDesc("");
@@ -856,7 +992,10 @@ export default function ContestDetailPage() {
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.classList.add("ring-2", "ring-primary", "ring-offset-2");
-        setTimeout(() => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"), 3000);
+        setTimeout(
+          () => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"),
+          3000,
+        );
       }
     }, 300);
   };
@@ -885,7 +1024,8 @@ export default function ContestDetailPage() {
   };
 
   const insertMention = (participant: any) => {
-    const username = participant.username || participant.full_name?.replace(/\s+/g, "");
+    const username =
+      participant.username || participant.full_name?.replace(/\s+/g, "");
     if (mentionTarget === "comment") {
       setNewComment((prev) => prev.replace(/@\w*$/, `@${username} `));
     } else {
@@ -948,7 +1088,9 @@ export default function ContestDetailPage() {
     const mentionedUsernames = extractMentions(text);
     if (mentionedUsernames.length > 0 && inserted) {
       for (const username of mentionedUsernames) {
-        const mentioned = contestParticipants.find((p) => p.username?.toLowerCase() === username.toLowerCase());
+        const mentioned = contestParticipants.find(
+          (p) => p.username?.toLowerCase() === username.toLowerCase(),
+        );
         if (mentioned && mentioned.id !== user.id) {
           await createCommentMention((inserted as any).id, mentioned.id);
           await createNotification({
@@ -977,21 +1119,35 @@ export default function ContestDetailPage() {
     setCommentLikes(data.likes || []);
   };
 
-  const getCommentLikeCount = (commentId: string) => commentLikes.filter((l: any) => l.comment_id === commentId).length;
+  const getCommentLikeCount = (commentId: string) =>
+    commentLikes.filter((l: any) => l.comment_id === commentId).length;
   const hasUserLiked = (commentId: string) =>
-    user ? commentLikes.some((l: any) => l.comment_id === commentId && l.user_id === user.id) : false;
+    user
+      ? commentLikes.some(
+          (l: any) => l.comment_id === commentId && l.user_id === user.id,
+        )
+      : false;
   const isLikedByClient = (commentId: string) =>
-    contest ? commentLikes.some((l: any) => l.comment_id === commentId && l.user_id === contest.client_id) : false;
+    contest
+      ? commentLikes.some(
+          (l: any) =>
+            l.comment_id === commentId && l.user_id === contest.client_id,
+        )
+      : false;
 
   const topLevelComments = comments.filter((c: any) => !c.parent_id);
-  const getReplies = (parentId: string) => comments.filter((c: any) => c.parent_id === parentId);
+  const getReplies = (parentId: string) =>
+    comments.filter((c: any) => c.parent_id === parentId);
 
   const renderCommentText = (text: string) => {
     const parts = text.split(/(@\w+)/g);
     return parts.map((part, i) => {
       if (part.startsWith("@")) {
         return (
-          <span key={i} className="text-primary font-medium cursor-pointer hover:underline">
+          <span
+            key={i}
+            className="text-primary font-medium cursor-pointer hover:underline"
+          >
             {part}
           </span>
         );
@@ -1043,9 +1199,22 @@ export default function ContestDetailPage() {
   // ---------------------------------------------------------------------------
 
   const maxNominees = getMaxNominees();
-  const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? null;
-  const prizeLabels = ["🥇 1st Place", "🥈 2nd Place", "🥉 3rd Place", "🏅 4th Place", "🏅 5th Place"];
-  const prizeKeys = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+  const selectedEntry =
+    allEntries.find((e) => e.id === selectedEntryId) ?? null;
+  const prizeLabels = [
+    "🥇 1st Place",
+    "🥈 2nd Place",
+    "🥉 3rd Place",
+    "🏅 4th Place",
+    "🏅 5th Place",
+  ];
+  const prizeKeys = [
+    "prize_first",
+    "prize_second",
+    "prize_third",
+    "prize_fourth",
+    "prize_fifth",
+  ];
   const nomineeEmojis = ["🥇", "🥈", "🥉", "🏅", "🏅"];
 
   const commentItemProps = {
@@ -1079,7 +1248,9 @@ export default function ContestDetailPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
-        <div className={`container-wide${isOwner && isSelectingWinners && activeTab === "entries" ? "" : " max-w-4xl"}`}>
+        <div
+          className={`container-wide${isOwner && isSelectingWinners && activeTab === "entries" ? "" : " max-w-4xl"}`}
+        >
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
@@ -1087,11 +1258,18 @@ export default function ContestDetailPage() {
           {/* Banner */}
           <div className="h-48 rounded-xl overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 relative">
             {contest.banner_image ? (
-              <img src={contest.banner_image} alt={contest.title} className="w-full h-full object-cover" />
+              <img
+                src={contest.banner_image}
+                alt={contest.title}
+                className="w-full h-full object-cover"
+              />
             ) : (
               <Trophy className="h-20 w-20 text-primary/30" />
             )}
-            <Badge variant={getStatusVariant(contestStatus)} className="absolute top-4 right-4 text-sm">
+            <Badge
+              variant={getStatusVariant(contestStatus)}
+              className="absolute top-4 right-4 text-sm"
+            >
               {getStatusLabel(contestStatus)}
             </Badge>
           </div>
@@ -1115,11 +1293,17 @@ export default function ContestDetailPage() {
             <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="h-5 w-5 text-accent" />
-                <p className="font-semibold text-foreground">Contest has ended. Select your winners.</p>
+                <p className="font-semibold text-foreground">
+                  Contest has ended. Select your winners.
+                </p>
               </div>
               <div className="flex gap-2 mt-3">
                 {canExtendDeadline && (
-                  <Button size="sm" variant="outline" onClick={() => setShowExtendDialog(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowExtendDialog(true)}
+                  >
                     <Calendar className="h-4 w-4 mr-1" /> Extend Deadline
                   </Button>
                 )}
@@ -1143,11 +1327,15 @@ export default function ContestDetailPage() {
           {/* Contest header */}
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{contest.title}</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                {contest.title}
+              </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 by {(contest.client as any)?.full_name || "Client"}
                 {(contest.client as any)?.username && (
-                  <span className="text-primary ml-1">@{(contest.client as any).username}</span>
+                  <span className="text-primary ml-1">
+                    @{(contest.client as any).username}
+                  </span>
                 )}
               </p>
               {contest.category && (
@@ -1157,7 +1345,9 @@ export default function ContestDetailPage() {
               )}
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-primary">{formatNaira(totalPrize)}</p>
+              <p className="text-2xl font-bold text-primary">
+                {formatNaira(totalPrize)}
+              </p>
               <p className="text-xs text-muted-foreground">Total Prize Pool</p>
             </div>
           </div>
@@ -1178,9 +1368,14 @@ export default function ContestDetailPage() {
               <Button
                 onClick={() => setShowPublishConfirm(true)}
                 disabled={nominees.length !== maxNominees}
-                title={nominees.length !== maxNominees ? `Nominate ${maxNominees} to publish` : ""}
+                title={
+                  nominees.length !== maxNominees
+                    ? `Nominate ${maxNominees} to publish`
+                    : ""
+                }
               >
-                <Award className="h-4 w-4 mr-2" /> Publish Winners ({nominees.length}/{maxNominees})
+                <Award className="h-4 w-4 mr-2" /> Publish Winners (
+                {nominees.length}/{maxNominees})
               </Button>
             )}
             {/* Follow — only visible while contest is not completed */}
@@ -1224,8 +1419,12 @@ export default function ContestDetailPage() {
             <TabsContent value="description">
               <div className="bg-card rounded-xl border border-border p-6 space-y-6">
                 <div>
-                  <h2 className="font-semibold text-foreground mb-2">Description</h2>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{contest.description}</p>
+                  <h2 className="font-semibold text-foreground mb-2">
+                    Description
+                  </h2>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {contest.description}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1245,15 +1444,21 @@ export default function ContestDetailPage() {
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
                     <p className="text-xs text-muted-foreground">Visibility</p>
-                    <p className="font-medium text-foreground mt-1">{isOpen ? "Open Contest" : "Closed Contest"}</p>
+                    <p className="font-medium text-foreground mt-1">
+                      {isOpen ? "Open Contest" : "Closed Contest"}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {isOpen ? "Entries visible to everyone" : "Only entry count shown"}
+                      {isOpen
+                        ? "Entries visible to everyone"
+                        : "Only entry count shown"}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">Prize Breakdown</h3>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    Prize Breakdown
+                  </h3>
                   <div className="space-y-2">
                     {prizeKeys.map((key, idx) => {
                       const prize = contest[key];
@@ -1266,7 +1471,13 @@ export default function ContestDetailPage() {
                           }`}
                         >
                           <span>{prizeLabels[idx]}</span>
-                          <span className={idx === 0 ? "font-bold text-primary" : "font-semibold"}>
+                          <span
+                            className={
+                              idx === 0
+                                ? "font-bold text-primary"
+                                : "font-semibold"
+                            }
+                          >
                             {formatNaira(prize)}
                           </span>
                         </div>
@@ -1277,31 +1488,45 @@ export default function ContestDetailPage() {
 
                 {contest.rules && (
                   <div>
-                    <h3 className="font-semibold text-foreground mb-2">Rules / How to Enter</h3>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{contest.rules}</p>
+                    <h3 className="font-semibold text-foreground mb-2">
+                      Rules / How to Enter
+                    </h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {contest.rules}
+                    </p>
                   </div>
                 )}
 
                 <div>
-                  <h3 className="font-semibold text-foreground mb-2">Winner Selection</h3>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    Winner Selection
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     {contest.winner_selection_method === "client_selects"
                       ? "Client selects winners"
-                      : contest.winner_selection_method || "Client selects winners"}
+                      : contest.winner_selection_method ||
+                        "Client selects winners"}
                   </p>
                 </div>
 
                 {/* Comments */}
-                <div className="border-t border-border pt-6" ref={commentsRef} id="comments">
+                <div
+                  className="border-t border-border pt-6"
+                  ref={commentsRef}
+                  id="comments"
+                >
                   <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" /> Comments ({comments.length})
+                    <MessageSquare className="h-5 w-5 text-primary" /> Comments
+                    ({comments.length})
                   </h3>
 
                   {/* Locked notice replaces input when contest is over */}
                   {commentsLocked ? (
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border mb-4">
                       <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <p className="text-sm text-muted-foreground">This contest has ended. Comments are closed.</p>
+                      <p className="text-sm text-muted-foreground">
+                        This contest has ended. Comments are closed.
+                      </p>
                     </div>
                   ) : user ? (
                     <div className="relative mb-6">
@@ -1321,7 +1546,11 @@ export default function ContestDetailPage() {
                           disabled={postingComment || !newComment.trim()}
                           className="self-end"
                         >
-                          {postingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          {postingComment ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                       {showMentions && mentionTarget === "comment" && (
@@ -1333,7 +1562,11 @@ export default function ContestDetailPage() {
                               onClick={() => insertMention(p)}
                             >
                               <span className="font-medium">{p.full_name}</span>
-                              {p.username && <span className="text-muted-foreground ml-1">@{p.username}</span>}
+                              {p.username && (
+                                <span className="text-muted-foreground ml-1">
+                                  @{p.username}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -1344,12 +1577,18 @@ export default function ContestDetailPage() {
                   {topLevelComments.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">No comments yet. Be the first to comment!</p>
+                      <p className="text-sm">
+                        No comments yet. Be the first to comment!
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {topLevelComments.map((c: any) => (
-                        <CommentItem key={c.id} comment={c} {...commentItemProps} />
+                        <CommentItem
+                          key={c.id}
+                          comment={c}
+                          {...commentItemProps}
+                        />
                       ))}
                     </div>
                   )}
@@ -1365,12 +1604,12 @@ export default function ContestDetailPage() {
                 <>
                   {/* ── Desktop: split-pane review mode ── */}
                   <div className="hidden md:flex border border-border rounded-xl overflow-hidden bg-card h-[70vh] min-h-[520px]">
-
                     {/* Left ⅓ — scrollable entry list */}
                     <div className="w-1/3 border-r border-border flex flex-col min-h-0 shrink-0">
                       <div className="px-4 py-3 border-b border-border bg-muted/30 shrink-0 flex items-center justify-between">
                         <p className="text-sm font-semibold text-foreground">
-                          {trueEntryCount} {trueEntryCount === 1 ? "Entry" : "Entries"}
+                          {trueEntryCount}{" "}
+                          {trueEntryCount === 1 ? "Entry" : "Entries"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Nominees: {nominees.length}/{maxNominees}
@@ -1381,13 +1620,16 @@ export default function ContestDetailPage() {
                         {allEntries.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6">
                             <FileText className="h-10 w-10 mb-3 opacity-40" />
-                            <p className="text-sm text-center">No entries yet</p>
+                            <p className="text-sm text-center">
+                              No entries yet
+                            </p>
                           </div>
                         ) : (
                           allEntries.map((entry: any) => {
                             const isSelected = entry.id === selectedEntryId;
                             const isNominee = !!(entry as any).is_nominee;
-                            const entryName = (entry.freelancer as any)?.full_name || "Expert";
+                            const entryName =
+                              (entry.freelancer as any)?.full_name || "Expert";
                             const attachCount = entry.attachments?.length || 0;
 
                             return (
@@ -1404,10 +1646,16 @@ export default function ContestDetailPage() {
                               >
                                 <div className="flex items-start gap-2">
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{entryName}</p>
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {entryName}
+                                    </p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                      {format(new Date(entry.created_at), "MMM d")}
-                                      {attachCount > 0 && ` · ${attachCount} file${attachCount !== 1 ? "s" : ""}`}
+                                      {format(
+                                        new Date(entry.created_at),
+                                        "MMM d",
+                                      )}
+                                      {attachCount > 0 &&
+                                        ` · ${attachCount} file${attachCount !== 1 ? "s" : ""}`}
                                     </p>
                                     {entry.description && (
                                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
@@ -1419,10 +1667,13 @@ export default function ContestDetailPage() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (isNominee) handleRemoveNominee(entry.id);
+                                      if (isNominee)
+                                        handleRemoveNominee(entry.id);
                                       else handleNominate(entry.id);
                                     }}
-                                    title={isNominee ? "Remove nominee" : "Nominate"}
+                                    title={
+                                      isNominee ? "Remove nominee" : "Nominate"
+                                    }
                                     className="shrink-0 mt-0.5 p-1 rounded hover:bg-muted transition-colors"
                                   >
                                     <Star
@@ -1449,7 +1700,10 @@ export default function ContestDetailPage() {
                           <div className="px-5 py-4 border-b border-border shrink-0 flex items-start justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                                {((selectedEntry.freelancer as any)?.full_name || "?")
+                                {(
+                                  (selectedEntry.freelancer as any)
+                                    ?.full_name || "?"
+                                )
                                   .split(" ")
                                   .map((n: string) => n[0])
                                   .join("")
@@ -1458,21 +1712,29 @@ export default function ContestDetailPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="font-semibold text-foreground truncate">
-                                  {(selectedEntry.freelancer as any)?.full_name || "Expert"}
+                                  {(selectedEntry.freelancer as any)
+                                    ?.full_name || "Expert"}
                                 </p>
-                                {(selectedEntry.freelancer as any)?.username && (
+                                {(selectedEntry.freelancer as any)
+                                  ?.username && (
                                   <p className="text-xs text-muted-foreground">
-                                    @{(selectedEntry.freelancer as any).username}
+                                    @
+                                    {(selectedEntry.freelancer as any).username}
                                   </p>
                                 )}
                                 <p className="text-xs text-muted-foreground">
-                                  Submitted {format(new Date(selectedEntry.created_at), "PPP")}
+                                  Submitted{" "}
+                                  {format(
+                                    new Date(selectedEntry.created_at),
+                                    "PPP",
+                                  )}
                                 </p>
                               </div>
                             </div>
                             {(selectedEntry as any).is_nominee && (
                               <Badge className="shrink-0 bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-300">
-                                <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" /> Nominated
+                                <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />{" "}
+                                Nominated
                               </Badge>
                             )}
                           </div>
@@ -1488,16 +1750,21 @@ export default function ContestDetailPage() {
                                   {selectedEntry.description}
                                 </p>
                               ) : (
-                                <p className="text-sm italic text-muted-foreground">No description provided.</p>
+                                <p className="text-sm italic text-muted-foreground">
+                                  No description provided.
+                                </p>
                               )}
                             </div>
 
                             {selectedEntry.attachments?.length > 0 && (
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                  Attachments ({selectedEntry.attachments.length})
+                                  Attachments (
+                                  {selectedEntry.attachments.length})
                                 </p>
-                                <FileViewer attachments={selectedEntry.attachments} />
+                                <FileViewer
+                                  attachments={selectedEntry.attachments}
+                                />
                               </div>
                             )}
                           </div>
@@ -1509,7 +1776,9 @@ export default function ContestDetailPage() {
                                 size="sm"
                                 variant="outline"
                                 className="w-full"
-                                onClick={() => handleRemoveNominee(selectedEntry.id)}
+                                onClick={() =>
+                                  handleRemoveNominee(selectedEntry.id)
+                                }
                               >
                                 Remove from Nominees
                               </Button>
@@ -1519,7 +1788,8 @@ export default function ContestDetailPage() {
                                 className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                                 onClick={() => handleNominate(selectedEntry.id)}
                               >
-                                <Star className="h-4 w-4 mr-2" /> Nominate this Entry
+                                <Star className="h-4 w-4 mr-2" /> Nominate this
+                                Entry
                               </Button>
                             )}
                           </div>
@@ -1528,7 +1798,9 @@ export default function ContestDetailPage() {
                         <div className="flex-1 flex items-center justify-center text-muted-foreground">
                           <div className="text-center">
                             <FileText className="h-14 w-14 mx-auto mb-3 opacity-25" />
-                            <p className="text-sm font-medium">Select an entry to review</p>
+                            <p className="text-sm font-medium">
+                              Select an entry to review
+                            </p>
                             <p className="text-xs mt-1 text-muted-foreground">
                               Click any entry on the left to view details
                             </p>
@@ -1541,8 +1813,12 @@ export default function ContestDetailPage() {
                   {/* ── Mobile: standard list with inline nominate buttons ── */}
                   <div className="md:hidden bg-card rounded-xl border border-border p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
-                      <p className="text-xs text-muted-foreground">Nominees: {nominees.length}/{maxNominees}</p>
+                      <h2 className="font-semibold text-foreground">
+                        Entries ({trueEntryCount})
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Nominees: {nominees.length}/{maxNominees}
+                      </p>
                     </div>
                     {allEntries.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
@@ -1564,17 +1840,25 @@ export default function ContestDetailPage() {
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-foreground">
-                                  {(entry.freelancer as any)?.full_name || "Expert"}
+                                  {(entry.freelancer as any)?.full_name ||
+                                    "Expert"}
                                 </p>
                                 {(entry as any).is_nominee && (
                                   <Badge className="mt-1 bg-amber-50 text-amber-800 border border-amber-300 text-xs dark:bg-amber-950/30 dark:text-amber-300">
-                                    <Star className="h-2.5 w-2.5 mr-1 fill-amber-500 text-amber-500" /> Nominee
+                                    <Star className="h-2.5 w-2.5 mr-1 fill-amber-500 text-amber-500" />{" "}
+                                    Nominee
                                   </Badge>
                                 )}
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{entry.description}</p>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                                  {entry.description}
+                                </p>
                               </div>
                               {(entry as any).is_nominee ? (
-                                <Button size="sm" variant="outline" onClick={() => handleRemoveNominee(entry.id)}>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRemoveNominee(entry.id)}
+                                >
                                   Remove
                                 </Button>
                               ) : (
@@ -1589,17 +1873,19 @@ export default function ContestDetailPage() {
                             </div>
                             {entry.attachments?.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-3">
-                                {entry.attachments.map((url: string, i: number) => (
-                                  <a
-                                    key={i}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                                  >
-                                    <Eye className="h-3 w-3" /> File {i + 1}
-                                  </a>
-                                ))}
+                                {entry.attachments.map(
+                                  (url: string, i: number) => (
+                                    <a
+                                      key={i}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    >
+                                      <Eye className="h-3 w-3" /> File {i + 1}
+                                    </a>
+                                  ),
+                                )}
                               </div>
                             )}
                           </div>
@@ -1612,7 +1898,9 @@ export default function ContestDetailPage() {
                 /* ── Standard view (non-owner, active contest, or completed) ── */
                 <div className="bg-card rounded-xl border border-border p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-semibold text-foreground">Entries ({trueEntryCount})</h2>
+                    <h2 className="font-semibold text-foreground">
+                      Entries ({trueEntryCount})
+                    </h2>
                     {isOwner && !isCompleted && (
                       <p className="text-xs text-muted-foreground">
                         Nominees: {nominees.length}/{maxNominees}
@@ -1625,12 +1913,15 @@ export default function ContestDetailPage() {
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No entries yet</p>
                     </div>
-                  ) : !isOpen && !isOwner ? (
+                  ) : !isOpen && (isBlindActive || !isOwner) ? (
                     /* Closed contest — blurred ghost list + overlay */
                     <div className="relative">
                       <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
                         {Array.from({ length: trueEntryCount }).map((_, i) => (
-                          <div key={i} className="border border-border rounded-lg p-4 bg-muted/30">
+                          <div
+                            key={i}
+                            className="border border-border rounded-lg p-4 bg-muted/30"
+                          >
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 space-y-2">
                                 <div className="h-4 w-32 bg-muted rounded" />
@@ -1645,10 +1936,13 @@ export default function ContestDetailPage() {
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 rounded-lg">
                         <Lock className="h-10 w-10 text-muted-foreground mb-3" />
                         <p className="font-semibold text-foreground">
-                          {trueEntryCount} {trueEntryCount === 1 ? "entry" : "entries"} submitted
+                          {trueEntryCount}{" "}
+                          {trueEntryCount === 1 ? "entry" : "entries"} submitted
                         </p>
                         <p className="text-sm text-muted-foreground mt-1 text-center px-8">
-                          This is a closed contest. Entry details are only visible to the contest owner.
+                          {isBlindActive
+                            ? "Entries are sealed until the deadline. No one can view them yet."
+                            : "This is a closed contest. Entry details are only visible to the contest owner."}
                         </p>
                       </div>
                     </div>
@@ -1666,27 +1960,39 @@ export default function ContestDetailPage() {
                             key={entry.id}
                             id={`entry-${entry.id}`}
                             className={`border rounded-lg p-4 transition-all ${
-                              (entry as any).is_nominee ? "border-primary/50 bg-primary/5" : "border-border"
+                              (entry as any).is_nominee
+                                ? "border-primary/50 bg-primary/5"
+                                : "border-border"
                             }`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="font-medium text-foreground">
-                                    {(entry.freelancer as any)?.full_name || "Expert"}
+                                    {(entry.freelancer as any)?.full_name ||
+                                      "Expert"}
                                   </p>
                                   {(entry.freelancer as any)?.username && (
                                     <span className="text-xs text-muted-foreground">
                                       @{(entry.freelancer as any).username}
                                     </span>
                                   )}
-                                  {(entry as any).is_nominee && !entry.is_winner && isOwner && (
-                                    <Badge variant="outline" className="text-primary border-primary/50">
-                                      <Star className="h-3 w-3 mr-1" /> Nominee
-                                    </Badge>
-                                  )}
+                                  {(entry as any).is_nominee &&
+                                    !entry.is_winner &&
+                                    isOwner && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-primary border-primary/50"
+                                      >
+                                        <Star className="h-3 w-3 mr-1" />{" "}
+                                        Nominee
+                                      </Badge>
+                                    )}
                                   {entry.is_winner && (
-                                    <Badge variant="default" className="bg-accent text-accent-foreground">
+                                    <Badge
+                                      variant="default"
+                                      className="bg-accent text-accent-foreground"
+                                    >
                                       <Award className="h-3 w-3 mr-1" />
                                       {entry.prize_position <= 3
                                         ? `${entry.prize_position === 1 ? "1st" : entry.prize_position === 2 ? "2nd" : "3rd"} Place`
@@ -1694,14 +2000,21 @@ export default function ContestDetailPage() {
                                     </Badge>
                                   )}
                                   {isMyEntry && entry.edit_count > 0 && (
-                                    <span className="text-xs text-muted-foreground">(edited {entry.edit_count}x)</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      (edited {entry.edit_count}x)
+                                    </span>
                                   )}
                                 </div>
-                                <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {entry.description}
+                                </p>
                               </div>
                               <div className="flex items-center gap-2 ml-2 shrink-0">
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(entry.created_at), "MMM d, yyyy")}
+                                  {format(
+                                    new Date(entry.created_at),
+                                    "MMM d, yyyy",
+                                  )}
                                 </p>
                                 {isMyEntry && !entry.is_winner && (
                                   <div className="flex gap-1">
@@ -1713,14 +2026,17 @@ export default function ContestDetailPage() {
                                             variant="ghost"
                                             onClick={() => {
                                               setEditingEntry(entry);
-                                              setEditDesc(entry.description || "");
+                                              setEditDesc(
+                                                entry.description || "",
+                                              );
                                             }}
                                           >
                                             <Edit3 className="h-3 w-3" />
                                           </Button>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          {editsLeft} edit{editsLeft !== 1 ? "s" : ""} remaining
+                                          {editsLeft} edit
+                                          {editsLeft !== 1 ? "s" : ""} remaining
                                         </TooltipContent>
                                       </Tooltip>
                                     )}
@@ -1729,7 +2045,9 @@ export default function ContestDetailPage() {
                                         size="sm"
                                         variant="ghost"
                                         className="text-destructive hover:text-destructive"
-                                        onClick={() => handleDeleteEntry(entry.id)}
+                                        onClick={() =>
+                                          handleDeleteEntry(entry.id)
+                                        }
                                       >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
@@ -1740,17 +2058,20 @@ export default function ContestDetailPage() {
                             </div>
                             {entry.attachments?.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-3">
-                                {entry.attachments.map((url: string, i: number) => (
-                                  <a
-                                    key={i}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                                  >
-                                    <Eye className="h-3 w-3" /> Attachment {i + 1}
-                                  </a>
-                                ))}
+                                {entry.attachments.map(
+                                  (url: string, i: number) => (
+                                    <a
+                                      key={i}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    >
+                                      <Eye className="h-3 w-3" /> Attachment{" "}
+                                      {i + 1}
+                                    </a>
+                                  ),
+                                )}
                               </div>
                             )}
                           </div>
@@ -1771,11 +2092,12 @@ export default function ContestDetailPage() {
                 {isOwner && !isCompleted && nominees.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <Star className="h-4 w-4 text-primary" /> Your Nominees ({nominees.length}/{maxNominees}) —
-                      Private
+                      <Star className="h-4 w-4 text-primary" /> Your Nominees (
+                      {nominees.length}/{maxNominees}) — Private
                     </h3>
                     <p className="text-xs text-muted-foreground mb-3">
-                      These nominees are only visible to you. Publish to make them official winners.
+                      These nominees are only visible to you. Publish to make
+                      them official winners.
                     </p>
                     <div className="space-y-3">
                       {nominees.map((n: any, idx: number) => (
@@ -1783,14 +2105,22 @@ export default function ContestDetailPage() {
                           key={n.id}
                           className="flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/20"
                         >
-                          <span className="text-xl">{nomineeEmojis[idx] || "🏅"}</span>
+                          <span className="text-xl">
+                            {nomineeEmojis[idx] || "🏅"}
+                          </span>
                           <div className="flex-1">
                             <p className="font-medium text-foreground">
                               {(n.freelancer as any)?.full_name || "Expert"}
                             </p>
-                            <p className="text-sm text-muted-foreground line-clamp-1">{n.description}</p>
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {n.description}
+                            </p>
                           </div>
-                          <Button size="sm" variant="ghost" onClick={() => handleRemoveNominee(n.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemoveNominee(n.id)}
+                          >
                             Remove
                           </Button>
                         </div>
@@ -1802,9 +2132,11 @@ export default function ContestDetailPage() {
                 {isOwner && !isCompleted && nominees.length === 0 && (
                   <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border">
                     <p className="text-sm text-muted-foreground">
-                      No nominees yet. Go to the <strong>Entries</strong> tab to nominate entries. You can nominate up
-                      to <strong>{maxNominees}</strong> entr
-                      {maxNominees === 1 ? "y" : "ies"} based on your prize structure.
+                      No nominees yet. Go to the <strong>Entries</strong> tab to
+                      nominate entries. You can nominate up to{" "}
+                      <strong>{maxNominees}</strong> entr
+                      {maxNominees === 1 ? "y" : "ies"} based on your prize
+                      structure.
                     </p>
                   </div>
                 )}
@@ -1813,7 +2145,9 @@ export default function ContestDetailPage() {
                   <div className="text-center py-12 text-muted-foreground">
                     <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>
-                      {isCompleted ? "No winners were selected." : "Winners will appear here when the contest ends."}
+                      {isCompleted
+                        ? "No winners were selected."
+                        : "Winners will appear here when the contest ends."}
                     </p>
                   </div>
                 ) : winners.length >= 3 ? (
@@ -1824,7 +2158,7 @@ export default function ContestDetailPage() {
                           winner={winners[1]}
                           contest={contest}
                           position={2}
-                          isOpen={isOpen}
+                          isOpen={isOpen || isCompleted}
                           onViewEntry={handleViewEntry}
                         />
                       </div>
@@ -1834,7 +2168,7 @@ export default function ContestDetailPage() {
                           contest={contest}
                           position={1}
                           isLarge
-                          isOpen={isOpen}
+                          isOpen={isOpen || isCompleted}
                           onViewEntry={handleViewEntry}
                         />
                       </div>
@@ -1843,7 +2177,7 @@ export default function ContestDetailPage() {
                           winner={winners[2]}
                           contest={contest}
                           position={3}
-                          isOpen={isOpen}
+                          isOpen={isOpen || isCompleted}
                           onViewEntry={handleViewEntry}
                         />
                       </div>
@@ -1851,7 +2185,9 @@ export default function ContestDetailPage() {
                     {winners.length > 3 && (
                       <div
                         className={`hidden md:grid gap-6 mt-6 ${
-                          winners.length === 4 ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-2 max-w-lg mx-auto"
+                          winners.length === 4
+                            ? "grid-cols-1 max-w-sm mx-auto"
+                            : "grid-cols-2 max-w-lg mx-auto"
                         }`}
                       >
                         {winners.slice(3).map((w: any) => (
@@ -1860,7 +2196,7 @@ export default function ContestDetailPage() {
                             winner={w}
                             contest={contest}
                             position={w.prize_position || 4}
-                            isOpen={isOpen}
+                            isOpen={isOpen || isCompleted}
                             onViewEntry={handleViewEntry}
                           />
                         ))}
@@ -1874,7 +2210,7 @@ export default function ContestDetailPage() {
                           contest={contest}
                           position={w.prize_position || 1}
                           isLarge={w.prize_position === 1}
-                          isOpen={isOpen}
+                          isOpen={isOpen || isCompleted}
                           onViewEntry={handleViewEntry}
                         />
                       ))}
@@ -1883,7 +2219,9 @@ export default function ContestDetailPage() {
                 ) : (
                   <div
                     className={`grid gap-6 pt-12 ${
-                      winners.length === 1 ? "max-w-sm mx-auto" : "grid-cols-1 sm:grid-cols-2"
+                      winners.length === 1
+                        ? "max-w-sm mx-auto"
+                        : "grid-cols-1 sm:grid-cols-2"
                     }`}
                   >
                     {winners.map((w: any) => (
@@ -1893,7 +2231,7 @@ export default function ContestDetailPage() {
                         contest={contest}
                         position={w.prize_position || 1}
                         isLarge={w.prize_position === 1}
-                        isOpen={isOpen}
+                        isOpen={isOpen || isCompleted}
                         onViewEntry={handleViewEntry}
                       />
                     ))}
@@ -1911,7 +2249,9 @@ export default function ContestDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Submit Contest Entry</DialogTitle>
-            <DialogDescription>Describe your submission and attach relevant files.</DialogDescription>
+            <DialogDescription>
+              Describe your submission and attach relevant files.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <Textarea
@@ -1921,22 +2261,35 @@ export default function ContestDetailPage() {
               rows={5}
             />
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Attachments (optional)</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                Attachments (optional)
+              </label>
               <input
                 type="file"
                 multiple
                 accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dwg,.dxf,.zip,.rvt,.skp,.3ds,.obj,.fbx,.stl,.ifc,.step,.stp,.igs,.iges"
-                onChange={(e) => setSubmissionFiles(Array.from(e.target.files || []).slice(0, 5))}
+                onChange={(e) =>
+                  setSubmissionFiles(
+                    Array.from(e.target.files || []).slice(0, 5),
+                  )
+                }
                 className="text-sm"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowSubmitDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleSubmitEntry} disabled={submitting}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
               Submit
             </Button>
           </DialogFooter>
@@ -1950,8 +2303,8 @@ export default function ContestDetailPage() {
             <DialogTitle>Edit Entry</DialogTitle>
             <DialogDescription>
               You have {2 - (editingEntry?.edit_count || 0)} edit
-              {2 - (editingEntry?.edit_count || 0) !== 1 ? "s" : ""} remaining. Edits allowed within 8 hours of
-              submission.
+              {2 - (editingEntry?.edit_count || 0) !== 1 ? "s" : ""} remaining.
+              Edits allowed within 8 hours of submission.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -1962,12 +2315,16 @@ export default function ContestDetailPage() {
               rows={5}
             />
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Replace attachments (optional)</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                Replace attachments (optional)
+              </label>
               <input
                 type="file"
                 multiple
                 accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dwg,.dxf,.zip,.rvt,.skp,.3ds,.obj,.fbx,.stl,.ifc,.step,.stp,.igs,.iges"
-                onChange={(e) => setEditFiles(Array.from(e.target.files || []).slice(0, 5))}
+                onChange={(e) =>
+                  setEditFiles(Array.from(e.target.files || []).slice(0, 5))
+                }
                 className="text-sm"
               />
             </div>
@@ -1977,7 +2334,11 @@ export default function ContestDetailPage() {
               Cancel
             </Button>
             <Button onClick={handleEditEntry} disabled={editSubmitting}>
-              {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Edit3 className="h-4 w-4 mr-2" />}
+              {editSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Edit3 className="h-4 w-4 mr-2" />
+              )}
               Save Changes
             </Button>
           </DialogFooter>
@@ -1990,7 +2351,8 @@ export default function ContestDetailPage() {
           <DialogHeader>
             <DialogTitle>Publish Winners</DialogTitle>
             <DialogDescription>
-              Provide a justification for each winner. This will be shown publicly. This action cannot be undone.
+              Provide a justification for each winner. This will be shown
+              publicly. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
@@ -1998,14 +2360,17 @@ export default function ContestDetailPage() {
               <div key={n.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{nomineeEmojis[idx] || "🏅"}</span>
-                  <span className="font-medium">{(n.freelancer as any)?.full_name || "Expert"}</span>
-                  <span className="ml-auto font-bold text-primary">{formatNaira(contest[prizeKeys[idx]] || 0)}</span>
+                  <span className="font-medium">
+                    {(n.freelancer as any)?.full_name || "Expert"}
+                  </span>
+                  <span className="ml-auto font-bold text-primary">
+                    {formatNaira(contest[prizeKeys[idx]] || 0)}
+                  </span>
                 </div>
                 <Textarea
-                  placeholder={`Why did you choose this entry for ${prizeLabels[idx]?.replace(
-                    /^[^\s]+\s/,
-                    "",
-                  )}? (required, max 300 chars)`}
+                  placeholder={`Why did you choose this entry for ${prizeLabels[
+                    idx
+                  ]?.replace(/^[^\s]+\s/, "")}? (required, max 300 chars)`}
                   value={justifications[String(idx + 1)] || ""}
                   onChange={(e) =>
                     setJustifications((prev) => ({
@@ -2024,14 +2389,19 @@ export default function ContestDetailPage() {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowPublishConfirm(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={() => {
                 for (let i = 1; i <= nominees.length; i++) {
                   if (!justifications[String(i)]?.trim()) {
-                    toast.error(`Please provide a justification for position ${i}`);
+                    toast.error(
+                      `Please provide a justification for position ${i}`,
+                    );
                     return;
                   }
                 }
@@ -2067,7 +2437,8 @@ export default function ContestDetailPage() {
           <DialogHeader>
             <DialogTitle>All nominee slots are filled</DialogTitle>
             <DialogDescription>
-              You already have {maxNominees} nominee{maxNominees !== 1 ? "s" : ""}. Choose one to replace:
+              You already have {maxNominees} nominee
+              {maxNominees !== 1 ? "s" : ""}. Choose one to replace:
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
@@ -2083,10 +2454,14 @@ export default function ContestDetailPage() {
                     {(n.freelancer as any)?.full_name || "Expert"}
                   </p>
                   {n.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">{n.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {n.description}
+                    </p>
                   )}
                 </div>
-                <span className="text-xs text-destructive font-medium shrink-0">Replace</span>
+                <span className="text-xs text-destructive font-medium shrink-0">
+                  Replace
+                </span>
               </button>
             ))}
           </div>
@@ -2110,17 +2485,25 @@ export default function ContestDetailPage() {
           <DialogHeader>
             <DialogTitle>Extend Contest Deadline</DialogTitle>
             <DialogDescription>
-              Set a new deadline to reopen the contest for more entries. You can only extend the deadline once.
+              Set a new deadline to reopen the contest for more entries. You can
+              only extend the deadline once.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>New Deadline</Label>
-              <Input type="datetime-local" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={newDeadline}
+                onChange={(e) => setNewDeadline(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExtendDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowExtendDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleExtendDeadline} disabled={extendingDeadline}>

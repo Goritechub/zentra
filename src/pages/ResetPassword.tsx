@@ -13,12 +13,34 @@ import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
 const resetSchema = z.object({
-  password: z.string().min(6, "Password must be at least 6 characters").max(72, "Password must be less than 72 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password must be less than 72 characters")
+    .regex(/[A-Z]/, "Must include at least one uppercase letter")
+    .regex(/[a-z]/, "Must include at least one lowercase letter")
+    .regex(/[0-9]/, "Must include at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must include at least one special character"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
 });
+
+const getPasswordStrength = (password: string) => {
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 2) return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
+  if (score <= 3) return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
+  if (score <= 4) return { label: "Good", color: "bg-accent", width: "w-3/4" };
+  return { label: "Strong", color: "bg-primary", width: "w-full" };
+};
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -177,6 +199,43 @@ export default function ResetPassword() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {password && (() => {
+                    const strength = getPasswordStrength(password);
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full transition-all duration-300", strength.color, strength.width)} />
+                          </div>
+                          <span className={cn(
+                            "text-xs font-medium",
+                            strength.label === "Weak" ? "text-destructive" :
+                            strength.label === "Fair" ? "text-amber-500" :
+                            strength.label === "Good" ? "text-accent" : "text-primary"
+                          )}>
+                            {strength.label}
+                          </span>
+                        </div>
+                        <ul className="text-xs text-muted-foreground space-y-0.5">
+                          <li className={password.length >= 8 ? "text-primary" : ""}>
+                            {password.length >= 8 ? "✓" : "○"} At least 8 characters
+                          </li>
+                          <li className={/[A-Z]/.test(password) ? "text-primary" : ""}>
+                            {/[A-Z]/.test(password) ? "✓" : "○"} One uppercase letter
+                          </li>
+                          <li className={/[a-z]/.test(password) ? "text-primary" : ""}>
+                            {/[a-z]/.test(password) ? "✓" : "○"} One lowercase letter
+                          </li>
+                          <li className={/[0-9]/.test(password) ? "text-primary" : ""}>
+                            {/[0-9]/.test(password) ? "✓" : "○"} One number
+                          </li>
+                          <li className={/[^A-Za-z0-9]/.test(password) ? "text-primary" : ""}>
+                            {/[^A-Za-z0-9]/.test(password) ? "✓" : "○"} One special character
+                          </li>
+                        </ul>
+                      </div>
+                    );
+                  })()}
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
 
