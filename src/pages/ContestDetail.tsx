@@ -848,6 +848,10 @@ export default function ContestDetailPage() {
       toast.error("Please add a description");
       return;
     }
+    if (submissionFiles.length === 0) {
+      toast.error("Please attach at least one file");
+      return;
+    }
     setSubmitting(true);
     try {
       const urls =
@@ -1320,6 +1324,8 @@ export default function ContestDetailPage() {
                   ? "This contest is currently under admin review and is not yet open for entries."
                   : contest.status === "rejected"
                     ? "This contest was not approved and is not accepting entries."
+                    : contest.status === "cancellation_requested"
+                    ? "Cancellation pending admin approval. This contest is temporarily not accepting new entries."
                     : "This contest has been cancelled and is not accepting entries."}
               </p>
             </div>
@@ -2299,7 +2305,7 @@ export default function ContestDetailPage() {
             />
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">
-                Attachments (optional)
+                Attachments (required)
               </label>
               <input
                 type="file"

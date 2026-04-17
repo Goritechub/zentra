@@ -210,6 +210,18 @@ export default function LaunchContestPage() {
       toast.error("1st prize must be at least ₦50,000");
       return;
     }
+    if (prizeThird && !prizeSecond) {
+      toast.error("Cannot set 3rd prize without 2nd prize");
+      return;
+    }
+    if (prizeFourth && !prizeThird) {
+      toast.error("Cannot set 4th prize without 3rd prize");
+      return;
+    }
+    if (prizeFifth && !prizeFourth) {
+      toast.error("Cannot set 5th prize without 4th prize");
+      return;
+    }
 
     setLoading(true);
 
@@ -498,7 +510,11 @@ export default function LaunchContestPage() {
                     step="1"
                     value={prizeSecond}
                     onChange={(e) => setPrizeSecond(e.target.value)}
+                    disabled={!prizeFirst}
                   />
+                  {!prizeFirst && (
+                    <p className="text-xs text-muted-foreground">Set 1st prize first</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>🥉 3rd Prize (₦)</Label>
@@ -509,7 +525,11 @@ export default function LaunchContestPage() {
                     step="1"
                     value={prizeThird}
                     onChange={(e) => setPrizeThird(e.target.value)}
+                    disabled={!prizeSecond}
                   />
+                  {!prizeSecond && (
+                    <p className="text-xs text-muted-foreground">Set 2nd prize first</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

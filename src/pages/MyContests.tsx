@@ -245,6 +245,11 @@ export default function MyContestsPage() {
                             <XCircle className="h-3.5 w-3.5 mr-1" /> Cancel Contest
                           </Button>
                         )}
+                        {special === "cancellation_requested" && (
+                          <Badge variant="outline" className="text-xs text-orange-600 dark:text-orange-400 border-orange-400/40 flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Pending Approval
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

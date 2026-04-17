@@ -65,6 +65,8 @@ export default function AdminLayout() {
   const [authCode, setAuthCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
+  const [failCount, setFailCount] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
 
   // Guard against the fast-path + full-bootstrap double-fire: only fetch
   // permissions once per mounted session, regardless of how many times
@@ -117,6 +119,14 @@ export default function AdminLayout() {
       toast.error("Please enter all 6 digits");
       return;
     }
+
+    // Check if currently locked out
+    if (lockoutUntil && new Date() < lockoutUntil) {
+      const remaining = Math.ceil((lockoutUntil.getTime() - Date.now()) / 60000);
+      toast.error(`Too many failed attempts. Try again in ${remaining} minute(s).`);
+      return;
+    }
+
     setVerifying(true);
     try {
       // Run verify and suspension check in parallel — both hit NestJS (no cold start)
@@ -129,8 +139,22 @@ export default function AdminLayout() {
       ]);
 
       if (!verifyRes.data.data.valid) {
-        toast.error(verifyRes.data.data.error || "Invalid authentication code");
+        const newFailCount = failCount + 1;
+        setFailCount(newFailCount);
         setAuthCode("");
+
+        let lockoutMinutes = 0;
+        if (newFailCount >= 9) lockoutMinutes = 30;
+        else if (newFailCount >= 6) lockoutMinutes = 15;
+        else if (newFailCount >= 3) lockoutMinutes = 5;
+
+        if (lockoutMinutes > 0) {
+          const until = new Date(Date.now() + lockoutMinutes * 60 * 1000);
+          setLockoutUntil(until);
+          toast.error(`Too many failed attempts. Locked for ${lockoutMinutes} minutes.`);
+        } else {
+          toast.error(verifyRes.data.data.error || "Invalid authentication code");
+        }
         return;
       }
 
@@ -212,13 +236,19 @@ export default function AdminLayout() {
             </div>
 
             <div>
-              <AuthCodeInput value={authCode} onChange={setAuthCode} disabled={verifying} />
+              <AuthCodeInput value={authCode} onChange={setAuthCode} disabled={verifying || (!!lockoutUntil && new Date() < lockoutUntil)} />
             </div>
+
+            {lockoutUntil && new Date() < lockoutUntil && (
+              <p className="text-sm text-destructive text-center">
+                Account locked. Try again in {Math.ceil((lockoutUntil.getTime() - Date.now()) / 60000)} minute(s).
+              </p>
+            )}
 
             <Button
               className="w-full"
               onClick={handleVerifyCode}
-              disabled={verifying || authCode.length !== 6}
+              disabled={verifying || authCode.length !== 6 || (!!lockoutUntil && new Date() < lockoutUntil)}
             >
               {verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Verify &amp; Continue

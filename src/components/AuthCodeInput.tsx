@@ -42,7 +42,7 @@ export function AuthCodeInput({ value, onChange, disabled }: AuthCodeInputProps)
         <Input
           key={i}
           ref={(el) => { inputs.current[i] = el; }}
-          type="text"
+          type="password"
           inputMode="numeric"
           maxLength={1}
           value={value[i] || ""}
