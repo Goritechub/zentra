@@ -1053,6 +1053,7 @@ export default function ContestDetailPage() {
         type: "contest_comment",
         title: "New comment on your contest",
         message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
+        linkUrl: `/contest/${id}`,
       });
     }
     const followersData = await getContestFollowers(id);
@@ -1066,6 +1067,7 @@ export default function ContestDetailPage() {
           type: "contest_comment",
           title: "New comment on a contest you follow",
           message: `${profile?.full_name || "Someone"} commented on "${contest.title}"`,
+          linkUrl: `/contest/${id}`,
         });
       }
     }
@@ -1103,6 +1105,7 @@ export default function ContestDetailPage() {
             type: "mention",
             title: "You were mentioned in a contest comment",
             message: `@${profile?.username || profile?.full_name} mentioned you in "${contest?.title}"`,
+            linkUrl: `/contest/${id}`,
           });
         }
       }
