@@ -80,6 +80,7 @@ import {
   Edit3,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -1398,9 +1399,25 @@ export default function ContestDetailPage() {
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3 mb-6">
             {isExpert && acceptingEntries && !hasAlreadyEntered && (
-              <Button onClick={() => setShowSubmitDialog(true)}>
-                <Upload className="h-4 w-4 mr-2" /> Submit Entry
-              </Button>
+              profile?.is_verified ? (
+                <Button onClick={() => setShowSubmitDialog(true)}>
+                  <Upload className="h-4 w-4 mr-2" /> Submit Entry
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-3 py-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>
+                    You must be{" "}
+                    <button
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                      onClick={() => navigate("/settings?tab=verification")}
+                    >
+                      verified
+                    </button>{" "}
+                    to submit an entry
+                  </span>
+                </div>
+              )
             )}
             {hasAlreadyEntered && (
               <Badge variant="secondary" className="py-2 px-4">
