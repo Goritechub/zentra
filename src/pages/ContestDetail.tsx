@@ -1152,10 +1152,15 @@ export default function ContestDetailPage() {
     const parts = text.split(/(@\w+)/g);
     return parts.map((part, i) => {
       if (part.startsWith("@")) {
+        const username = part.slice(1);
+        const participant = contestParticipants.find(
+          (p) => p.username?.toLowerCase() === username.toLowerCase(),
+        );
         return (
           <span
             key={i}
             className="text-primary font-medium cursor-pointer hover:underline"
+            onClick={() => participant && navigate(`/expert/${participant.id}`)}
           >
             {part}
           </span>
@@ -1976,7 +1981,7 @@ export default function ContestDetailPage() {
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No entries yet</p>
                     </div>
-                  ) : !isOpen && (isBlindActive || !isOwner) ? (
+                  ) : !isOpen && (isBlindActive || (!isOwner && !isCompleted)) ? (
                     /* Closed contest — blurred ghost list + overlay */
                     <div className="relative">
                       <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
@@ -2012,7 +2017,12 @@ export default function ContestDetailPage() {
                   ) : (
                     /* Open contest or completed — full list */
                     <div className="space-y-4">
-                      {allEntries.map((entry: any) => {
+                      {(isOpen || isOwner || !isCompleted
+                        ? allEntries
+                        : allEntries.filter(
+                            (e: any) => e.is_winner || e.freelancer_id === user?.id,
+                          )
+                      ).map((entry: any) => {
                         const isMyEntry = entry.freelancer_id === user?.id;
                         const editable = canEditEntry(entry);
                         const deletable = canDeleteEntry(entry);
@@ -2023,11 +2033,19 @@ export default function ContestDetailPage() {
                             key={entry.id}
                             id={`entry-${entry.id}`}
                             className={`border rounded-lg p-4 transition-all ${
-                              (entry as any).is_nominee
-                                ? "border-primary/50 bg-primary/5"
-                                : "border-border"
+                              isMyEntry && entry.is_winner
+                                ? "border-green-500 bg-green-500/5"
+                                : (entry as any).is_nominee
+                                  ? "border-primary/50 bg-primary/5"
+                                  : "border-border"
                             }`}
                           >
+                            {isMyEntry && entry.is_winner && (
+                              <div className="flex items-center gap-2 mb-3 text-green-600 font-semibold text-sm">
+                                <Award className="h-4 w-4" />
+                                You won this contest
+                              </div>
+                            )}
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">

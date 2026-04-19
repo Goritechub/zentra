@@ -350,7 +350,7 @@ export function Header() {
                           <>
                             <DropdownMenuItem asChild>
                               <Link to="/my-profile" className="cursor-pointer">
-                                <Settings className="mr-2 h-4 w-4" />Edit Profile
+                                <Eye className="mr-2 h-4 w-4" />My Profile
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>

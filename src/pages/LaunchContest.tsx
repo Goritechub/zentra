@@ -44,6 +44,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 export default function LaunchContestPage() {
   const navigate = useNavigate();
@@ -59,6 +60,10 @@ export default function LaunchContestPage() {
   const [prizeThird, setPrizeThird] = useState("");
   const [prizeFourth, setPrizeFourth] = useState("");
   const [prizeFifth, setPrizeFifth] = useState("");
+  const [extraPrizes, setExtraPrizes] = useState<string[]>([]);
+  const [extraPrizeCountInput, setExtraPrizeCountInput] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [customSkill, setCustomSkill] = useState("");
   const [deadline, setDeadline] = useState("");
   const [visibility, setVisibility] = useState("open");
   const [rules, setRules] = useState("");
@@ -68,6 +73,7 @@ export default function LaunchContestPage() {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
@@ -187,14 +193,27 @@ export default function LaunchContestPage() {
       (parseInt(prizeSecond) || 0) +
       (parseInt(prizeThird) || 0) +
       (parseInt(prizeFourth) || 0) +
-      (parseInt(prizeFifth) || 0)
+      (parseInt(prizeFifth) || 0) +
+      extraPrizes.reduce((sum, p) => sum + (parseInt(p) || 0), 0)
     );
+  };
+
+  const ordinal = (n: number) => {
+    if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+    if (n % 10 === 1) return `${n}st`;
+    if (n % 10 === 2) return `${n}nd`;
+    if (n % 10 === 3) return `${n}rd`;
+    return `${n}th`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       navigate("/auth");
+      return;
+    }
+    if (!profile?.is_verified) {
+      setShowKycModal(true);
       return;
     }
     if (!title.trim() || !description.trim() || !prizeFirst || !deadline) {
@@ -229,12 +248,16 @@ export default function LaunchContestPage() {
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("description", description.trim());
-      if (category) formData.append("category", category);
+      const finalCategory = category === "Others" ? customCategory.trim() : category;
+      if (finalCategory) formData.append("category", finalCategory);
       formData.append("prize_first", String(parseInt(prizeFirst) || 0));
       formData.append("prize_second", String(prizeSecond ? parseInt(prizeSecond) : 0));
       formData.append("prize_third", String(prizeThird ? parseInt(prizeThird) : 0));
       formData.append("prize_fourth", String(prizeFourth ? parseInt(prizeFourth) : 0));
       formData.append("prize_fifth", String(prizeFifth ? parseInt(prizeFifth) : 0));
+      if (extraPrizes.length > 0) {
+        formData.append("extra_prizes", JSON.stringify(extraPrizes.map((p) => parseInt(p) || 0)));
+      }
       formData.append("deadline", deadline);
       formData.append("required_skills", JSON.stringify(selectedSkills));
       formData.append("visibility", visibility);
@@ -327,7 +350,7 @@ export default function LaunchContestPage() {
             Launch a Contest
           </h1>
           <p className="text-muted-foreground mb-8">
-            Get multiple design submissions and pick the best one.
+            Invite submissions from experts and pick the best one.
           </p>
 
           {/* Wallet balance indicator */}
@@ -368,7 +391,7 @@ export default function LaunchContestPage() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select value={category} onValueChange={(v) => { setCategory(v); if (v !== "Others") setCustomCategory(""); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -378,8 +401,20 @@ export default function LaunchContestPage() {
                         {c}
                       </SelectItem>
                     ))}
+                    <SelectItem value="Others">Others</SelectItem>
                   </SelectContent>
                 </Select>
+                {category === "Others" && (
+                  <div className="space-y-1">
+                    <Input
+                      placeholder="Enter category name"
+                      maxLength={25}
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value.replace(/\s{2,}/g, " "))}
+                    />
+                    <p className="text-xs text-muted-foreground">{customCategory.length}/25 characters</p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Description *</Label>
@@ -568,6 +603,60 @@ export default function LaunchContestPage() {
                   )}
                 </div>
               </div>
+
+              {/* Extra prize positions beyond 5th */}
+              {extraPrizes.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {extraPrizes.map((val, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <Label>🏅 {ordinal(idx + 6)} Prize (₦)</Label>
+                      <Input
+                        type="number"
+                        placeholder="Optional"
+                        min="0"
+                        step="1"
+                        value={val}
+                        onChange={(e) => {
+                          const updated = [...extraPrizes];
+                          updated[idx] = e.target.value;
+                          setExtraPrizes(updated);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add more prize positions */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <Label className="text-sm text-muted-foreground">Add more prize positions</Label>
+                <Input
+                  type="number"
+                  placeholder="How many more? (e.g. 5)"
+                  min="1"
+                  max="20"
+                  value={extraPrizeCountInput}
+                  onChange={(e) => setExtraPrizeCountInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const count = Math.min(Math.max(parseInt(extraPrizeCountInput) || 0, 1), 20);
+                      if (count > 0) {
+                        const start = extraPrizes.length + 6;
+                        const end = start + count - 1;
+                        setExtraPrizes([...extraPrizes, ...Array(count).fill("")]);
+                        setExtraPrizeCountInput("");
+                        toast.info(`Added ${ordinal(start)} to ${ordinal(end)} prize positions`);
+                      }
+                    }
+                  }}
+                />
+                {extraPrizeCountInput && parseInt(extraPrizeCountInput) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Press Enter to add {ordinal(extraPrizes.length + 6)} to {ordinal(extraPrizes.length + (parseInt(extraPrizeCountInput) || 0) + 5)} prizes
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="bg-card rounded-xl border border-border p-6 space-y-6">
@@ -576,6 +665,7 @@ export default function LaunchContestPage() {
                 <Label>Required Skills</Label>
                 <Select
                   onValueChange={(s) => {
+                    if (s === "__others__") return;
                     if (!selectedSkills.includes(s))
                       setSelectedSkills([...selectedSkills, s]);
                   }}
@@ -591,8 +681,27 @@ export default function LaunchContestPage() {
                           {s}
                         </SelectItem>
                       ))}
+                    <SelectItem value="__others__">Others</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a custom skill and press Enter"
+                    maxLength={25}
+                    value={customSkill}
+                    onChange={(e) => setCustomSkill(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const trimmed = customSkill.trim();
+                        if (trimmed && !selectedSkills.includes(trimmed)) {
+                          setSelectedSkills([...selectedSkills, trimmed]);
+                          setCustomSkill("");
+                        }
+                      }
+                    }}
+                  />
+                </div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedSkills.map((s) => (
                     <Badge key={s} variant="secondary" className="gap-1">
@@ -744,6 +853,12 @@ export default function LaunchContestPage() {
         onOpenChange={setShowFundWallet}
         onSuccess={handleFundSuccess}
         userEmail={profile?.email}
+      />
+
+      <KycRequiredModal
+        open={showKycModal}
+        onClose={() => setShowKycModal(false)}
+        action="host a contest"
       />
     </div>
   );

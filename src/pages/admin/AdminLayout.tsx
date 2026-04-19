@@ -236,19 +236,19 @@ export default function AdminLayout() {
             </div>
 
             <div>
-              <AuthCodeInput value={authCode} onChange={setAuthCode} disabled={verifying || (!!lockoutUntil && new Date() < lockoutUntil)} />
+              <AuthCodeInput
+                value={authCode}
+                onChange={setAuthCode}
+                disabled={verifying}
+                locked={!!(lockoutUntil && new Date() < lockoutUntil)}
+                onUnlocked={() => { setLockoutUntil(null); setFailCount(0); }}
+              />
             </div>
-
-            {lockoutUntil && new Date() < lockoutUntil && (
-              <p className="text-sm text-destructive text-center">
-                Account locked. Try again in {Math.ceil((lockoutUntil.getTime() - Date.now()) / 60000)} minute(s).
-              </p>
-            )}
 
             <Button
               className="w-full"
               onClick={handleVerifyCode}
-              disabled={verifying || authCode.length !== 6 || (!!lockoutUntil && new Date() < lockoutUntil)}
+              disabled={verifying || authCode.length !== 6 || !!(lockoutUntil && new Date() < lockoutUntil)}
             >
               {verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Verify &amp; Continue

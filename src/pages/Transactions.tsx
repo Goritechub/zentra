@@ -183,7 +183,7 @@ export default function TransactionsPage() {
               <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Wallet Balance</span></div>
               <p className="text-3xl font-bold">{formatNaira(walletBalance)}</p>
               <div className="flex gap-2 mt-4">
-                <Button size="sm" variant="secondary" onClick={() => setShowFund(true)}>
+                <Button size="sm" variant="secondary" onClick={() => { if (!profile?.is_verified) { setShowKycModal(true); return; } setShowFund(true); }}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => {

@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
 import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock } from "lucide-react";
+import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
@@ -51,9 +52,11 @@ export default function PostJobPage() {
   const [city, setCity] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
+  const [customSkill, setCustomSkill] = useState("");
   const [overallSkillLevel, setOverallSkillLevel] = useState<SkillLevel>("Intermediate");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
 
   // Visibility & invitations
   const [visibility, setVisibility] = useState<JobVisibility>("public");
@@ -190,6 +193,7 @@ export default function PostJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {navigate("/auth");return;}
+    if (!profile?.is_verified) { setShowKycModal(true); return; }
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required");
       return;
@@ -382,14 +386,33 @@ export default function PostJobPage() {
               <h2 className="text-lg font-semibold">Skills & Software</h2>
               <div className="space-y-2">
                 <Label>Required Skills</Label>
-                <Select onValueChange={addSkill}>
+                <Select onValueChange={(s) => { if (s !== "__others__") addSkill(s); }}>
                   <SelectTrigger><SelectValue placeholder="Add a skill" /></SelectTrigger>
                   <SelectContent>
                     {cadSkills.filter((s) => !selectedSkills.includes(s)).map((s) =>
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                     )}
+                    <SelectItem value="__others__">Others</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Type a custom skill and press Enter"
+                    maxLength={25}
+                    value={customSkill}
+                    onChange={(e) => setCustomSkill(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const trimmed = customSkill.trim();
+                        if (trimmed && !selectedSkills.includes(trimmed)) {
+                          addSkill(trimmed);
+                          setCustomSkill("");
+                        }
+                      }
+                    }}
+                  />
+                </div>
                 {selectedSkills.length > 0 &&
                 <div className="flex flex-wrap gap-2 mt-2">
                     {selectedSkills.map((s) =>
@@ -687,6 +710,11 @@ export default function PostJobPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <KycRequiredModal
+        open={showKycModal}
+        onClose={() => setShowKycModal(false)}
+        action="post a job"
+      />
     </div>);
 
 }

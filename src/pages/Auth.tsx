@@ -1442,7 +1442,7 @@ export default function AuthPage() {
                           className={fieldClass("fullName", signUpErrors)}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Enter your full legal name (first and last name)
+                          Enter your full legal name exactly as it appears on your ID — this will be used for identity verification.
                         </p>
                         {signUpErrors.fullName && (
                           <p className="text-sm text-destructive">
