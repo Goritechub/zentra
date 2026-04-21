@@ -1207,7 +1207,10 @@ export default function ContestDetailPage() {
             {/* Prize grid */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="bg-card rounded-xl border border-border p-4">
+                <div
+                  key={i}
+                  className="bg-card rounded-xl border border-border p-4"
+                >
                   <Skeleton className="h-4 w-12 mb-2" />
                   <Skeleton className="h-6 w-20" />
                 </div>
@@ -1216,7 +1219,10 @@ export default function ContestDetailPage() {
             {/* Entry grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-card rounded-xl border border-border overflow-hidden">
+                <div
+                  key={i}
+                  className="bg-card rounded-xl border border-border overflow-hidden"
+                >
                   <Skeleton className="h-40 w-full rounded-none" />
                   <div className="p-4">
                     <Skeleton className="h-4 w-32 mb-2" />
@@ -1334,8 +1340,8 @@ export default function ContestDetailPage() {
                   : contest.status === "rejected"
                     ? "This contest was not approved and is not accepting entries."
                     : contest.status === "cancellation_requested"
-                    ? "Cancellation pending admin approval. This contest is temporarily not accepting new entries."
-                    : "This contest has been cancelled and is not accepting entries."}
+                      ? "Cancellation pending admin approval. This contest is temporarily not accepting new entries."
+                      : "This contest has been cancelled and is not accepting entries."}
               </p>
             </div>
           )}
@@ -1406,8 +1412,10 @@ export default function ContestDetailPage() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3 mb-6">
-            {isExpert && acceptingEntries && !hasAlreadyEntered && (
-              profile?.is_verified ? (
+            {isExpert &&
+              acceptingEntries &&
+              !hasAlreadyEntered &&
+              (profile?.is_verified ? (
                 <Button onClick={() => setShowSubmitDialog(true)}>
                   <Upload className="h-4 w-4 mr-2" /> Submit Entry
                 </Button>
@@ -1425,8 +1433,7 @@ export default function ContestDetailPage() {
                     to submit an entry
                   </span>
                 </div>
-              )
-            )}
+              ))}
             {hasAlreadyEntered && (
               <Badge variant="secondary" className="py-2 px-4">
                 ✓ You've entered this contest
@@ -1981,7 +1988,8 @@ export default function ContestDetailPage() {
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No entries yet</p>
                     </div>
-                  ) : !isOpen && (isBlindActive || (!isOwner && !isCompleted)) ? (
+                  ) : !isOpen &&
+                    (isBlindActive || (!isOwner && !isCompleted)) ? (
                     /* Closed contest — blurred ghost list + overlay */
                     <div className="relative">
                       <div className="space-y-4 select-none pointer-events-none blur-sm opacity-60 max-h-96 overflow-hidden">
@@ -2020,7 +2028,8 @@ export default function ContestDetailPage() {
                       {(isOpen || isOwner || !isCompleted
                         ? allEntries
                         : allEntries.filter(
-                            (e: any) => e.is_winner || e.freelancer_id === user?.id,
+                            (e: any) =>
+                              e.is_winner || e.freelancer_id === user?.id,
                           )
                       ).map((entry: any) => {
                         const isMyEntry = entry.freelancer_id === user?.id;

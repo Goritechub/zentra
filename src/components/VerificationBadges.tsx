@@ -17,6 +17,9 @@ export function VerificationBadges({ isVerified, isZentraVerified, role, size = 
   const verifiedLabel =
     role === "client" ? "Verified Client" : role === "freelancer" ? "Verified Engineer" : "Verified User";
 
+  const zentraLabel =
+    role === "client" ? "ZentraGig Verified Partner" : "ZentraGig Verified Engineer";
+
   return (
     <div className={cn("flex flex-wrap gap-1.5", className)}>
       {isVerified && (
@@ -28,7 +31,7 @@ export function VerificationBadges({ isVerified, isZentraVerified, role, size = 
       {isZentraVerified && (
         <Badge variant="outline" className={cn("bg-accent/15 text-accent border-accent/25 gap-1", textSize)}>
           <Star className={cn(iconSize, "fill-accent")} />
-          ZentraGig Verified
+          {zentraLabel}
         </Badge>
       )}
     </div>

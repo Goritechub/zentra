@@ -6,8 +6,9 @@ import { ShieldCheck, Loader2, ExternalLink, RefreshCw, CheckCircle2, XCircle, C
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { toast } from "sonner";
 
-export function KycVerificationCard() {
+export function KycVerificationCard({ role }: { role?: "client" | "freelancer" | null }) {
   const { kycData, loading, startVerification, checkStatus, isVerified, isZentraVerified } = useKycVerification();
+  const zentraLabel = role === "client" ? "ZentraGig Verified Partner" : "{zentraLabel}";
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
 
@@ -120,13 +121,13 @@ export function KycVerificationCard() {
             {isZentraVerified ? (
               <div className="flex items-center gap-2">
                 <Badge className="bg-accent/15 text-accent border-accent/25">
-                  ⭐ ZentraGig Verified Engineer
+                  ⭐ {zentraLabel}
                 </Badge>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
                 Complete your portfolio and build account history to qualify for the
-                <span className="font-medium text-accent"> ⭐ ZentraGig Verified Engineer</span> badge.
+                <span className="font-medium text-accent"> ⭐ {zentraLabel}</span> badge.
               </p>
             )}
           </div>
@@ -183,7 +184,7 @@ export function KycVerificationCard() {
                 <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30" />
               )}
               <span className={isZentraVerified ? "text-foreground" : "text-muted-foreground"}>
-                ZentraGig Verified Engineer
+                {zentraLabel}
               </span>
             </div>
           </div>

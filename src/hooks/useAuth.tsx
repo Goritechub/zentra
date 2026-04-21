@@ -237,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   username: backendUser.username,
                   avatar_url: backendUser.avatarUrl,
                   role: backendUser.role,
-                  is_verified: false,
+                  is_verified: backendUser.isVerified ?? false,
                   created_at: null,
                   updated_at: null,
                   auth_code_dismissed_at: null,
