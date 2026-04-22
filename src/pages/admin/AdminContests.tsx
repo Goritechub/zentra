@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   deleteAdminContest,
   getAdminContests,
@@ -311,7 +312,9 @@ export default function AdminContests() {
                           <div>
                             <p className="text-sm">{contest.profiles?.full_name || "—"}</p>
                             {contest.profiles?.username && (
-                              <p className="text-xs text-muted-foreground">@{contest.profiles.username}</p>
+                              <Link to={`/client/${contest.client_id}/profile`} className="text-xs text-muted-foreground hover:text-primary hover:underline">
+                                @{contest.profiles.username}
+                              </Link>
                             )}
                           </div>
                         </TableCell>
@@ -390,7 +393,11 @@ export default function AdminContests() {
                         <div>
                           <p className="text-xs text-muted-foreground">Client</p>
                           <p className="font-medium">{contest.profiles?.full_name || "—"}</p>
-                          {contest.profiles?.username && <p className="text-xs text-muted-foreground">@{contest.profiles.username}</p>}
+                          {contest.profiles?.username && (
+                            <Link to={`/client/${contest.client_id}/profile`} className="text-xs text-muted-foreground hover:text-primary hover:underline">
+                              @{contest.profiles.username}
+                            </Link>
+                          )}
                           {contest.profiles?.email && <p className="text-xs text-muted-foreground">{contest.profiles.email}</p>}
                         </div>
                         <div>
@@ -572,7 +579,9 @@ export default function AdminContests() {
                   <p className="text-sm text-muted-foreground">Host</p>
                   <p className="text-sm">{selectedContest.profiles?.full_name || "—"}</p>
                   {selectedContest.profiles?.username && (
-                    <p className="text-xs text-muted-foreground">@{selectedContest.profiles.username}</p>
+                    <Link to={`/client/${selectedContest.client_id}/profile`} className="text-xs text-muted-foreground hover:text-primary hover:underline">
+                      @{selectedContest.profiles.username}
+                    </Link>
                   )}
                 </div>
                 <div>

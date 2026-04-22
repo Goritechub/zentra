@@ -39,6 +39,7 @@ const ContestEntries = lazy(() => import("./pages/ContestEntries"));
 const ContractDetail = lazy(() => import("./pages/ContractDetail"));
 const DisputeDetail = lazy(() => import("./pages/DisputeDetail"));
 const ExpertProfile = lazy(() => import("./pages/ExpertProfile"));
+const ClientProfile = lazy(() => import("./pages/ClientProfile"));
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Notifications = lazy(() => import("./pages/Notifications"));
@@ -138,6 +139,7 @@ const AppShell = () => {
               <Route path="/terms" element={<Terms />} />
               <Route path="/expert/:id" element={<ExpertProfile />} />
               <Route path="/expert/:id/profile" element={<ExpertProfile />} />
+              <Route path="/client/:id/profile" element={<ClientProfile />} />
 
               {/* Authenticated routes */}
               <Route path="/freelancers" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><Freelancers /></RoleGuard></AuthGuard>} />

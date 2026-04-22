@@ -88,3 +88,18 @@ export async function getPublishedLegalDocument(slug: string) {
   const response = await api.get(`/legal-documents/${slug}`);
   return response.data.data as { document: { title: string; content: string } | null };
 }
+
+export async function getClientProfileOverview(clientId: string) {
+  const response = await api.get(`/clients/${clientId}/profile-overview`);
+  return response.data as {
+    success: boolean;
+    data: {
+      profile: any;
+      kyc: any;
+      jobs: any[];
+      contests: any[];
+      reviews: any[];
+      stats: { totalJobs: number; completedJobs: number; totalContests: number };
+    };
+  };
+}

@@ -131,7 +131,13 @@ export function Header() {
   const profileLoaded = !!profile;
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || "User";
   const displayRole = role || profile?.role || null;
-  const profileHref = isFreelancer && user ? `/expert/${user.id}/profile` : "/my-profile";
+  const profileHref = user
+    ? isFreelancer
+      ? `/expert/${user.id}/profile`
+      : isClient
+        ? `/client/${user.id}/profile`
+        : "/my-profile"
+    : "/my-profile";
 
   useEffect(() => {
     if (!user || bootstrapStatus !== "loading") { setBootstrapStalled(false); return; }
@@ -427,6 +433,16 @@ export function Header() {
               )}
             </div>
             {user && <NotificationBell />}
+            {isAuthenticated && !needsSetup && (
+              <Link to={profileHref} className="rounded-full shrink-0">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {getInitials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            )}
             <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>

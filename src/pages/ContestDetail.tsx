@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -196,9 +196,17 @@ const CommentItem = ({
             {(comment.user as any)?.full_name || "User"}
           </span>
           {(comment.user as any)?.username && (
-            <span className="text-xs text-muted-foreground">
+            <Link
+              to={
+                (comment.user as any)?.role === "client"
+                  ? `/client/${comment.user_id}/profile`
+                  : `/expert/${comment.user_id}/profile`
+              }
+              className="text-xs text-muted-foreground hover:text-primary hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               @{(comment.user as any).username}
-            </span>
+            </Link>
           )}
           {comment.user_id === contest.client_id && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
@@ -1391,9 +1399,12 @@ export default function ContestDetailPage() {
               <p className="text-sm text-muted-foreground mt-1">
                 by {(contest.client as any)?.full_name || "Client"}
                 {(contest.client as any)?.username && (
-                  <span className="text-primary ml-1">
+                  <Link
+                    to={`/client/${contest.client_id}/profile`}
+                    className="text-primary ml-1 hover:underline"
+                  >
                     @{(contest.client as any).username}
-                  </span>
+                  </Link>
                 )}
               </p>
               {contest.category && (
@@ -2063,9 +2074,13 @@ export default function ContestDetailPage() {
                                       "Expert"}
                                   </p>
                                   {(entry.freelancer as any)?.username && (
-                                    <span className="text-xs text-muted-foreground">
+                                    <Link
+                                      to={`/expert/${entry.freelancer_id}/profile`}
+                                      className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       @{(entry.freelancer as any).username}
-                                    </span>
+                                    </Link>
                                   )}
                                   {(entry as any).is_nominee &&
                                     !entry.is_winner &&
