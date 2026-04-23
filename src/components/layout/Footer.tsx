@@ -81,8 +81,7 @@ export function Footer() {
           <div className="flex items-center gap-6 text-sm text-background/60">
             <Link to="/terms?doc=privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
-            <Link to="/terms?doc=escrow-agreement" className="hover:text-primary transition-colors">Payment Protection Agreement</Link>
-            <Link to="/terms?doc=dispute-resolution-policy" className="hover:text-primary transition-colors">Dispute Policy</Link>
+<Link to="/terms?doc=dispute-resolution-policy" className="hover:text-primary transition-colors">Dispute Policy</Link>
           </div>
         </div>
       </div>

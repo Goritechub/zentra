@@ -94,7 +94,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       const cAmt = parseInt(splitClient) || 0;
       const fAmt = parseInt(splitFreelancer) || 0;
       if (cAmt + fAmt !== totalHeld) {
-        toast.error(`Split must equal the total escrow amount of ${formatNaira(totalHeld)}`); return;
+        toast.error(`Split must equal the total project funds of ${formatNaira(totalHeld)}`); return;
       }
     }
     setActionLoading(true);
