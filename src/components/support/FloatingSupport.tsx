@@ -23,8 +23,8 @@ const FAQ_ITEMS = [
     a: "Go to Transactions in your Dashboard. Click 'Fund Wallet' and follow the Paystack payment flow to add funds.",
   },
   {
-    q: "How does the escrow system work?",
-    a: "When a contract starts, the client funds milestones into escrow. Once the expert delivers and the client approves, funds are released to the expert's wallet.",
+    q: "How does payment work?",
+    a: "When a contract starts, the client pays ZentraGig to secure the project. Once the expert delivers and the client approves, ZentraGig releases payment to the expert's wallet.",
   },
   {
     q: "How do I contact support?",

@@ -461,7 +461,7 @@ export default function ProposalsReceivedPage() {
           <DialogHeader>
             <DialogTitle>Assign Expert & Create Contract</DialogTitle>
             <DialogDescription>
-              You're about to assign this expert and create a contract. The bid amount will be moved to escrow.
+              You're about to assign this expert and create a contract. The bid amount will be paid to ZentraGig to secure the project.
             </DialogDescription>
           </DialogHeader>
           {assignDialog.proposal && (
@@ -488,7 +488,7 @@ export default function ProposalsReceivedPage() {
                     <Label htmlFor="fund-now" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Now</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Deposit {formatNaira(getRequiredAmount(assignDialog.proposal))} into escrow immediately. Expert can start working right away.
+                        Pay {formatNaira(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
                       </p>
                     </Label>
                   </div>

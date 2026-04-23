@@ -11,7 +11,7 @@ const freelancerSteps = [
   { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, software expertise, portfolio items, and set your rates." },
   { icon: Search, title: "Browse & Apply", description: "Find jobs matching your skills. Submit proposals with your bid, timeline, and cover letter." },
   { icon: MessageSquare, title: "Discuss & Collaborate", description: "Chat with clients, clarify requirements, share files, and agree on deliverables." },
-  { icon: CreditCard, title: "Get Paid Securely", description: "Complete milestones, get approved, and receive payment through our secure escrow system." },
+  { icon: CreditCard, title: "Get Paid Securely", description: "Complete milestones, get approved, and receive payment from ZentraGig upon client approval." },
 ];
 
 const clientSteps = [
@@ -25,7 +25,7 @@ const benefits = [
   { icon: Star, title: "Verified Nigerian Experts", description: "All freelancers are verified professionals with real portfolios and reviews." },
   { icon: Trophy, title: "Contest Mode", description: "Launch design contests to receive multiple submissions and pick the best one." },
   { icon: Upload, title: "Portfolio Showcase", description: "Freelancers showcase their best engineering work with detailed project galleries." },
-  { icon: Briefcase, title: "Escrow Protection", description: "Funds are held securely until you approve the work. No risk for either party." },
+  { icon: Briefcase, title: "Secure Payment Holding", description: "ZentraGig holds payment securely until you approve the work. No risk for either party." },
 ];
 
 export default function HowItWorksPage() {

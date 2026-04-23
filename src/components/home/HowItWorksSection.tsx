@@ -19,7 +19,7 @@ const steps = [
   {
     icon: CreditCard,
     title: "Pay Securely",
-    description: "Release payment only when you're happy. Funds are held safely in escrow during the project.",
+    description: "Release payment only when you're happy. ZentraGig holds your payment securely until you approve the work.",
   },
 ];
 

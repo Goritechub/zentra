@@ -92,7 +92,7 @@ export function AuthCodeSetupModal({ open, onOpenChange, onComplete }: AuthCodeS
             <div className="bg-muted/50 rounded-lg border border-border p-4 space-y-2">
               <p className="text-sm font-medium text-foreground">This code protects:</p>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Funding milestones & escrow</li>
+                <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Funding milestones & payments</li>
                 <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Wallet withdrawals</li>
                 <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Publishing contest winners</li>
                 <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Changing payout details</li>

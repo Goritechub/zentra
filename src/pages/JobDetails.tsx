@@ -841,7 +841,7 @@ export default function JobDetailsPage() {
                     <Label htmlFor="fund-now" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Now</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Deposit {formatNaira(getRequiredAmount(assignDialog.proposal))} into escrow immediately.
+                        Pay {formatNaira(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
                       </p>
                     </Label>
                   </div>

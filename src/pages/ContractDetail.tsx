@@ -187,7 +187,7 @@ export default function ContractDetail() {
       const response = await api.post("/contracts/escrow", { action, milestone_id: milestoneId, contract_id: id, ...extra });
       if (response.data?.error) toast.error(response.data.error);
       else {
-        if (action === "fund_milestone") toast.success("Milestone funded! Funds held in escrow.");
+        if (action === "fund_milestone") toast.success("Milestone funded! ZentraGig is holding the payment securely.");
         else if (action === "approve_release") toast.success("Payment released to expert!");
         else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
         fetchData();
