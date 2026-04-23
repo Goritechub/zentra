@@ -1175,7 +1175,7 @@ export default function AuthPage() {
                       <ul className="text-sm text-muted-foreground space-y-1 ml-1">
                         <li className="flex items-center gap-2">
                           <Check className="h-3.5 w-3.5 text-primary" /> Funding
-                          milestones & escrow
+                          milestones & payments
                         </li>
                         <li className="flex items-center gap-2">
                           <Check className="h-3.5 w-3.5 text-primary" /> Wallet

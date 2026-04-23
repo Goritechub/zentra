@@ -218,7 +218,7 @@ export default function DisputeDetail() {
                 </div>
                 <p className="text-sm text-muted-foreground">Contract: {contract.job_title}</p>
                 <p className="text-sm text-muted-foreground">
-                  Amount in Escrow:{" "}
+                  Disputed Amount:{" "}
                   <span className="text-primary font-semibold">{formatNaira(contract.amount)}</span>
                 </p>
               </div>

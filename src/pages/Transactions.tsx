@@ -235,7 +235,7 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <div className="bg-card rounded-xl border border-border p-6">
-                <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">In Escrow</span></div>
+                <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">Project Budget</span></div>
                 <p className="text-3xl font-bold text-foreground">{formatNaira(wallet?.escrow_balance || 0)}</p>
               </div>
             )}

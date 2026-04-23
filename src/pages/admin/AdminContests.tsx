@@ -484,7 +484,7 @@ export default function AdminContests() {
                           <p className="font-semibold">{formatNaira(req.client_wallet.balance ?? 0)}</p>
                         </div>
                         <div className="rounded-md bg-muted/40 px-3 py-2 text-xs">
-                          <p className="text-muted-foreground mb-0.5">In escrow</p>
+                          <p className="text-muted-foreground mb-0.5">Project Budget</p>
                           <p className="font-semibold">{formatNaira(req.client_wallet.escrow_balance ?? 0)}</p>
                         </div>
                         {req.client_wallet.total_earned != null && (

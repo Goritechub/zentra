@@ -3,7 +3,7 @@ export const ALL_ADMIN_PERMISSIONS = [
   { key: "jobs", label: "Jobs", description: "Manage job postings and proposals" },
   { key: "contests", label: "Contests", description: "Manage contests and entries" },
   { key: "contracts", label: "Contracts", description: "Manage contracts and milestones" },
-  { key: "payments", label: "Payments", description: "Manage wallets, escrow, transactions, and withdrawals" },
+  { key: "payments", label: "Payments", description: "Manage wallets, payment holdings, transactions, and withdrawals" },
   { key: "disputes", label: "Disputes", description: "Manage disputes and resolutions" },
   { key: "reviews", label: "Reviews", description: "Manage reviews and ratings" },
   { key: "platform_settings", label: "Platform Settings", description: "Configure platform settings" },

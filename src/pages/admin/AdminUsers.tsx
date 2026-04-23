@@ -89,7 +89,7 @@ export default function AdminUsers() {
       const result = await closeAdminUserAccount(targetUser.id);
       if (!result.success) {
         if (result.code === "has_funds") {
-          toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Escrow ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
+          toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Project Budget ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
         } else if (result.code === "has_active_contracts") {
           toast.error(`User has ${result.active_contracts} active contract(s). Cannot close account.`);
         } else {
@@ -257,7 +257,7 @@ export default function AdminUsers() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Balance: <span className="font-bold text-primary">{formatNaira(userWallet.balance)}</span></div>
-                    <div>Escrow: <span className="font-bold text-amber-500">{formatNaira(userWallet.escrow_balance)}</span></div>
+                    <div>Project Budget: <span className="font-bold text-amber-500">{formatNaira(userWallet.escrow_balance)}</span></div>
                     <div>Total Earned: <span className="font-medium">{formatNaira(userWallet.total_earned)}</span></div>
                     <div>Total Spent: <span className="font-medium">{formatNaira(userWallet.total_spent)}</span></div>
                   </div>

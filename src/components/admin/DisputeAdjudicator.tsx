@@ -154,7 +154,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
             <p className="font-medium">{contract.freelancer?.full_name}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Escrow Held</p>
+            <p className="text-muted-foreground">Project Funds</p>
             <p className="font-bold text-destructive">{formatNaira(totalHeld)}</p>
           </div>
         </div>
@@ -301,7 +301,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           {totalHeld <= 0 && (
             <p className="text-sm text-amber-600 flex items-center gap-1">
               <AlertTriangle className="h-4 w-4" />
-              No escrow funds held — funds were already released or contract completed.
+              No project funds — payment was already released or contract completed.
             </p>
           )}
           <Button onClick={() => setShowResolve(true)} className="ml-auto">
@@ -315,7 +315,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> {totalHeld > 0 ? "Render Dispute Decision" : "Close Dispute"}</DialogTitle>
-            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Escrow: ${formatNaira(totalHeld)}` : "No escrow funds to distribute. Provide a closing note."}</DialogDescription>
+            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Project Funds: ${formatNaira(totalHeld)}` : "No project funds to distribute. Provide a closing note."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {totalHeld > 0 && (
@@ -325,7 +325,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
                   {[
                     { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
                     { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
-                    { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split escrow between both parties" },
+                    { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split project funds between both parties" },
                   ].map(opt => (
                     <button
                       key={opt.value}

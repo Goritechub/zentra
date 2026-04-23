@@ -196,7 +196,7 @@ export default function AdminContracts() {
 
               {escrow.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-sm mb-2">Escrow Ledger</h4>
+                  <h4 className="font-medium text-sm mb-2">Project Ledger</h4>
                   <div className="space-y-1 text-sm">
                     {escrow.map(e => (
                       <div key={e.id} className="flex justify-between py-1 border-b border-border last:border-0">
@@ -229,7 +229,7 @@ export default function AdminContracts() {
             </DialogTitle>
             <DialogDescription>
               This will permanently delete the contract "{deleteDialog.contract?.job_title || "Untitled"}" 
-              ({deleteDialog.contract?.status}) and all associated messages, milestones, and escrow records.
+              ({deleteDialog.contract?.status}) and all associated messages, milestones, and payment records.
               {deleteDialog.contract?.status === "interviewing" && (
                 <span className="block mt-2 font-medium text-foreground">
                   Both the client and expert will be notified that this contract was closed by ZentraGig.

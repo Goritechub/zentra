@@ -358,7 +358,7 @@ export default function ContractDetail() {
               <div className="bg-card rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-muted-foreground">Held in Escrow</span>
+                  <span className="text-sm font-medium text-muted-foreground">Project Budget</span>
                 </div>
                 <p className="text-xl font-bold text-primary">{formatNaira(totalHeld)}</p>
               </div>
@@ -635,9 +635,9 @@ export default function ContractDetail() {
               <div className="space-y-6">
                 {/* Escrow Ledger */}
                 <div className="bg-card rounded-xl border border-border p-6">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Escrow Ledger</h2>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Project Ledger</h2>
                   {escrowLedger.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">No escrow entries yet.</p>
+                    <p className="text-center py-8 text-muted-foreground">No entries yet.</p>
                   ) : (
                     <div className="space-y-3">
                       {escrowLedger.map((entry) => (

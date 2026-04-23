@@ -142,7 +142,7 @@ export default function AdminPayments() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-6">
-        Payments & Escrow
+        Payments & Holdings
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -162,7 +162,7 @@ export default function AdminPayments() {
         <Card>
           <CardContent className="pt-6 flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Total Escrow Held</p>
+              <p className="text-sm text-muted-foreground">Active Project Budget</p>
               <p className="text-xl font-bold text-amber-500">
                 {formatNaira(totalEscrow)}
               </p>
@@ -267,7 +267,7 @@ export default function AdminPayments() {
                     <TableHead>Role</TableHead>
                     <TableHead>Available</TableHead>
                     <TableHead>Pending</TableHead>
-                    <TableHead>Escrow</TableHead>
+                    <TableHead>Project Budget</TableHead>
                     <TableHead>Earned</TableHead>
                     <TableHead>Spent</TableHead>
                   </TableRow>
