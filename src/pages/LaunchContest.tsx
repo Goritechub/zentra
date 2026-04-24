@@ -607,23 +607,39 @@ export default function LaunchContestPage() {
               {/* Extra prize positions beyond 5th */}
               {extraPrizes.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {extraPrizes.map((val, idx) => (
-                    <div key={idx} className="space-y-2">
-                      <Label>🏅 {ordinal(idx + 6)} Prize (₦)</Label>
-                      <Input
-                        type="number"
-                        placeholder="Optional"
-                        min="0"
-                        step="1"
-                        value={val}
-                        onChange={(e) => {
-                          const updated = [...extraPrizes];
-                          updated[idx] = e.target.value;
-                          setExtraPrizes(updated);
-                        }}
-                      />
-                    </div>
-                  ))}
+                  {extraPrizes.map((val, idx) => {
+                    const prevFilled = idx === 0 ? !!prizeFifth : !!extraPrizes[idx - 1];
+                    return (
+                      <div key={idx} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>🏅 {ordinal(idx + 6)} Prize (₦)</Label>
+                          <button
+                            type="button"
+                            onClick={() => setExtraPrizes(extraPrizes.slice(0, idx))}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <Input
+                          type="number"
+                          placeholder="Optional"
+                          min="0"
+                          step="1"
+                          value={val}
+                          disabled={!prevFilled}
+                          onChange={(e) => {
+                            const updated = [...extraPrizes];
+                            updated[idx] = e.target.value;
+                            setExtraPrizes(updated);
+                          }}
+                        />
+                        {!prevFilled && (
+                          <p className="text-xs text-muted-foreground">Set {ordinal(idx + 5)} prize first</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
