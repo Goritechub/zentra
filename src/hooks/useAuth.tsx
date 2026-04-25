@@ -481,10 +481,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        if (
-          (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
-          nextSession?.user
-        ) {
+        if (event === "INITIAL_SESSION") {
+          if (nextSession?.user) {
+            const sameUser =
+              nextSession.user.id === lastBootstrapUserIdRef.current &&
+              bootstrapStatusRef.current === "ready";
+            if (sameUser) {
+              authDebug("auth event short-circuited", {
+                event,
+                userId: nextSession.user.id,
+                reason: "same_user_already_ready",
+              });
+              syncSessionOnly(nextSession);
+              return;
+            }
+
+            const cached = readBootstrapCache(nextSession.user.id);
+            if (cached) {
+              authDebug("initial session: applying cache", { userId: nextSession.user.id });
+              applyCachedBootstrap(nextSession.user, nextSession, cached);
+              setLastBootstrapUserId(nextSession.user.id);
+              void loadUserAndBootstrap(nextSession, { background: true });
+              return;
+            }
+          }
+          void loadUserAndBootstrap(nextSession);
+          return;
+        }
+
+        if (event === "SIGNED_IN" && nextSession?.user) {
           const sameUser =
             nextSession.user.id === lastBootstrapUserIdRef.current &&
             bootstrapStatusRef.current === "ready";
@@ -502,26 +527,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void loadUserAndBootstrap(nextSession);
       },
     );
-
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: existingSession } }) => {
-        authDebug("initial getSession resolved", {
-          hasSession: !!existingSession,
-          userId: existingSession?.user?.id ?? null,
-        });
-        if (existingSession?.user) {
-          const cached = readBootstrapCache(existingSession.user.id);
-          if (cached) {
-            applyCachedBootstrap(existingSession.user, existingSession, cached);
-            setLastBootstrapUserId(existingSession.user.id);
-            void loadUserAndBootstrap(existingSession, { background: true });
-            return;
-          }
-        }
-
-        void loadUserAndBootstrap(existingSession);
-      });
 
     return () => {
       mounted = false;

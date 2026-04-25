@@ -11,6 +11,7 @@ export async function getDashboardOverview() {
       walletBalance: number;
       completedContracts: number;
       recentActivity: any[];
+      kyc: { kyc_status: string; verification_level: string; zentra_verified: boolean } | null;
     };
   }>("/dashboard/overview");
   return response.data.data;

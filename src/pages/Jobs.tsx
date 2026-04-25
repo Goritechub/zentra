@@ -178,7 +178,7 @@ export default function JobsPage() {
         if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         if (sortBy === "budget_high") return (b.budget_max || 0) - (a.budget_max || 0);
-        if (sortBy === "budget_low") return (a.budget_min || 0) - (b.budget_max || 0);
+        if (sortBy === "budget_low") return (a.budget_min || 0) - (b.budget_min || 0);
         return 0;
       });
 

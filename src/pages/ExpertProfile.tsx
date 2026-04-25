@@ -156,6 +156,7 @@ export default function ExpertProfile() {
   const { user, profile: authProfile } = useAuth();
 
   const [profile, setProfile] = useState<any>(null);
+  const [responseKyc, setResponseKyc] = useState<any>(null);
   const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -167,7 +168,16 @@ export default function ExpertProfile() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
 
-  const { isVerified: kycVerified, isZentraVerified, loading: kycLoading } = useKycVerification(id);
+  const isOwner = user?.id === id;
+  const isClient = authProfile?.role === "client";
+
+  // Hook only used for the owner's own profile — provides startVerification, checkStatus,
+  // and auto-polls when returning from Didit (?kyc=complete). Non-owners derive KYC from
+  // the profile response to avoid a race between two independent Supabase queries.
+  const { isVerified: ownerKycVerified, isZentraVerified: ownerZentraVerified, loading: kycLoading } = useKycVerification(isOwner ? id : undefined);
+
+  const kycVerified = isOwner ? ownerKycVerified : (responseKyc?.kyc_status === "verified" || profile?.is_verified);
+  const isZentraVerified = isOwner ? ownerZentraVerified : (responseKyc?.zentra_verified === true);
 
   const [showShareMenu, setShowShareMenu] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -176,9 +186,6 @@ export default function ExpertProfile() {
     reviews.length > 0
       ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
       : 0;
-
-  const isOwner = user?.id === id;
-  const isClient = authProfile?.role === "client";
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -189,6 +196,7 @@ export default function ExpertProfile() {
         const response = await getExpertProfileOverview(id);
         if (cancelled) return;
         setProfile(response.data.profile || null);
+        setResponseKyc(response.data.kyc || null);
         setFreelancerProfile(response.data.freelancerProfile || null);
         setCertifications(response.data.certifications || []);
         setWorkExperience(response.data.workExperience || []);

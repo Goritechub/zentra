@@ -20,7 +20,6 @@ import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
-import { useKycVerification } from "@/hooks/useKycVerification";
 
 interface DashboardData {
   stats: { jobs: number; proposals: number; messages: number; contracts: number };
@@ -90,7 +89,9 @@ export default function DashboardPage() {
   const recentActivity = dashboardQuery.data?.recentActivity || [];
 
   const hasSkills = freelancerProfile?.skills?.length > 0;
-  const { isVerified: kycVerified, isZentraVerified } = useKycVerification();
+  const kyc = dashboardQuery.data?.kyc ?? null;
+  const kycVerified = kyc?.kyc_status === "verified";
+  const isZentraVerified = kyc?.zentra_verified === true;
   const profileItems = [
     !!profile.avatar_url,
     !!profile.state,
