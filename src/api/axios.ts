@@ -3,14 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const isDev = import.meta.env.DEV;
-const SESSION_RESOLVE_TIMEOUT_MS = 1500;
 
 type SupabaseStoredSession = {
   access_token?: string;
   expires_at?: number;
 };
-
-const TOKEN_EXPIRY_BUFFER_S = 30;
 
 const getLocalStorageToken = (): string | null => {
   try {
@@ -26,9 +23,7 @@ const getLocalStorageToken = (): string | null => {
       const parsed = JSON.parse(raw) as SupabaseStoredSession | { currentSession?: SupabaseStoredSession };
       const session = (parsed as any)?.currentSession ?? parsed;
       const token = session?.access_token;
-      const expiresAt = session?.expires_at;
-      // Skip expired or soon-to-expire tokens so getSession() runs and refreshes them
-      if (expiresAt && Date.now() / 1000 > expiresAt - TOKEN_EXPIRY_BUFFER_S) continue;
+      // Use the token even if close to expiry — the 401 retry path handles refresh.
       if (token) return token;
     }
   } catch {
@@ -38,6 +33,9 @@ const getLocalStorageToken = (): string | null => {
   return null;
 };
 
+// Singleton so concurrent 401s share one refresh rather than each calling refreshSession().
+let pendingRefresh: Promise<string | null> | null = null;
+
 export const api = axios.create({
   baseURL: apiBaseUrl,
   headers: {
@@ -45,65 +43,9 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async (config) => {
-  const requestStartedAt = performance.now();
-  const method = (config.method || "GET").toUpperCase();
-  const url = config.url || "";
-
-  if (isDev) {
-    console.info("[api] request start", { method, url });
-  }
-
-  const sessionStartedAt = performance.now();
-
-  let token = getLocalStorageToken();
-  let tokenSource: "session" | "local_storage" | "none" = token ? "local_storage" : "none";
-
-  // Avoid blocking every request on getSession when we already have a local token.
-  if (!token) {
-    try {
-      const sessionResult = await Promise.race([
-        supabase.auth.getSession(),
-        new Promise<never>((_, reject) =>
-          window.setTimeout(() => reject(new Error("getSession timed out")), SESSION_RESOLVE_TIMEOUT_MS),
-        ),
-      ]);
-      token = sessionResult.data.session?.access_token || null;
-      tokenSource = token ? "session" : "none";
-    } catch (error) {
-      if (isDev) {
-        console.warn("[api] auth session lookup failed", {
-          method,
-          url,
-          durationMs: Math.round(performance.now() - sessionStartedAt),
-          message: error instanceof Error ? error.message : "unknown_error",
-        });
-      }
-    }
-  }
-
-  if (isDev) {
-    console.info("[api] auth session resolved", {
-      method,
-      url,
-      durationMs: Math.round(performance.now() - sessionStartedAt),
-      hasToken: !!token,
-      tokenSource,
-    });
-  }
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  if (isDev) {
-    console.info("[api] request prepared", {
-      method,
-      url,
-      durationMs: Math.round(performance.now() - requestStartedAt),
-    });
-  }
-
+api.interceptors.request.use((config) => {
+  const token = getLocalStorageToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -124,11 +66,18 @@ api.interceptors.response.use(
       console.error("[api] response error", { method, url, status, message: error?.message || "unknown_error" });
     }
 
-    // On 401, attempt a one-time token refresh and retry the request
+    // On 401, attempt a one-time token refresh and retry the request.
+    // Singleton prevents concurrent 401s from each calling refreshSession().
     if (error?.response?.status === 401 && !error.config?._retried) {
       try {
-        const { data } = await supabase.auth.refreshSession();
-        const freshToken = data.session?.access_token;
+        if (!pendingRefresh) {
+          pendingRefresh = supabase.auth
+            .refreshSession()
+            .then(({ data }) => data.session?.access_token || null)
+            .catch(() => null)
+            .finally(() => { pendingRefresh = null; });
+        }
+        const freshToken = await pendingRefresh;
         if (freshToken) {
           error.config._retried = true;
           error.config.headers.Authorization = `Bearer ${freshToken}`;

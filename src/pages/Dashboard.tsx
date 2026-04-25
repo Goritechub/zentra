@@ -20,6 +20,7 @@ import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
+import { NetworkError } from "@/components/NetworkError";
 
 interface DashboardData {
   stats: { jobs: number; proposals: number; messages: number; contracts: number };
@@ -192,6 +193,14 @@ export default function DashboardPage() {
           </div>
 
           {/* Stat cards */}
+          {dashboardQuery.isError && !dashboardQuery.data && (
+            <NetworkError
+              error={dashboardQuery.error as Error}
+              onRetry={() => dashboardQuery.refetch()}
+              compact
+              className="mb-4"
+            />
+          )}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {dashboardQuery.isPending && !dashboardQuery.data ? (
               <StatCardSkeleton count={4} />
