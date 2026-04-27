@@ -69,14 +69,19 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   }, [open]);
 
   const fetchBankDetails = async () => {
-    const { data } = await supabase
-      .from("bank_details" as any)
-      .select("*")
-      .eq("user_id", userId)
-      .order("is_default", { ascending: false });
-    setBankDetails((data as any[]) || []);
-    if (data && data.length > 0) {
-      setSelectedBank(data[0]);
+    try {
+      const { data, error } = await supabase
+        .from("bank_details" as any)
+        .select("*")
+        .eq("user_id", userId)
+        .order("is_default", { ascending: false });
+      if (error) throw error;
+      setBankDetails((data as any[]) || []);
+      if (data && data.length > 0) {
+        setSelectedBank(data[0]);
+      }
+    } catch {
+      toast.error("Failed to load bank details");
     }
   };
 

@@ -215,6 +215,7 @@ export default function AdminSettings() {
                           <label className="text-xs text-muted-foreground mb-1 block">Max Amount (₦)</label>
                           <Input
                             type="number"
+                            min="0"
                             value={tier.max_amount || ""}
                             onChange={e => updateDraftTier(i, "max_amount", e.target.value)}
                             className="h-9 text-sm"

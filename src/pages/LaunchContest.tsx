@@ -220,6 +220,10 @@ export default function LaunchContestPage() {
       toast.error("Please fill in all required fields");
       return;
     }
+    if (new Date(deadline) <= new Date()) {
+      toast.error("Submission deadline must be in the future");
+      return;
+    }
     const totalPrize = calcTotalPrize();
     if (totalPrize <= 0) {
       toast.error("Prize pool must be greater than zero");
@@ -434,6 +438,7 @@ export default function LaunchContestPage() {
                   <Input
                     type="datetime-local"
                     value={deadline}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                     onChange={(e) => setDeadline(e.target.value)}
                   />
                 </div>
