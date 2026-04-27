@@ -55,13 +55,7 @@ export default function LaunchContestPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [prizeFirst, setPrizeFirst] = useState("");
-  const [prizeSecond, setPrizeSecond] = useState("");
-  const [prizeThird, setPrizeThird] = useState("");
-  const [prizeFourth, setPrizeFourth] = useState("");
-  const [prizeFifth, setPrizeFifth] = useState("");
-  const [extraPrizes, setExtraPrizes] = useState<string[]>([]);
-  const [extraPrizeCountInput, setExtraPrizeCountInput] = useState("");
+  const [prizes, setPrizes] = useState<string[]>(["", "", ""]);
   const [customCategory, setCustomCategory] = useState("");
   const [customSkill, setCustomSkill] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -187,15 +181,21 @@ export default function LaunchContestPage() {
     setBannerPreview(null);
   }, [bannerPreview]);
 
-  const calcTotalPrize = () => {
-    return (
-      (parseInt(prizeFirst) || 0) +
-      (parseInt(prizeSecond) || 0) +
-      (parseInt(prizeThird) || 0) +
-      (parseInt(prizeFourth) || 0) +
-      (parseInt(prizeFifth) || 0) +
-      extraPrizes.reduce((sum, p) => sum + (parseInt(p) || 0), 0)
-    );
+  const calcTotalPrize = () =>
+    prizes.reduce((sum, p) => sum + (parseInt(p) || 0), 0);
+
+  const setPrize = (i: number, val: string) => {
+    const updated = [...prizes];
+    updated[i] = val;
+    setPrizes(updated);
+  };
+
+  const removePrizesFrom = (i: number) => {
+    setPrizes(prizes.slice(0, i));
+  };
+
+  const addPrize = () => {
+    setPrizes([...prizes, ""]);
   };
 
   const ordinal = (n: number) => {
@@ -216,7 +216,7 @@ export default function LaunchContestPage() {
       setShowKycModal(true);
       return;
     }
-    if (!title.trim() || !description.trim() || !prizeFirst || !deadline) {
+    if (!title.trim() || !description.trim() || !prizes[0] || !deadline) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -225,20 +225,14 @@ export default function LaunchContestPage() {
       toast.error("Prize pool must be greater than zero");
       return;
     }
-    if ((parseInt(prizeFirst) || 0) < 50000) {
+    if ((parseInt(prizes[0]) || 0) < 50000) {
       toast.error("1st prize must be at least ₦50,000");
       return;
     }
-    if (prizeThird && !prizeSecond) {
-      toast.error("Cannot set 3rd prize without 2nd prize");
-      return;
-    }
-    if (prizeFourth && !prizeThird) {
-      toast.error("Cannot set 4th prize without 3rd prize");
-      return;
-    }
-    if (prizeFifth && !prizeFourth) {
-      toast.error("Cannot set 5th prize without 4th prize");
+    const lastFilled = prizes.reduce((last, p, i) => (p ? i : last), -1);
+    const hasGap = prizes.slice(0, lastFilled + 1).some((p) => !p);
+    if (hasGap) {
+      toast.error("Fill all prize positions in order — no gaps allowed");
       return;
     }
 
@@ -250,13 +244,13 @@ export default function LaunchContestPage() {
       formData.append("description", description.trim());
       const finalCategory = category === "Others" ? customCategory.trim() : category;
       if (finalCategory) formData.append("category", finalCategory);
-      formData.append("prize_first", String(parseInt(prizeFirst) || 0));
-      formData.append("prize_second", String(prizeSecond ? parseInt(prizeSecond) : 0));
-      formData.append("prize_third", String(prizeThird ? parseInt(prizeThird) : 0));
-      formData.append("prize_fourth", String(prizeFourth ? parseInt(prizeFourth) : 0));
-      formData.append("prize_fifth", String(prizeFifth ? parseInt(prizeFifth) : 0));
+      const prizeNames = ["prize_first", "prize_second", "prize_third", "prize_fourth", "prize_fifth"];
+      prizeNames.forEach((name, i) => {
+        formData.append(name, String(parseInt(prizes[i] ?? "") || 0));
+      });
+      const extraPrizes = prizes.slice(5).map((p) => parseInt(p) || 0);
       if (extraPrizes.length > 0) {
-        formData.append("extra_prizes", JSON.stringify(extraPrizes.map((p) => parseInt(p) || 0)));
+        formData.append("extra_prizes", JSON.stringify(extraPrizes));
       }
       formData.append("deadline", deadline);
       formData.append("required_skills", JSON.stringify(selectedSkills));
@@ -518,160 +512,54 @@ export default function LaunchContestPage() {
                 Prize Structure
               </h2>
               <p className="text-sm text-muted-foreground">
-                Set up to 5 prize positions. Only 1st prize is required. Prize
-                amounts are in Naira (₦).
+                Only 1st prize is required. Add as many positions as you like — amounts in Naira (₦).
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>🥇 1st Prize (₦) *</Label>
-                  <Input
-                    type="number"
-                    placeholder="Min. 50,000"
-                    min="50000"
-                    step="1"
-                    value={prizeFirst}
-                    onChange={(e) => setPrizeFirst(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Minimum ₦50,000
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>🥈 2nd Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeSecond}
-                    onChange={(e) => setPrizeSecond(e.target.value)}
-                    disabled={!prizeFirst}
-                  />
-                  {!prizeFirst && (
-                    <p className="text-xs text-muted-foreground">Set 1st prize first</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>🥉 3rd Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeThird}
-                    onChange={(e) => setPrizeThird(e.target.value)}
-                    disabled={!prizeSecond}
-                  />
-                  {!prizeSecond && (
-                    <p className="text-xs text-muted-foreground">Set 2nd prize first</p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>🏅 4th Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeFourth}
-                    onChange={(e) => setPrizeFourth(e.target.value)}
-                    disabled={!prizeThird}
-                  />
-                  {!prizeThird && (
-                    <p className="text-xs text-muted-foreground">
-                      Set 3rd prize first
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>🏅 5th Prize (₦)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Optional"
-                    min="0"
-                    step="1"
-                    value={prizeFifth}
-                    onChange={(e) => setPrizeFifth(e.target.value)}
-                    disabled={!prizeFourth}
-                  />
-                  {!prizeFourth && (
-                    <p className="text-xs text-muted-foreground">
-                      Set 4th prize first
-                    </p>
-                  )}
-                </div>
-              </div>
 
-              {/* Extra prize positions beyond 5th */}
-              {extraPrizes.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {extraPrizes.map((val, idx) => {
-                    const prevFilled = idx === 0 ? !!prizeFifth : !!extraPrizes[idx - 1];
-                    return (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>🏅 {ordinal(idx + 6)} Prize (₦)</Label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {prizes.map((val, i) => {
+                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "🏅";
+                  const isRequired = i === 0;
+                  const prevFilled = i === 0 || !!prizes[i - 1];
+                  return (
+                    <div key={i} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>{medal} {ordinal(i + 1)} Prize (₦){isRequired ? " *" : ""}</Label>
+                        {!isRequired && (
                           <button
                             type="button"
-                            onClick={() => setExtraPrizes(extraPrizes.slice(0, idx))}
+                            onClick={() => removePrizesFrom(i)}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
-                        </div>
-                        <Input
-                          type="number"
-                          placeholder="Optional"
-                          min="0"
-                          step="1"
-                          value={val}
-                          disabled={!prevFilled}
-                          onChange={(e) => {
-                            const updated = [...extraPrizes];
-                            updated[idx] = e.target.value;
-                            setExtraPrizes(updated);
-                          }}
-                        />
-                        {!prevFilled && (
-                          <p className="text-xs text-muted-foreground">Set {ordinal(idx + 5)} prize first</p>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <Input
+                        type="number"
+                        placeholder={isRequired ? "Min. 50,000" : "Optional"}
+                        min={isRequired ? "50000" : "0"}
+                        step="1"
+                        value={val}
+                        disabled={!prevFilled}
+                        onChange={(e) => setPrize(i, e.target.value)}
+                      />
+                      {isRequired && <p className="text-xs text-muted-foreground">Minimum ₦50,000</p>}
+                      {!isRequired && !prevFilled && (
+                        <p className="text-xs text-muted-foreground">Set {ordinal(i)} prize first</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
-              {/* Add more prize positions */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                <Label className="text-sm text-muted-foreground">Add more prize positions</Label>
-                <Input
-                  type="number"
-                  placeholder="How many more? (e.g. 5)"
-                  min="1"
-                  max="20"
-                  value={extraPrizeCountInput}
-                  onChange={(e) => setExtraPrizeCountInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const count = Math.min(Math.max(parseInt(extraPrizeCountInput) || 0, 1), 20);
-                      if (count > 0) {
-                        const start = extraPrizes.length + 6;
-                        const end = start + count - 1;
-                        setExtraPrizes([...extraPrizes, ...Array(count).fill("")]);
-                        setExtraPrizeCountInput("");
-                        toast.info(`Added ${ordinal(start)} to ${ordinal(end)} prize positions`);
-                      }
-                    }
-                  }}
-                />
-                {extraPrizeCountInput && parseInt(extraPrizeCountInput) > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Press Enter to add {ordinal(extraPrizes.length + 6)} to {ordinal(extraPrizes.length + (parseInt(extraPrizeCountInput) || 0) + 5)} prizes
-                  </p>
-                )}
+              <div className="pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={addPrize}
+                  className="text-sm text-primary hover:underline"
+                >
+                  + Add {ordinal(prizes.length + 1)} prize
+                </button>
               </div>
             </div>
 

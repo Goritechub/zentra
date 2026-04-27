@@ -160,6 +160,9 @@ export default function ApplyJobPage() {
   const [editMilestones, setEditMilestones] = useState<{ title: string; duration: string; durationUnit: DurationUnit; amount: string; amountFormatted: string }[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [submittedConfirmation, setSubmittedConfirmation] = useState(false);
+  const [editAttachmentUrls, setEditAttachmentUrls] = useState<string[]>([]);
+  const [editProposalFiles, setEditProposalFiles] = useState<File[]>([]);
+  const editProposalFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (id && user) fetchData();
@@ -173,6 +176,8 @@ export default function ApplyJobPage() {
     setEditDeliveryValue(String(fromDays(proposal.delivery_days, unit)));
     setEditCoverLetter(proposal.cover_letter);
     setEditPaymentType(proposal.payment_type || "project");
+    setEditAttachmentUrls(proposal.attachments ?? []);
+    setEditProposalFiles([]);
 
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
       setEditMilestones(proposal.milestones.map((ms: any) => {
@@ -230,10 +235,10 @@ export default function ApplyJobPage() {
     if (proposalFileRef.current) proposalFileRef.current.value = '';
   };
 
-  const uploadProposalAttachments = async (): Promise<string[]> => {
-    if (!proposalFiles.length || !user) return [];
+  const uploadProposalAttachments = async (files: File[] = proposalFiles): Promise<string[]> => {
+    if (!files.length || !user) return [];
     const urls: string[] = [];
-    for (const file of proposalFiles) {
+    for (const file of files) {
       const path = `${user.id}/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from('proposal-attachments').upload(path, file);
       if (!error) {
@@ -358,6 +363,9 @@ export default function ApplyJobPage() {
 
     setEditSubmitting(true);
 
+    const freshUrls = await uploadProposalAttachments(editProposalFiles);
+    const allAttachments = [...editAttachmentUrls, ...freshUrls];
+
     const totalBid = editPaymentType === "milestone"
       ? editMilestones.reduce((sum, m) => sum + parseCommaNumber(m.amountFormatted), 0)
       : parseCommaNumber(editBidAmountFormatted);
@@ -382,6 +390,7 @@ export default function ApplyJobPage() {
         delivery_days: totalDays,
         delivery_unit: editPaymentType === "project" ? editDeliveryUnit : "days",
         cover_letter: editCoverLetter.trim(),
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
         payment_type: editPaymentType,
         milestones: milestonesData,
         edit_count: existingProposal.edit_count + 1,
@@ -600,6 +609,70 @@ export default function ApplyJobPage() {
             <div className="space-y-2">
               <Label>Cover Letter</Label>
               <Textarea rows={6} value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachments</Label>
+              {editAttachmentUrls.length > 0 && (
+                <div className="space-y-1">
+                  {editAttachmentUrls.map((url, idx) => {
+                    const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <span className="truncate">{decodeURIComponent(name)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditAttachmentUrls(editAttachmentUrls.filter((_, i) => i !== idx))}
+                          className="ml-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {editProposalFiles.map((file, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditProposalFiles(editProposalFiles.filter((_, i) => i !== idx))}
+                    className="ml-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {editAttachmentUrls.length + editProposalFiles.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => editProposalFileRef.current?.click()}
+                  className="flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <Paperclip className="h-4 w-4" /> Add attachment
+                </button>
+              )}
+              <input
+                ref={editProposalFileRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const incoming = Array.from(e.target.files || []);
+                  const allowed = incoming.filter(f => f.size <= 10 * 1024 * 1024);
+                  const remaining = 5 - editAttachmentUrls.length - editProposalFiles.length;
+                  setEditProposalFiles(prev => [...prev, ...allowed].slice(0, prev.length + remaining));
+                  if (editProposalFileRef.current) editProposalFileRef.current.value = "";
+                }}
+              />
             </div>
           </div>
         ) : (

@@ -40,7 +40,7 @@ export default function BrowseContestsPage() {
     if (bootstrapStatus === "ready" && user) {
       void fetchContests();
     }
-  }, [bootstrapStatus, user]);
+  }, [bootstrapStatus, user?.id]);
 
   const fetchContests = async () => {
     setLoading(true);

@@ -214,6 +214,10 @@ export default function PostJobPage() {
       toast.error("Maximum budget must be at least ₦30,000");
       return;
     }
+    if (budgetMin && budgetMax && parseInt(budgetMin) > parseInt(budgetMax)) {
+      toast.error("Minimum budget cannot be greater than maximum budget");
+      return;
+    }
 
     if (deliveryValue && parseInt(deliveryValue) < 1) {
       toast.error("Delivery value must be at least 1");
