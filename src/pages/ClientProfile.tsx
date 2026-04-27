@@ -152,7 +152,9 @@ export default function ClientProfile() {
                 <div>
                   <h1 className="text-xl font-bold text-foreground">{profile.full_name || "Client"}</h1>
                   {profile.username && (
-                    <p className="text-sm text-muted-foreground mt-0.5">@{profile.username}</p>
+                    <Link to={`/client/${profile.id}/profile`} className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-0.5 block">
+                      @{profile.username}
+                    </Link>
                   )}
                   <Badge variant="outline" className="mt-2 text-xs capitalize">Client</Badge>
                 </div>

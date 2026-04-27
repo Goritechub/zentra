@@ -380,11 +380,8 @@ export default function ExpertProfile() {
 
                 {/* Name / title / meta */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
                     <h1 className="text-2xl font-bold text-foreground">{profile.full_name}</h1>
-                    {profile.username && (
-                      <span className="text-sm text-muted-foreground font-normal">@{profile.username}</span>
-                    )}
                     {isAvailable && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -392,6 +389,11 @@ export default function ExpertProfile() {
                       </span>
                     )}
                   </div>
+                  {profile.username && (
+                    <Link to={`/expert/${profile.id}/profile`} className="text-sm text-muted-foreground hover:text-foreground transition-colors block mb-0.5">
+                      @{profile.username}
+                    </Link>
+                  )}
                   {(freelancerProfile?.title || profile.occupation) && (
                     <p className="text-muted-foreground font-medium mb-1">
                       {freelancerProfile?.title || profile.occupation}

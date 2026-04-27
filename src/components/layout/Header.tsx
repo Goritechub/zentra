@@ -355,7 +355,7 @@ export function Header() {
                         {isClient && (
                           <>
                             <DropdownMenuItem asChild>
-                              <Link to="/my-profile" className="cursor-pointer">
+                              <Link to={profileHref} className="cursor-pointer">
                                 <Eye className="mr-2 h-4 w-4" />My Profile
                               </Link>
                             </DropdownMenuItem>

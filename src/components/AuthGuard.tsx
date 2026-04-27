@@ -11,7 +11,7 @@ export function AuthGuard({ children, allowIncomplete = false }: AuthGuardProps)
   const { user, loading, isAdmin, bootstrapStatus, authError, onboardingComplete } = useAuth();
   const location = useLocation();
 
-  if (!user && (loading || bootstrapStatus === "loading")) {
+  if (loading || bootstrapStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
