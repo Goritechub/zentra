@@ -18,6 +18,7 @@ export interface AuthBootstrapResponse {
       isVerified: boolean;
       state: string | null;
       city: string | null;
+      preferredCurrency: "USD" | "NGN";
     } | null;
   };
 }

@@ -46,10 +46,10 @@ import {
   updateContestWinnerJustifications,
 } from "@/api/marketplace.api";
 import { createNotification } from "@/lib/notifications";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   isPast,
-  format,
+  format as fnsFormat,
   formatDistanceToNow,
   differenceInHours,
 } from "date-fns";
@@ -526,7 +526,7 @@ function WinnerCard({
       <p
         className={`font-bold text-primary mt-3 ${isLarge ? "text-2xl" : "text-xl"}`}
       >
-        {formatNaira(prize)}
+        {format(prize)}
       </p>
 
       {justification && (
@@ -568,6 +568,7 @@ function WinnerCard({
 // ---------------------------------------------------------------------------
 
 export default function ContestDetailPage() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1415,7 +1416,7 @@ export default function ContestDetailPage() {
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-primary">
-                {formatNaira(totalPrize)}
+                {format(totalPrize)}
               </p>
               <p className="text-xs text-muted-foreground">Total Prize Pool</p>
             </div>
@@ -1525,7 +1526,7 @@ export default function ContestDetailPage() {
                           : `${formatDistanceToNow(new Date(contest.deadline))} remaining`}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Deadline: {format(new Date(contest.deadline), "PPP p")}
+                      Deadline: {fnsFormat(new Date(contest.deadline), "PPP p")}
                     </p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
@@ -1564,7 +1565,7 @@ export default function ContestDetailPage() {
                                 : "font-semibold"
                             }
                           >
-                            {formatNaira(prize)}
+                            {format(prize)}
                           </span>
                         </div>
                       );
@@ -2469,7 +2470,7 @@ export default function ContestDetailPage() {
                     {(n.freelancer as any)?.full_name || "Expert"}
                   </span>
                   <span className="ml-auto font-bold text-primary">
-                    {formatNaira(contest[prizeKeys[idx]] || 0)}
+                    {format(contest[prizeKeys[idx]] || 0)}
                   </span>
                 </div>
                 <Textarea

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAdminOverview } from "@/api/admin.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -19,6 +19,7 @@ interface Stats {
 }
 
 export default function AdminOverview() {
+  const { format } = useCurrency();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -57,10 +58,10 @@ export default function AdminOverview() {
     { label: "Active Jobs", value: stats!.activeJobs, icon: Briefcase, color: "text-amber-500", route: "/admin/jobs" },
     { label: "Active Contests", value: stats!.activeContests, icon: Trophy, color: "text-orange-500", route: "/admin/contests" },
     { label: "Active Contracts", value: stats!.activeContracts, icon: FileText, color: "text-purple-500", route: "/admin/contracts" },
-    { label: "Active Project Budget", value: formatNaira(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
+    { label: "Active Project Budget", value: format(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
     { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-indigo-500", route: "/admin/payments" },
     { label: "Open Disputes", value: stats!.openDisputes, icon: Gavel, color: "text-destructive", route: "/admin/disputes" },
-    { label: "Platform Revenue", value: formatNaira(stats!.totalRevenue), icon: DollarSign, color: "text-emerald-600", isNaira: true, route: "/admin/payments" },
+    { label: "Platform Revenue", value: format(stats!.totalRevenue), icon: DollarSign, color: "text-emerald-600", isNaira: true, route: "/admin/payments" },
   ];
 
   return (

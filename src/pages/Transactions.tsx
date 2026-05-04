@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getWalletOverview } from "@/api/wallet.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { WithdrawModal } from "@/components/wallet/WithdrawModal";
 import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
@@ -28,6 +28,12 @@ import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 
 const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
+
+// Replace 10-digit account numbers in description strings with last-4 visible
+function maskDescription(desc: string): string {
+  if (!desc) return desc;
+  return desc.replace(/\b(\d{6})(\d{4})\b/g, "••••••$2");
+}
 const hiddenTypes = ["escrow_credit", "escrow_hold"];
 type TxFilter = "all" | "credits" | "debits";
 
@@ -59,6 +65,7 @@ function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
 }
 
 export default function TransactionsPage() {
+  const { format } = useCurrency();
   const navigate = useNavigate();
   const { user, profile, role, bootstrapStatus, authError } = useAuth();
   const queryClient = useQueryClient();
@@ -122,7 +129,7 @@ export default function TransactionsPage() {
     const data = filtered.map(tx => ({
       Date: new Date(tx.created_at).toLocaleDateString("en-NG"),
       Type: tx.type,
-      Description: tx.description || tx.type,
+      Description: maskDescription(tx.description) || tx.type,
       Amount: tx.amount,
       "Balance After": tx.balance_after,
     }));
@@ -181,7 +188,7 @@ export default function TransactionsPage() {
             {/* Wallet Balance (total) */}
             <div className="bg-hero-gradient text-white rounded-xl p-6">
               <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Wallet Balance</span></div>
-              <p className="text-3xl font-bold">{formatNaira(walletBalance)}</p>
+              <p className="text-3xl font-bold">{format(walletBalance)}</p>
               <div className="flex gap-2 mt-4">
                 <Button size="sm" variant="secondary" onClick={() => { if (!profile?.is_verified) { setShowKycModal(true); return; } setShowFund(true); }}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
@@ -208,7 +215,7 @@ export default function TransactionsPage() {
                   <Timer className="h-5 w-5 text-amber-500" />
                   <span className="text-sm text-muted-foreground">Pending Clearance</span>
                 </div>
-                <p className="text-3xl font-bold text-foreground">{formatNaira(pendingClearance)}</p>
+                <p className="text-3xl font-bold text-foreground">{format(pendingClearance)}</p>
                 {nextClearance && (
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground">Next release:</p>
@@ -228,7 +235,7 @@ export default function TransactionsPage() {
                   <Download className="h-5 w-5 text-primary" />
                   <span className="text-sm text-muted-foreground">Available for Withdrawal</span>
                 </div>
-                <p className="text-3xl font-bold text-foreground">{formatNaira(availableBalance)}</p>
+                <p className="text-3xl font-bold text-foreground">{format(availableBalance)}</p>
                 {availableBalance < 5000 && (
                   <p className="text-xs text-muted-foreground mt-2">Min. ₦5,000 to withdraw</p>
                 )}
@@ -236,7 +243,7 @@ export default function TransactionsPage() {
             ) : (
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">Project Budget</span></div>
-                <p className="text-3xl font-bold text-foreground">{formatNaira(wallet?.escrow_balance || 0)}</p>
+                <p className="text-3xl font-bold text-foreground">{format(wallet?.escrow_balance || 0)}</p>
               </div>
             )}
 
@@ -247,7 +254,7 @@ export default function TransactionsPage() {
                 <span className="text-sm text-muted-foreground">{isFreelancer ? "Total Earned" : "Total Spent"}</span>
               </div>
               <p className="text-3xl font-bold text-foreground">
-                {formatNaira(isFreelancer ? (wallet?.total_earned || 0) : (wallet?.total_spent || 0))}
+                {format(isFreelancer ? (wallet?.total_earned || 0) : (wallet?.total_spent || 0))}
               </p>
             </div>
           </div>
@@ -265,11 +272,11 @@ export default function TransactionsPage() {
                 {pendingClearanceTxs.map((tx: any) => (
                   <div key={tx.id} className="flex items-center justify-between p-4">
                     <div>
-                      <p className="text-sm font-medium text-foreground">{tx.description}</p>
+                      <p className="text-sm font-medium text-foreground">{maskDescription(tx.description)}</p>
                       <p className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-amber-500">{formatNaira(tx.amount)}</p>
+                      <p className="font-semibold text-amber-500">{format(tx.amount)}</p>
                       <ClearanceCountdown clearanceAt={tx.clearance_at} />
                     </div>
                   </div>
@@ -323,7 +330,7 @@ export default function TransactionsPage() {
                         </div>
                         <div>
                           <p className="font-medium text-foreground">
-                            {tx.description || tx.type}
+                            {maskDescription(tx.description) || tx.type}
                             {isPendingClearance && (
                               <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/30 text-[10px] px-1.5 py-0">
                                 Pending
@@ -338,9 +345,9 @@ export default function TransactionsPage() {
                       </div>
                       <div className="text-right">
                         <p className={`font-semibold ${isPendingClearance ? "text-amber-500" : credit ? "text-primary" : "text-destructive"}`}>
-                          {credit ? "+" : "-"}{formatNaira(tx.amount)}
+                          {credit ? "+" : "-"}{format(tx.amount)}
                         </p>
-                        {tx.balance_after != null && <p className="text-xs text-muted-foreground">Bal: {formatNaira(tx.balance_after)}</p>}
+                        {tx.balance_after != null && <p className="text-xs text-muted-foreground">Bal: {format(tx.balance_after)}</p>}
                       </div>
                     </div>
                   );
@@ -412,7 +419,7 @@ export default function TransactionsPage() {
                     {filteredForExport.map((tx: any) => (
                       <tr key={tx.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                         <td style={{ padding: "8px 4px" }}>{new Date(tx.created_at).toLocaleDateString("en-NG")}</td>
-                        <td style={{ padding: "8px 4px" }}>{tx.description || tx.type}</td>
+                        <td style={{ padding: "8px 4px" }}>{maskDescription(tx.description) || tx.type}</td>
                         <td style={{ padding: "8px 4px", textAlign: "right", color: creditTypes.includes(tx.type) ? "#16a34a" : "#dc2626" }}>
                           {creditTypes.includes(tx.type) ? "+" : "-"}₦{tx.amount?.toLocaleString()}
                         </td>

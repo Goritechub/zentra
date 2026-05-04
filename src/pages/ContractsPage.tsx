@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { getContracts } from "@/api/contracts.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
   FileText, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle
@@ -16,6 +16,7 @@ import {
 import { ContractRowSkeleton } from "@/components/skeletons/ContractRowSkeleton";
 
 export default function ContractsPage() {
+  const { format } = useCurrency();
   const { user, role, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const contractsQuery = useQuery({
@@ -119,7 +120,7 @@ export default function ContractsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
-                              <p className="text-xl font-bold text-primary">{formatNaira(contract.amount)}</p>
+                              <p className="text-xl font-bold text-primary">{format(contract.amount)}</p>
                               <Badge variant={cfg.variant} className="gap-1">
                                 <Icon className="h-3 w-3" /> {cfg.label}
                               </Badge>

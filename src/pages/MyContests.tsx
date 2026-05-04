@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyContestsList, cancelContest } from "@/api/client-read.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -61,6 +61,7 @@ function StatusBadge({ contest }: { contest: any }) {
 }
 
 export default function MyContestsPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [contests, setContests] = useState<any[]>([]);
@@ -223,7 +224,7 @@ export default function MyContestsPage() {
                       </Link>
 
                       <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
-                        <p className="text-xl font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
+                        <p className="text-xl font-bold text-primary">{format(totalPrize(contest))}</p>
                         {canEdit && (
                           <Button
                             variant="outline"
@@ -272,7 +273,7 @@ export default function MyContestsPage() {
                   Are you sure you want to cancel{" "}
                   <span className="font-medium text-foreground">"{cancelTarget?.title}"</span>?
                   The full prize pool of{" "}
-                  <span className="font-medium text-foreground">{formatNaira(cancelTarget ? totalPrize(cancelTarget) : 0)}</span>{" "}
+                  <span className="font-medium text-foreground">{format(cancelTarget ? totalPrize(cancelTarget) : 0)}</span>{" "}
                   will be refunded to your wallet.
                 </p>
                 {hasEntries ? (

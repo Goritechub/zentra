@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
   Loader2, AlertTriangle, Download, Gavel, Scale, MessageSquare, FileText,
@@ -27,6 +27,7 @@ interface DisputeAdjudicatorProps {
 }
 
 export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorProps) {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const [contract, setContract] = useState<any>(null);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       const cAmt = parseInt(splitClient) || 0;
       const fAmt = parseInt(splitFreelancer) || 0;
       if (cAmt + fAmt !== totalHeld) {
-        toast.error(`Split must equal the total project funds of ${formatNaira(totalHeld)}`); return;
+        toast.error(`Split must equal the total project funds of ${format(totalHeld)}`); return;
       }
     }
     setActionLoading(true);
@@ -143,7 +144,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           </div>
           <div>
             <p className="text-muted-foreground">Contract Amount</p>
-            <p className="font-medium text-primary">{formatNaira(contract.amount)}</p>
+            <p className="font-medium text-primary">{format(contract.amount)}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Client</p>
@@ -155,7 +156,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           </div>
           <div>
             <p className="text-muted-foreground">Project Funds</p>
-            <p className="font-bold text-destructive">{formatNaira(totalHeld)}</p>
+            <p className="font-bold text-destructive">{format(totalHeld)}</p>
           </div>
         </div>
       </div>
@@ -254,7 +255,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
                   <span className="font-medium">
                     {msg.is_system_message ? "System" : msg.sender_id === contract.client_id ? contract.client?.full_name : contract.freelancer?.full_name}
                   </span>
-                  <span className="text-muted-foreground">{format(new Date(msg.created_at), "PP p")}</span>
+                  <span className="text-muted-foreground">{fnsFormat(new Date(msg.created_at), "PP p")}</span>
                 </div>
                 <p>{msg.content}</p>
               </div>
@@ -272,7 +273,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
                     <p className="text-sm font-medium">{ms.title}</p>
                     <p className="text-xs text-muted-foreground">{ms.status}</p>
                   </div>
-                  <span className="text-sm font-semibold text-primary">{formatNaira(ms.amount)}</span>
+                  <span className="text-sm font-semibold text-primary">{format(ms.amount)}</span>
                 </div>
               ))}
             </div>
@@ -315,7 +316,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Gavel className="h-5 w-5" /> {totalHeld > 0 ? "Render Dispute Decision" : "Close Dispute"}</DialogTitle>
-            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Project Funds: ${formatNaira(totalHeld)}` : "No project funds to distribute. Provide a closing note."}</DialogDescription>
+            <DialogDescription>{totalHeld > 0 ? `Choose an outcome for this dispute. Project Funds: ${format(totalHeld)}` : "No project funds to distribute. Provide a closing note."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {totalHeld > 0 && (
@@ -323,8 +324,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
                 <Label>Outcome *</Label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${formatNaira(totalHeld)}` },
-                    { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${formatNaira(totalHeld)}` },
+                    { value: "release_to_freelancer", label: "Release funds to Expert", icon: ArrowRight, desc: `Expert receives ${format(totalHeld)}` },
+                    { value: "refund_client", label: "Refund Client", icon: ArrowRight, desc: `Client receives ${format(totalHeld)}` },
                     { value: "partial_split", label: "Partial Split", icon: Scale, desc: "Split project funds between both parties" },
                   ].map(opt => (
                     <button

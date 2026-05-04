@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { deleteAdminJob, getAdminJobProposals, getAdminJobs } from "@/api/admin.api";
 import { formatDistanceToNow } from "date-fns";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Eye, Trash2, FileText } from "lucide-react";
 
 export default function AdminJobs() {
+  const { format } = useCurrency();
   const [jobs, setJobs] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,8 +111,8 @@ export default function AdminJobs() {
                 <TableCell className="text-sm">{j.client?.full_name || "—"}</TableCell>
                 <TableCell className="text-sm">
                   {j.budget_min && j.budget_max
-                    ? `${formatNaira(j.budget_min)} - ${formatNaira(j.budget_max)}`
-                    : j.budget_max ? formatNaira(j.budget_max) : "Negotiable"}
+                    ? `${format(j.budget_min)} - ${format(j.budget_max)}`
+                    : j.budget_max ? format(j.budget_max) : "Negotiable"}
                 </TableCell>
                 <TableCell>
                   <Badge variant={statusColor(j.status) as any} className="capitalize">{j.status}</Badge>
@@ -160,7 +161,7 @@ export default function AdminJobs() {
                           <Badge variant="outline" className="capitalize">{p.status}</Badge>
                         </div>
                         <div className="flex gap-4 mt-1 text-muted-foreground text-xs">
-                          <span>Bid: {formatNaira(p.bid_amount)}</span>
+                          <span>Bid: {format(p.bid_amount)}</span>
                           <span>Delivery: {p.delivery_days} {p.delivery_unit}</span>
                         </div>
                       </div>

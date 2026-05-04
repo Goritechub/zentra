@@ -21,9 +21,9 @@ import {
   getContractDetail,
   submitContractReview,
 } from "@/api/contracts.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { calculateServiceCharge } from "@/lib/service-charge";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
@@ -57,7 +57,13 @@ const MILESTONE_COLORS: Record<string, string> = {
   disputed: "destructive",
 };
 
+function maskDescription(desc: string): string {
+  if (!desc) return desc;
+  return desc.replace(/\b(\d{6})(\d{4})\b/g, "••••••$2");
+}
+
 export default function ContractDetail() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -340,7 +346,7 @@ export default function ContractDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-2xl font-bold text-primary">{formatNaira(contract.amount)}</p>
+                <p className="text-2xl font-bold text-primary">{format(contract.amount)}</p>
                 <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
                 <FundingStatusBadge
                   clientId={contract.client_id}
@@ -360,14 +366,14 @@ export default function ContractDetail() {
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-muted-foreground">Project Budget</span>
                 </div>
-                <p className="text-xl font-bold text-primary">{formatNaira(totalHeld)}</p>
+                <p className="text-xl font-bold text-primary">{format(totalHeld)}</p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-muted-foreground">Released</span>
                 </div>
-                <p className="text-xl font-bold text-foreground">{formatNaira(totalReleased)}</p>
+                <p className="text-xl font-bold text-foreground">{format(totalReleased)}</p>
               </div>
               {isFreelancer && (
                 <div className="bg-card rounded-xl border border-border p-4">
@@ -375,7 +381,7 @@ export default function ContractDetail() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">Platform Fees</span>
                   </div>
-                  <p className="text-xl font-bold text-muted-foreground">{formatNaira(totalFees)}</p>
+                  <p className="text-xl font-bold text-muted-foreground">{format(totalFees)}</p>
                 </div>
               )}
             </div>
@@ -434,7 +440,7 @@ export default function ContractDetail() {
                           <div key={ms.id} className="bg-card rounded-lg border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                               <p className="font-medium text-foreground">{ms.title}</p>
-                              <p className="text-sm text-primary font-semibold">{formatNaira(ms.amount)}</p>
+                              <p className="text-sm text-primary font-semibold">{format(ms.amount)}</p>
                               {ms.submitted_at && <p className="text-xs text-muted-foreground">Submitted {formatDistanceToNow(new Date(ms.submitted_at), { addSuffix: true })}</p>}
                               {ms.submission_notes && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{ms.submission_notes}</p>}
                             </div>
@@ -479,7 +485,7 @@ export default function ContractDetail() {
                     <p className="text-sm text-foreground whitespace-pre-wrap">{contract.job_description}</p>
                     <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                       {contract.job_category && <span>Category: <strong className="text-foreground">{contract.job_category}</strong></span>}
-                      {(contract.job_budget_min || contract.job_budget_max) && <span>Budget: <strong className="text-foreground">{formatNaira(contract.job_budget_min || 0)} – {formatNaira(contract.job_budget_max || 0)}</strong></span>}
+                      {(contract.job_budget_min || contract.job_budget_max) && <span>Budget: <strong className="text-foreground">{format(contract.job_budget_min || 0)} – {format(contract.job_budget_max || 0)}</strong></span>}
                       {contract.job_delivery_days && <span>Timeline: <strong className="text-foreground">{contract.job_delivery_days} {contract.job_delivery_unit || "days"}</strong></span>}
                     </div>
                     {contract.job_attachments?.length > 0 && (
@@ -500,7 +506,7 @@ export default function ContractDetail() {
                     <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><ScrollText className="h-5 w-5 text-primary" /> Accepted Proposal</h2>
                     <div className="p-4 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap">{contract.accepted_cover_letter}</div>
                     <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
-                      <span>Bid: <strong className="text-primary">{formatNaira(contract.accepted_bid_amount || contract.amount)}</strong></span>
+                      <span>Bid: <strong className="text-primary">{format(contract.accepted_bid_amount || contract.amount)}</strong></span>
                       <span>Payment: <strong className="text-foreground">{contract.accepted_payment_type === "milestone" ? "Milestone" : "Project"}</strong></span>
                     </div>
                     {/* Fee preview - expert only */}
@@ -509,8 +515,8 @@ export default function ContractDetail() {
                       const { rateLabel, charge, takeHome } = calculateServiceCharge(amt);
                       return (
                         <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({formatNaira(charge)})</p>
-                          <p className="text-muted-foreground">You receive: <strong className="text-primary">{formatNaira(takeHome)}</strong></p>
+                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({format(charge)})</p>
+                          <p className="text-muted-foreground">You receive: <strong className="text-primary">{format(takeHome)}</strong></p>
                         </div>
                       );
                     })()}
@@ -537,9 +543,9 @@ export default function ContractDetail() {
                 <div className="bg-card rounded-xl border border-border p-6">
                   <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Contract Timeline</h2>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Created</span><span>{contract.created_at ? format(new Date(contract.created_at), "PPP") : "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Started</span><span>{contract.started_at ? format(new Date(contract.started_at), "PPP") : "—"}</span></div>
-                    {contract.completed_at && <div className="flex justify-between"><span className="text-muted-foreground">Completed</span><span>{format(new Date(contract.completed_at), "PPP")}</span></div>}
+                    <div className="flex justify-between"><span className="text-muted-foreground">Created</span><span>{contract.created_at ? fnsFormat(new Date(contract.created_at), "PPP") : "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Started</span><span>{contract.started_at ? fnsFormat(new Date(contract.started_at), "PPP") : "—"}</span></div>
+                    {contract.completed_at && <div className="flex justify-between"><span className="text-muted-foreground">Completed</span><span>{fnsFormat(new Date(contract.completed_at), "PPP")}</span></div>}
                   </div>
                 </div>
               </div>
@@ -573,7 +579,7 @@ export default function ContractDetail() {
                               </div>
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                <span className="font-semibold text-primary text-sm">{formatNaira(ms.amount)}</span>
+                                <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
                                 {ms.due_date && <span>Due: {new Date(ms.due_date).toLocaleDateString()}</span>}
                                 {ms.funded_at && <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-primary" /> Funded</span>}
                                 {ms.submitted_at && <span className="flex items-center gap-1"><Send className="h-3 w-3" /> Submitted</span>}
@@ -582,7 +588,7 @@ export default function ContractDetail() {
                               {/* Fee breakdown - expert view only */}
                               {isFreelancer && (ms.status === "pending" || ms.status === "funded") && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Fee: {feeInfo.rateLabel} → You get {formatNaira(feeInfo.takeHome)}
+                                  Fee: {feeInfo.rateLabel} → You get {format(feeInfo.takeHome)}
                                 </p>
                               )}
                               {ms.status === "submitted" && ms.submission_notes && (
@@ -647,14 +653,14 @@ export default function ContractDetail() {
                               {entry.status}
                             </Badge>
                             <p className="text-sm mt-1">
-                              Held: {formatNaira(entry.held_amount)}
-                              {entry.released_amount > 0 && ` → Released: ${formatNaira(entry.released_amount)}`}
+                              Held: {format(entry.held_amount)}
+                              {entry.released_amount > 0 && ` → Released: ${format(entry.released_amount)}`}
                             </p>
                             {isFreelancer && entry.platform_fee > 0 && (
-                              <p className="text-xs text-muted-foreground">Fee: {formatNaira(entry.platform_fee)} | You receive: {formatNaira(entry.expert_amount)}</p>
+                              <p className="text-xs text-muted-foreground">Fee: {format(entry.platform_fee)} | You receive: {format(entry.expert_amount)}</p>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground">{format(new Date(entry.created_at), "PP")}</span>
+                          <span className="text-xs text-muted-foreground">{fnsFormat(new Date(entry.created_at), "PP")}</span>
                         </div>
                       ))}
                     </div>
@@ -671,11 +677,11 @@ export default function ContractDetail() {
                       {walletTransactions.map((txn) => (
                         <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{txn.description}</p>
-                            <p className="text-xs text-muted-foreground">{txn.type} • {format(new Date(txn.created_at), "PPp")}</p>
+                            <p className="text-sm font-medium text-foreground">{maskDescription(txn.description)}</p>
+                            <p className="text-xs text-muted-foreground">{txn.type} • {fnsFormat(new Date(txn.created_at), "PPp")}</p>
                           </div>
                           <span className={`font-semibold text-sm ${txn.type === "escrow_lock" ? "text-destructive" : "text-primary"}`}>
-                            {txn.type === "escrow_lock" ? "-" : "+"}{formatNaira(txn.amount)}
+                            {txn.type === "escrow_lock" ? "-" : "+"}{format(txn.amount)}
                           </span>
                         </div>
                       ))}
@@ -706,7 +712,7 @@ export default function ContractDetail() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground">{entry.content}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(entry.created_at), "PPp")}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{fnsFormat(new Date(entry.created_at), "PPp")}</p>
                         </div>
                       </div>
                     ))}
@@ -834,7 +840,7 @@ export default function ContractDetail() {
             </div>
             {newMilestone.amount && parseInt(newMilestone.amount) > 0 && isFreelancer && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({formatNaira(info.charge)}) → You receive <strong className="text-primary">{formatNaira(info.takeHome)}</strong></p>; })()}
+                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({format(info.charge)}) → You receive <strong className="text-primary">{format(info.takeHome)}</strong></p>; })()}
               </div>
             )}
           </div>

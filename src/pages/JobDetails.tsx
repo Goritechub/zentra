@@ -22,7 +22,7 @@ import {
 } from "@/api/client-proposals.api";
 import { withdrawMyJobProposal } from "@/api/proposals.api";
 import { useAuth } from "@/hooks/useAuth";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { VerificationBadges } from "@/components/VerificationBadges";
@@ -45,6 +45,7 @@ function formatDurationDisplay(days: number, unit?: string): string {
 }
 
 export default function JobDetailsPage() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -174,7 +175,7 @@ export default function JobDetailsPage() {
 
     if (fundNow) {
       if (!wallet || wallet.balance < requiredAmount) {
-        toast.error(`Insufficient wallet balance. You need at least ${formatNaira(requiredAmount)} to assign.`);
+        toast.error(`Insufficient wallet balance. You need at least ${format(requiredAmount)} to assign.`);
         setAssignDialog({ open: false, proposal: null });
         return;
       }
@@ -407,8 +408,8 @@ export default function JobDetailsPage() {
               <div className="flex items-center gap-1 font-semibold text-primary">
                 <DollarSign className="h-4 w-4" />
                 {job.budget_min && job.budget_max
-                  ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                  : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"}
+                  ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+                  : job.budget_min ? format(job.budget_min) : "Negotiable"}
               </div>
             </div>
           </div>
@@ -514,7 +515,7 @@ export default function JobDetailsPage() {
                                 <p className="text-muted-foreground text-sm mt-2 line-clamp-3 whitespace-pre-wrap">{proposal.cover_letter}</p>
 
                                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                                  <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>
+                                  <span>Bid: <strong className="text-foreground">{format(proposal.bid_amount)}</strong></span>
                                   <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
                                   <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
                                 </div>
@@ -601,7 +602,7 @@ export default function JobDetailsPage() {
 
                               <div className="flex items-center gap-3">
                                 <div className="text-right mr-3">
-                                  <p className="text-sm font-semibold text-foreground">{formatNaira(contract.amount)}</p>
+                                  <p className="text-sm font-semibold text-foreground">{format(contract.amount)}</p>
                                   <Badge variant="outline" className="gap-1 mt-1"><UserCheck className="h-3 w-3" /> Interviewing</Badge>
                                 </div>
                                 <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/contract/${contract.id}?tab=chat`); }}>
@@ -648,8 +649,8 @@ export default function JobDetailsPage() {
                   <h3 className="font-semibold mb-4">Budget</h3>
                   <p className="text-2xl font-bold text-primary">
                     {job.budget_min && job.budget_max
-                      ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                      : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"}
+                      ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+                      : job.budget_min ? format(job.budget_min) : "Negotiable"}
                   </p>
                   {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
                   <div className="mt-3">
@@ -681,7 +682,7 @@ export default function JobDetailsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground"><Wallet className="h-4 w-4" /> Wallet</div>
-                      <span className={`font-semibold ${paymentReady ? "text-primary" : "text-destructive"}`}>{formatNaira(wallet?.balance || 0)}</span>
+                      <span className={`font-semibold ${paymentReady ? "text-primary" : "text-destructive"}`}>{format(wallet?.balance || 0)}</span>
                     </div>
                   </div>
                 </div>
@@ -723,8 +724,8 @@ export default function JobDetailsPage() {
                   </div>
                   <p className="text-2xl font-bold text-primary">
                     {job.budget_min && job.budget_max
-                      ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                      : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"}
+                      ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+                      : job.budget_min ? format(job.budget_min) : "Negotiable"}
                   </p>
                   {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
                   <div className="mt-3">
@@ -826,7 +827,7 @@ export default function JobDetailsPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bid Amount</span>
-                <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.bid_amount)}</span>
+                <span className="font-bold text-primary">{format(assignDialog.proposal.bid_amount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Delivery</span>
@@ -841,7 +842,7 @@ export default function JobDetailsPage() {
                     <Label htmlFor="fund-now" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Now</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Pay {formatNaira(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
+                        Pay {format(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
                       </p>
                     </Label>
                   </div>
@@ -862,20 +863,20 @@ export default function JobDetailsPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wallet Balance</span>
                     <span className={wallet && wallet.balance >= getRequiredAmount(assignDialog.proposal) ? "text-primary" : "text-destructive"}>
-                      {formatNaira(wallet?.balance || 0)}
+                      {format(wallet?.balance || 0)}
                     </span>
                   </div>
                   {assignDialog.proposal.payment_type === "milestone" && assignDialog.proposal.milestones?.length > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Required Now (1st Milestone)</span>
-                      <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.milestones[0].amount)}</span>
+                      <span className="font-bold text-primary">{format(assignDialog.proposal.milestones[0].amount)}</span>
                     </div>
                   )}
                   {wallet && wallet.balance < getRequiredAmount(assignDialog.proposal) && (
                     <Alert className="border-destructive/30 bg-destructive/5">
                       <Wallet className="h-4 w-4 text-destructive" />
                       <AlertDescription className="text-sm">
-                        Insufficient balance. You need at least {formatNaira(getRequiredAmount(assignDialog.proposal))}.{" "}
+                        Insufficient balance. You need at least {format(getRequiredAmount(assignDialog.proposal))}.{" "}
                         <Link to="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</Link>
                       </AlertDescription>
                     </Alert>
@@ -955,7 +956,7 @@ export default function JobDetailsPage() {
                               Duration: {ms.duration ? `${ms.duration} ${ms.duration_unit || ms.durationUnit || "days"}` : (ms.date ? new Date(ms.date).toLocaleDateString() : "—")}
                             </p>
                           </div>
-                          <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
+                          <p className="font-semibold text-foreground">{format(ms.amount)}</p>
                         </div>
                       ))}
                     </div>
@@ -963,7 +964,7 @@ export default function JobDetailsPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
                         <span className="text-muted-foreground">Bid Amount</span>
-                        <span className="font-semibold text-foreground">{formatNaira(detailDialog.proposal.bid_amount)}</span>
+                        <span className="font-semibold text-foreground">{format(detailDialog.proposal.bid_amount)}</span>
                       </div>
                       <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
                         <span className="text-muted-foreground">Delivery</span>
@@ -1077,8 +1078,8 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole }: {
           <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
           <InfoTile icon={Tag} label="Price Tag" value={
             job.budget_min && job.budget_max
-              ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-              : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"
+              ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+              : job.budget_min ? format(job.budget_min) : "Negotiable"
           } />
           <InfoTile icon={Briefcase} label="Job Type" value={job.is_hourly ? "Contract / Hourly" : "Project-based"} />
           <InfoTile icon={Clock} label="Duration" value={deliveryLabel()} />
@@ -1114,7 +1115,7 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole }: {
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-primary">
-                  {sj.budget_max ? formatNaira(sj.budget_max) : sj.budget_min ? formatNaira(sj.budget_min) : "Negotiable"}
+                  {sj.budget_max ? format(sj.budget_max) : sj.budget_min ? format(sj.budget_min) : "Negotiable"}
                 </p>
               </Link>
             ))}

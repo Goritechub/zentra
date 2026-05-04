@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import { Loader2, Banknote, AlertTriangle, Plus } from "lucide-react";
 
 export function RevenueWithdrawCard() {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ export function RevenueWithdrawCard() {
       return;
     }
     if (amt > availableRevenue) {
-      toast.error(`Amount exceeds available revenue (${formatNaira(availableRevenue)})`);
+      toast.error(`Amount exceeds available revenue (${format(availableRevenue)})`);
       return;
     }
     if (!selectedBank) {
@@ -92,7 +93,7 @@ export function RevenueWithdrawCard() {
       if (!res.data?.success) {
         toast.error(res.data?.error || "Withdrawal failed");
       } else {
-        toast.success(`${formatNaira(amt)} withdrawal initiated!`);
+        toast.success(`${format(amt)} withdrawal initiated!`);
         setAmount("");
         await fetchData();
       }
@@ -168,15 +169,15 @@ export function RevenueWithdrawCard() {
           <div className="grid grid-cols-3 gap-3 text-sm">
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-bold text-emerald-500">{formatNaira(totalRevenue)}</p>
+              <p className="text-lg font-bold text-emerald-500">{format(totalRevenue)}</p>
             </div>
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Withdrawn</p>
-              <p className="text-lg font-bold text-amber-500">{formatNaira(totalWithdrawn)}</p>
+              <p className="text-lg font-bold text-amber-500">{format(totalWithdrawn)}</p>
             </div>
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Available</p>
-              <p className="text-lg font-bold text-primary">{formatNaira(availableRevenue)}</p>
+              <p className="text-lg font-bold text-primary">{format(availableRevenue)}</p>
             </div>
           </div>
 
@@ -296,7 +297,7 @@ export function RevenueWithdrawCard() {
         onOpenChange={setShowAuthModal}
         onVerified={handleVerified}
         title="Confirm Revenue Withdrawal"
-        description={`Enter your authentication code to withdraw ${formatNaira(parseInt(amount) || 0)}.`}
+        description={`Enter your authentication code to withdraw ${format(parseInt(amount) || 0)}.`}
       />
     </>
   );

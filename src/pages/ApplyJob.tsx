@@ -17,7 +17,7 @@ import {
   updateMyJobProposal,
 } from "@/api/proposals.api";
 import { toast } from "sonner";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { calculateServiceCharge, getServiceChargeLabel } from "@/lib/service-charge";
@@ -125,6 +125,7 @@ function MoneyInput({ value, onChange, placeholder }: {
 }
 
 export default function ApplyJobPage() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -692,13 +693,13 @@ export default function ApplyJobPage() {
                         Duration: {ms.duration ? `${ms.duration} ${ms.duration_unit || ms.durationUnit || "days"}` : (ms.date ? new Date(ms.date).toLocaleDateString() : "—")}
                       </p>
                     </div>
-                    <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
+                    <p className="font-semibold text-foreground">{format(ms.amount)}</p>
                   </div>
                 ))}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Total Bid</Label>
-                    <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{formatNaira(p.bid_amount)}</div>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{format(p.bid_amount)}</div>
                   </div>
                 </div>
               </div>
@@ -706,7 +707,7 @@ export default function ApplyJobPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Bid Amount (₦)</Label>
-                  <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{formatNaira(p.bid_amount)}</div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{format(p.bid_amount)}</div>
                 </div>
                 <div className="space-y-2">
                   <Label>Delivery</Label>
@@ -827,7 +828,7 @@ export default function ApplyJobPage() {
                             <MoneyInput
                               value={bidAmountFormatted}
                               onChange={(raw, formatted) => { setBidAmount(raw); setBidAmountFormatted(formatted); }}
-                              placeholder={job.budget_max ? `Up to ${formatNaira(job.budget_max)}` : "e.g. 250,000"}
+                              placeholder={job.budget_max ? `Up to ${format(job.budget_max)}` : "e.g. 250,000"}
                             />
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Info className="h-3 w-3 shrink-0" />
@@ -993,8 +994,8 @@ export default function ApplyJobPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <MiniTile icon={DollarSign} label="Budget" value={
                       job.budget_min && job.budget_max
-                        ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                        : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"
+                        ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+                        : job.budget_min ? format(job.budget_min) : "Negotiable"
                     } />
                     <MiniTile icon={Clock} label="Duration" value={deliveryLabel()} />
                     <MiniTile icon={Wrench} label="Skill Level" value={(job as any).skill_level || "Intermediate"} />
@@ -1018,8 +1019,8 @@ export default function ApplyJobPage() {
                 <h3 className="font-semibold mb-4">Budget</h3>
                 <p className="text-2xl font-bold text-primary">
                   {job.budget_min && job.budget_max
-                    ? `${formatNaira(job.budget_min)} - ${formatNaira(job.budget_max)}`
-                    : job.budget_min ? formatNaira(job.budget_min) : "Negotiable"}
+                    ? `${format(job.budget_min)} - ${format(job.budget_max)}`
+                    : job.budget_min ? format(job.budget_min) : "Negotiable"}
                 </p>
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
               </div>
@@ -1049,15 +1050,15 @@ function ServiceChargeSummary({ amount }: { amount: number }) {
     <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Total Project Price</span>
-        <span className="font-semibold text-foreground">{formatNaira(amount)}</span>
+        <span className="font-semibold text-foreground">{format(amount)}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Service Charge ({rateLabel})</span>
-        <span className="text-destructive">-{formatNaira(charge)}</span>
+        <span className="text-destructive">-{format(charge)}</span>
       </div>
       <div className="border-t border-border pt-2 flex justify-between text-sm">
         <span className="font-semibold text-foreground">Your Take-Home</span>
-        <span className="font-bold text-primary">{formatNaira(takeHome)}</span>
+        <span className="font-bold text-primary">{format(takeHome)}</span>
       </div>
     </div>
   );

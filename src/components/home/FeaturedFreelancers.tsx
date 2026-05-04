@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +23,7 @@ interface FeaturedExpert {
 }
 
 export function FeaturedFreelancers() {
+  const { format } = useCurrency();
   const [experts, setExperts] = useState<FeaturedExpert[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -166,7 +167,7 @@ export function FeaturedFreelancers() {
                 <div className="mt-4 pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground">Starting at</p>
                   <p className="text-lg font-bold text-primary">
-                    {formatNaira(expert.hourly_rate)}<span className="text-sm font-normal text-muted-foreground">/hr</span>
+                    {format(expert.hourly_rate)}<span className="text-sm font-normal text-muted-foreground">/hr</span>
                   </p>
                 </div>
               )}

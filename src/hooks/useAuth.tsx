@@ -30,6 +30,7 @@ interface Profile {
   created_at: string;
   updated_at: string;
   auth_code_dismissed_at: string | null;
+  preferred_currency: "USD" | "NGN";
 }
 
 interface BootstrapPayload {
@@ -47,6 +48,7 @@ interface BootstrapPayload {
   onboarding_complete: boolean;
   state: string | null;
   city: string | null;
+  preferredCurrency?: "USD" | "NGN";
 }
 
 interface BootstrapCache {
@@ -108,6 +110,7 @@ const mapBootstrapProfile = (
   created_at: payload.created_at || new Date(0).toISOString(),
   updated_at: payload.updated_at || new Date(0).toISOString(),
   auth_code_dismissed_at: payload.auth_code_dismissed_at,
+  preferred_currency: payload.preferredCurrency ?? "NGN",
 });
 
 const readBootstrapCache = (userId: string): BootstrapCache | null => {
@@ -245,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   onboarding_complete: backendUser.onboardingComplete,
                   state: backendUser.state,
                   city: backendUser.city,
+                  preferredCurrency: backendUser.preferredCurrency ?? "NGN",
                 } satisfies BootstrapPayload)
               : ({
                   user_id: userId,

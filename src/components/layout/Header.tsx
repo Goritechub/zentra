@@ -4,8 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Menu, X, User, LogOut, Briefcase, Search, MessageSquare, Palette, ChevronDown,
-  FileText, FolderOpen, Mail, Trophy, Eye, Send, CreditCard, Wallet, ArrowDownToLine,
-  Home, Bookmark, BarChart3, PenLine, Users, Settings, ShieldAlert,
+  FileText, FolderOpen, Mail, Trophy, Eye, Send, Wallet,
+  Home, Bookmark, PenLine, Users, Settings, ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
@@ -189,12 +189,6 @@ export function Header() {
         { to: "/dashboard/proposals", icon: FileText, label: "Proposals" },
       ];
 
-  const paymentsItems = [
-    { to: "/transactions", icon: BarChart3, label: "History" },
-    { to: "/transactions?tab=balance", icon: Wallet, label: "Balance" },
-    { to: "/transactions?tab=withdrawals", icon: ArrowDownToLine, label: "Withdrawals" },
-    { to: "/transactions", icon: CreditCard, label: "My Wallet" },
-  ];
 
   const browseItems = [
     { to: "/browse-services", icon: Eye, label: "Services" },
@@ -267,11 +261,14 @@ export function Header() {
                       items={myWorkItems}
                       active={isActive(["/dashboard/contracts", "/dashboard/received-offers", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
                     />
-                    <NavDropdown
-                      label="Payments"
-                      items={paymentsItems}
-                      active={isActive(["/transactions"])}
-                    />
+                    <Link
+                      to="/transactions"
+                      className={`text-sm font-medium transition-colors px-1 py-1 ${
+                        isActive(["/transactions"]) ? "text-primary" : "text-foreground/80 hover:text-foreground"
+                      }`}
+                    >
+                      Payments
+                    </Link>
                     <NavDropdown
                       label="Browse"
                       items={browseItems}
@@ -495,13 +492,16 @@ export function Header() {
                   toggle={() => setMobileSubMenu(mobileSubMenu === "work" ? null : "work")}
                   close={() => setMobileMenuOpen(false)}
                 />
-                <MobileDropdown
-                  label="Payments"
-                  items={paymentsItems}
-                  open={mobileSubMenu === "pay"}
-                  toggle={() => setMobileSubMenu(mobileSubMenu === "pay" ? null : "pay")}
-                  close={() => setMobileMenuOpen(false)}
-                />
+                <Link
+                  to="/transactions"
+                  className={`flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-muted text-sm font-medium transition-colors ${
+                    isActive(["/transactions"]) ? "text-primary" : "text-foreground/80"
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Wallet className="h-4 w-4" />
+                  Payments
+                </Link>
               </>
             )}
             <MobileDropdown

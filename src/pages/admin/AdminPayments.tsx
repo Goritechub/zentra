@@ -4,7 +4,7 @@ import {
   getAdminPaymentsOverview,
   setAdminWithdrawalsFreeze,
 } from "@/api/admin.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export default function AdminPayments() {
+  const { format } = useCurrency();
   useAuth();
   const [wallets, setWallets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -84,7 +85,7 @@ export default function AdminPayments() {
   const cancelWithdrawal = async (withdrawal: any) => {
     if (
       !confirm(
-        `Cancel withdrawal of ${formatNaira(withdrawal.amount)} for ${withdrawal.profile?.full_name}? This will refund the amount to their wallet.`,
+        `Cancel withdrawal of ${format(withdrawal.amount)} for ${withdrawal.profile?.full_name}? This will refund the amount to their wallet.`,
       )
     )
       return;
@@ -153,7 +154,7 @@ export default function AdminPayments() {
                 Total Wallet Balances
               </p>
               <p className="text-xl font-bold text-primary">
-                {formatNaira(totalBalance)}
+                {format(totalBalance)}
               </p>
             </div>
             <Wallet className="h-8 w-8 text-primary" />
@@ -164,7 +165,7 @@ export default function AdminPayments() {
             <div>
               <p className="text-sm text-muted-foreground">Active Project Budget</p>
               <p className="text-xl font-bold text-amber-500">
-                {formatNaira(totalEscrow)}
+                {format(totalEscrow)}
               </p>
             </div>
             <ArrowDownLeft className="h-8 w-8 text-amber-500" />
@@ -175,7 +176,7 @@ export default function AdminPayments() {
             <div>
               <p className="text-sm text-muted-foreground">Pending Clearance</p>
               <p className="text-xl font-bold text-orange-500">
-                {formatNaira(totalPending)}
+                {format(totalPending)}
               </p>
             </div>
             <Timer className="h-8 w-8 text-orange-500" />
@@ -186,7 +187,7 @@ export default function AdminPayments() {
             <div>
               <p className="text-sm text-muted-foreground">Platform Revenue</p>
               <p className="text-xl font-bold text-emerald-500">
-                {formatNaira(totalRev)}
+                {format(totalRev)}
               </p>
             </div>
             <TrendingUp className="h-8 w-8 text-emerald-500" />
@@ -293,18 +294,18 @@ export default function AdminPayments() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium text-primary">
-                        {formatNaira(w.balance)}
+                        {format(w.balance)}
                       </TableCell>
                       <TableCell
                         className={`font-medium ${(w.pending_clearance || 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`}
                       >
-                        {formatNaira(w.pending_clearance || 0)}
+                        {format(w.pending_clearance || 0)}
                       </TableCell>
                       <TableCell className="text-amber-500">
-                        {formatNaira(w.escrow_balance)}
+                        {format(w.escrow_balance)}
                       </TableCell>
-                      <TableCell>{formatNaira(w.total_earned)}</TableCell>
-                      <TableCell>{formatNaira(w.total_spent)}</TableCell>
+                      <TableCell>{format(w.total_earned)}</TableCell>
+                      <TableCell>{format(w.total_spent)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -343,10 +344,10 @@ export default function AdminPayments() {
                         </div>
                       </TableCell>
                       <TableCell className="font-medium text-orange-500">
-                        {formatNaira(w.pending_clearance)}
+                        {format(w.pending_clearance)}
                       </TableCell>
                       <TableCell className="font-medium text-primary">
-                        {formatNaira(w.balance)}
+                        {format(w.balance)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -389,10 +390,10 @@ export default function AdminPayments() {
                       <TableCell
                         className={`font-medium ${t.amount > 0 ? "text-emerald-500" : "text-destructive"}`}
                       >
-                        {formatNaira(Math.abs(t.amount))}
+                        {format(Math.abs(t.amount))}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {formatNaira(t.balance_after)}
+                        {format(t.balance_after)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                         {t.description || "—"}
@@ -436,7 +437,7 @@ export default function AdminPayments() {
                         {w.profile?.full_name || "—"}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {formatNaira(w.amount)}
+                        {format(w.amount)}
                       </TableCell>
                       <TableCell className="text-sm">
                         {w.bank?.bank_name} - {w.bank?.account_number}
@@ -503,15 +504,15 @@ export default function AdminPayments() {
                   {revenue.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">
-                        {formatNaira(r.gross_amount)}
+                        {format(r.gross_amount)}
                       </TableCell>
                       <TableCell>
                         {(r.commission_rate * 100).toFixed(0)}%
                       </TableCell>
                       <TableCell className="text-emerald-500 font-medium">
-                        {formatNaira(r.commission_amount)}
+                        {format(r.commission_amount)}
                       </TableCell>
-                      <TableCell>{formatNaira(r.net_to_freelancer)}</TableCell>
+                      <TableCell>{format(r.net_to_freelancer)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(r.created_at), {
                           addSuffix: true,

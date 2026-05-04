@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { CurrencyProvider } from "@/hooks/useCurrency";
 import { PlatformFreezeProvider } from "@/hooks/usePlatformFreeze";
 import { PlatformFrozenBanner } from "@/components/PlatformFrozenBanner";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -56,6 +57,7 @@ const SavedExperts = lazy(() => import("./pages/SavedExperts"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const WalletCallback = lazy(() => import("./pages/WalletCallback"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -169,6 +171,7 @@ const AppShell = () => {
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogPost />} />
               <Route path="/unsubscribe" element={<Unsubscribe />} />
+              <Route path="/wallet/callback" element={<WalletCallback />} />
               <Route path="/saved-experts" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><SavedExperts /></RoleGuard></AuthGuard>} />
 
               {/* Contests */}
@@ -216,6 +219,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
+      <CurrencyProvider>
       <PlatformFreezeProvider>
       <TooltipProvider>
         <Toaster />
@@ -223,6 +227,7 @@ const App = () => (
         <AppShell />
       </TooltipProvider>
       </PlatformFreezeProvider>
+      </CurrencyProvider>
     </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

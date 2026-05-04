@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { getDashboardOverview } from "@/api/dashboard.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
@@ -41,6 +41,7 @@ const emptyDashboardData: DashboardData = {
 };
 
 export default function DashboardPage() {
+  const { format } = useCurrency();
   const { user, profile, loading, bootstrapStatus, onboardingComplete, isAdmin, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,13 +107,13 @@ export default function DashboardPage() {
 
   const statCards = isClient
     ? [
-        { label: "Wallet Balance", value: formatNaira(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
+        { label: "Wallet Balance", value: format(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
         { label: "Posted Jobs", value: stats.jobs, icon: Briefcase, to: "/dashboard/jobs", accent: "accent" as const },
         { label: "Proposals Received", value: stats.proposals, icon: FileText, to: "/dashboard/proposals", accent: "primary" as const },
         { label: "Completed", value: completedContracts, icon: CheckCircle2, to: "/dashboard/contracts", accent: "accent" as const },
       ]
     : [
-        { label: "Wallet Balance", value: formatNaira(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
+        { label: "Wallet Balance", value: format(walletBalance), icon: Wallet, to: "/transactions", accent: "primary" as const },
         { label: "Active Projects", value: stats.jobs, icon: Briefcase, to: "/dashboard/contracts", accent: "accent" as const },
         { label: "Proposals Sent", value: stats.proposals, icon: FileText, to: "/dashboard/expert-proposals", accent: "primary" as const },
         { label: "Completed", value: completedContracts, icon: CheckCircle2, to: "/dashboard/contracts", accent: "accent" as const },
@@ -335,7 +336,7 @@ export default function DashboardPage() {
                               </Badge>
                               {(job.budget_max || job.budget_min) && (
                                 <span className="text-xs font-semibold text-primary">
-                                  {formatNaira(job.budget_max || job.budget_min)}
+                                  {format(job.budget_max || job.budget_min)}
                                 </span>
                               )}
                               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -455,7 +456,7 @@ export default function DashboardPage() {
                     <Wallet className="h-4 w-4 opacity-80" />
                     <span className="text-xs font-medium opacity-80">Wallet Balance</span>
                   </div>
-                  <p className="text-2xl font-bold">{formatNaira(walletBalance)}</p>
+                  <p className="text-2xl font-bold">{format(walletBalance)}</p>
                   <div className="mt-3 flex items-center gap-1 text-xs opacity-70">
                     <span>View transactions</span>
                     <ArrowRight className="h-3 w-3" />

@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { cancelSentOfferJob, getSentOffers } from "@/api/offers.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase, UserPlus, Globe, XCircle } from "lucide-react";
 
 export default function SentOffersPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
@@ -162,8 +163,8 @@ export default function SentOffersPage() {
                               {(job.budget_min || job.budget_max) && (
                                 <p className="font-bold text-primary">
                                   {job.budget_min && job.budget_max
-                                    ? `${formatNaira(job.budget_min)} – ${formatNaira(job.budget_max)}`
-                                    : formatNaira(job.budget_max || job.budget_min)}
+                                    ? `${format(job.budget_min)} – ${format(job.budget_max)}`
+                                    : format(job.budget_max || job.budget_min)}
                                 </p>
                               )}
                               <Badge variant={job.status === "open" ? "secondary" : "outline"} className="mt-2 capitalize">{job.status}</Badge>
@@ -217,7 +218,7 @@ export default function SentOffersPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            {offer.budget && <p className="font-bold text-primary">{formatNaira(offer.budget)}</p>}
+                            {offer.budget && <p className="font-bold text-primary">{format(offer.budget)}</p>}
                             <Badge variant={offer.status === "accepted" ? "default" : "secondary"} className="mt-2 gap-1">
                               {statusIcon(offer.status)} {offer.status}
                             </Badge>

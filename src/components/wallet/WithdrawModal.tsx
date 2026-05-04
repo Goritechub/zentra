@@ -5,12 +5,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
-import { Loader2, Building2, CheckCircle2, AlertTriangle, Globe, Link } from "lucide-react";
-import { getConnectStatus, createOnboardingLink, initiateStripePayout } from "@/api/stripe.api";
+import { Loader2, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { initiatePayout } from "@/api/flutterwave.api";
 
 interface WithdrawModalProps {
   open: boolean;
@@ -22,63 +21,74 @@ interface WithdrawModalProps {
 
 const MIN_WITHDRAWAL = 5000;
 
+type FlwCurrency = "NGN" | "USD" | "GBP" | "EUR" | "GHS" | "KES";
+
+const FLW_CURRENCIES: { value: FlwCurrency; label: string; flag: string; desc: string }[] = [
+  { value: "NGN", flag: "🇳🇬", label: "NGN — Nigerian Naira",      desc: "Domestic bank transfer" },
+  { value: "USD", flag: "🇺🇸", label: "USD — US Dollar",           desc: "US bank · SWIFT + routing number" },
+  { value: "GBP", flag: "🇬🇧", label: "GBP — British Pound",       desc: "UK bank · SWIFT + sort code" },
+  { value: "EUR", flag: "🇪🇺", label: "EUR — Euro",                desc: "European bank · BIC + IBAN" },
+  { value: "GHS", flag: "🇬🇭", label: "GHS — Ghanaian Cedi",       desc: "Ghanaian bank transfer" },
+  { value: "KES", flag: "🇰🇪", label: "KES — Kenyan Shilling",     desc: "Kenyan bank · M-Pesa supported" },
+];
+
 type Step =
   | "method_select"
   | "bank_select"
   | "add_bank"
   | "amount"
   | "confirm"
-  | "stripe_check"
-  | "stripe_onboard"
-  | "stripe_amount"
-  | "stripe_confirm"
+  | "flw_currency"
+  | "flw_details"
+  | "flw_amount"
+  | "flw_confirm"
   | "processing"
   | "success"
   | "failed";
 
-type PayoutMethod = "paystack" | "stripe";
+type PayoutMethod = "paystack" | "flutterwave";
 
 export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, userId }: WithdrawModalProps) {
+  const { format, rates } = useCurrency();
   const [step, setStep] = useState<Step>("method_select");
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("paystack");
   const [loading, setLoading] = useState(false);
+
+  // Paystack state
   const [bankDetails, setBankDetails] = useState<any[]>([]);
   const [selectedBank, setSelectedBank] = useState<any>(null);
   const [amount, setAmount] = useState("");
   const [banks, setBanks] = useState<any[]>([]);
-
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
   const [resolving, setResolving] = useState(false);
   const [selectedBankName, setSelectedBankName] = useState("");
 
-  // Stripe Connect state
-  const [stripeStatus, setStripeStatus] = useState<{
-    connected: boolean;
-    onboarding_complete: boolean;
-    payouts_enabled: boolean;
-  } | null>(null);
-  const [stripeCheckLoading, setStripeCheckLoading] = useState(false);
-  const [stripeUsdEquivalent, setStripeUsdEquivalent] = useState<number | null>(null);
+  // Flutterwave state
+  const [flwCurrency, setFlwCurrency] = useState<FlwCurrency>("NGN");
+  const [flwBankCode, setFlwBankCode] = useState("");
+  const [flwAccountNumber, setFlwAccountNumber] = useState("");
+  const [flwAccountName, setFlwAccountName] = useState("");
+  const [flwSelectedBankName, setFlwSelectedBankName] = useState("");
+  const [flwResolving, setFlwResolving] = useState(false);
+  // International-only fields
+  const [flwSwift, setFlwSwift] = useState("");
+  const [flwBranchCode, setFlwBranchCode] = useState(""); // routing (USD) or sort code (GBP)
+  const [flwIban, setFlwIban] = useState("");             // EUR
+  const [ngnDeducted, setNgnDeducted] = useState<number | null>(null);
 
   useEffect(() => {
-    if (open) {
-      fetchBankDetails();
-    }
+    if (open) fetchBankDetails();
   }, [open]);
 
   const fetchBankDetails = async () => {
     try {
-      const { data, error } = await supabase
-        .from("bank_details" as any)
-        .select("*")
-        .eq("user_id", userId)
-        .order("is_default", { ascending: false });
-      if (error) throw error;
-      setBankDetails((data as any[]) || []);
-      if (data && data.length > 0) {
-        setSelectedBank(data[0]);
+      const res = await api.post("/wallet/paystack-transfer", { action: "list_bank_details" });
+      if (res.data?.success) {
+        const details = res.data.bank_details as any[];
+        setBankDetails(details);
+        if (details.length > 0) setSelectedBank(details[0]);
       }
     } catch {
       toast.error("Failed to load bank details");
@@ -86,13 +96,24 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   };
 
   const fetchBanks = async () => {
+    if (banks.length > 0) return;
     setLoading(true);
     try {
       const res = await api.post("/wallet/paystack-transfer", { action: "list_banks" });
-      if (res.data?.banks) setBanks(res.data.banks);
+      if (res.data?.banks) {
+        const seen = new Set<string>();
+        const unique = (res.data.banks as any[]).filter((b) => {
+          if (seen.has(b.code)) return false;
+          seen.add(b.code);
+          return true;
+        });
+        setBanks(unique);
+      }
     } catch { /* ignore */ }
     setLoading(false);
   };
+
+  // ── Paystack helpers ──
 
   const resolveAccount = async () => {
     if (accountNumber.length !== 10 || !bankCode) return;
@@ -106,17 +127,14 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
         setResolvedName("");
       }
     } catch {
-      toast.error("Could not resolve account. Check details.");
+      toast.error("Could not resolve account.");
       setResolvedName("");
     }
     setResolving(false);
   };
 
   const saveBankDetails = async () => {
-    if (!resolvedName || !bankCode || !accountNumber) {
-      toast.error("Please resolve your account first");
-      return;
-    }
+    if (!resolvedName || !bankCode || !accountNumber) { toast.error("Please resolve your account first"); return; }
     setLoading(true);
     try {
       const res = await api.post("/wallet/paystack-transfer", {
@@ -124,8 +142,12 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       });
       if (res.data?.success) {
         toast.success("Bank account saved");
-        await fetchBankDetails();
-        setSelectedBank(res.data.bank_detail);
+        const saved = res.data.bank_detail;
+        setBankDetails((prev) => {
+          const without = prev.filter((b: any) => b.id !== saved.id);
+          return [saved, ...without];
+        });
+        setSelectedBank(saved);
         setStep("amount");
         setBankCode(""); setAccountNumber(""); setResolvedName("");
       } else {
@@ -137,16 +159,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     setLoading(false);
   };
 
-  const initiateWithdrawal = async () => {
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount < MIN_WITHDRAWAL) {
-      toast.error(`Minimum withdrawal amount is ${formatNaira(MIN_WITHDRAWAL)}.`);
-      return;
-    }
-    if (numAmount > walletBalance) {
-      toast.error("Insufficient available balance");
-      return;
-    }
+  const initiateWithdrawal = () => {
+    const n = parseFloat(amount);
+    if (!n || n < MIN_WITHDRAWAL) { toast.error(`Minimum withdrawal is ${format(MIN_WITHDRAWAL)}.`); return; }
+    if (n > walletBalance) { toast.error("Insufficient balance"); return; }
     setStep("confirm");
   };
 
@@ -154,114 +170,121 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     setStep("processing");
     setLoading(true);
     try {
-      const res = await api.post("/wallet/paystack-transfer", {
-        action: "withdraw", amount: parseFloat(amount), bank_detail_id: selectedBank.id,
-      });
+      const res = await api.post("/wallet/paystack-transfer", { action: "withdraw", amount: parseFloat(amount), bank_detail_id: selectedBank.id });
       setLoading(false);
-      if (res.data?.success) {
-        setStep("success");
-        toast.success("Withdrawal initiated!");
-        onSuccess();
-      } else {
-        setStep("failed");
-        toast.error(res.data?.error || "Withdrawal failed");
-      }
+      if (res.data?.success) { setStep("success"); toast.success("Withdrawal initiated!"); onSuccess(); }
+      else { setStep("failed"); toast.error(res.data?.error || "Withdrawal failed"); }
     } catch (err: any) {
-      setLoading(false);
-      setStep("failed");
-      toast.error(err?.message || "Withdrawal failed");
+      setLoading(false); setStep("failed"); toast.error(err?.message || "Withdrawal failed");
     }
   };
 
-  // ── Stripe Connect payout ──
+  // ── Flutterwave NGN account resolve ──
 
-  const checkStripeStatus = async () => {
-    setStripeCheckLoading(true);
-    setStep("stripe_check");
+  const resolveFlwNgnAccount = async () => {
+    if (flwAccountNumber.length !== 10 || !flwBankCode) return;
+    setFlwResolving(true);
     try {
-      const status = await getConnectStatus();
-      setStripeStatus(status);
-
-      if (!status.connected || !status.onboarding_complete) {
-        setStep("stripe_onboard");
-      } else if (!status.payouts_enabled) {
-        setStep("stripe_onboard");
+      const res = await api.post("/wallet/paystack-transfer", { action: "resolve_account", account_number: flwAccountNumber, bank_code: flwBankCode });
+      if (res.data?.success && res.data.data?.account_name) {
+        setFlwAccountName(res.data.data.account_name);
       } else {
-        setStep("stripe_amount");
+        toast.error("Could not resolve account. Check details.");
+        setFlwAccountName("");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Could not check Stripe status");
-      setStep("method_select");
-    } finally {
-      setStripeCheckLoading(false);
+    } catch {
+      toast.error("Could not resolve account.");
+      setFlwAccountName("");
+    }
+    setFlwResolving(false);
+  };
+
+  const flwDetailsComplete = (): boolean => {
+    switch (flwCurrency) {
+      case "NGN":
+      case "GHS":
+      case "KES":
+        return !!(flwBankCode && flwAccountNumber && flwAccountName);
+      case "USD":
+        return !!(flwSwift && flwAccountNumber && flwAccountName && flwBranchCode);
+      case "GBP":
+        return !!(flwSwift && flwAccountNumber && flwAccountName && flwBranchCode);
+      case "EUR":
+        return !!(flwSwift && flwIban && flwAccountName);
     }
   };
 
-  const handleStripeOnboard = async () => {
-    setLoading(true);
-    try {
-      const returnUrl = `${window.location.origin}/wallet?stripe_onboard=complete`;
-      const refreshUrl = `${window.location.origin}/wallet?stripe_onboard=refresh`;
-      const result = await createOnboardingLink(returnUrl, refreshUrl);
-      window.location.href = result.url;
-    } catch (err: any) {
-      toast.error(err?.message || "Could not start Stripe onboarding");
-      setLoading(false);
+  const initiateFlwPayout = () => {
+    const n = parseFloat(amount);
+    if (!n || n <= 0) { toast.error("Enter a valid amount."); return; }
+
+    if (flwCurrency === "NGN") {
+      if (n < MIN_WITHDRAWAL) { toast.error(`Minimum payout is ${format(MIN_WITHDRAWAL)}.`); return; }
+      if (n > walletBalance) { toast.error("Insufficient balance"); return; }
+    } else {
+      const rate = getFxRate();
+      if (!rate) { toast.error("FX rate unavailable. Please try again."); return; }
+      const ngnEquivalent = Math.ceil(n / rate);
+      if (ngnEquivalent < MIN_WITHDRAWAL) {
+        toast.error(`Minimum payout is ₦${MIN_WITHDRAWAL.toLocaleString()} equivalent.`);
+        return;
+      }
+      if (ngnEquivalent > walletBalance) { toast.error("Insufficient balance"); return; }
     }
+    setStep("flw_confirm");
   };
 
-  const initiateStripePayout_ = async () => {
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount < MIN_WITHDRAWAL) {
-      toast.error(`Minimum payout amount is ${formatNaira(MIN_WITHDRAWAL)}.`);
-      return;
-    }
-    if (numAmount > walletBalance) {
-      toast.error("Insufficient available balance");
-      return;
-    }
-    // Rough USD estimate for display (1 NGN ≈ 0.00065 USD — actual rate applied server-side)
-    setStripeUsdEquivalent(parseFloat((numAmount * 0.00065).toFixed(2)));
-    setStep("stripe_confirm");
-  };
-
-  const confirmStripePayout = async () => {
+  const confirmFlwPayout = async () => {
     setStep("processing");
     setLoading(true);
     try {
-      await initiateStripePayout(parseFloat(amount));
+      const bankCodeToUse = flwCurrency === "EUR" ? flwSwift : (["USD", "GBP"].includes(flwCurrency) ? flwSwift : flwBankCode);
+      const accountNumberToUse = flwCurrency === "EUR" ? flwIban : flwAccountNumber;
+
+      const result = await initiatePayout({
+        amount: parseFloat(amount),
+        currency: flwCurrency,
+        bankCode: bankCodeToUse,
+        accountNumber: accountNumberToUse,
+        accountName: flwAccountName,
+        narration: `ZentraGig withdrawal to ${flwAccountName}`,
+        destinationBranchCode: ["USD", "GBP"].includes(flwCurrency) ? flwBranchCode : undefined,
+      });
+      setNgnDeducted(result.ngn_deducted);
       setLoading(false);
       setStep("success");
-      toast.success("Payout initiated! Funds will arrive in your Stripe account shortly.");
+      toast.success("Payout initiated! Funds will be sent to your account.");
       onSuccess();
     } catch (err: any) {
-      setLoading(false);
-      setStep("failed");
-      toast.error(err?.message || "Payout failed");
+      setLoading(false); setStep("failed"); toast.error(err?.message || "Payout failed");
     }
   };
 
   const resetState = () => {
-    setStep("method_select");
-    setPayoutMethod("paystack");
-    setAmount("");
-    setSelectedBank(null);
-    setResolvedName(""); setBankCode(""); setAccountNumber("");
-    setLoading(false);
-    setStripeStatus(null);
-    setStripeUsdEquivalent(null);
+    setStep("method_select"); setPayoutMethod("paystack"); setAmount("");
+    setSelectedBank(null); setResolvedName(""); setBankCode(""); setAccountNumber("");
+    setFlwCurrency("NGN"); setFlwBankCode(""); setFlwAccountNumber(""); setFlwAccountName("");
+    setFlwSelectedBankName(""); setFlwSwift(""); setFlwBranchCode(""); setFlwIban("");
+    setNgnDeducted(null); setLoading(false);
   };
 
-  const handleClose = (open: boolean) => {
-    if (!open) resetState();
-    onOpenChange(open);
+  const handleClose = (v: boolean) => { if (!v) resetState(); onOpenChange(v); };
+
+  const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", GBP: "£", EUR: "€", GHS: "₵", KES: "KSh" };
+  const RATE_KEYS: Record<string, keyof typeof rates> = {
+    USD: "NGN_USD", GBP: "NGN_GBP", EUR: "NGN_EUR", GHS: "NGN_GHS", KES: "NGN_KES",
+  };
+
+  const getFxRate = (): number | null => {
+    const key = RATE_KEYS[flwCurrency];
+    return key ? (rates[key] as number | null) : null;
   };
 
   const belowMinimum = walletBalance < MIN_WITHDRAWAL;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Withdraw Funds</DialogTitle>
           <DialogDescription>Transfer funds from your wallet to your bank account.</DialogDescription>
@@ -271,24 +294,30 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
           <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-foreground">Minimum withdrawal amount is {formatNaira(MIN_WITHDRAWAL)}.</p>
+              <p className="text-sm font-medium text-foreground">Minimum withdrawal is {format(MIN_WITHDRAWAL)}.</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Your available balance is {formatNaira(walletBalance)}. You need at least {formatNaira(MIN_WITHDRAWAL)} to withdraw.
+                Your balance is {format(walletBalance)}. You need at least {format(MIN_WITHDRAWAL)} to withdraw.
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Payout method selection ── */}
+        {/* ── Method selection ── */}
         {step === "method_select" && !belowMinimum && (
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Available: <strong>{formatNaira(walletBalance)}</strong>
-            </p>
+            <p className="text-sm text-muted-foreground">Available: <strong>{format(walletBalance)}</strong></p>
             <div className="space-y-2">
               <Label>Payout method</Label>
               <button
-                onClick={() => { setPayoutMethod("paystack"); setStep("bank_select"); }}
+                onClick={() => {
+                  setPayoutMethod("paystack");
+                  if (bankDetails.length > 0) {
+                    setStep("bank_select");
+                  } else {
+                    fetchBanks();
+                    setStep("add_bank");
+                  }
+                }}
                 className="w-full text-left p-4 rounded-lg border border-border hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -300,14 +329,14 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
                 </div>
               </button>
               <button
-                onClick={() => { setPayoutMethod("stripe"); checkStripeStatus(); }}
+                onClick={() => { setPayoutMethod("flutterwave"); setStep("flw_currency"); }}
                 className="w-full text-left p-4 rounded-lg border border-border hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-primary" />
+                  <Building2 className="h-5 w-5 text-accent" />
                   <div>
-                    <p className="font-medium text-foreground text-sm">International Transfer</p>
-                    <p className="text-xs text-muted-foreground">Stripe Connect · USD/GBP/EUR · 2–5 business days</p>
+                    <p className="font-medium text-foreground text-sm">Flutterwave Transfer</p>
+                    <p className="text-xs text-muted-foreground">NGN · USD · GBP · EUR · GHS · KES · 1–3 business days</p>
                   </div>
                 </div>
               </button>
@@ -315,37 +344,33 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
           </div>
         )}
 
-        {/* ── Paystack: bank account selection ── */}
+        {/* ── Paystack: bank select ── */}
         {step === "bank_select" && (
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">Available for withdrawal: <strong>{formatNaira(walletBalance)}</strong></p>
+            <p className="text-sm text-muted-foreground">Available: <strong>{format(walletBalance)}</strong></p>
             {bankDetails.length > 0 ? (
               <div className="space-y-2">
                 <Label>Select Bank Account</Label>
                 {bankDetails.map((bd: any) => (
-                  <button
-                    key={bd.id}
-                    onClick={() => { setSelectedBank(bd); setStep("amount"); }}
+                  <button key={bd.id} onClick={() => { setSelectedBank(bd); setStep("amount"); }}
                     className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBank?.id === bd.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
                   >
                     <div className="flex items-center gap-3">
                       <Building2 className="h-5 w-5 text-primary" />
                       <div>
                         <p className="font-medium text-foreground text-sm">{bd.bank_name}</p>
-                        <p className="text-xs text-muted-foreground">{bd.account_number} - {bd.account_name}</p>
+                        <p className="text-xs text-muted-foreground">{bd.account_number} · {bd.account_name}</p>
                       </div>
                     </div>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No bank accounts saved. Add one to withdraw.</p>
+              <p className="text-sm text-muted-foreground">No saved bank accounts. Add one below.</p>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("method_select")} className="flex-1">Back</Button>
-              <Button variant="outline" onClick={() => { fetchBanks(); setStep("add_bank"); }} className="flex-1">
-                + Add New Bank Account
-              </Button>
+              <Button variant="outline" onClick={() => { fetchBanks(); setStep("add_bank"); }} className="flex-1">+ Add Bank</Button>
             </div>
           </div>
         )}
@@ -355,65 +380,52 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Bank</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={bankCode}
-                onChange={(e) => {
-                  setBankCode(e.target.value);
-                  const b = banks.find((b: any) => b.code === e.target.value);
-                  setSelectedBankName(b?.name || "");
-                  setResolvedName("");
-                }}
+                onChange={(e) => { setBankCode(e.target.value); setSelectedBankName(banks.find((b: any) => b.code === e.target.value)?.name || ""); setResolvedName(""); }}
               >
                 <option value="">Select bank...</option>
-                {banks.map((b: any) => (
-                  <option key={b.code} value={b.code}>{b.name}</option>
-                ))}
+                {banks.map((b: any) => <option key={b.code} value={b.code}>{b.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label>Account Number</Label>
-              <Input
-                maxLength={10}
-                placeholder="0000000000"
-                value={accountNumber}
-                onChange={(e) => { setAccountNumber(e.target.value); setResolvedName(""); }}
-              />
+              <Input maxLength={10} placeholder="0000000000" value={accountNumber}
+                onChange={(e) => { setAccountNumber(e.target.value); setResolvedName(""); }} />
             </div>
             {accountNumber.length === 10 && bankCode && !resolvedName && (
               <Button variant="outline" size="sm" onClick={resolveAccount} disabled={resolving}>
-                {resolving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                Verify Account
+                {resolving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Verify Account
               </Button>
             )}
             {resolvedName && (
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-sm font-medium text-foreground">{resolvedName}</p>
-                <p className="text-xs text-muted-foreground">{selectedBankName} - {accountNumber}</p>
+                <p className="text-xs text-muted-foreground">{selectedBankName} · {accountNumber}</p>
               </div>
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("bank_select")} className="flex-1">Back</Button>
               <Button onClick={saveBankDetails} disabled={loading || !resolvedName} className="flex-1">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Save & Continue
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save & Continue
               </Button>
             </div>
           </div>
         )}
 
-        {/* ── Paystack: amount entry ── */}
+        {/* ── Paystack: amount ── */}
         {step === "amount" && payoutMethod === "paystack" && (
           <div className="space-y-4 py-2">
             <div className="p-3 rounded-lg bg-muted/50 border border-border">
               <p className="text-xs text-muted-foreground">Withdraw to</p>
-              <p className="font-medium text-sm text-foreground">{selectedBank?.bank_name} - {selectedBank?.account_number}</p>
+              <p className="font-medium text-sm text-foreground">{selectedBank?.bank_name} · {selectedBank?.account_number}</p>
               <p className="text-xs text-muted-foreground">{selectedBank?.account_name}</p>
             </div>
             <div className="space-y-2">
               <Label>Amount (₦)</Label>
-              <Input type="number" min={MIN_WITHDRAWAL} max={walletBalance} placeholder={`Min. ${formatNaira(MIN_WITHDRAWAL)}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Available: {formatNaira(walletBalance)} · Min: {formatNaira(MIN_WITHDRAWAL)}</p>
+              <Input type="number" min={MIN_WITHDRAWAL} max={walletBalance}
+                placeholder={`Min. ${format(MIN_WITHDRAWAL)}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Available: {format(walletBalance)} · Min: {format(MIN_WITHDRAWAL)}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("bank_select")} className="flex-1">Back</Button>
@@ -426,97 +438,262 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
         {step === "confirm" && (
           <div className="space-y-4 py-2 text-center">
             <p className="text-sm text-muted-foreground">You're about to withdraw</p>
-            <p className="text-3xl font-bold text-primary">{formatNaira(parseFloat(amount))}</p>
-            <p className="text-sm text-muted-foreground">to {selectedBank?.bank_name} - {selectedBank?.account_number}</p>
+            <p className="text-3xl font-bold text-primary">{format(parseFloat(amount))}</p>
+            <p className="text-sm text-muted-foreground">to {selectedBank?.bank_name} · {selectedBank?.account_number}</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep("amount")} className="flex-1">Back</Button>
-              <Button onClick={confirmWithdrawal} className="flex-1">Confirm Withdrawal</Button>
+              <Button onClick={confirmWithdrawal} className="flex-1">Confirm</Button>
             </div>
           </div>
         )}
 
-        {/* ── Stripe: checking connect status ── */}
-        {step === "stripe_check" && (
-          <div className="py-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-sm text-muted-foreground">Checking your Stripe account...</p>
-          </div>
-        )}
-
-        {/* ── Stripe: onboarding needed ── */}
-        {step === "stripe_onboard" && (
+        {/* ── Flutterwave: currency select ── */}
+        {step === "flw_currency" && (
           <div className="space-y-4 py-2">
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/30">
-              <Link className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {!stripeStatus?.connected
-                    ? "Connect an international bank account"
-                    : "Complete your Stripe account setup"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {!stripeStatus?.connected
-                    ? "Link your bank account via Stripe to receive international payouts in your local currency."
-                    : "Your Stripe account isn't fully verified yet. Complete onboarding to enable payouts."}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("method_select")} className="flex-1">Back</Button>
-              <Button onClick={handleStripeOnboard} disabled={loading} className="flex-1">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {!stripeStatus?.connected ? "Connect with Stripe" : "Resume Setup"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Stripe: amount entry ── */}
-        {step === "stripe_amount" && (
-          <div className="space-y-4 py-2">
-            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-              <p className="text-xs text-muted-foreground">Payout via Stripe Connect</p>
-              <p className="text-sm font-medium text-foreground">
-                Funds will be converted from NGN to USD at settlement rate.
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">Available: <strong>{format(walletBalance)}</strong></p>
+            <Label>Payout currency</Label>
             <div className="space-y-2">
-              <Label>Amount (₦)</Label>
-              <Input
-                type="number"
-                min={MIN_WITHDRAWAL}
-                max={walletBalance}
-                placeholder={`Min. ${formatNaira(MIN_WITHDRAWAL)}`}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Available: {formatNaira(walletBalance)} · Min: {formatNaira(MIN_WITHDRAWAL)}
-              </p>
+              {FLW_CURRENCIES.map((c) => (
+                <button key={c.value}
+                  onClick={() => {
+                    setFlwCurrency(c.value);
+                    if (c.value === "NGN" || c.value === "GHS" || c.value === "KES") fetchBanks();
+                    setStep("flw_details");
+                  }}
+                  className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{c.flag}</span>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{c.label}</p>
+                      <p className="text-xs text-muted-foreground">{c.desc}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
+            <Button variant="outline" onClick={() => setStep("method_select")} className="w-full">Back</Button>
+          </div>
+        )}
+
+        {/* ── Flutterwave: bank details (form varies by currency) ── */}
+        {step === "flw_details" && (
+          <div className="space-y-4 py-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {FLW_CURRENCIES.find(c => c.value === flwCurrency)?.flag} {flwCurrency} Bank Details
+            </p>
+
+            {/* NGN / GHS / KES — domestic-style (bank dropdown + account number) */}
+            {(flwCurrency === "NGN" || flwCurrency === "GHS" || flwCurrency === "KES") && (
+              <>
+                <div className="space-y-2">
+                  <Label>Bank</Label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={flwBankCode}
+                    onChange={(e) => {
+                      setFlwBankCode(e.target.value);
+                      setFlwSelectedBankName(banks.find((b: any) => b.code === e.target.value)?.name || "");
+                      setFlwAccountName("");
+                    }}
+                  >
+                    <option value="">Select bank...</option>
+                    {banks.map((b: any) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input maxLength={10} placeholder="0000000000" value={flwAccountNumber}
+                    onChange={(e) => { setFlwAccountNumber(e.target.value); setFlwAccountName(""); }} />
+                </div>
+                {flwAccountNumber.length === 10 && flwBankCode && !flwAccountName && (
+                  <Button variant="outline" size="sm" onClick={resolveFlwNgnAccount} disabled={flwResolving}>
+                    {flwResolving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Verify Account
+                  </Button>
+                )}
+                {flwAccountName && (
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <p className="text-sm font-medium text-foreground">{flwAccountName}</p>
+                    <p className="text-xs text-muted-foreground">{flwSelectedBankName} · {flwAccountNumber}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* USD — SWIFT + account number + routing number */}
+            {flwCurrency === "USD" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Beneficiary Name</Label>
+                  <Input placeholder="Full legal name" value={flwAccountName} onChange={(e) => setFlwAccountName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bank SWIFT / BIC Code</Label>
+                  <Input placeholder="e.g. CHASUS33" value={flwSwift} onChange={(e) => setFlwSwift(e.target.value.toUpperCase())} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input placeholder="Bank account number" value={flwAccountNumber} onChange={(e) => setFlwAccountNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>ABA Routing Number</Label>
+                  <Input placeholder="9-digit routing number" maxLength={9} value={flwBranchCode} onChange={(e) => setFlwBranchCode(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* GBP — SWIFT + account number + sort code */}
+            {flwCurrency === "GBP" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Beneficiary Name</Label>
+                  <Input placeholder="Full legal name" value={flwAccountName} onChange={(e) => setFlwAccountName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bank SWIFT / BIC Code</Label>
+                  <Input placeholder="e.g. BARCGB22" value={flwSwift} onChange={(e) => setFlwSwift(e.target.value.toUpperCase())} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input placeholder="8-digit account number" value={flwAccountNumber} onChange={(e) => setFlwAccountNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sort Code</Label>
+                  <Input placeholder="e.g. 20-00-00" maxLength={8} value={flwBranchCode} onChange={(e) => setFlwBranchCode(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* EUR — BIC + IBAN */}
+            {flwCurrency === "EUR" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Beneficiary Name</Label>
+                  <Input placeholder="Full legal name" value={flwAccountName} onChange={(e) => setFlwAccountName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>BIC / SWIFT Code</Label>
+                  <Input placeholder="e.g. DEUTDEDB" value={flwSwift} onChange={(e) => setFlwSwift(e.target.value.toUpperCase())} />
+                </div>
+                <div className="space-y-2">
+                  <Label>IBAN</Label>
+                  <Input placeholder="e.g. DE89370400440532013000" value={flwIban} onChange={(e) => setFlwIban(e.target.value.toUpperCase())} />
+                </div>
+              </>
+            )}
+
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("method_select")} className="flex-1">Back</Button>
-              <Button onClick={initiateStripePayout_} disabled={!amount} className="flex-1">Continue</Button>
+              <Button variant="outline" onClick={() => setStep("flw_currency")} className="flex-1">Back</Button>
+              <Button onClick={() => setStep("flw_amount")} disabled={!flwDetailsComplete()} className="flex-1">Continue</Button>
             </div>
           </div>
         )}
 
-        {/* ── Stripe: confirm ── */}
-        {step === "stripe_confirm" && (
-          <div className="space-y-4 py-2 text-center">
-            <p className="text-sm text-muted-foreground">You're about to request a payout of</p>
-            <p className="text-3xl font-bold text-primary">{formatNaira(parseFloat(amount))}</p>
-            {stripeUsdEquivalent && (
-              <p className="text-sm text-muted-foreground">
-                ≈ ${stripeUsdEquivalent} USD · exact rate applied at settlement
+        {/* ── Flutterwave: amount ── */}
+        {step === "flw_amount" && (
+          <div className="space-y-4 py-2">
+            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+              <p className="text-xs text-muted-foreground">Sending to · {flwCurrency}</p>
+              <p className="font-medium text-sm text-foreground">{flwAccountName}</p>
+              <p className="text-xs text-muted-foreground">
+                {flwCurrency === "EUR" ? flwIban : flwAccountNumber}
+                {flwSelectedBankName ? ` · ${flwSelectedBankName}` : (flwSwift ? ` · ${flwSwift}` : "")}
               </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Funds will be sent to your connected Stripe account · 2–5 business days
-            </p>
+            </div>
+
+            <div className="space-y-2">
+              {flwCurrency === "NGN" ? (
+                <>
+                  <Label>Amount (₦)</Label>
+                  <Input type="number" min={MIN_WITHDRAWAL} max={walletBalance}
+                    placeholder={`Min. ₦${MIN_WITHDRAWAL.toLocaleString()}`}
+                    value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">
+                    Available: {format(walletBalance)} · Min: {format(MIN_WITHDRAWAL)}
+                  </p>
+                </>
+              ) : (() => {
+                const rate = getFxRate();
+                const sym = CURRENCY_SYMBOLS[flwCurrency] ?? flwCurrency;
+                const n = parseFloat(amount);
+                const availForeign = rate ? (walletBalance * rate).toFixed(2) : null;
+                const minForeign = rate ? (MIN_WITHDRAWAL * rate).toFixed(2) : null;
+                const ngnEstimate = (n > 0 && rate) ? Math.ceil(n / rate) : null;
+                return (
+                  <>
+                    <Label>Amount ({flwCurrency})</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                        {sym}
+                      </span>
+                      <Input type="number" min={0} step="0.01" className="pl-8"
+                        placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Available: {availForeign ? `${sym}${availForeign} ${flwCurrency}` : format(walletBalance)}
+                      {" · "}Min: {minForeign ? `${sym}${minForeign} ${flwCurrency}` : `₦${MIN_WITHDRAWAL.toLocaleString()}`}
+                    </p>
+                    {n > 0 && ngnEstimate && (
+                      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center">
+                        <p className="text-lg font-semibold text-primary">
+                          {format(ngnEstimate)} deducted
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          at {sym}1 = {format(Math.round(1 / rate!))} · rate refreshes every 15 min
+                        </p>
+                      </div>
+                    )}
+                    {n > 0 && !rate && (
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Deduction calculated at the settlement rate on the day of transfer.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("stripe_amount")} className="flex-1">Back</Button>
-              <Button onClick={confirmStripePayout} className="flex-1">Confirm Payout</Button>
+              <Button variant="outline" onClick={() => setStep("flw_details")} className="flex-1">Back</Button>
+              <Button onClick={initiateFlwPayout} disabled={!amount} className="flex-1">Continue</Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Flutterwave: confirm ── */}
+        {step === "flw_confirm" && (
+          <div className="space-y-4 py-2 text-center">
+            {flwCurrency === "NGN" ? (
+              <>
+                <p className="text-sm text-muted-foreground">Deducting from wallet</p>
+                <p className="text-3xl font-bold text-primary">{format(parseFloat(amount))}</p>
+              </>
+            ) : (() => {
+              const rate = getFxRate();
+              const sym = CURRENCY_SYMBOLS[flwCurrency] ?? "";
+              const n = parseFloat(amount);
+              const ngnEstimate = (rate && n > 0) ? Math.ceil(n / rate) : null;
+              return (
+                <>
+                  <p className="text-sm text-muted-foreground">You're sending</p>
+                  <p className="text-3xl font-bold text-primary">
+                    {sym}{n.toFixed(2)} {flwCurrency}
+                  </p>
+                  {ngnEstimate && (
+                    <p className="text-sm text-muted-foreground">
+                      ≈ {format(ngnEstimate)} will be deducted from your wallet
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Final rate set at time of transfer</p>
+                </>
+              );
+            })()}
+            <p className="text-sm text-muted-foreground">to {flwAccountName}</p>
+            <p className="text-xs text-muted-foreground">{flwCurrency === "EUR" ? flwIban : flwAccountNumber} · via Flutterwave</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep("flw_amount")} className="flex-1">Back</Button>
+              <Button onClick={confirmFlwPayout} className="flex-1">Confirm Payout</Button>
             </div>
           </div>
         )}
@@ -534,12 +711,17 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
           <div className="space-y-4 py-4 text-center">
             <CheckCircle2 className="h-16 w-16 text-primary mx-auto" />
             <p className="font-semibold text-foreground">
-              {payoutMethod === "stripe" ? "Payout Initiated!" : "Withdrawal Initiated!"}
+              {payoutMethod === "flutterwave" ? "Payout Initiated!" : "Withdrawal Initiated!"}
             </p>
             <p className="text-sm text-muted-foreground">
-              {payoutMethod === "stripe"
-                ? `${formatNaira(parseFloat(amount))} is being sent to your Stripe account. Allow 2–5 business days.`
-                : `${formatNaira(parseFloat(amount))} is being transferred to your bank account. It may take a few minutes.`}
+              {payoutMethod === "flutterwave" && flwCurrency !== "NGN" ? (
+                <>
+                  {CURRENCY_SYMBOLS[flwCurrency] ?? ""}{parseFloat(amount).toFixed(2)} {flwCurrency} is on its way
+                  {ngnDeducted ? ` · ${format(ngnDeducted)} deducted` : ""}. Allow 1–3 business days.
+                </>
+              ) : (
+                <>{format(ngnDeducted ?? parseFloat(amount))} is being transferred to your bank account. Allow 1–3 business days.</>
+              )}
             </p>
             <Button className="w-full" onClick={() => handleClose(false)}>Done</Button>
           </div>
@@ -549,7 +731,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
         {step === "failed" && (
           <div className="space-y-4 py-4 text-center">
             <p className="text-destructive font-semibold">
-              {payoutMethod === "stripe" ? "Payout Failed" : "Withdrawal Failed"}
+              {payoutMethod === "flutterwave" ? "Payout Failed" : "Withdrawal Failed"}
             </p>
             <p className="text-sm text-muted-foreground">Please try again or contact support.</p>
             <Button className="w-full" onClick={resetState}>Try Again</Button>

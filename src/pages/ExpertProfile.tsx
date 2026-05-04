@@ -17,7 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExpertProfileOverview } from "@/api/expert-read.api";
 import { useAuth } from "@/hooks/useAuth";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
@@ -151,6 +151,7 @@ const availabilityLabels: Record<string, string> = {
 };
 
 export default function ExpertProfile() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuth();
@@ -408,7 +409,7 @@ export default function ExpertProfile() {
                     )}
                     {freelancerProfile?.hourly_rate && (
                       <span className="text-primary font-semibold">
-                        {formatNaira(freelancerProfile.hourly_rate)}/hr
+                        {format(freelancerProfile.hourly_rate)}/hr
                       </span>
                     )}
                     {reviews.length > 0 && (
@@ -708,7 +709,7 @@ export default function ExpertProfile() {
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-semibold text-foreground leading-snug">{s.title}</p>
                           {s.price && (
-                            <span className="text-sm font-bold text-primary shrink-0">{formatNaira(s.price)}</span>
+                            <span className="text-sm font-bold text-primary shrink-0">{format(s.price)}</span>
                           )}
                         </div>
                         {s.category && <p className="text-xs text-muted-foreground">{s.category}</p>}

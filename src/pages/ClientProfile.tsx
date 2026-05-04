@@ -14,7 +14,7 @@ import {
 import { getClientProfileOverview } from "@/api/client-read.api";
 import { useAuth } from "@/hooks/useAuth";
 import { VerificationBadges } from "@/components/VerificationBadges";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 
 function getInitials(name: string | null) {
   if (!name) return "U";
@@ -43,6 +43,7 @@ function memberSince(createdAt: string) {
 }
 
 export default function ClientProfile() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -247,9 +248,6 @@ export default function ClientProfile() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-foreground truncate">{job.title}</p>
-                            {job.category && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{job.category}</p>
-                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Badge
@@ -269,9 +267,9 @@ export default function ClientProfile() {
                         {(job.budget_min || job.budget_max) && (
                           <p className="text-xs text-muted-foreground mt-2">
                             Budget:{" "}
-                            {job.budget_type === "fixed"
-                              ? formatNaira(job.budget_max || job.budget_min)
-                              : `${formatNaira(job.budget_min)} – ${formatNaira(job.budget_max)}/hr`}
+                            {!job.is_hourly
+                              ? format(job.budget_max || job.budget_min)
+                              : `${format(job.budget_min)} – ${format(job.budget_max)}/hr`}
                           </p>
                         )}
                       </Link>
@@ -318,11 +316,14 @@ export default function ClientProfile() {
                             {contest.status?.replace("_", " ")}
                           </Badge>
                         </div>
-                        {contest.budget && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Prize pool: {formatNaira(contest.budget)}
-                          </p>
-                        )}
+                        {(() => {
+                          const total = (contest.prize_first || 0) + (contest.prize_second || 0) + (contest.prize_third || 0) + (contest.prize_fourth || 0) + (contest.prize_fifth || 0);
+                          return total > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Prize pool: {format(total)}
+                            </p>
+                          ) : null;
+                        })()}
                       </Link>
                     ))}
                   </div>

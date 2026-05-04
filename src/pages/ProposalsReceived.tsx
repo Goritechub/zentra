@@ -22,7 +22,7 @@ import {
   startClientProposalInterview,
   updateClientProposalStatus,
 } from "@/api/client-proposals.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { VerificationBadges } from "@/components/VerificationBadges";
@@ -47,6 +47,7 @@ function formatDurationDisplay(days: number, unit?: string): string {
 }
 
 export default function ProposalsReceivedPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [proposals, setProposals] = useState<any[]>([]);
@@ -167,7 +168,7 @@ export default function ProposalsReceivedPage() {
     if (fundNow) {
       const isPaymentReady = wallet && wallet.balance >= requiredAmount;
       if (!isPaymentReady) {
-        toast.error(`Insufficient wallet balance. You need at least ${formatNaira(requiredAmount)} to assign.`);
+        toast.error(`Insufficient wallet balance. You need at least ${format(requiredAmount)} to assign.`);
         setAssignDialog({ open: false, proposal: null });
         return;
       }
@@ -287,7 +288,7 @@ export default function ProposalsReceivedPage() {
                 {paymentReady ? "Payment Ready" : "Payment Not Verified"}
               </Badge>
               {wallet && (
-                <span className="text-sm text-muted-foreground">Balance: {formatNaira(wallet.balance)}</span>
+                <span className="text-sm text-muted-foreground">Balance: {format(wallet.balance)}</span>
               )}
             </div>
           </div>
@@ -399,7 +400,7 @@ export default function ProposalsReceivedPage() {
                                     )}
 
                                     <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                                      <span>Bid: <strong className="text-foreground">{formatNaira(proposal.bid_amount)}</strong></span>
+                                      <span>Bid: <strong className="text-foreground">{format(proposal.bid_amount)}</strong></span>
                                       <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
                                       <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
                                     </div>
@@ -472,7 +473,7 @@ export default function ProposalsReceivedPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bid Amount</span>
-                <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.bid_amount)}</span>
+                <span className="font-bold text-primary">{format(assignDialog.proposal.bid_amount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Delivery</span>
@@ -488,7 +489,7 @@ export default function ProposalsReceivedPage() {
                     <Label htmlFor="fund-now" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Now</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Pay {formatNaira(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
+                        Pay {format(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
                       </p>
                     </Label>
                   </div>
@@ -509,20 +510,20 @@ export default function ProposalsReceivedPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wallet Balance</span>
                     <span className={wallet && wallet.balance >= getRequiredAmount(assignDialog.proposal) ? "text-primary" : "text-destructive"}>
-                      {formatNaira(wallet?.balance || 0)}
+                      {format(wallet?.balance || 0)}
                     </span>
                   </div>
                   {assignDialog.proposal.payment_type === "milestone" && assignDialog.proposal.milestones?.length > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Required Now (1st Milestone)</span>
-                      <span className="font-bold text-primary">{formatNaira(assignDialog.proposal.milestones[0].amount)}</span>
+                      <span className="font-bold text-primary">{format(assignDialog.proposal.milestones[0].amount)}</span>
                     </div>
                   )}
                   {wallet && wallet.balance < getRequiredAmount(assignDialog.proposal) && (
                     <Alert className="border-destructive/30 bg-destructive/5">
                       <Wallet className="h-4 w-4 text-destructive" />
                       <AlertDescription className="text-sm">
-                        Insufficient balance. You need at least {formatNaira(getRequiredAmount(assignDialog.proposal))} to fund now.{" "}
+                        Insufficient balance. You need at least {format(getRequiredAmount(assignDialog.proposal))} to fund now.{" "}
                         <a href="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</a>
                       </AlertDescription>
                     </Alert>
@@ -612,7 +613,7 @@ export default function ProposalsReceivedPage() {
                               Duration: {ms.duration ? `${ms.duration} ${ms.duration_unit || ms.durationUnit || "days"}` : (ms.date ? new Date(ms.date).toLocaleDateString() : "—")}
                             </p>
                           </div>
-                          <p className="font-semibold text-foreground">{formatNaira(ms.amount)}</p>
+                          <p className="font-semibold text-foreground">{format(ms.amount)}</p>
                         </div>
                       ))}
                     </div>
@@ -620,7 +621,7 @@ export default function ProposalsReceivedPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
                         <span className="text-muted-foreground">Bid Amount</span>
-                        <span className="font-semibold text-foreground">{formatNaira(detailDialog.proposal.bid_amount)}</span>
+                        <span className="font-semibold text-foreground">{format(detailDialog.proposal.bid_amount)}</span>
                       </div>
                       <div className="flex justify-between text-sm p-3 rounded-lg border border-border bg-muted/30">
                         <span className="text-muted-foreground">Delivery</span>

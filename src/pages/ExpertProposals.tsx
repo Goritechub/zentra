@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { getExpertProposalsOverview } from "@/api/proposals.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
   Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle
@@ -15,6 +15,7 @@ import {
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function ExpertProposalsPage() {
+  const { format } = useCurrency();
   const { user, profile, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export default function ExpertProposalsPage() {
           </div>
         </Link>
         <div className="flex flex-col items-end shrink-0 gap-2">
-          <p className="text-lg font-bold text-primary">{formatNaira(p.bid_amount)}</p>
+          <p className="text-lg font-bold text-primary">{format(p.bid_amount)}</p>
           {statusBadge(p.status)}
           {p.job?.client_id && (
             <FundingStatusBadge
@@ -127,7 +128,7 @@ export default function ExpertProposalsPage() {
           <p className="text-xs text-muted-foreground mt-3">{formatDistanceToNow(new Date(o.created_at), { addSuffix: true })}</p>
         </div>
         <div className="flex flex-col items-end shrink-0 gap-2">
-          {o.budget && <p className="text-lg font-bold text-primary">{formatNaira(o.budget)}</p>}
+          {o.budget && <p className="text-lg font-bold text-primary">{format(o.budget)}</p>}
           <Badge variant={o.status === "pending" ? "outline" : "secondary"} className="gap-1 capitalize">
             {o.status === "pending" ? <Inbox className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
             {o.status}

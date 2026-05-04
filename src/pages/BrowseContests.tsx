@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getBrowseContestsList } from "@/api/client-read.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
 import { ContestCardSkeleton } from "@/components/skeletons/ContestCardSkeleton";
@@ -31,6 +31,7 @@ function statusVariant(s: ReturnType<typeof deriveContestStatus>): "default" | "
 }
 
 export default function BrowseContestsPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [contests, setContests] = useState<any[]>([]);
@@ -117,7 +118,7 @@ export default function BrowseContestsPage() {
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{contest.description}</p>
 
                       <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
-                        <span className="font-bold text-primary text-base">{formatNaira(totalPrize(contest))}</span>
+                        <span className="font-bold text-primary text-base">{format(totalPrize(contest))}</span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" /> {contest._entryCount || 0} entries
                         </span>

@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyContestEntriesList } from "@/api/marketplace.api";
-import { formatNaira } from "@/lib/nigerian-data";
-import { format, isPast } from "date-fns";
+import { useCurrency } from "@/hooks/useCurrency";
+import { format as fnsFormat, isPast } from "date-fns";
 import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award } from "lucide-react";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
@@ -28,6 +28,7 @@ function deriveContestStatus(
 }
 
 export default function ContestEntriesPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -181,22 +182,22 @@ export default function ContestEntriesPage() {
             <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Submitted {format(new Date(entry.created_at), "MMM d, yyyy")}
+                Submitted {fnsFormat(new Date(entry.created_at), "MMM d, yyyy")}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 {derived === "active"
-                  ? `Ends ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                  ? `Ends ${fnsFormat(new Date(contest.deadline), "MMM d, yyyy")}`
                   : derived === "completed"
-                    ? `Ended ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                    ? `Ended ${fnsFormat(new Date(contest.deadline), "MMM d, yyyy")}`
                     : derived === "selecting_winners"
-                      ? `Deadline passed ${format(new Date(contest.deadline), "MMM d, yyyy")}`
+                      ? `Deadline passed ${fnsFormat(new Date(contest.deadline), "MMM d, yyyy")}`
                       : statusText}
               </span>
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-lg font-bold text-primary">{formatNaira(totalPrize(contest))}</p>
+            <p className="text-lg font-bold text-primary">{format(totalPrize(contest))}</p>
             <p className="text-xs text-muted-foreground">Total Prizes</p>
             <Badge variant={statusBadgeVariant} className="mt-2">
               {statusText}

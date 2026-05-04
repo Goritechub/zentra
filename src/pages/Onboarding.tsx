@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { completeAuthOnboarding } from "@/api/auth.api";
+import { updateMyProfileData } from "@/api/profile.api";
 import { Briefcase, Loader2, Users } from "lucide-react";
 
 export default function OnboardingPage() {
@@ -94,6 +95,15 @@ export default function OnboardingPage() {
     localStorage.removeItem("pending_oauth_role_choice");
     localStorage.removeItem("pending_oauth_ts");
     await refreshProfile();
+
+    // Non-blocking: set USD for users outside Africa
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!tz.startsWith("Africa/")) {
+        void updateMyProfileData({ preferredCurrency: "USD" });
+      }
+    } catch {}
+
     navigate(selectedRole === "freelancer" ? "/jobs" : "/dashboard", { replace: true });
   };
 

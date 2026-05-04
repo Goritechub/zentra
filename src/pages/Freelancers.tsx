@@ -19,7 +19,8 @@ import {
   saveExpert,
 } from "@/api/client-read.api";
 import { useAuth } from "@/hooks/useAuth";
-import { formatNaira, cadSoftwareList } from "@/lib/nigerian-data";
+import { cadSoftwareList } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { categoryNames, getCategoryBySlug } from "@/lib/categories";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -155,6 +156,7 @@ function FilterSidebar({
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function FreelancersPage() {
+  const { format } = useCurrency();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
@@ -480,7 +482,7 @@ export default function FreelancersPage() {
 
                             <div className="flex items-center justify-between pt-3 border-t border-border">
                               <span className="text-sm font-bold text-primary">
-                                {f.hourly_rate ? `${formatNaira(f.hourly_rate)}/hr` : "Negotiable"}
+                                {f.hourly_rate ? `${format(f.hourly_rate)}/hr` : "Negotiable"}
                               </span>
                               <div className="flex items-center gap-1">
                                 <Button

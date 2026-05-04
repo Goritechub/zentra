@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, differenceInBusinessDays } from "date-fns";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useAuth } from "@/hooks/useAuth";
 import {
   deleteAdminContract,
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 const DELETABLE_STATUSES = ["interviewing", "draft", "pending_funding"];
 
 export default function AdminContracts() {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const [contracts, setContracts] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
@@ -131,7 +132,7 @@ export default function AdminContracts() {
                   <TableCell className="font-medium max-w-[180px] truncate">{c.job_title || "—"}</TableCell>
                   <TableCell className="text-sm">{c.client?.full_name || "—"}</TableCell>
                   <TableCell className="text-sm">{c.freelancer?.full_name || "—"}</TableCell>
-                  <TableCell className="text-sm font-medium">{formatNaira(c.amount)}</TableCell>
+                  <TableCell className="text-sm font-medium">{format(c.amount)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Badge variant={statusColor(c.status)} className="capitalize">{c.status}</Badge>
@@ -173,7 +174,7 @@ export default function AdminContracts() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>Client: <span className="font-medium">{selectedContract.client?.full_name}</span></div>
                 <div>Expert: <span className="font-medium">{selectedContract.freelancer?.full_name}</span></div>
-                <div>Amount: <span className="font-bold text-primary">{formatNaira(selectedContract.amount)}</span></div>
+                <div>Amount: <span className="font-bold text-primary">{format(selectedContract.amount)}</span></div>
                 <div>Status: <Badge variant={statusColor(selectedContract.status)} className="capitalize">{selectedContract.status}</Badge></div>
               </div>
 
@@ -187,7 +188,7 @@ export default function AdminContracts() {
                           <p className="font-medium">{ms.title}</p>
                           <Badge variant="outline" className="text-xs capitalize mt-1">{ms.status}</Badge>
                         </div>
-                        <span className="font-semibold text-primary">{formatNaira(ms.amount)}</span>
+                        <span className="font-semibold text-primary">{format(ms.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -201,7 +202,7 @@ export default function AdminContracts() {
                     {escrow.map(e => (
                       <div key={e.id} className="flex justify-between py-1 border-b border-border last:border-0">
                         <span className="capitalize">{e.status}</span>
-                        <span className="font-medium">Held: {formatNaira(e.held_amount)} | Released: {formatNaira(e.released_amount)}</span>
+                        <span className="font-medium">Held: {format(e.held_amount)} | Released: {format(e.released_amount)}</span>
                       </div>
                     ))}
                   </div>

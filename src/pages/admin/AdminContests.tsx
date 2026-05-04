@@ -11,8 +11,8 @@ import {
   approveAdminCancellationRequest,
   rejectAdminCancellationRequest,
 } from "@/api/admin.api";
-import { formatNaira } from "@/lib/nigerian-data";
-import { format } from "date-fns";
+import { useCurrency } from "@/hooks/useCurrency";
+import { format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
   Loader2, Search, Trophy, Eye, Trash2, Ban, CheckCircle2, Clock,
@@ -86,6 +86,7 @@ const totalPrize = (c: Contest) =>
   (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
 export default function AdminContests() {
+  const { format } = useCurrency();
   const [contests, setContests] = useState<Contest[]>([]);
   const [pendingContests, setPendingContests] = useState<Contest[]>([]);
   const [cancellationRequests, setCancellationRequests] = useState<any[]>([]);
@@ -322,9 +323,9 @@ export default function AdminContests() {
                           <Badge variant={cfg.variant}>{cfg.label}</Badge>
                         </TableCell>
                         <TableCell>{contest.entry_count ?? "—"}</TableCell>
-                        <TableCell>{formatNaira(totalPrize(contest))}</TableCell>
+                        <TableCell>{format(totalPrize(contest))}</TableCell>
                         <TableCell>
-                          <p className="text-sm">{format(new Date(contest.deadline), "MMM d, yyyy")}</p>
+                          <p className="text-sm">{fnsFormat(new Date(contest.deadline), "MMM d, yyyy")}</p>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -402,15 +403,15 @@ export default function AdminContests() {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Prize Pool</p>
-                          <p className="font-medium text-primary">{formatNaira(totalPrize(contest))}</p>
+                          <p className="font-medium text-primary">{format(totalPrize(contest))}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Deadline</p>
-                          <p>{format(new Date(contest.deadline), "MMM d, yyyy")}</p>
+                          <p>{fnsFormat(new Date(contest.deadline), "MMM d, yyyy")}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Submitted</p>
-                          <p>{format(new Date(contest.created_at), "MMM d, yyyy")}</p>
+                          <p>{fnsFormat(new Date(contest.created_at), "MMM d, yyyy")}</p>
                         </div>
                       </div>
                       {contest.rules && (
@@ -471,7 +472,7 @@ export default function AdminContests() {
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-bold text-primary">{formatNaira(pool)}</p>
+                        <p className="font-bold text-primary">{format(pool)}</p>
                         <p className="text-xs text-muted-foreground">prize pool</p>
                       </div>
                     </div>
@@ -481,16 +482,16 @@ export default function AdminContests() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         <div className="rounded-md bg-muted/40 px-3 py-2 text-xs">
                           <p className="text-muted-foreground mb-0.5">Wallet balance</p>
-                          <p className="font-semibold">{formatNaira(req.client_wallet.balance ?? 0)}</p>
+                          <p className="font-semibold">{format(req.client_wallet.balance ?? 0)}</p>
                         </div>
                         <div className="rounded-md bg-muted/40 px-3 py-2 text-xs">
                           <p className="text-muted-foreground mb-0.5">Project Budget</p>
-                          <p className="font-semibold">{formatNaira(req.client_wallet.escrow_balance ?? 0)}</p>
+                          <p className="font-semibold">{format(req.client_wallet.escrow_balance ?? 0)}</p>
                         </div>
                         {req.client_wallet.total_earned != null && (
                           <div className="rounded-md bg-muted/40 px-3 py-2 text-xs">
                             <p className="text-muted-foreground mb-0.5">Total spent</p>
-                            <p className="font-semibold">{formatNaira(req.client_wallet.total_earned ?? 0)}</p>
+                            <p className="font-semibold">{format(req.client_wallet.total_earned ?? 0)}</p>
                           </div>
                         )}
                       </div>
@@ -511,7 +512,7 @@ export default function AdminContests() {
                             <div key={i} className="flex items-center justify-between text-xs rounded bg-muted/30 px-2 py-1">
                               <span className="text-muted-foreground truncate max-w-[200px]">{tx.description}</span>
                               <span className={tx.type === "credit" ? "text-emerald-600 font-medium" : "text-foreground font-medium"}>
-                                {tx.type === "credit" ? "+" : "-"}{formatNaira(tx.amount)}
+                                {tx.type === "credit" ? "+" : "-"}{format(tx.amount)}
                               </span>
                             </div>
                           ))}
@@ -531,7 +532,7 @@ export default function AdminContests() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Approve Cancellation</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will cancel the contest "{contest?.title}" and refund {formatNaira(pool)} to the client's wallet. All entrants will be notified.
+                              This will cancel the contest "{contest?.title}" and refund {format(pool)} to the client's wallet. All entrants will be notified.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -605,15 +606,15 @@ export default function AdminContests() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Prize Pool</p>
-                  <p className="text-sm font-medium">{formatNaira(totalPrize(selectedContest))}</p>
+                  <p className="text-sm font-medium">{format(totalPrize(selectedContest))}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Deadline</p>
-                  <p className="text-sm">{format(new Date(selectedContest.deadline), "MMM d, yyyy h:mm a")}</p>
+                  <p className="text-sm">{fnsFormat(new Date(selectedContest.deadline), "MMM d, yyyy h:mm a")}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Created</p>
-                  <p className="text-sm">{format(new Date(selectedContest.created_at), "MMM d, yyyy")}</p>
+                  <p className="text-sm">{fnsFormat(new Date(selectedContest.created_at), "MMM d, yyyy")}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Category</p>
@@ -625,19 +626,19 @@ export default function AdminContests() {
                 <p className="text-sm text-muted-foreground mb-2">Prize Breakdown</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="gap-1">
-                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {formatNaira(selectedContest.prize_first)}
+                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {format(selectedContest.prize_first)}
                   </Badge>
                   {(selectedContest.prize_second ?? 0) > 0 && (
-                    <Badge variant="outline">2nd: {formatNaira(selectedContest.prize_second!)}</Badge>
+                    <Badge variant="outline">2nd: {format(selectedContest.prize_second!)}</Badge>
                   )}
                   {(selectedContest.prize_third ?? 0) > 0 && (
-                    <Badge variant="outline">3rd: {formatNaira(selectedContest.prize_third!)}</Badge>
+                    <Badge variant="outline">3rd: {format(selectedContest.prize_third!)}</Badge>
                   )}
                   {(selectedContest.prize_fourth ?? 0) > 0 && (
-                    <Badge variant="outline">4th: {formatNaira(selectedContest.prize_fourth!)}</Badge>
+                    <Badge variant="outline">4th: {format(selectedContest.prize_fourth!)}</Badge>
                   )}
                   {(selectedContest.prize_fifth ?? 0) > 0 && (
-                    <Badge variant="outline">5th: {formatNaira(selectedContest.prize_fifth!)}</Badge>
+                    <Badge variant="outline">5th: {format(selectedContest.prize_fifth!)}</Badge>
                   )}
                 </div>
               </div>

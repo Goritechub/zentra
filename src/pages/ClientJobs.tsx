@@ -18,7 +18,7 @@ import {
   getClientJobCancelState,
   getClientJobs,
 } from "@/api/jobs.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2, Eye } from "lucide-react";
@@ -31,6 +31,7 @@ interface JobWithCounts {
 }
 
 export default function ClientJobsPage() {
+  const { format } = useCurrency();
   const { user, profile, authError } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -196,7 +197,7 @@ export default function ClientJobsPage() {
                           </Link>
                           <div className="flex flex-col items-end gap-2 ml-4">
                             {(job.budget_min || job.budget_max) && (
-                              <p className="font-bold text-primary">{formatNaira(job.budget_max || job.budget_min || 0)}</p>
+                              <p className="font-bold text-primary">{format(job.budget_max || job.budget_min || 0)}</p>
                             )}
                             {job.status !== "cancelled" && job.status !== "completed" && (
                               <Button

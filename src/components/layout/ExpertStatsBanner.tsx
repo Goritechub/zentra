@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet, CheckCircle2 } from "lucide-react";
-
-function formatNaira(amount: number) {
-  return "₦" + amount.toLocaleString();
-}
 
 function MiniTrendChart({ data, color }: { data: number[]; color: string }) {
   if (!data.length) return null;
@@ -36,6 +33,7 @@ function MiniTrendChart({ data, color }: { data: number[]; color: string }) {
 }
 
 export function ExpertStatsBanner() {
+  const { format } = useCurrency();
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [monthlyEarnings, setMonthlyEarnings] = useState(0);
@@ -148,7 +146,7 @@ export function ExpertStatsBanner() {
               <Wallet className="h-3.5 w-3.5" />
               Earnings this month
             </div>
-            <p className="text-xl font-bold text-foreground">{formatNaira(monthlyEarnings)}</p>
+            <p className="text-xl font-bold text-foreground">{format(monthlyEarnings)}</p>
             {pctChange !== 0 && (
               <p className={`text-xs mt-1 font-medium ${pctChange > 0 ? "text-green-500" : "text-destructive"}`}>
                 {pctChange > 0 ? "+" : ""}{pctChange}% from last month

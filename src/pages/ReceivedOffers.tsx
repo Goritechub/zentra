@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { acceptDirectOffer, declineReceivedOffer, getReceivedOffers } from "@/api/offers.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function ReceivedOffersPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
@@ -124,8 +125,8 @@ export default function ReceivedOffersPage() {
               <span className="flex items-center gap-1 font-semibold text-primary text-sm">
                 <DollarSign className="h-3.5 w-3.5" />
                 {offer.budget_min && offer.budget_max
-                  ? `${formatNaira(offer.budget_min)} – ${formatNaira(offer.budget_max)}`
-                  : formatNaira(offer.budget || offer.budget_max || offer.budget_min)}
+                  ? `${format(offer.budget_min)} – ${format(offer.budget_max)}`
+                  : format(offer.budget || offer.budget_max || offer.budget_min)}
               </span>
             )}
             {offer.delivery_days && (

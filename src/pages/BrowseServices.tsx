@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { getBrowseServicesList } from "@/api/client-read.api";
-import { formatNaira } from "@/lib/nigerian-data";
 import { cadSoftwareList } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { categoryNames } from "@/lib/categories";
 import {
   Search, X, SlidersHorizontal, Star, Clock, Send, ChevronLeft, ChevronRight,
@@ -124,6 +124,7 @@ function FilterSidebar({
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function BrowseServicesPage() {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -355,7 +356,7 @@ export default function BrowseServicesPage() {
                           )}
                           <span className="ml-auto text-sm font-bold text-primary">
                             {svc.price ? (
-                              <>{svc.pricing_type === "starting_from" ? "Starting at " : ""}{formatNaira(svc.price)}</>
+                              <>{svc.pricing_type === "starting_from" ? "Starting at " : ""}{format(svc.price)}</>
                             ) : "Negotiable"}
                           </span>
                         </div>
@@ -468,7 +469,7 @@ export default function BrowseServicesPage() {
                   <p className="text-xs text-muted-foreground">Price</p>
                   <p className="font-bold text-primary">
                     {selectedService.pricing_type === "starting_from" ? "Starting at " : ""}
-                    {formatNaira(selectedService.price)}
+                    {format(selectedService.price)}
                   </p>
                 </div>
               )}

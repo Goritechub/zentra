@@ -18,9 +18,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getDisputeDetail, submitDisputeResponse } from "@/api/contracts.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
-import { formatDistanceToNow, format, isPast } from "date-fns";
+import { formatDistanceToNow, format as fnsFormat, isPast } from "date-fns";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -47,6 +47,7 @@ const DISPUTE_STATUS_CONFIG: Record<
 };
 
 export default function DisputeDetail() {
+  const { format } = useCurrency();
   const { disputeId } = useParams<{ disputeId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -219,7 +220,7 @@ export default function DisputeDetail() {
                 <p className="text-sm text-muted-foreground">Contract: {contract.job_title}</p>
                 <p className="text-sm text-muted-foreground">
                   Disputed Amount:{" "}
-                  <span className="text-primary font-semibold">{formatNaira(contract.amount)}</span>
+                  <span className="text-primary font-semibold">{format(contract.amount)}</span>
                 </p>
               </div>
               <Badge variant={statusCfg.variant} className="text-sm">
@@ -294,7 +295,7 @@ export default function DisputeDetail() {
                   <p className={`text-xs ${deadlineExpired ? "text-destructive font-medium" : "text-amber-500"}`}>
                     {deadlineExpired
                       ? "Response deadline expired"
-                      : `Deadline: ${format(new Date(dispute.response_deadline), "PPp")}`}
+                      : `Deadline: ${fnsFormat(new Date(dispute.response_deadline), "PPp")}`}
                   </p>
                 )}
               </div>

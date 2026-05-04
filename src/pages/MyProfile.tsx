@@ -19,6 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import {
@@ -66,6 +67,7 @@ interface WorkExp {
 
 export default function MyProfilePage() {
   const { user, profile, refreshProfile, signOut, bootstrapStatus, authError } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -865,6 +867,22 @@ export default function MyProfilePage() {
                   </Button>
                 </div>
               )}
+            </section>
+
+            {/* Currency Preference */}
+            <section className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <h2 className="text-lg font-semibold text-foreground">Display Currency</h2>
+              <p className="text-sm text-muted-foreground">
+                Choose how prices and amounts are displayed across ZentraGig. All values are stored in NGN.
+              </p>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium ${currency === "NGN" ? "text-foreground" : "text-muted-foreground"}`}>₦ NGN</span>
+                <Switch
+                  checked={currency === "USD"}
+                  onCheckedChange={(checked) => void setCurrency(checked ? "USD" : "NGN")}
+                />
+                <span className={`text-sm font-medium ${currency === "USD" ? "text-foreground" : "text-muted-foreground"}`}>$ USD</span>
+              </div>
             </section>
 
             {/* Danger Zone - Delete Account */}

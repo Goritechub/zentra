@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Plus, Save, Settings, Pencil, X, Trash2 } from "lucide-react";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { CommissionTier, invalidateCommissionCache, preloadCommissionTiers } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
@@ -19,6 +19,7 @@ import {
 } from "@/api/admin.api";
 
 export default function AdminSettings() {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +90,7 @@ export default function AdminSettings() {
     const newTier: CommissionTier = {
       max_amount: prevMax + 1_000_000,
       rate: lastTier ? lastTier.rate + 2 : 10,
-      label: `Up to ${formatNaira(prevMax + 1_000_000)}`,
+      label: `Up to ${format(prevMax + 1_000_000)}`,
     };
     const updated = [...draftTiers];
     updated.splice(draftTiers.length - 1, 0, newTier);

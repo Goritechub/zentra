@@ -22,7 +22,7 @@ import {
   setMyServiceActive,
   updateMyService as updateMyServiceApi,
 } from "@/api/marketplace.api";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, ShoppingBag, Edit, Trash2, X, Clock, Upload, Pause, Play
@@ -32,6 +32,7 @@ import { categoryNames } from "@/lib/categories";
 const CATEGORIES = categoryNames;
 
 export default function MyServicesPage() {
+  const { format } = useCurrency();
   const { user, bootstrapStatus, authError } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<any[]>([]);
@@ -262,7 +263,7 @@ export default function MyServicesPage() {
                     <div className="flex items-center justify-between text-sm mb-4">
                       {svc.price && (
                         <span className="font-bold text-primary">
-                          {svc.pricing_type === "starting_from" ? "From " : ""}{formatNaira(svc.price)}
+                          {svc.pricing_type === "starting_from" ? "From " : ""}{format(svc.price)}
                         </span>
                       )}
                       {svc.delivery_days && (

@@ -34,7 +34,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
 import { categoryNames } from "@/lib/categories";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   Loader2,
   X,
@@ -47,6 +47,7 @@ import { FundWalletModal } from "@/components/wallet/FundWalletModal";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 export default function LaunchContestPage() {
+  const { format } = useCurrency();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -358,7 +359,7 @@ export default function LaunchContestPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Wallet Balance</p>
                 <p className="font-semibold text-foreground">
-                  {formatNaira(walletBalance)}
+                  {format(walletBalance)}
                 </p>
               </div>
             </div>
@@ -370,7 +371,7 @@ export default function LaunchContestPage() {
                 <p
                   className={`font-semibold ${walletBalance >= totalPrizePreview ? "text-primary" : "text-destructive"}`}
                 >
-                  {formatNaira(totalPrizePreview)}
+                  {format(totalPrizePreview)}
                 </p>
               </div>
             )}
@@ -675,7 +676,7 @@ export default function LaunchContestPage() {
                   Total Prize Pool
                 </span>
                 <span className="font-semibold text-foreground">
-                  {formatNaira(insufficientData.total)}
+                  {format(insufficientData.total)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -683,7 +684,7 @@ export default function LaunchContestPage() {
                   Your Wallet Balance
                 </span>
                 <span className="font-semibold text-foreground">
-                  {formatNaira(insufficientData.balance)}
+                  {format(insufficientData.balance)}
                 </span>
               </div>
               <hr className="border-border" />
@@ -692,7 +693,7 @@ export default function LaunchContestPage() {
                   Amount Needed
                 </span>
                 <span className="font-bold text-destructive">
-                  {formatNaira(insufficientData.shortfall)}
+                  {format(insufficientData.shortfall)}
                 </span>
               </div>
             </div>

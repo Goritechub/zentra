@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Loader2, Search, Eye, ShieldCheck, Ban, UserCheck, Wallet, Trash2, AlertTriangle, LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -23,6 +23,7 @@ import {
 } from "@/api/admin.api";
 
 export default function AdminUsers() {
+  const { format } = useCurrency();
   const { user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +90,7 @@ export default function AdminUsers() {
       const result = await closeAdminUserAccount(targetUser.id);
       if (!result.success) {
         if (result.code === "has_funds") {
-          toast.error(`User has funds: Balance ${formatNaira(result.wallet_balance)}, Project Budget ${formatNaira(result.escrow_balance)}. Send withdrawal reminder first.`);
+          toast.error(`User has funds: Balance ${format(result.wallet_balance)}, Project Budget ${format(result.escrow_balance)}. Send withdrawal reminder first.`);
         } else if (result.code === "has_active_contracts") {
           toast.error(`User has ${result.active_contracts} active contract(s). Cannot close account.`);
         } else {
@@ -256,10 +257,10 @@ export default function AdminUsers() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>Balance: <span className="font-bold text-primary">{formatNaira(userWallet.balance)}</span></div>
-                    <div>Project Budget: <span className="font-bold text-amber-500">{formatNaira(userWallet.escrow_balance)}</span></div>
-                    <div>Total Earned: <span className="font-medium">{formatNaira(userWallet.total_earned)}</span></div>
-                    <div>Total Spent: <span className="font-medium">{formatNaira(userWallet.total_spent)}</span></div>
+                    <div>Balance: <span className="font-bold text-primary">{format(userWallet.balance)}</span></div>
+                    <div>Project Budget: <span className="font-bold text-amber-500">{format(userWallet.escrow_balance)}</span></div>
+                    <div>Total Earned: <span className="font-medium">{format(userWallet.total_earned)}</span></div>
+                    <div>Total Spent: <span className="font-medium">{format(userWallet.total_spent)}</span></div>
                   </div>
                 </div>
               )}

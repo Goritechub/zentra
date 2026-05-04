@@ -33,7 +33,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { cadSkills } from "@/lib/nigerian-data";
 import { categoryNames } from "@/lib/categories";
-import { formatNaira } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   Loader2,
   X,
@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 
 export default function EditContestPage() {
+  const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -444,20 +445,20 @@ export default function EditContestPage() {
               <div className="flex flex-wrap gap-2">
                 {parseInt(prizeFirst) > 0 && (
                   <Badge variant="outline" className="gap-1">
-                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {formatNaira(parseInt(prizeFirst))}
+                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {format(parseInt(prizeFirst))}
                   </Badge>
                 )}
                 {parseInt(prizeSecond) > 0 && (
-                  <Badge variant="outline">2nd: {formatNaira(parseInt(prizeSecond))}</Badge>
+                  <Badge variant="outline">2nd: {format(parseInt(prizeSecond))}</Badge>
                 )}
                 {parseInt(prizeThird) > 0 && (
-                  <Badge variant="outline">3rd: {formatNaira(parseInt(prizeThird))}</Badge>
+                  <Badge variant="outline">3rd: {format(parseInt(prizeThird))}</Badge>
                 )}
                 {parseInt(prizeFourth) > 0 && (
-                  <Badge variant="outline">4th: {formatNaira(parseInt(prizeFourth))}</Badge>
+                  <Badge variant="outline">4th: {format(parseInt(prizeFourth))}</Badge>
                 )}
                 {parseInt(prizeFifth) > 0 && (
-                  <Badge variant="outline">5th: {formatNaira(parseInt(prizeFifth))}</Badge>
+                  <Badge variant="outline">5th: {format(parseInt(prizeFifth))}</Badge>
                 )}
               </div>
             </div>

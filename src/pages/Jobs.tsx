@@ -12,7 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { getOpenJobs, getSavedJobIds, saveJob, unsaveJob } from "@/api/jobs.api";
-import { formatNaira, cadSoftwareList, cadSkills, getAllStates } from "@/lib/nigerian-data";
+import { cadSoftwareList, cadSkills, getAllStates } from "@/lib/nigerian-data";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ function computeMatch(jobSkills: string[], userSkills: string[]): number | null 
 }
 
 export default function JobsPage() {
+  const { format } = useCurrency();
   const { user, authError } = useAuth();
   const queryClient = useQueryClient();
 
@@ -282,9 +284,9 @@ export default function JobsPage() {
             )}
             <p className="text-lg font-bold text-primary text-right">
               {job.budget_min && job.budget_max
-                ? `${formatNaira(job.budget_min)} – ${formatNaira(job.budget_max)}`
+                ? `${format(job.budget_min)} – ${format(job.budget_max)}`
                 : job.budget_min
-                  ? formatNaira(job.budget_min)
+                  ? format(job.budget_min)
                   : "Negotiable"}
             </p>
             <Button variant="default" size="sm" asChild>
