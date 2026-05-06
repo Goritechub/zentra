@@ -25,7 +25,7 @@ import { categoryNames, getCategoryBySlug } from "@/lib/categories";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  Search, MapPin, Star, CheckCircle2, SlidersHorizontal, X, MessageSquare, Heart,
+  Search, MapPin, Star, CheckCircle2, SlidersHorizontal, X, Heart,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { FreelancerCardSkeleton } from "@/components/skeletons/FreelancerCardSkeleton";
@@ -495,14 +495,13 @@ export default function FreelancersPage() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
+                                  variant="outline"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(user ? `/messages?user=${f.user_id}` : "/auth");
+                                    navigate(user ? `/post-job?invite=${f.user_id}&name=${encodeURIComponent(f.full_name || "Expert")}` : "/auth");
                                   }}
                                 >
-                                  <MessageSquare className="h-3.5 w-3.5" />
+                                  Hire
                                 </Button>
                                 <Button
                                   size="sm"

@@ -56,9 +56,8 @@ function NavDropdown({ label, items, active }: NavDropdownProps) {
               key={item.to}
               to={item.to}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+              className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
             >
-              <item.icon className="h-4 w-4 text-muted-foreground" />
               {item.label}
             </Link>
           ))}
@@ -232,11 +231,10 @@ export function Header() {
                 />
                 <Link
                   to="/admin"
-                  className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
                     isActive(["/admin"]) ? "text-primary" : "text-foreground/80 hover:text-foreground"
                   }`}
                 >
-                  <ShieldAlert className="h-4 w-4" />
                   Admin Panel
                 </Link>
               </>

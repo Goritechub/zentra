@@ -2,7 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap");
+/* IBM Plex Mono — brand/code, always on */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap");
+
+/* Body font — uncomment one, comment the rest */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+/* @import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap"); */
+/* @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"); */
+/* @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"); */
 
 @layer base {
   :root {
@@ -142,7 +149,10 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
+    /* font-family: "Geist", system-ui, sans-serif; */
+    /* font-family: "DM Sans", system-ui, sans-serif; */
+    /* font-family: "Plus Jakarta Sans", system-ui, sans-serif; */
   }
 }
 
@@ -271,6 +281,13 @@
 }
 
 @layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Container utility */
   .container-tight {
     @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
