@@ -457,6 +457,7 @@ export default function JobDetailsPage() {
                       deliveryLabel={deliveryLabel}
                       similarJobs={similarJobs}
                       profileRole={profile?.role}
+                      format={format}
                     />
                   </TabsContent>
 
@@ -697,6 +698,7 @@ export default function JobDetailsPage() {
                   deliveryLabel={deliveryLabel}
                   similarJobs={similarJobs}
                   profileRole={profile?.role}
+                  format={format}
                 />
               </div>
 
@@ -1037,11 +1039,12 @@ export default function JobDetailsPage() {
 
 // ===== Overview Content Component =====
 
-function OverviewContent({ job, deliveryLabel, similarJobs, profileRole }: {
+function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format }: {
   job: any;
   deliveryLabel: () => string;
   similarJobs: any[];
   profileRole?: string;
+  format: (n: number) => string;
 }) {
   return (
     <div className="space-y-6">
