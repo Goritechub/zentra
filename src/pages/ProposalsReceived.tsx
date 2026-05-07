@@ -30,7 +30,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase, TrendingUp
 } from "lucide-react";
 
 function formatDurationDisplay(days: number, unit?: string): string {
@@ -240,6 +240,7 @@ export default function ProposalsReceivedPage() {
     return jobIds.map((jobId) => ({
       jobId,
       jobTitle: jobMap.get(jobId)![0]?.job_title || "Unknown Job",
+      job: jobsData.find((j: any) => j.id === jobId) || null,
       contract: jobContracts.get(jobId) || null,
       proposals: jobMap.get(jobId)!,
     }));
@@ -404,6 +405,7 @@ export default function ProposalsReceivedPage() {
                                       <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
                                       <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
                                     </div>
+                                    <ProposalAnalyticsStrip proposal={proposal} job={group.job} />
                                   </div>
 
                                   <div className="flex flex-col items-end gap-3">
@@ -689,6 +691,56 @@ export default function ProposalsReceivedPage() {
       </Dialog>
 
       <KycRequiredModal open={showKycModal} onClose={() => setShowKycModal(false)} action="hire an expert and start a contract" />
+    </div>
+  );
+}
+
+function ProposalAnalyticsStrip({ proposal, job }: { proposal: any; job: any | null }) {
+  if (!job) return null;
+
+  const chips: { label: string; className: string }[] = [];
+
+  if (job.budget_max && proposal.bid_amount) {
+    const diff = proposal.bid_amount - job.budget_max;
+    const pct = Math.round(Math.abs(diff / job.budget_max) * 100);
+    if (diff > 0) {
+      chips.push({ label: `${pct}% over budget`, className: "border-destructive/60 text-destructive bg-destructive/5" });
+    } else if (diff < 0) {
+      chips.push({ label: `${pct}% under budget`, className: "border-emerald-400/60 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" });
+    } else {
+      chips.push({ label: "Exact budget match", className: "border-primary/40 text-primary bg-primary/5" });
+    }
+  }
+
+  if (
+    job.payment_type_preference === "milestone" &&
+    Array.isArray(job.suggested_milestones) &&
+    job.suggested_milestones.length > 0 &&
+    proposal.payment_type === "milestone" &&
+    Array.isArray(proposal.milestones)
+  ) {
+    const suggested = job.suggested_milestones.length;
+    const actual = proposal.milestones.length;
+    const diff = actual - suggested;
+    if (diff === 0) {
+      chips.push({ label: `${actual} milestone${actual !== 1 ? "s" : ""} (as suggested)`, className: "border-primary/40 text-primary bg-primary/5" });
+    } else if (diff > 0) {
+      chips.push({ label: `+${diff} milestone${diff !== 1 ? "s" : ""} added`, className: "border-border text-muted-foreground" });
+    } else {
+      chips.push({ label: `${Math.abs(diff)} milestone${Math.abs(diff) !== 1 ? "s" : ""} fewer`, className: "border-amber-400/60 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30" });
+    }
+  }
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {chips.map((chip, i) => (
+        <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${chip.className}`}>
+          <TrendingUp className="h-3 w-3 shrink-0" />
+          {chip.label}
+        </span>
+      ))}
     </div>
   );
 }

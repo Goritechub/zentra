@@ -1130,7 +1130,10 @@ export type Database = {
           required_software: string[] | null
           skill_level: string | null
           state: string | null
+          nda_url: string | null
+          payment_type_preference: string | null
           status: Database["public"]["Enums"]["job_status"] | null
+          suggested_milestones: Json | null
           title: string
           updated_at: string | null
           visibility: string
@@ -1149,12 +1152,15 @@ export type Database = {
           invited_expert_ids?: string[] | null
           is_hourly?: boolean | null
           is_remote?: boolean | null
+          nda_url?: string | null
+          payment_type_preference?: string | null
           required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
           skill_level?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
+          suggested_milestones?: Json | null
           title: string
           updated_at?: string | null
           visibility?: string
@@ -1173,12 +1179,15 @@ export type Database = {
           invited_expert_ids?: string[] | null
           is_hourly?: boolean | null
           is_remote?: boolean | null
+          nda_url?: string | null
+          payment_type_preference?: string | null
           required_skill_levels?: Json | null
           required_skills?: string[] | null
           required_software?: string[] | null
           skill_level?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
+          suggested_milestones?: Json | null
           title?: string
           updated_at?: string | null
           visibility?: string

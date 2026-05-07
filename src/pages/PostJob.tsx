@@ -22,12 +22,13 @@ import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock } from "lucide-react";
+import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info } from "lucide-react";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
 type JobVisibility = "public" | "private";
+type PaymentTypePreference = "negotiable" | "project" | "milestone";
 
 export default function PostJobPage() {
   const navigate = useNavigate();
@@ -68,6 +69,13 @@ export default function PostJobPage() {
   const [searchingExperts, setSearchingExperts] = useState(false);
 
   const [isNda, setIsNda] = useState(false);
+  const [ndaFile, setNdaFile] = useState<File | null>(null);
+  const [existingNdaUrl, setExistingNdaUrl] = useState<string | null>(null);
+  const ndaFileRef = useRef<HTMLInputElement>(null);
+
+  // Payment type preference
+  const [paymentTypePreference, setPaymentTypePreference] = useState<PaymentTypePreference>("negotiable");
+  const [suggestedMilestones, setSuggestedMilestones] = useState<string[]>([""]);
 
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
@@ -116,6 +124,13 @@ export default function PostJobPage() {
         setOverallSkillLevel(j.skill_level || "Intermediate");
         setVisibility(j.visibility || "public");
         setIsNda(j.is_nda || false);
+        setExistingNdaUrl(j.nda_url || null);
+        setPaymentTypePreference((j.payment_type_preference as PaymentTypePreference) || "negotiable");
+        setSuggestedMilestones(
+          Array.isArray(j.suggested_milestones) && j.suggested_milestones.length > 0
+            ? j.suggested_milestones
+            : [""]
+        );
         setExistingAttachmentUrls(j.attachments || []);
         if (j.invited_expert_ids?.length) {
           supabase
@@ -249,8 +264,37 @@ export default function PostJobPage() {
 
     setLoading(true);
     let uploadedUrls: string[];
+    let ndaUrl: string | null = existingNdaUrl;
     try {
       uploadedUrls = await uploadAttachments();
+      if (ndaFile) {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        if (!token) throw new Error("Not authenticated");
+        const form = new FormData();
+        form.append("files", ndaFile);
+        const ndaController = new AbortController();
+        const ndaTimer = setTimeout(() => ndaController.abort(), 15_000);
+        try {
+          const res = await fetch(
+            `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/jobs/attachments`,
+            { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form, signal: ndaController.signal }
+          );
+          if (!res.ok) throw new Error("NDA upload failed");
+          const json = await res.json();
+          ndaUrl = json.data?.urls?.[0] ?? null;
+        } catch (err: any) {
+          const msg = err?.name === "AbortError"
+            ? "NDA upload timed out — please try again"
+            : `NDA upload failed: ${err?.message ?? "unknown error"}`;
+          toast.error(msg);
+          throw err;
+        } finally {
+          clearTimeout(ndaTimer);
+        }
+      } else if (!isNda) {
+        ndaUrl = null;
+      }
     } catch {
       setLoading(false);
       return;
@@ -277,6 +321,12 @@ export default function PostJobPage() {
       visibility,
       invited_expert_ids: invitedExperts.map((invited) => invited.id),
       is_nda: isNda,
+      nda_url: isNda ? ndaUrl : null,
+      payment_type_preference: paymentTypePreference === "negotiable" ? null : paymentTypePreference,
+      suggested_milestones:
+        paymentTypePreference === "milestone"
+          ? suggestedMilestones.filter((s) => s.trim().length > 0)
+          : null,
     };
 
     try {
@@ -289,8 +339,12 @@ export default function PostJobPage() {
         toast.success("Job posted successfully!");
         navigate("/dashboard");
       }
-    } catch (error) {
-      toast.error(isEditMode ? "Failed to update job" : "Failed to post job");
+    } catch (error: any) {
+      const isTimeout = error?.message?.toLowerCase().includes("timeout") || error?.code === "ECONNABORTED";
+      toast.error(isTimeout
+        ? "Request timed out — please check your connection and try again"
+        : isEditMode ? "Failed to update job" : "Failed to post job"
+      );
     }
     setLoading(false);
   };
@@ -503,8 +557,9 @@ export default function PostJobPage() {
                 </div>
               </div>
               {!budgetMin && !budgetMax &&
-              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  💡 No budget set — this job will be listed as <span className="font-semibold text-foreground">Negotiable</span>.
+              <p className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg flex items-center gap-2 -mt-2">
+                  <Info className="h-4 w-4 shrink-0" />
+                  No budget set — this job will be listed as <span className="font-semibold text-foreground">Negotiable</span>.
                 </p>
               }
               <div className="space-y-2">
@@ -539,6 +594,87 @@ export default function PostJobPage() {
 
 
 
+            </div>
+
+            {/* Payment Structure */}
+            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold">Payment Structure</h2>
+                <p className="text-xs text-muted-foreground mt-1">Set how you want the expert to be paid, or leave it open for them to decide.</p>
+              </div>
+              <RadioGroup
+                value={paymentTypePreference}
+                onValueChange={(v) => setPaymentTypePreference(v as PaymentTypePreference)}
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+              >
+                {(["negotiable", "project", "milestone"] as PaymentTypePreference[]).map((opt) => (
+                  <label
+                    key={opt}
+                    htmlFor={`pref-${opt}`}
+                    className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentTypePreference === opt ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}
+                  >
+                    <RadioGroupItem value={opt} id={`pref-${opt}`} className="mt-0.5" />
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {opt === "negotiable" ? "Negotiable" : opt === "project" ? "Lump Sum" : "Milestones"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {opt === "negotiable"
+                          ? "Expert chooses payment structure."
+                          : opt === "project"
+                          ? "Expert is paid in full upon completion."
+                          : "Expert is paid in stages as work progresses."}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </RadioGroup>
+              {paymentTypePreference === "milestone" && (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Suggested Milestone Names <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Give the expert a starting point. They'll fill in amounts and durations.</p>
+                  </div>
+                  <div className="space-y-2">
+                    {suggestedMilestones.map((ms, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          placeholder={`e.g. Milestone ${idx + 1}: Foundation drawings`}
+                          value={ms}
+                          maxLength={80}
+                          onChange={(e) => {
+                            const updated = [...suggestedMilestones];
+                            updated[idx] = e.target.value;
+                            setSuggestedMilestones(updated);
+                          }}
+                          className="flex-1"
+                        />
+                        {suggestedMilestones.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setSuggestedMilestones(suggestedMilestones.filter((_, i) => i !== idx))}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {suggestedMilestones.length < 10 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSuggestedMilestones([...suggestedMilestones, ""])}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Milestone Name
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Location */}
@@ -630,14 +766,66 @@ export default function PostJobPage() {
                   <Checkbox
                     id="is-nda"
                     checked={isNda}
-                    onCheckedChange={(checked) => setIsNda(checked === true)}
+                    onCheckedChange={(checked) => {
+                      const val = checked === true;
+                      setIsNda(val);
+                      if (!val) { setNdaFile(null); setExistingNdaUrl(null); }
+                    }}
                     className="mt-0.5"
                   />
-                  <div>
-                    <Label htmlFor="is-nda" className="cursor-pointer font-medium">NDA Required</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Expert must sign a Non-Disclosure Agreement before starting work.
-                    </p>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <Label htmlFor="is-nda" className="cursor-pointer font-medium">NDA Required</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Expert must agree to a Non-Disclosure Agreement before starting work.
+                      </p>
+                    </div>
+                    {isNda && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Upload your NDA document (optional). Experts will download and acknowledge it before submitting a proposal.
+                        </p>
+                        {existingNdaUrl && !ndaFile && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <a href={existingNdaUrl} target="_blank" rel="noopener noreferrer" className="underline truncate flex-1">Current NDA document</a>
+                            <button type="button" onClick={() => setExistingNdaUrl(null)} className="hover:text-destructive ml-1">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        {ndaFile ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="truncate flex-1">{ndaFile.name}</span>
+                            <button type="button" onClick={() => { setNdaFile(null); if (ndaFileRef.current) ndaFileRef.current.value = ""; }} className="hover:text-destructive ml-1">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => ndaFileRef.current?.click()}
+                          >
+                            <Paperclip className="h-4 w-4 mr-2" />
+                            {existingNdaUrl ? "Replace NDA Document" : "Upload NDA Document"}
+                          </Button>
+                        )}
+                        <input
+                          ref={ndaFileRef}
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) { setNdaFile(file); setExistingNdaUrl(null); }
+                            if (ndaFileRef.current) ndaFileRef.current.value = "";
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

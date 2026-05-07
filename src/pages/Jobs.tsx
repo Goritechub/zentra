@@ -252,6 +252,9 @@ export default function JobsPage() {
                 {job.is_remote ? "Remote" : `${job.city || job.state || "Nigeria"}`}
               </span>
               <Badge variant="outline" className="text-xs py-0">{job.is_hourly ? "Hourly" : "Fixed"}</Badge>
+              {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
+                <Badge variant="outline" className="text-xs py-0">{job.payment_type_preference === "milestone" ? "Milestone" : "Lump Sum"}</Badge>
+              )}
             </div>
           </Link>
 

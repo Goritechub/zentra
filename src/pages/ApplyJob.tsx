@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -146,6 +147,7 @@ export default function ApplyJobPage() {
   const [showKycModal, setShowKycModal] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<File[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
+  const [ndaAcknowledged, setNdaAcknowledged] = useState(false);
   const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
   const [milestones, setMilestones] = useState<{ title: string; duration: string; durationUnit: DurationUnit; amount: string; amountFormatted: string }[]>([
     { title: "", duration: "", durationUnit: "days", amount: "", amountFormatted: "" },
@@ -207,6 +209,23 @@ export default function ApplyJobPage() {
     }
     setJob(jobData);
 
+    // Lock payment type if client set a preference
+    const pref = jobData.payment_type_preference;
+    if (pref === "project" || pref === "milestone") {
+      setPaymentType(pref);
+    }
+    if (pref === "milestone" && Array.isArray(jobData.suggested_milestones) && jobData.suggested_milestones.length > 0 && !existing) {
+      setMilestones(
+        jobData.suggested_milestones.map((title: string) => ({
+          title,
+          duration: "",
+          durationUnit: "days" as DurationUnit,
+          amount: "",
+          amountFormatted: "",
+        }))
+      );
+    }
+
     if (existing) {
       setExistingProposal(existing);
       populateEditFields(existing);
@@ -257,6 +276,11 @@ export default function ApplyJobPage() {
     // KYC gating for experts
     if (!kycVerified) {
       setShowKycModal(true);
+      return;
+    }
+
+    if (job?.is_nda && !ndaAcknowledged) {
+      toast.error("You must acknowledge the NDA before submitting");
       return;
     }
 
@@ -494,23 +518,45 @@ export default function ApplyJobPage() {
           <div className="space-y-6">
             {/* Payment Type Selection */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">How would you like to be paid?</Label>
-              <RadioGroup value={editPaymentType} onValueChange={(v) => setEditPaymentType(v as "project" | "milestone")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label htmlFor="edit-pay-project" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${editPaymentType === "project" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                  <RadioGroupItem value="project" id="edit-pay-project" className="mt-0.5" />
-                  <div>
-                    <p className="font-medium text-foreground">Pay by Project</p>
-                    <p className="text-xs text-muted-foreground">Get paid in full once the entire job is completed.</p>
-                  </div>
-                </label>
-                <label htmlFor="edit-pay-milestone" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${editPaymentType === "milestone" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                  <RadioGroupItem value="milestone" id="edit-pay-milestone" className="mt-0.5" />
-                  <div>
-                    <p className="font-medium text-foreground">Pay by Milestone</p>
-                    <p className="text-xs text-muted-foreground">Get paid in stages as you complete each milestone.</p>
-                  </div>
-                </label>
-              </RadioGroup>
+              {(() => {
+                const pref = job?.payment_type_preference;
+                const isLocked = pref === "project" || pref === "milestone";
+                if (isLocked) {
+                  return (
+                    <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-primary bg-primary/5">
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {pref === "project" ? "Pay by Project (Required by client)" : "Pay by Milestones (Required by client)"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          The client has specified the payment structure for this job.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <Label className="text-base font-semibold">How would you like to be paid?</Label>
+                    <RadioGroup value={editPaymentType} onValueChange={(v) => setEditPaymentType(v as "project" | "milestone")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label htmlFor="edit-pay-project" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${editPaymentType === "project" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                        <RadioGroupItem value="project" id="edit-pay-project" className="mt-0.5" />
+                        <div>
+                          <p className="font-medium text-foreground">Pay by Project</p>
+                          <p className="text-xs text-muted-foreground">Get paid in full once the entire job is completed.</p>
+                        </div>
+                      </label>
+                      <label htmlFor="edit-pay-milestone" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${editPaymentType === "milestone" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                        <RadioGroupItem value="milestone" id="edit-pay-milestone" className="mt-0.5" />
+                        <div>
+                          <p className="font-medium text-foreground">Pay by Milestone</p>
+                          <p className="text-xs text-muted-foreground">Get paid in stages as you complete each milestone.</p>
+                        </div>
+                      </label>
+                    </RadioGroup>
+                  </>
+                );
+              })()}
             </div>
 
             {editPaymentType === "project" && (
@@ -800,23 +846,45 @@ export default function ApplyJobPage() {
                   <form onSubmit={handleSubmitProposal} className="space-y-6">
                     {/* Payment Type Selection */}
                     <div className="space-y-3">
-                      <Label className="text-base font-semibold">How would you like to be paid?</Label>
-                      <RadioGroup value={paymentType} onValueChange={(v) => setPaymentType(v as "project" | "milestone")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label htmlFor="pay-project" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "project" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                          <RadioGroupItem value="project" id="pay-project" className="mt-0.5" />
-                          <div>
-                            <p className="font-medium text-foreground">Pay by Project</p>
-                            <p className="text-xs text-muted-foreground">Get paid in full once the entire job is completed.</p>
-                          </div>
-                        </label>
-                        <label htmlFor="pay-milestone" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "milestone" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                          <RadioGroupItem value="milestone" id="pay-milestone" className="mt-0.5" />
-                          <div>
-                            <p className="font-medium text-foreground">Pay by Milestone</p>
-                            <p className="text-xs text-muted-foreground">Get paid in stages as you complete each milestone.</p>
-                          </div>
-                        </label>
-                      </RadioGroup>
+                      {(() => {
+                        const pref = job?.payment_type_preference;
+                        const isLocked = pref === "project" || pref === "milestone";
+                        if (isLocked) {
+                          return (
+                            <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-primary bg-primary/5">
+                              <div>
+                                <p className="font-semibold text-foreground">
+                                  {pref === "project" ? "Pay by Project (Required by client)" : "Pay by Milestones (Required by client)"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  The client has specified the payment structure for this job. You can still adjust amounts{pref === "milestone" ? " and milestones" : ""}.
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <>
+                            <Label className="text-base font-semibold">How would you like to be paid?</Label>
+                            <RadioGroup value={paymentType} onValueChange={(v) => setPaymentType(v as "project" | "milestone")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label htmlFor="pay-project" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "project" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                                <RadioGroupItem value="project" id="pay-project" className="mt-0.5" />
+                                <div>
+                                  <p className="font-medium text-foreground">Pay by Project</p>
+                                  <p className="text-xs text-muted-foreground">Get paid in full once the entire job is completed.</p>
+                                </div>
+                              </label>
+                              <label htmlFor="pay-milestone" className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${paymentType === "milestone" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                                <RadioGroupItem value="milestone" id="pay-milestone" className="mt-0.5" />
+                                <div>
+                                  <p className="font-medium text-foreground">Pay by Milestone</p>
+                                  <p className="text-xs text-muted-foreground">Get paid in stages as you complete each milestone.</p>
+                                </div>
+                              </label>
+                            </RadioGroup>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Payment Details - By Project */}
@@ -961,8 +1029,43 @@ export default function ApplyJobPage() {
                     <p className="text-xs text-muted-foreground border border-border rounded-lg p-3 bg-muted/30">
                       <strong>NB:</strong> You may attach up to 5 files. Submissions are reviewed by the client and you will be notified of any updates to your proposal status.
                     </p>
+
+                    {job?.is_nda && (
+                      <div className={`rounded-lg border p-4 space-y-3 ${ndaAcknowledged ? "border-primary/40 bg-primary/5" : "border-amber-400/60 bg-amber-50 dark:bg-amber-950/20"}`}>
+                        <div className="flex items-start gap-2">
+                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="space-y-2 flex-1">
+                            <p className="text-sm font-medium text-foreground">NDA Required</p>
+                            {job.nda_url ? (
+                              <a
+                                href={job.nda_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-primary underline"
+                              >
+                                <Download className="h-3.5 w-3.5" /> Download NDA Document
+                              </a>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">The client will share the NDA document directly. Review it before proceeding with work.</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <Checkbox
+                            id="nda-ack"
+                            checked={ndaAcknowledged}
+                            onCheckedChange={(v) => setNdaAcknowledged(v === true)}
+                            className="mt-0.5"
+                          />
+                          <Label htmlFor="nda-ack" className="text-sm cursor-pointer leading-snug">
+                            I have read and agree to the NDA terms for this job
+                          </Label>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-3">
-                      <Button type="submit" disabled={submitting}>
+                      <Button type="submit" disabled={submitting || (job?.is_nda && !ndaAcknowledged)}>
                         {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                         Submit Proposal
                       </Button>

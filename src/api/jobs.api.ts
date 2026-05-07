@@ -31,7 +31,7 @@ export async function searchInviteExperts(query: string) {
 }
 
 export async function createJobPost(payload: Record<string, any>) {
-  const response = await api.post("/jobs", payload);
+  const response = await api.post("/jobs", payload, { timeout: 15000 });
   return response.data.data;
 }
 
@@ -46,7 +46,7 @@ export async function deleteClientJob(jobId: string): Promise<{ notified: number
 }
 
 export async function updateJobPost(jobId: string, payload: Record<string, any>) {
-  const response = await api.patch(`/jobs/${jobId}`, payload);
+  const response = await api.patch(`/jobs/${jobId}`, payload, { timeout: 15000 });
   return response.data.data;
 }
 

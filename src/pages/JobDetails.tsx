@@ -373,6 +373,11 @@ export default function JobDetailsPage() {
                   <Shield className="h-3 w-3" /> NDA Required
                 </Badge>
               )}
+              {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
+                <Badge variant="outline" className={`gap-1 ${job.payment_type_preference === "milestone" ? "border-blue-400/60 text-blue-700 dark:text-blue-300" : "border-violet-400/60 text-violet-700 dark:text-violet-300"}`}>
+                  {job.payment_type_preference === "milestone" ? "Milestone Payments" : "Lump Sum"}
+                </Badge>
+              )}
               {isAssigned && (
                 <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/30">
                   Assigned — No longer accepting proposals
