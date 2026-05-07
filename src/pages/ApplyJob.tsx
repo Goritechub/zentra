@@ -1148,6 +1148,7 @@ export default function ApplyJobPage() {
 }
 
 function ServiceChargeSummary({ amount }: { amount: number }) {
+  const { format } = useCurrency();
   const { rateLabel, charge, takeHome } = calculateServiceCharge(amount);
   return (
     <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
