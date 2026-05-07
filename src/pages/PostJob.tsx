@@ -16,19 +16,28 @@ import {
 "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { api } from "@/api/axios";
 import { createJobPost, updateJobPost, searchInviteExperts } from "@/api/jobs.api";
+import { getLocalStorageToken } from "@/api/axios";
 import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info } from "lucide-react";
+import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
 type JobVisibility = "public" | "private";
 type PaymentTypePreference = "negotiable" | "project" | "milestone";
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = {
+  id: string;
+  file: File;
+  progress: number;
+  status: UploadStatus;
+  url: string | null;
+  errorMsg: string | null;
+};
 
 export default function PostJobPage() {
   const navigate = useNavigate();
@@ -56,8 +65,7 @@ export default function PostJobPage() {
   const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState("");
   const [overallSkillLevel, setOverallSkillLevel] = useState<SkillLevel>("Intermediate");
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [attachmentUploads, setAttachmentUploads] = useState<UploadItem[]>([]);
   const [showKycModal, setShowKycModal] = useState(false);
 
   // Visibility & invitations
@@ -69,7 +77,7 @@ export default function PostJobPage() {
   const [searchingExperts, setSearchingExperts] = useState(false);
 
   const [isNda, setIsNda] = useState(false);
-  const [ndaFile, setNdaFile] = useState<File | null>(null);
+  const [ndaUpload, setNdaUpload] = useState<UploadItem | null>(null);
   const [existingNdaUrl, setExistingNdaUrl] = useState<string | null>(null);
   const ndaFileRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +87,14 @@ export default function PostJobPage() {
 
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
+
+  // Computed upload state
+  const anyUploading =
+    attachmentUploads.some((u) => u.status === "uploading") ||
+    ndaUpload?.status === "uploading";
+  const anyError =
+    attachmentUploads.some((u) => u.status === "error") ||
+    ndaUpload?.status === "error";
 
   // Pre-select invited expert from URL params
   useEffect(() => {
@@ -169,52 +185,128 @@ export default function PostJobPage() {
     setSearchingExperts(false);
   };
 
+  const uploadOneFile = (file: File, onProgress: (pct: number) => void): Promise<string> => {
+    const token = getLocalStorageToken();
+    console.log("[upload] starting", file.name, file.size, "token:", !!token);
+
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("files", file);
+
+      const xhr = new XMLHttpRequest();
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+      const url = `${baseUrl}/jobs/attachments`;
+      console.log("[upload] sending to:", url);
+      xhr.open("POST", url, true);
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.timeout = 30000;
+
+      xhr.upload.addEventListener("progress", (e) => {
+        console.log("[upload] progress", e.loaded, "/", e.total);
+        if (e.lengthComputable && e.total > 0) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+
+      xhr.onload = () => {
+        console.log("[upload] onload status:", xhr.status, xhr.responseText.slice(0, 300));
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            const urls: string[] = json.data?.urls ?? [];
+            urls.length ? resolve(urls[0]) : reject(new Error("No URL returned from server"));
+          } catch {
+            reject(new Error("Invalid server response"));
+          }
+        } else {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            reject(new Error(json?.message || `Upload failed (${xhr.status})`));
+          } catch {
+            reject(new Error(`Upload failed (${xhr.status})`));
+          }
+        }
+      };
+
+      xhr.onerror = () => { console.error("[upload] onerror fired"); reject(new Error("Network error during upload")); };
+      xhr.ontimeout = () => { console.error("[upload] ontimeout fired"); reject(new Error("Upload timed out")); };
+
+      xhr.send(form);
+      console.log("[upload] send() called");
+    });
+  };
+
+  const startAttachmentUpload = (item: UploadItem) => {
+    uploadOneFile(item.file, (pct) => {
+      setAttachmentUploads((prev) =>
+        prev.map((u) => (u.id === item.id ? { ...u, progress: pct } : u))
+      );
+    })
+      .then((url) => {
+        setAttachmentUploads((prev) =>
+          prev.map((u) => (u.id === item.id ? { ...u, status: "done", progress: 100, url } : u))
+        );
+      })
+      .catch((err) => {
+        setAttachmentUploads((prev) =>
+          prev.map((u) => (u.id === item.id ? { ...u, status: "error", errorMsg: err?.message ?? "Upload failed" } : u))
+        );
+      });
+  };
+
+  const startNdaUpload = (item: UploadItem) => {
+    uploadOneFile(item.file, (pct) => {
+      setNdaUpload((prev) => (prev ? { ...prev, progress: pct } : prev));
+    })
+      .then((url) => {
+        setNdaUpload((prev) => (prev ? { ...prev, status: "done", progress: 100, url } : prev));
+      })
+      .catch((err) => {
+        setNdaUpload((prev) => (prev ? { ...prev, status: "error", errorMsg: err?.message ?? "Upload failed" } : prev));
+      });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
     const allowed = files.filter((f) => {
-      const ext = f.name.split('.').pop()?.toLowerCase();
-      return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      return ["pdf", "doc", "docx", "png", "jpg", "jpeg", "dwg", "dxf", "zip"].includes(ext || "");
     });
     if (allowed.length < files.length) {
       toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
     }
-    setAttachments((prev) => [...prev, ...allowed].slice(0, 5));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    const currentCount = existingAttachmentUrls.length + attachmentUploads.length;
+    const toAdd = allowed.slice(0, 5 - currentCount);
+
+    const newItems: UploadItem[] = toAdd.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file,
+      progress: 0,
+      status: "uploading",
+      url: null,
+      errorMsg: null,
+    }));
+
+    setAttachmentUploads((prev) => [...prev, ...newItems]);
+    newItems.forEach(startAttachmentUpload);
   };
 
-  const uploadAttachments = async (): Promise<string[]> => {
-    if (!attachments.length || !user) return [];
-    setUploading(true);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30_000);
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
+  const retryAttachmentUpload = (id: string) => {
+    const item = attachmentUploads.find((u) => u.id === id);
+    if (!item) return;
+    const reset = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null };
+    setAttachmentUploads((prev) => prev.map((u) => (u.id === id ? reset : u)));
+    startAttachmentUpload(reset);
+  };
 
-      const form = new FormData();
-      for (const file of attachments) form.append("files", file);
-
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/jobs/attachments`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form, signal: controller.signal }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.message ?? `Upload failed (${res.status})`);
-      }
-      const json = await res.json();
-      return json.data?.urls ?? [];
-    } catch (err: any) {
-      const msg = err?.name === "AbortError"
-        ? "File upload timed out — please try again"
-        : `File upload failed: ${err?.message ?? "unknown error"}`;
-      toast.error(msg);
-      throw err;
-    } finally {
-      clearTimeout(timer);
-      setUploading(false);
-    }
+  const retryNdaUpload = () => {
+    if (!ndaUpload) return;
+    const reset: UploadItem = { ...ndaUpload, status: "uploading", progress: 0, errorMsg: null };
+    setNdaUpload(reset);
+    startNdaUpload(reset);
   };
 
   const toDays = (value: number, unit: DurationUnit): number => {
@@ -232,13 +324,11 @@ export default function PostJobPage() {
       return;
     }
 
-    // Check if budget is empty and warn about negotiable
     if (!budgetMin && !budgetMax && !showNegotiableConfirm) {
       setShowNegotiableConfirm(true);
       return;
     }
 
-    // Enforce minimum ₦30,000 job price
     if (budgetMin && parseInt(budgetMin) < 30000) {
       toast.error("Minimum budget must be at least ₦30,000");
       return;
@@ -262,46 +352,16 @@ export default function PostJobPage() {
       return;
     }
 
-    setLoading(true);
-    let uploadedUrls: string[];
-    let ndaUrl: string | null = existingNdaUrl;
-    try {
-      uploadedUrls = await uploadAttachments();
-      if (ndaFile) {
-        const session = await supabase.auth.getSession();
-        const token = session.data.session?.access_token;
-        if (!token) throw new Error("Not authenticated");
-        const form = new FormData();
-        form.append("files", ndaFile);
-        const ndaController = new AbortController();
-        const ndaTimer = setTimeout(() => ndaController.abort(), 15_000);
-        try {
-          const res = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/jobs/attachments`,
-            { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form, signal: ndaController.signal }
-          );
-          if (!res.ok) throw new Error("NDA upload failed");
-          const json = await res.json();
-          ndaUrl = json.data?.urls?.[0] ?? null;
-        } catch (err: any) {
-          const msg = err?.name === "AbortError"
-            ? "NDA upload timed out — please try again"
-            : `NDA upload failed: ${err?.message ?? "unknown error"}`;
-          toast.error(msg);
-          throw err;
-        } finally {
-          clearTimeout(ndaTimer);
-        }
-      } else if (!isNda) {
-        ndaUrl = null;
-      }
-    } catch {
-      setLoading(false);
-      return;
-    }
+    const uploadedAttachmentUrls = attachmentUploads
+      .filter((u) => u.status === "done" && u.url)
+      .map((u) => u.url!);
+    const allAttachments = [...existingAttachmentUrls, ...uploadedAttachmentUrls];
+
+    const ndaUrl = ndaUpload?.status === "done" && ndaUpload.url
+      ? ndaUpload.url
+      : existingNdaUrl;
 
     const deliveryDays = deliveryValue ? toDays(parseInt(deliveryValue), deliveryUnit) : null;
-    const allAttachments = [...existingAttachmentUrls, ...uploadedUrls];
 
     const payload = {
       title: title.trim(),
@@ -329,6 +389,7 @@ export default function PostJobPage() {
           : null,
     };
 
+    setLoading(true);
     try {
       if (isEditMode && jobId) {
         await updateJobPost(jobId, payload);
@@ -394,6 +455,7 @@ export default function PostJobPage() {
   }
 
   const levels: SkillLevel[] = ["Beginner", "Intermediate", "Advanced"];
+  const totalAttachmentCount = existingAttachmentUrls.length + attachmentUploads.length;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -436,7 +498,6 @@ export default function PostJobPage() {
                 </div>
               </RadioGroup>
 
-              {/* Invite experts (available for both public and private) */}
               <div className="space-y-2">
                 <Label>Invite Experts {visibility === "private" && <span className="text-destructive">*</span>}</Label>
                 <p className="text-xs text-muted-foreground">
@@ -530,7 +591,6 @@ export default function PostJobPage() {
                   </div>
                 }
               </div>
-              {/* Skill Level Required */}
               <div className="space-y-2">
                 <Label>Skill Level Required</Label>
                 <p className="text-xs text-muted-foreground">What overall proficiency level does this project require?</p>
@@ -588,12 +648,6 @@ export default function PostJobPage() {
                   </Select>
                 </div>
               </div>
-              
-
-
-
-
-
             </div>
 
             {/* Payment Structure */}
@@ -724,7 +778,8 @@ export default function PostJobPage() {
                 multiple
                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
                 className="hidden"
-                onChange={handleFileChange} />
+                onChange={handleFileChange}
+              />
 
               {existingAttachmentUrls.length > 0 && (
                 <div className="space-y-2">
@@ -735,27 +790,85 @@ export default function PostJobPage() {
                       <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
                         <FileText className="h-4 w-4 text-primary shrink-0" />
                         <span className="text-sm flex-1 truncate">{decodeURIComponent(name)}</span>
-                        <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-destructive" onClick={() => setExistingAttachmentUrls(existingAttachmentUrls.filter((_, i) => i !== idx))} />
+                        <button
+                          type="button"
+                          onClick={() => setExistingAttachmentUrls(existingAttachmentUrls.filter((_, i) => i !== idx))}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={existingAttachmentUrls.length + attachments.length >= 5}>
+
+              {attachmentUploads.length > 0 && (
+                <div className="space-y-2">
+                  {attachmentUploads.map((item) => (
+                    <div key={item.id} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm flex-1 truncate">{item.file.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {(item.file.size / 1024).toFixed(0)} KB
+                        </span>
+                        {item.status === "uploading" && (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                        )}
+                        {item.status === "done" && (
+                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                        )}
+                        {item.status === "error" && (
+                          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                        )}
+                        {item.status !== "uploading" && (
+                          <button
+                            type="button"
+                            onClick={() => setAttachmentUploads((prev) => prev.filter((u) => u.id !== item.id))}
+                            className="text-muted-foreground hover:text-destructive shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {item.status === "uploading" && (
+                        <div className="h-1 bg-muted rounded-full overflow-hidden ml-7">
+                          {item.progress > 0 ? (
+                            <div
+                              className="h-full bg-primary transition-all duration-150"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-primary/50 animate-pulse" />
+                          )}
+                        </div>
+                      )}
+                      {item.status === "error" && (
+                        <div className="flex items-center gap-2 ml-7">
+                          <p className="text-xs text-destructive flex-1">{item.errorMsg}</p>
+                          <button
+                            type="button"
+                            onClick={() => retryAttachmentUpload(item.id)}
+                            className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                          >
+                            <RefreshCw className="h-3 w-3" /> Retry
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={totalAttachmentCount >= 5}
+              >
                 <Paperclip className="h-4 w-4 mr-2" /> Add Files
               </Button>
-              {attachments.length > 0 &&
-              <div className="space-y-2">
-                  {attachments.map((file, idx) =>
-                <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
-                      <FileText className="h-4 w-4 text-primary shrink-0" />
-                      <span className="text-sm flex-1 truncate">{file.name}</span>
-                      <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
-                      <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} />
-                    </div>
-                )}
-                </div>
-              }
             </div>
 
             {/* Job Options */}
@@ -769,7 +882,7 @@ export default function PostJobPage() {
                     onCheckedChange={(checked) => {
                       const val = checked === true;
                       setIsNda(val);
-                      if (!val) { setNdaFile(null); setExistingNdaUrl(null); }
+                      if (!val) { setNdaUpload(null); setExistingNdaUrl(null); }
                     }}
                     className="mt-0.5"
                   />
@@ -785,24 +898,77 @@ export default function PostJobPage() {
                         <p className="text-xs text-muted-foreground">
                           Upload your NDA document (optional). Experts will download and acknowledge it before submitting a proposal.
                         </p>
-                        {existingNdaUrl && !ndaFile && (
+
+                        {/* Existing NDA (edit mode, not replaced yet) */}
+                        {existingNdaUrl && !ndaUpload && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
                             <FileText className="h-4 w-4 shrink-0 text-primary" />
-                            <a href={existingNdaUrl} target="_blank" rel="noopener noreferrer" className="underline truncate flex-1">Current NDA document</a>
-                            <button type="button" onClick={() => setExistingNdaUrl(null)} className="hover:text-destructive ml-1">
+                            <a href={existingNdaUrl} target="_blank" rel="noopener noreferrer" className="underline truncate flex-1">
+                              Current NDA document
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setExistingNdaUrl(null)}
+                              className="hover:text-destructive ml-1"
+                            >
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         )}
-                        {ndaFile ? (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
-                            <FileText className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="truncate flex-1">{ndaFile.name}</span>
-                            <button type="button" onClick={() => { setNdaFile(null); if (ndaFileRef.current) ndaFileRef.current.value = ""; }} className="hover:text-destructive ml-1">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+
+                        {/* New NDA upload item */}
+                        {ndaUpload && (
+                          <div className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <FileText className="h-4 w-4 shrink-0 text-primary" />
+                              <span className="truncate flex-1">{ndaUpload.file.name}</span>
+                              {ndaUpload.status === "uploading" && (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                              )}
+                              {ndaUpload.status === "done" && (
+                                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                              )}
+                              {ndaUpload.status === "error" && (
+                                <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                              )}
+                              {ndaUpload.status !== "uploading" && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setNdaUpload(null); if (ndaFileRef.current) ndaFileRef.current.value = ""; }}
+                                  className="hover:text-destructive ml-1"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            {ndaUpload.status === "uploading" && (
+                              <div className="h-1 bg-muted rounded-full overflow-hidden ml-5">
+                                {ndaUpload.progress > 0 ? (
+                                  <div
+                                    className="h-full bg-primary transition-all duration-150"
+                                    style={{ width: `${ndaUpload.progress}%` }}
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-primary/50 animate-pulse" />
+                                )}
+                              </div>
+                            )}
+                            {ndaUpload.status === "error" && (
+                              <div className="flex items-center gap-2 ml-5">
+                                <p className="text-xs text-destructive flex-1">{ndaUpload.errorMsg}</p>
+                                <button
+                                  type="button"
+                                  onClick={retryNdaUpload}
+                                  className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                                >
+                                  <RefreshCw className="h-3 w-3" /> Retry
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        ) : (
+                        )}
+
+                        {!ndaUpload && (
                           <Button
                             type="button"
                             variant="outline"
@@ -820,8 +986,19 @@ export default function PostJobPage() {
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) { setNdaFile(file); setExistingNdaUrl(null); }
                             if (ndaFileRef.current) ndaFileRef.current.value = "";
+                            if (!file) return;
+                            setExistingNdaUrl(null);
+                            const item: UploadItem = {
+                              id: `nda-${Date.now()}`,
+                              file,
+                              progress: 0,
+                              status: "uploading",
+                              url: null,
+                              errorMsg: null,
+                            };
+                            setNdaUpload(item);
+                            startNdaUpload(item);
                           }}
                         />
                       </div>
@@ -831,10 +1008,20 @@ export default function PostJobPage() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={loading || uploading}>
-              {loading || uploading
-                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{uploading ? "Uploading files..." : isEditMode ? "Saving..." : "Posting..."}</>
-                : <><Plus className="h-4 w-4 mr-2" />{isEditMode ? "Save Changes" : "Post Job"}</>}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={loading || anyUploading || anyError}
+            >
+              {loading
+                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEditMode ? "Saving..." : "Posting..."}</>
+                : anyUploading
+                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Uploading files...</>
+                : anyError
+                ? <><AlertCircle className="h-4 w-4 mr-2" />Fix upload errors to continue</>
+                : <><Plus className="h-4 w-4 mr-2" />{isEditMode ? "Save Changes" : "Post Job"}</>
+              }
             </Button>
           </form>
         </div>

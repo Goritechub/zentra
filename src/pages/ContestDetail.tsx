@@ -436,6 +436,7 @@ function WinnerCard({
   onViewEntry: (entryId: string) => void;
 }) {
   const navigate = useNavigate();
+  const { format } = useCurrency();
   const [expanded, setExpanded] = useState(false);
   const medals = ["🥇", "🥈", "🥉", "🏅", "🏅"];
   const posLabels = [

@@ -212,7 +212,7 @@ export default function JobDetailsPage() {
     const Icon = cfg.icon;
     return (
       <Badge variant={cfg.variant} className="gap-1">
-        <Icon className="h-3 w-3" /> {status}
+        <Icon className="h-3 w-3" /> {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
@@ -365,7 +365,7 @@ export default function JobDetailsPage() {
           {/* ===== Job Header Card ===== */}
           <div className="bg-card rounded-xl border border-border p-8 mb-6">
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status}</Badge>
+              <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1).replace(/_/g, " ") : ""}</Badge>
               {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
               <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
               {job.is_nda && (

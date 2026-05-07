@@ -9,7 +9,7 @@ type SupabaseStoredSession = {
   expires_at?: number;
 };
 
-const getLocalStorageToken = (): string | null => {
+export const getLocalStorageToken = (): string | null => {
   try {
     const explicitProjectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined;
     const preferredKey = explicitProjectRef ? `sb-${explicitProjectRef}-auth-token` : null;
