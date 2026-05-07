@@ -100,3 +100,13 @@ export function buildGoogleOauthStartUrl(redirectTo: string) {
   const params = new URLSearchParams({ redirectTo });
   return `${apiBaseUrl}/auth/oauth/google/start?${params.toString()}`;
 }
+
+export async function requestPasswordReset(email: string) {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data as { success: boolean };
+}
+
+export async function resetPasswordWithToken(token: string, password: string) {
+  const response = await api.post("/auth/reset-password", { token, password });
+  return response.data as { success: boolean };
+}

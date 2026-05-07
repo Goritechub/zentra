@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { resetPasswordWithToken } from "@/api/auth.api";
 
 const resetSchema = z.object({
   password: z
@@ -44,6 +44,9 @@ const getPasswordStrength = (password: string) => {
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -51,45 +54,6 @@ export default function ResetPassword() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [isRecovery, setIsRecovery] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    let settled = false;
-
-    const settle = (recovery: boolean) => {
-      if (settled) return;
-      settled = true;
-      setIsRecovery(recovery);
-      setChecking(false);
-    };
-
-    // Listen for auth state changes — only treat PASSWORD_RECOVERY as valid
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        settle(true);
-      } else if (event === "SIGNED_OUT") {
-        settle(false);
-      }
-      // Ignore INITIAL_SESSION / SIGNED_IN — the form must not show
-      // until Supabase confirms this is a recovery session.
-    });
-
-    // Fallback: if PASSWORD_RECOVERY never fires within 5 s, check URL hash
-    // as a last resort (covers edge cases where the event was emitted before
-    // this component mounted).
-    const timeout = setTimeout(() => {
-      if (!settled) {
-        const hash = window.location.hash;
-        settle(hash.includes("type=recovery"));
-      }
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, []);
 
   const fieldClass = (field: string) =>
     errors[field] ? "border-destructive focus-visible:ring-destructive" : "";
@@ -110,37 +74,20 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-
-      if (error) {
-        if (error.message.includes("same")) {
-          setErrors({ password: "New password must be different from your current password" });
-        } else {
-          setErrors({ password: error.message });
-        }
-        setLoading(false);
-        return;
-      }
-
+      await resetPasswordWithToken(token!, password);
       setSuccess(true);
-      setLoading(false);
-
-      // Redirect to dashboard after a brief delay
-      setTimeout(() => navigate("/dashboard"), 3000);
-    } catch {
-      setErrors({ password: "An unexpected error occurred. Please try again." });
+      setTimeout(() => navigate("/auth"), 3000);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "An unexpected error occurred. Please try again.";
+      if (message.toLowerCase().includes("same")) {
+        setErrors({ password: "New password must be different from your current password" });
+      } else {
+        setErrors({ password: message });
+      }
+    } finally {
       setLoading(false);
     }
   };
-
-  if (checking) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Verifying reset link…</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -157,7 +104,7 @@ export default function ResetPassword() {
           </div>
 
           <div className="bg-card rounded-2xl border border-border p-8 shadow-card">
-            {!isRecovery && !success ? (
+            {!token && !success ? (
               <div className="text-center space-y-4">
                 <ShieldAlert className="h-12 w-12 mx-auto text-destructive" />
                 <p className="text-muted-foreground text-sm">
@@ -171,7 +118,7 @@ export default function ResetPassword() {
               <div className="text-center space-y-4">
                 <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
                 <p className="text-muted-foreground text-sm">
-                  Your password has been updated successfully. Redirecting you to your dashboard...
+                  Your password has been updated successfully. Redirecting you to sign in...
                 </p>
                 <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
               </div>

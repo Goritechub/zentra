@@ -463,7 +463,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (event === "PASSWORD_RECOVERY") {
-          // Just keep the session alive for the reset form — no profile bootstrap needed
           if (nextSession?.user) syncSessionOnly(nextSession);
           return;
         }

@@ -22,6 +22,7 @@ import {
   buildGoogleOauthStartUrl,
   checkAuthUsernameAvailability,
   lookupAuthUser,
+  requestPasswordReset,
   updateAuthRole,
 } from "@/api/auth.api";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
@@ -808,18 +809,16 @@ export default function AuthPage() {
       }
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      setForgotErrors({ general: error.message });
+    try {
+      await requestPasswordReset(email);
+      setForgotSuccess(true);
+    } catch (err: any) {
+      setForgotErrors({
+        general: err?.response?.data?.message || "Failed to send reset email. Please try again.",
+      });
+    } finally {
       setForgotLoading(false);
-      return;
     }
-
-    setForgotSuccess(true);
-    setForgotLoading(false);
   };
 
   // Only show loading spinner if we already have a user (redirecting)
