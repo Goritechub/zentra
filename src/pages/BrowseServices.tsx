@@ -220,10 +220,10 @@ export default function BrowseServicesPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
           {/* Search + mobile filter trigger */}
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-4 sm:mb-6 flex items-center gap-3">
             <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -235,7 +235,7 @@ export default function BrowseServicesPage() {
             </div>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="lg:hidden flex items-center gap-2">
+                <Button variant="outline" size="sm" className="lg:hidden flex items-center gap-1.5 shrink-0">
                   <SlidersHorizontal className="h-4 w-4" />
                   Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
                 </Button>
@@ -286,7 +286,7 @@ export default function BrowseServicesPage() {
             </div>
           )}
 
-          <div className="flex gap-8">
+          <div className="flex gap-6">
             {/* Desktop sidebar */}
             <aside className="hidden lg:block w-52 xl:w-60 shrink-0">
               <div className="bg-card rounded-xl border border-border p-5 sticky top-6">
@@ -295,7 +295,7 @@ export default function BrowseServicesPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground mb-5">
+              <p className="text-sm text-muted-foreground mb-4">
                 Showing <span className="font-semibold text-foreground">{filtered.length}</span> service{filtered.length !== 1 ? "s" : ""}
               </p>
 
@@ -305,10 +305,10 @@ export default function BrowseServicesPage() {
                 <div className="text-center py-16 text-muted-foreground">
                   <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No services found</p>
-                  <Button className="mt-4" variant="outline" onClick={clearFilters}>Clear Filters</Button>
+                  <Button size="sm" className="mt-4" variant="outline" onClick={clearFilters}>Clear Filters</Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {paginated.map((svc: any) => {
                     const freelancer = svc.freelancer as any;
                     return (
@@ -497,14 +497,14 @@ export default function BrowseServicesPage() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setSelectedService(null)}>Close</Button>
+            <Button size="sm" variant="outline" onClick={() => setSelectedService(null)}>Close</Button>
             {selectedService?.freelancer_id && (
               <>
-                <Button variant="outline" onClick={() => { setSelectedService(null); navigate(`/expert/${selectedService.freelancer_id}/profile`); }}>
+                <Button size="sm" variant="outline" onClick={() => { setSelectedService(null); navigate(`/expert/${selectedService.freelancer_id}/profile`); }}>
                   View Profile
                 </Button>
-                <Button onClick={() => { setSelectedService(null); navigate(`/messages?user=${selectedService.freelancer_id}`); }}>
-                  <Send className="h-4 w-4 mr-2" /> Hire Expert
+                <Button size="sm" onClick={() => { setSelectedService(null); navigate(`/messages?user=${selectedService.freelancer_id}`); }}>
+                  <Send className="h-4 w-4 mr-1.5" /> Hire Expert
                 </Button>
               </>
             )}

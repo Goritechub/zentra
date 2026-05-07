@@ -356,15 +356,15 @@ export default function JobDetailsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
 
           {/* ===== Job Header Card ===== */}
-          <div className="bg-card rounded-xl border border-border p-8 mb-6">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
+            <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
               <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1).replace(/_/g, " ") : ""}</Badge>
               {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
               <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
@@ -391,9 +391,9 @@ export default function JobDetailsPage() {
                 />
               )}
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">{job.title}</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-3 sm:mb-4">{job.title}</h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
               {job.state && (
                 <div className="flex items-center gap-1"><MapPin className="h-4 w-4" />{job.city ? `${job.city}, ` : ""}{job.state}</div>
               )}
@@ -441,7 +441,7 @@ export default function JobDetailsPage() {
 
           {/* ===== Client View: Tabbed Layout ===== */}
           {isClient ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
               <div className="lg:col-span-2">
                 <Tabs defaultValue="overview">
                   <TabsList className="mb-6 w-full">
@@ -481,7 +481,7 @@ export default function JobDetailsPage() {
                         </div>
                       ) : (
                         activeProposals.map((proposal: any) => (
-                          <div key={proposal.id} className="bg-card rounded-xl border border-border p-6">
+                          <div key={proposal.id} className="bg-card rounded-xl border border-border p-4 sm:p-6">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
@@ -577,7 +577,7 @@ export default function JobDetailsPage() {
                         interviewContracts.map((contract: any) => (
                           <div
                             key={contract.id}
-                            className="bg-card rounded-xl border border-border p-6 hover:border-primary/30 transition-colors cursor-pointer"
+                            className="bg-card rounded-xl border border-border p-4 sm:p-6 hover:border-primary/30 transition-colors cursor-pointer"
                             onClick={() => navigate(`/contract/${contract.id}?tab=chat`)}
                           >
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -601,8 +601,8 @@ export default function JobDetailsPage() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-3">
-                                <div className="text-right mr-3">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                                <div className="text-right">
                                   <p className="text-sm font-semibold text-foreground">{format(contract.amount)}</p>
                                   <Badge variant="outline" className="gap-1 mt-1"><UserCheck className="h-3 w-3" /> Interviewing</Badge>
                                 </div>
@@ -645,8 +645,8 @@ export default function JobDetailsPage() {
               </div>
 
               {/* Client Sidebar */}
-              <div className="space-y-6">
-                <div className="bg-card rounded-xl border border-border p-6">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <h3 className="font-semibold mb-4">Budget</h3>
                   <p className="text-2xl font-bold text-primary">
                     {job.budget_min && job.budget_max
@@ -670,7 +670,7 @@ export default function JobDetailsPage() {
                   </p>
                 )}
 
-                <div className="bg-card rounded-xl border border-border p-6">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <h3 className="font-semibold mb-4">Quick Stats</h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -691,7 +691,7 @@ export default function JobDetailsPage() {
             </div>
           ) : (
             /* ===== Freelancer View: Original Layout ===== */
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
               <div className="lg:col-span-2 space-y-6">
                 <OverviewContent
                   job={job}
@@ -703,8 +703,8 @@ export default function JobDetailsPage() {
               </div>
 
               {/* Freelancer Sidebar */}
-              <div className="space-y-6">
-                <div className="bg-card rounded-xl border border-border p-6">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Budget</h3>
                     {profile?.role === "freelancer" && (
@@ -753,7 +753,7 @@ export default function JobDetailsPage() {
                 </div>
 
                 {client && (
-                  <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                     <h3 className="font-semibold mb-4">About the Client</h3>
                     <div className="flex items-center gap-3 mb-4">
                       <Avatar className="h-12 w-12">
@@ -785,7 +785,7 @@ export default function JobDetailsPage() {
                   </div>
                 )}
 
-                <div className="bg-card rounded-xl border border-border p-6">
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <div className="flex flex-wrap gap-6">
                     <div className="flex items-center gap-2">
                       <Users className="h-5 w-5 text-muted-foreground" />
@@ -1049,14 +1049,14 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
   return (
     <div className="space-y-6">
       {/* Description */}
-      <div className="bg-card rounded-xl border border-border p-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
         <h3 className="text-lg font-semibold mb-2">Description</h3>
         <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
       </div>
 
       {/* Attachments */}
       {job.attachments && job.attachments.length > 0 && (
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Attachments</h3>
           <div className="space-y-2">
             {job.attachments.map((url: string, idx: number) => {
@@ -1073,9 +1073,9 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
       )}
 
       {/* Things to Know */}
-      <div className="bg-card rounded-xl border border-border p-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Info className="h-5 w-5 text-primary" />Things to Know</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : (job.city && job.state ? `${job.city}, ${job.state}` : job.state || "Physical Location")} />
           <InfoTile icon={Wrench} label="Skill Level" value={job.skill_level || "Intermediate"} />
           <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
@@ -1091,7 +1091,7 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
 
       {/* Areas of Expertise */}
       {(job.required_skills?.length > 0 || job.required_software?.length > 0) && (
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Layers className="h-5 w-5 text-primary" />Areas of Expertise</h3>
           <div className="flex flex-wrap gap-2">
             {[...(job.required_skills || []), ...(job.required_software || [])].map((s: string) => (
@@ -1103,7 +1103,7 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
 
       {/* Similar Jobs */}
       {similarJobs.length > 0 && (
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
           <h3 className="text-lg font-semibold mb-4">
             {profileRole === "client" ? "Other Jobs by You" : "Similar Jobs"}
           </h3>

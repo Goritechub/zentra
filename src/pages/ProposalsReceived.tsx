@@ -265,7 +265,7 @@ export default function ProposalsReceivedPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
@@ -281,9 +281,9 @@ export default function ProposalsReceivedPage() {
             <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals...</p>
           )}
 
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-foreground">Proposals Received</h1>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Proposals Received</h1>
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
                 {paymentReady ? <ShieldCheck className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
                 {paymentReady ? "Payment Ready" : "Payment Not Verified"}
@@ -327,7 +327,7 @@ export default function ProposalsReceivedPage() {
                       return (
                         <div key={group.jobId} className={`rounded-xl border ${isAssigned ? "border-border/50 bg-muted/30" : "border-border bg-card"}`}>
                           {/* Job Group Header */}
-                          <div className={`flex items-center justify-between px-6 py-4 border-b ${isAssigned ? "border-border/50" : "border-border"}`}>
+                          <div className={`flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b ${isAssigned ? "border-border/50" : "border-border"}`}>
                             <div className="flex items-center gap-3">
                               <Briefcase className={`h-4 w-4 ${isAssigned ? "text-muted-foreground" : "text-primary"}`} />
                               <Link to={`/job/${group.jobId}`} className={`font-semibold hover:underline ${isAssigned ? "text-muted-foreground" : "text-foreground hover:text-primary"}`}>
@@ -348,7 +348,7 @@ export default function ProposalsReceivedPage() {
                           {/* Proposals within group */}
                           <div className={`divide-y ${isAssigned ? "divide-border/50 opacity-60" : "divide-border"}`}>
                             {group.proposals.map((proposal: any) => (
-                              <div key={proposal.id} className="px-6 py-5">
+                              <div key={proposal.id} className="px-4 py-4 sm:px-6 sm:py-5">
                                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-3">
@@ -408,11 +408,11 @@ export default function ProposalsReceivedPage() {
                                     <ProposalAnalyticsStrip proposal={proposal} job={group.job} />
                                   </div>
 
-                                  <div className="flex flex-col items-end gap-3">
+                                  <div className="flex flex-col items-start sm:items-end gap-3">
                                     {statusBadge(proposal.status)}
 
                                     {!isAssigned && proposal.status === "pending" && (
-                                      <div className="flex gap-2">
+                                      <div className="flex flex-wrap gap-2">
                                         <Button size="sm" variant="outline" onClick={() => setInterviewConfirm({ open: true, proposal })} disabled={interviewingId === proposal.id}>
                                           {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
                                         </Button>
@@ -426,7 +426,7 @@ export default function ProposalsReceivedPage() {
                                     )}
 
                                     {!isAssigned && proposal.status === "interviewing" && (
-                                      <div className="flex gap-2">
+                                      <div className="flex flex-wrap gap-2">
                                         <Button size="sm" onClick={() => openAssignDialog(proposal)}>
                                           <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
                                         </Button>
@@ -436,7 +436,7 @@ export default function ProposalsReceivedPage() {
                                       </div>
                                     )}
 
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                       <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
                                         <Eye className="h-4 w-4 mr-1" /> View Details
                                       </Button>

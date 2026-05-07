@@ -58,22 +58,22 @@ export default function SavedExpertsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
           {authError && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
               {authError}
             </div>
           )}
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
-          <h1 className="text-3xl font-bold text-foreground mb-8">Saved Experts</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-8">Saved Experts</h1>
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-card rounded-xl border border-border p-6 space-y-3">
+                <div key={item} className="bg-card rounded-xl border border-border p-4 sm:p-5 space-y-3">
                   <div className="h-14 w-14 rounded-full bg-muted animate-pulse" />
                   <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -84,10 +84,10 @@ export default function SavedExpertsPage() {
             <div className="text-center py-16 text-muted-foreground">
               <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No saved experts yet</p>
-              <Button className="mt-4" asChild><Link to="/freelancers">Browse Experts</Link></Button>
+              <Button size="sm" className="mt-4" asChild><Link to="/freelancers">Browse Experts</Link></Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {saved.map((item: any) => {
                 const f = item.freelancer;
                 const fp = item.freelancerProfile;
@@ -96,7 +96,7 @@ export default function SavedExpertsPage() {
                   <Link
                     key={item.id}
                     to={`/messages?user=${item.freelancer_id}`}
-                    className="block bg-card rounded-xl border border-border p-6 card-hover transition-all hover:border-primary/30"
+                    className="block bg-card rounded-xl border border-border p-4 sm:p-5 card-hover transition-all hover:border-primary/30"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <Avatar className="h-14 w-14">

@@ -187,7 +187,6 @@ export default function PostJobPage() {
 
   const uploadOneFile = (file: File, onProgress: (pct: number) => void): Promise<string> => {
     const token = getLocalStorageToken();
-    console.log("[upload] starting", file.name, file.size, "token:", !!token);
 
     return new Promise((resolve, reject) => {
       const form = new FormData();
@@ -195,21 +194,17 @@ export default function PostJobPage() {
 
       const xhr = new XMLHttpRequest();
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-      const url = `${baseUrl}/jobs/attachments`;
-      console.log("[upload] sending to:", url);
-      xhr.open("POST", url, true);
+      xhr.open("POST", `${baseUrl}/jobs/attachments`, true);
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.timeout = 30000;
 
       xhr.upload.addEventListener("progress", (e) => {
-        console.log("[upload] progress", e.loaded, "/", e.total);
         if (e.lengthComputable && e.total > 0) {
           onProgress(Math.round((e.loaded / e.total) * 100));
         }
       });
 
       xhr.onload = () => {
-        console.log("[upload] onload status:", xhr.status, xhr.responseText.slice(0, 300));
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const json = JSON.parse(xhr.responseText);
@@ -228,11 +223,10 @@ export default function PostJobPage() {
         }
       };
 
-      xhr.onerror = () => { console.error("[upload] onerror fired"); reject(new Error("Network error during upload")); };
-      xhr.ontimeout = () => { console.error("[upload] ontimeout fired"); reject(new Error("Upload timed out")); };
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.ontimeout = () => reject(new Error("Upload timed out"));
 
       xhr.send(form);
-      console.log("[upload] send() called");
     });
   };
 
@@ -460,13 +454,13 @@ export default function PostJobPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-tight">
-          <h1 className="text-3xl font-bold text-foreground mb-2">{isEditMode ? "Edit Job" : "Post a New Job"}</h1>
-          <p className="text-muted-foreground mb-8">{isEditMode ? "Update your job details below." : "Describe your engineering project and find the right expert."}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">{isEditMode ? "Edit Job" : "Post a New Job"}</h1>
+          <p className="text-muted-foreground mb-4 sm:mb-8">{isEditMode ? "Update your job details below." : "Describe your engineering project and find the right expert."}</p>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-8">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Project Details</h2>
               <div className="space-y-2">
                 <Label>Job Title *</Label>
@@ -479,9 +473,9 @@ export default function PostJobPage() {
             </div>
 
             {/* Visibility & Invitations */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Job Visibility</h2>
-              <RadioGroup value={visibility} onValueChange={(v) => setVisibility(v as JobVisibility)} className="flex gap-6">
+              <RadioGroup value={visibility} onValueChange={(v) => setVisibility(v as JobVisibility)} className="flex flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="public" id="vis-public" />
                   <Label htmlFor="vis-public" className="cursor-pointer">
@@ -524,7 +518,7 @@ export default function PostJobPage() {
             </div>
 
             {/* Skills & Software */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Skills & Software</h2>
               <div className="space-y-2">
                 <Label>Required Skills</Label>
@@ -604,7 +598,7 @@ export default function PostJobPage() {
             </div>
 
             {/* Budget & Timeline */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Budget & Timeline</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -651,7 +645,7 @@ export default function PostJobPage() {
             </div>
 
             {/* Payment Structure */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div>
                 <h2 className="text-lg font-semibold">Payment Structure</h2>
                 <p className="text-xs text-muted-foreground mt-1">Set how you want the expert to be paid, or leave it open for them to decide.</p>
@@ -732,9 +726,9 @@ export default function PostJobPage() {
             </div>
 
             {/* Location */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Location</h2>
-              <RadioGroup value={locationType} onValueChange={(v) => setLocationType(v as "remote" | "physical")} className="flex gap-6">
+              <RadioGroup value={locationType} onValueChange={(v) => setLocationType(v as "remote" | "physical")} className="flex flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="remote" id="loc-remote" />
                   <Label htmlFor="loc-remote" className="cursor-pointer">Remote</Label>
@@ -769,7 +763,7 @@ export default function PostJobPage() {
             </div>
 
             {/* Attachments */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4">
               <h2 className="text-lg font-semibold">Attachments</h2>
               <p className="text-sm text-muted-foreground">Upload reference files, drawings, or briefs (PDF, DOC, PNG, JPG, DWG, DXF, ZIP). Max 5 files.</p>
               <input
@@ -872,7 +866,7 @@ export default function PostJobPage() {
             </div>
 
             {/* Job Options */}
-            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4">
               <h2 className="text-lg font-semibold">Job Options</h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -1038,8 +1032,8 @@ export default function PostJobPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNegotiableConfirm(false)}>Go Back & Set Budget</Button>
-            <Button onClick={() => {setShowNegotiableConfirm(false);document.querySelector<HTMLFormElement>("form")?.requestSubmit();}}>
+            <Button size="sm" variant="outline" onClick={() => setShowNegotiableConfirm(false)}>Go Back & Set Budget</Button>
+            <Button size="sm" onClick={() => {setShowNegotiableConfirm(false);document.querySelector<HTMLFormElement>("form")?.requestSubmit();}}>
               Post as Negotiable
             </Button>
           </DialogFooter>
@@ -1094,7 +1088,7 @@ export default function PostJobPage() {
             }
           </div>
           <DialogFooter>
-            <Button onClick={() => setShowInviteDialog(false)}>Done</Button>
+            <Button size="sm" onClick={() => setShowInviteDialog(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

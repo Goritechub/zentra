@@ -101,22 +101,22 @@ export default function SentOffersPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
           {authError && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
               {authError}
             </div>
           )}
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
-          <h1 className="text-3xl font-bold text-foreground mb-8">Sent Offers</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-8">Sent Offers</h1>
 
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                <div key={item} className="bg-card rounded-xl border border-border p-4 sm:p-5">
                   <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
                   <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse mb-3" />
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -141,54 +141,53 @@ export default function SentOffersPage() {
                     {privateJobs.map((job: any) => {
                       const allRejected = isAllRejected(job);
                       return (
-                        <div key={job.id} className="bg-card rounded-xl border border-border p-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-foreground">{job.title}</h3>
-                                <Badge variant="outline" className="gap-1 text-xs">
-                                  <Lock className="h-3 w-3" /> Private
-                                </Badge>
-                                {allRejected && (
-                                  <Badge variant="destructive" className="text-xs">All Declined</Badge>
-                                )}
-                              </div>
-                              {job.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>}
-                              <p className="text-xs text-muted-foreground mt-2">
-                                Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-                                {" · "}{(job.invited_expert_ids || []).length} expert(s) invited
-                              </p>
-                            </div>
-                            <div className="text-right ml-4">
+                        <div key={job.id} className="bg-card rounded-xl border border-border p-4 sm:p-5">
+                          <div className="flex items-start gap-2 flex-wrap mb-1">
+                            <h3 className="font-semibold text-foreground flex-1 min-w-0">{job.title}</h3>
+                            <Badge variant="outline" className="gap-1 text-xs shrink-0">
+                              <Lock className="h-3 w-3" /> Private
+                            </Badge>
+                            {allRejected && (
+                              <Badge variant="destructive" className="text-xs shrink-0">All Declined</Badge>
+                            )}
+                          </div>
+                          {job.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                            {" · "}{(job.invited_expert_ids || []).length} expert(s) invited
+                          </p>
+
+                          <div className="flex items-center justify-between pt-3 mt-2 border-t border-border gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
                               {(job.budget_min || job.budget_max) && (
-                                <p className="font-bold text-primary">
+                                <p className="font-bold text-primary text-sm">
                                   {job.budget_min && job.budget_max
                                     ? `${format(job.budget_min)} – ${format(job.budget_max)}`
                                     : format(job.budget_max || job.budget_min)}
                                 </p>
                               )}
-                              <Badge variant={job.status === "open" ? "secondary" : "outline"} className="mt-2 capitalize">{job.status}</Badge>
+                              <Badge variant={job.status === "open" ? "secondary" : "outline"} className="text-xs">{job.status.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</Badge>
                             </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-4">
-                            <Button size="sm" variant="outline" asChild>
-                              <Link to={`/job/${job.id}`}>
-                                <Briefcase className="h-3.5 w-3.5 mr-1.5" /> View Job
-                              </Link>
-                            </Button>
-                            {allRejected && job.status === "open" && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => handleInviteAnother(job)}>
-                                  <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Invite Another
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleMakePublic(job)}>
-                                  <Globe className="h-3.5 w-3.5 mr-1.5" /> Make Public
-                                </Button>
-                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => { setSelectedJob(job); setShowCloseDialog(true); }}>
-                                  <XCircle className="h-3.5 w-3.5 mr-1.5" /> Close Job
-                                </Button>
-                              </>
-                            )}
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" variant="outline" asChild>
+                                <Link to={`/job/${job.id}`}>
+                                  <Briefcase className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">View Job</span>
+                                </Link>
+                              </Button>
+                              {allRejected && job.status === "open" && (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={() => handleInviteAnother(job)}>
+                                    <UserPlus className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Invite Another</span>
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleMakePublic(job)}>
+                                    <Globe className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Make Public</span>
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => { setSelectedJob(job); setShowCloseDialog(true); }}>
+                                    <XCircle className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Close Job</span>
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -205,24 +204,22 @@ export default function SentOffersPage() {
                   </h2>
                   <div className="space-y-4">
                     {offers.map((offer: any) => (
-                      <div key={offer.id} className="bg-card rounded-xl border border-border p-6">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-semibold text-foreground">{offer.title}</h3>
-                            {offer.freelancer?.full_name && (
-                              <p className="text-sm text-muted-foreground mt-0.5">To: {offer.freelancer.full_name}</p>
-                            )}
-                            {offer.description && <p className="text-sm text-muted-foreground mt-1">{offer.description}</p>}
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Sent {formatDistanceToNow(new Date(offer.created_at), { addSuffix: true })}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            {offer.budget && <p className="font-bold text-primary">{format(offer.budget)}</p>}
-                            <Badge variant={offer.status === "accepted" ? "default" : "secondary"} className="mt-2 gap-1">
-                              {statusIcon(offer.status)} {offer.status}
-                            </Badge>
-                          </div>
+                      <div key={offer.id} className="bg-card rounded-xl border border-border p-4 sm:p-5">
+                        <h3 className="font-semibold text-foreground">{offer.title}</h3>
+                        {offer.freelancer?.full_name && (
+                          <p className="text-sm text-muted-foreground mt-0.5">To: {offer.freelancer.full_name}</p>
+                        )}
+                        {offer.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{offer.description}</p>}
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Sent {formatDistanceToNow(new Date(offer.created_at), { addSuffix: true })}
+                        </p>
+                        <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
+                          {offer.budget
+                            ? <p className="font-bold text-primary text-sm">{format(offer.budget)}</p>
+                            : <span />}
+                          <Badge variant={offer.status === "accepted" ? "default" : "secondary"} className="gap-1">
+                            {statusIcon(offer.status)} {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                          </Badge>
                         </div>
                       </div>
                     ))}

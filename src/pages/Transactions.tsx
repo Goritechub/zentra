@@ -166,12 +166,12 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
-          <h1 className="text-3xl font-bold text-foreground mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-8">
             {isFreelancer ? "Wallet & Earnings" : "Wallet & Transactions"}
           </h1>
           {authError && (
@@ -184,11 +184,11 @@ export default function TransactionsPage() {
           )}
 
           {/* Wallet Cards */}
-          <div className={`grid grid-cols-1 ${isFreelancer ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"} gap-6 mb-8`}>
+          <div className={`grid grid-cols-1 ${isFreelancer ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"} gap-4 sm:gap-6 mb-6 sm:mb-8`}>
             {/* Wallet Balance (total) */}
-            <div className="bg-hero-gradient text-white rounded-xl p-6">
+            <div className="bg-hero-gradient text-white rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Wallet Balance</span></div>
-              <p className="text-3xl font-bold">{format(walletBalance)}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{format(walletBalance)}</p>
               <div className="flex gap-2 mt-4">
                 <Button size="sm" variant="secondary" onClick={() => { if (!profile?.is_verified) { setShowKycModal(true); return; } setShowFund(true); }}>
                   <Plus className="h-4 w-4 mr-1" /> Fund
@@ -210,12 +210,12 @@ export default function TransactionsPage() {
 
             {/* Pending Clearance (freelancer only) */}
             {isFreelancer && (
-              <div className="bg-card rounded-xl border border-amber-500/30 p-6">
+              <div className="bg-card rounded-xl border border-amber-500/30 p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Timer className="h-5 w-5 text-amber-500" />
                   <span className="text-sm text-muted-foreground">Pending Clearance</span>
                 </div>
-                <p className="text-3xl font-bold text-foreground">{format(pendingClearance)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(pendingClearance)}</p>
                 {nextClearance && (
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground">Next release:</p>
@@ -230,30 +230,30 @@ export default function TransactionsPage() {
 
             {/* Available for Withdrawal (freelancer) / In Escrow */}
             {isFreelancer ? (
-              <div className="bg-card rounded-xl border border-primary/30 p-6">
+              <div className="bg-card rounded-xl border border-primary/30 p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Download className="h-5 w-5 text-primary" />
                   <span className="text-sm text-muted-foreground">Available for Withdrawal</span>
                 </div>
-                <p className="text-3xl font-bold text-foreground">{format(availableBalance)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(availableBalance)}</p>
                 {availableBalance < 5000 && (
                   <p className="text-xs text-muted-foreground mt-2">Min. ₦5,000 to withdraw</p>
                 )}
               </div>
             ) : (
-              <div className="bg-card rounded-xl border border-border p-6">
+              <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">Project Budget</span></div>
-                <p className="text-3xl font-bold text-foreground">{format(wallet?.escrow_balance || 0)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(wallet?.escrow_balance || 0)}</p>
               </div>
             )}
 
             {/* Total Earned / Spent */}
-            <div className="bg-card rounded-xl border border-border p-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-2">
                 <CreditCard className="h-5 w-5 text-primary" />
                 <span className="text-sm text-muted-foreground">{isFreelancer ? "Total Earned" : "Total Spent"}</span>
               </div>
-              <p className="text-3xl font-bold text-foreground">
+              <p className="text-2xl sm:text-3xl font-bold text-foreground">
                 {format(isFreelancer ? (wallet?.total_earned || 0) : (wallet?.total_spent || 0))}
               </p>
             </div>
@@ -287,22 +287,22 @@ export default function TransactionsPage() {
 
           {/* Transaction History */}
           <div className="bg-card rounded-xl border border-border">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Transaction History</h2>
+            <div className="p-4 sm:p-6 border-b border-border flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-semibold">Transaction History</h2>
               <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
-                <Download className="h-4 w-4 mr-1" /> Export
+                <Download className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Export</span>
               </Button>
             </div>
 
-            <div className="px-6 pt-4">
+            <div className="px-3 sm:px-6 pt-4">
               <Tabs value={txFilter} onValueChange={(v) => setTxFilter(v as TxFilter)}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="all" className="flex-1">All Activity</TabsTrigger>
-                  <TabsTrigger value="credits" className="flex-1">
-                    <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money In
+                  <TabsTrigger value="all" className="flex-1 text-xs sm:text-sm">All Activity</TabsTrigger>
+                  <TabsTrigger value="credits" className="flex-1 text-xs sm:text-sm">
+                    <ArrowDownLeft className="h-3.5 w-3.5 mr-1 shrink-0" /> Money In
                   </TabsTrigger>
-                  <TabsTrigger value="debits" className="flex-1">
-                    <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money Out
+                  <TabsTrigger value="debits" className="flex-1 text-xs sm:text-sm">
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-1 shrink-0" /> Money Out
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -322,14 +322,14 @@ export default function TransactionsPage() {
                   const isPendingClearance = tx.clearance_at && new Date(tx.clearance_at) > new Date();
                   return (
                     <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${credit ? "bg-primary/10" : "bg-destructive/10"}`}>
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${credit ? "bg-primary/10" : "bg-destructive/10"}`}>
                           {credit
-                            ? <ArrowDownLeft className="h-5 w-5 text-primary" />
-                            : <ArrowUpRight className="h-5 w-5 text-destructive" />}
+                            ? <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                            : <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />}
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground text-sm sm:text-base truncate">
                             {maskDescription(tx.description) || tx.type}
                             {isPendingClearance && (
                               <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/30 text-[10px] px-1.5 py-0">
@@ -338,7 +338,7 @@ export default function TransactionsPage() {
                             )}
                           </p>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
                             {isPendingClearance && <ClearanceCountdown clearanceAt={tx.clearance_at} />}
                           </div>
                         </div>
@@ -383,7 +383,7 @@ export default function TransactionsPage() {
             <DialogTitle>Export Transactions</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>From Date</Label>
                 <Input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)} />

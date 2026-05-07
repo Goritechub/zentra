@@ -202,97 +202,106 @@ export default function JobsPage() {
     const isSaved = savedJobIds.has(job.id);
 
     return (
-      <div className="bg-card rounded-xl border border-border p-6 hover:shadow-sm transition-shadow">
-        <div className="flex items-start justify-between gap-4">
-          {/* Left: main content */}
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-5 hover:shadow-sm transition-shadow">
+        {/* Top row: title + save icon */}
+        <div className="flex items-start justify-between gap-2 mb-1">
           <Link to={`/job/${job.id}`} className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h3 className="font-semibold text-lg text-foreground hover:text-primary transition-colors">
-                {job.title}
-              </h3>
-              {match !== null && (
-                <Badge variant="outline" className="text-xs font-medium border-primary/40 text-primary">
-                  {match}% match
-                </Badge>
-              )}
-              {job.is_nda && (
-                <Badge variant="outline" className="text-xs gap-1 border-amber-400/60 text-amber-700 dark:text-amber-400">
-                  <Shield className="h-3 w-3" /> NDA
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{job.description}</p>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {(job.required_skills || []).slice(0, 5).map((s: string) => (
-                <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-              ))}
-              {(job.required_skills || []).length > 5 && (
-                <Badge variant="secondary" className="text-xs">+{(job.required_skills || []).length - 5}</Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-              </span>
-              {job.delivery_days && (
-                <span className="flex items-center gap-1">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  {(() => {
-                    const u = job.delivery_unit || "days";
-                    const d = job.delivery_days;
-                    if (u === "weeks") return `${Math.round(d / 7)}w`;
-                    if (u === "months") return `${Math.round(d / 30)}mo`;
-                    return `${d}d`;
-                  })()}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {job.is_remote ? "Remote" : `${job.city || job.state || "Nigeria"}`}
-              </span>
-              <Badge variant="outline" className="text-xs py-0">{job.is_hourly ? "Hourly" : "Fixed"}</Badge>
-              {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
-                <Badge variant="outline" className="text-xs py-0">{job.payment_type_preference === "milestone" ? "Milestone" : "Lump Sum"}</Badge>
-              )}
-            </div>
+            <h3 className="font-semibold text-base sm:text-lg text-foreground hover:text-primary transition-colors leading-snug">
+              {job.title}
+            </h3>
           </Link>
+          <button
+            onClick={(e) => toggleSave(job.id, e)}
+            className={`shrink-0 p-1 transition-colors rounded ${
+              showRemove
+                ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                : "text-muted-foreground hover:text-primary"
+            }`}
+            title={showRemove ? "Remove from saved" : isSaved ? "Unsave" : "Save job"}
+          >
+            {showRemove
+              ? <X className="h-4 w-4" />
+              : isSaved
+                ? <BookmarkCheck className="h-4 w-4 text-primary fill-current" />
+                : <Bookmark className="h-4 w-4" />
+            }
+          </button>
+        </div>
 
-          {/* Right: budget + actions */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            {showRemove ? (
-              <button
-                onClick={(e) => toggleSave(job.id, e)}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-full hover:bg-destructive/10"
-                title="Remove from saved"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                onClick={(e) => toggleSave(job.id, e)}
-                className="text-muted-foreground hover:text-primary transition-colors p-1"
-                title={isSaved ? "Remove from saved" : "Save job"}
-              >
-                {isSaved
-                  ? <BookmarkCheck className="h-4.5 w-4.5 text-primary fill-current" />
-                  : <Bookmark className="h-4.5 w-4.5" />
-                }
-              </button>
+        {/* Badges row */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          {match !== null && (
+            <Badge variant="outline" className="text-xs font-medium border-primary/40 text-primary">
+              {match}% match
+            </Badge>
+          )}
+          {job.is_nda && (
+            <Badge variant="outline" className="text-xs gap-1 border-amber-400/60 text-amber-700 dark:text-amber-400">
+              <Shield className="h-3 w-3" /> NDA
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-xs py-0">{job.is_hourly ? "Hourly" : "Fixed"}</Badge>
+          {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
+            <Badge variant="outline" className="text-xs py-0">
+              {job.payment_type_preference === "milestone" ? "Milestone" : "Lump Sum"}
+            </Badge>
+          )}
+        </div>
+
+        <Link to={`/job/${job.id}`}>
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{job.description}</p>
+        </Link>
+
+        {/* Skills */}
+        {(job.required_skills || []).length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {(job.required_skills || []).slice(0, 4).map((s: string) => (
+              <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+            ))}
+            {(job.required_skills || []).length > 4 && (
+              <Badge variant="secondary" className="text-xs">+{(job.required_skills || []).length - 4}</Badge>
             )}
-            <p className="text-lg font-bold text-primary text-right">
-              {job.budget_min && job.budget_max
-                ? `${format(job.budget_min)} – ${format(job.budget_max)}`
-                : job.budget_min
-                  ? format(job.budget_min)
-                  : "Negotiable"}
-            </p>
-            <Button variant="default" size="sm" asChild>
-              <Link to={`/job/${job.id}`}>
-                View Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Link>
-            </Button>
           </div>
+        )}
+
+        {/* Meta */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+          </span>
+          {job.delivery_days && (
+            <span className="flex items-center gap-1">
+              <Briefcase className="h-3.5 w-3.5" />
+              {(() => {
+                const u = job.delivery_unit || "days";
+                const d = job.delivery_days;
+                if (u === "weeks") return `${Math.round(d / 7)}w`;
+                if (u === "months") return `${Math.round(d / 30)}mo`;
+                return `${d}d`;
+              })()}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5" />
+            {job.is_remote ? "Remote" : `${job.city || job.state || "Nigeria"}`}
+          </span>
+        </div>
+
+        {/* Bottom bar: budget + CTA */}
+        <div className="flex items-center justify-between pt-3 border-t border-border">
+          <p className="text-base sm:text-lg font-bold text-primary">
+            {job.budget_min && job.budget_max
+              ? `${format(job.budget_min)} – ${format(job.budget_max)}`
+              : job.budget_min
+                ? format(job.budget_min)
+                : "Negotiable"}
+          </p>
+          <Button variant="default" size="sm" asChild>
+            <Link to={`/job/${job.id}`}>
+              View <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Link>
+          </Button>
         </div>
       </div>
     );

@@ -343,12 +343,12 @@ export default function LaunchContestPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-tight">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
             Launch a Contest
           </h1>
-          <p className="text-muted-foreground mb-8">
+          <p className="text-muted-foreground mb-4 sm:mb-8">
             Invite submissions from experts and pick the best one.
           </p>
 
@@ -377,8 +377,8 @@ export default function LaunchContestPage() {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-8">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Contest Details</h2>
               <div className="space-y-2">
                 <Label>Contest Title *</Label>
@@ -512,7 +512,7 @@ export default function LaunchContestPage() {
               </div>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-accent" />
                 Prize Structure
@@ -521,7 +521,7 @@ export default function LaunchContestPage() {
                 Only 1st prize is required. Add as many positions as you like — amounts in Naira (₦).
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {prizes.map((val, i) => {
                   const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "🏅";
                   const isRequired = i === 0;
@@ -569,7 +569,7 @@ export default function LaunchContestPage() {
               </div>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
               <h2 className="text-lg font-semibold">Requirements</h2>
               <div className="space-y-2">
                 <Label>Required Skills</Label>
@@ -747,10 +747,10 @@ export default function LaunchContestPage() {
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={cancelCrop}>
+            <Button type="button" size="sm" variant="outline" onClick={cancelCrop}>
               Cancel
             </Button>
-            <Button type="button" onClick={applyCrop} disabled={!completedCrop}>
+            <Button type="button" size="sm" onClick={applyCrop} disabled={!completedCrop}>
               Apply Crop
             </Button>
           </div>

@@ -561,7 +561,7 @@ export default function ApplyJobPage() {
 
             {editPaymentType === "project" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Bid Amount (₦)</Label>
                     <MoneyInput
@@ -890,7 +890,7 @@ export default function ApplyJobPage() {
                     {/* Payment Details - By Project */}
                     {paymentType === "project" && (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>Bid Amount (₦)</Label>
                             <MoneyInput
@@ -1087,14 +1087,14 @@ export default function ApplyJobPage() {
                       {job.title}
                     </Link>
                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status}</Badge>
+                      <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</Badge>
                       {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
                       <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">{job.description}</p>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <MiniTile icon={DollarSign} label="Budget" value={
                       job.budget_min && job.budget_max
                         ? `${format(job.budget_min)} - ${format(job.budget_max)}`

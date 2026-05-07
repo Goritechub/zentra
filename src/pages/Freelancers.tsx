@@ -317,10 +317,10 @@ export default function FreelancersPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
           {/* Search bar */}
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-4 sm:mb-6 flex items-center gap-3">
             <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -334,7 +334,7 @@ export default function FreelancersPage() {
             {/* Mobile filter trigger */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="lg:hidden flex items-center gap-2">
+                <Button variant="outline" size="sm" className="lg:hidden flex items-center gap-1.5 shrink-0">
                   <SlidersHorizontal className="h-4 w-4" />
                   Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
                 </Button>
@@ -398,7 +398,7 @@ export default function FreelancersPage() {
           )}
 
           <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setPage(1); }}>
-            <TabsList className="mb-6 w-full">
+            <TabsList className="mb-4 sm:mb-6 w-full">
               <TabsTrigger value="all" className="flex-1">All Experts</TabsTrigger>
               <TabsTrigger value="saved" className="flex-1">
                 <Heart className="h-4 w-4 mr-1.5" /> Saved
@@ -410,7 +410,7 @@ export default function FreelancersPage() {
 
             {/* ── All Experts ── */}
             <TabsContent value="all">
-              <div className="flex gap-8">
+              <div className="flex gap-6">
                 {/* Desktop sidebar */}
                 <aside className="hidden lg:block w-52 xl:w-60 shrink-0">
                   <div className="bg-card rounded-xl border border-border p-5 sticky top-6">
@@ -419,7 +419,7 @@ export default function FreelancersPage() {
                 </aside>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground mb-5">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Showing <span className="font-semibold text-foreground">{filtered.length}</span> expert{filtered.length !== 1 ? "s" : ""}
                   </p>
 
@@ -429,10 +429,10 @@ export default function FreelancersPage() {
                     <div className="text-center py-16">
                       <Search className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">No experts found</h3>
-                      <Button onClick={clearFilters}>Clear Filters</Button>
+                      <Button size="sm" onClick={clearFilters}>Clear Filters</Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                       {paginated.map((f) => {
                         const p = f.profile;
                         return (
@@ -561,10 +561,10 @@ export default function FreelancersPage() {
                 <div className="text-center py-16 text-muted-foreground">
                   <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No saved experts yet</p>
-                  <Button className="mt-4" onClick={() => setActiveTab("all")}>Browse Experts</Button>
+                  <Button size="sm" className="mt-4" onClick={() => setActiveTab("all")}>Browse Experts</Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {savedExperts.map((item: any) => {
                     const f = item.freelancer;
                     const fp = item.freelancerProfile;

@@ -76,7 +76,7 @@ export default function BrowseContestsPage() {
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-8 flex items-center gap-3">
             <Trophy className="h-8 w-8 text-primary" /> Browse Contests
           </h1>
 

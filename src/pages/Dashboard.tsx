@@ -159,7 +159,7 @@ export default function DashboardPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                Welcome back, {firstName} 👋
+                Welcome back, {firstName}
               </h1>
               <p className="text-muted-foreground mt-1">
                 {dashboardQuery.isFetching && !!dashboardQuery.data
@@ -172,20 +172,20 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 flex-wrap">
               {isClient && (
                 <>
-                  <Button onClick={() => navigate("/post-job")} className="gap-2">
+                  <Button size="sm" onClick={() => navigate("/post-job")} className="gap-1.5">
                     <PlusCircle className="h-4 w-4" /> Post a Job
                   </Button>
-                  <Button variant="outline" onClick={() => navigate("/launch-contest")} className="gap-2">
+                  <Button size="sm" variant="outline" onClick={() => navigate("/launch-contest")} className="gap-1.5">
                     <Trophy className="h-4 w-4" /> Launch Contest
                   </Button>
                 </>
               )}
               {isFreelancer && (
                 <>
-                  <Button onClick={() => navigate("/jobs")} className="gap-2">
+                  <Button size="sm" onClick={() => navigate("/jobs")} className="gap-1.5">
                     <Briefcase className="h-4 w-4" /> Browse Jobs
                   </Button>
-                  <Button variant="outline" onClick={() => navigate("/contests")} className="gap-2">
+                  <Button size="sm" variant="outline" onClick={() => navigate("/contests")} className="gap-1.5">
                     <Trophy className="h-4 w-4" /> Contests
                   </Button>
                 </>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
               className="mb-4"
             />
           )}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             {dashboardQuery.isPending && !dashboardQuery.data ? (
               <StatCardSkeleton count={4} />
             ) : (
@@ -332,7 +332,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">
-                                {job.status}
+                                {job.status.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
                               </Badge>
                               {(job.budget_max || job.budget_min) && (
                                 <span className="text-xs font-semibold text-primary">

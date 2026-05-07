@@ -128,9 +128,9 @@ export default function ClientJobsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
           {authError && (
@@ -138,9 +138,14 @@ export default function ClientJobsPage() {
               {authError}
             </div>
           )}
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-foreground">My Jobs</h1>
-            <Button asChild><Link to="/post-job"><PlusCircle className="h-4 w-4 mr-2" />Post New Job</Link></Button>
+          <div className="flex items-center justify-between mb-4 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Jobs</h1>
+            <Button asChild size="sm">
+              <Link to="/post-job">
+                <PlusCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Post New Job</span>
+              </Link>
+            </Button>
           </div>
           {jobsQuery.isFetching && (
             <p className="text-sm text-muted-foreground mb-4">Refreshing jobs...</p>
@@ -181,77 +186,85 @@ export default function ClientJobsPage() {
                     <p>No {status === "all" ? "" : status} jobs found</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {filterByStatus(status).map(job => (
-                      <div key={job.id} className={`bg-card rounded-xl border border-border p-6 card-hover ${job.status === "completed" ? "opacity-60" : ""}`}>
-                        <div className="flex items-start justify-between">
-                          <Link to={`/job/${job.id}`} className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={job.status === "open" ? "default" : "secondary"}>{job.status}</Badge>
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">{job.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-                            </p>
-                          </Link>
-                          <div className="flex flex-col items-end gap-2 ml-4">
-                            {(job.budget_min || job.budget_max) && (
-                              <p className="font-bold text-primary">{format(job.budget_max || job.budget_min || 0)}</p>
-                            )}
+                      <div key={job.id} className={`bg-card rounded-xl border border-border p-4 sm:p-5 transition-shadow hover:shadow-sm ${job.status === "completed" ? "opacity-60" : ""}`}>
+                        <Link to={`/job/${job.id}`} className="block">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <Badge variant={job.status === "open" ? "default" : "secondary"} className="text-xs">{job.status.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</Badge>
+                          </div>
+                          <h3 className="text-base sm:text-lg font-semibold text-foreground leading-snug">{job.title}</h3>
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{job.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                          </p>
+                        </Link>
+
+                        {/* Stats row */}
+                        <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5" /> {job._viewCount || 0} view{(job._viewCount || 0) !== 1 ? "s" : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/dashboard/proposals")}
+                            className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._proposalCount || 0} proposal{(job._proposalCount || 0) !== 1 ? "s" : ""}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/dashboard/sent-offers")}
+                            className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._invitedCount || 0} invited
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/dashboard/proposals?tab=interviewing")}
+                            className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                          >
+                            {job._interviewingCount || 0} interviewing
+                          </button>
+                        </div>
+
+                        {/* Bottom bar: budget + actions */}
+                        <div className="flex items-center justify-between pt-3 mt-1">
+                          <p className="text-base font-bold text-primary">
+                            {(job.budget_min || job.budget_max)
+                              ? format(job.budget_max || job.budget_min || 0)
+                              : <span className="text-sm text-muted-foreground font-normal">No budget set</span>}
+                          </p>
+                          <div className="flex items-center gap-2">
                             {job.status !== "cancelled" && job.status !== "completed" && (
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleCancelClick(job);
-                                }}
+                                className="h-8 px-2.5"
+                                onClick={(e) => { e.preventDefault(); handleCancelClick(job); }}
                               >
-                                <XCircle className="h-4 w-4 mr-1" /> Cancel
+                                <XCircle className="h-3.5 w-3.5 sm:mr-1" />
+                                <span className="hidden sm:inline">Cancel</span>
                               </Button>
                             )}
                             {canDeleteJob(job) && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleDeleteClick(job);
-                                }}
+                                className="h-8 px-2.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={(e) => { e.preventDefault(); handleDeleteClick(job); }}
                               >
-                                <Trash2 className="h-4 w-4 mr-1" /> Delete
+                                <Trash2 className="h-3.5 w-3.5 sm:mr-1" />
+                                <span className="hidden sm:inline">Delete</span>
                               </Button>
                             )}
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            <Button size="sm" variant="default" className="h-8 px-2.5" asChild>
+                              <Link to={`/job/${job.id}`}>
+                                <ArrowRight className="h-3.5 w-3.5 sm:mr-1" />
+                                <span className="hidden sm:inline">View</span>
+                              </Link>
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-border">
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Eye className="h-3.5 w-3.5" /> {job._viewCount || 0} view{(job._viewCount || 0) !== 1 ? "s" : ""}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/proposals"); }}
-                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-                          >
-                            {job._proposalCount || 0} proposal{(job._proposalCount || 0) !== 1 ? "s" : ""} received
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/sent-offers"); }}
-                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-                          >
-                            {job._invitedCount || 0} invited
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); navigate("/dashboard/proposals?tab=interviewing"); }}
-                            className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-                          >
-                            {job._interviewingCount || 0} interviewing
-                          </button>
                         </div>
                       </div>
                     ))}

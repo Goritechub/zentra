@@ -405,12 +405,12 @@ export function Header() {
           </div>
 
           {/* Mobile right */}
-          <div className="flex lg:hidden items-center gap-2">
+          <div className="flex lg:hidden items-center gap-1">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setThemeOpen((o) => !o)}
-                className="p-2 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
+                className="p-1.5 rounded-md hover:bg-accent transition-colors"
                 aria-label="Change color theme"
               >
                 <Palette className="h-4 w-4 text-muted-foreground" />
