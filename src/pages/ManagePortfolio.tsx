@@ -39,13 +39,13 @@ function ImageCarousel({ images }: { images: string[] }) {
         <>
           <button
             onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => setIdx((i) => (i + 1) % images.length)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -216,7 +216,7 @@ export default function ManagePortfolioPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide max-w-3xl">
           {authError && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
@@ -229,29 +229,29 @@ export default function ManagePortfolioPage() {
             </div>
           )}
 
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <ImageIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Manage Portfolio</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Manage Portfolio</h1>
                 <p className="text-sm text-muted-foreground">Showcase your best CAD projects.</p>
               </div>
             </div>
             {!showForm && (
-              <Button onClick={() => setShowForm(true)}>
+              <Button size="sm" onClick={() => setShowForm(true)} className="self-start sm:self-auto">
                 <Plus className="h-4 w-4 mr-2" /> Add Item
               </Button>
             )}
           </div>
 
           {showForm && (
-            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 mb-4 sm:mb-6">
               <h2 className="text-lg font-semibold mb-4">New Portfolio Item</h2>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -361,9 +361,10 @@ export default function ManagePortfolioPage() {
                   )}
                 </div>
 
-                <div className="flex gap-3 justify-end">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                   <Button
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       setShowForm(false);
                       setImageFiles([]);
@@ -372,7 +373,7 @@ export default function ManagePortfolioPage() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleAdd} disabled={saving}>
+                  <Button onClick={handleAdd} disabled={saving} className="w-full sm:w-auto">
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     Add Item
                   </Button>
@@ -384,7 +385,7 @@ export default function ManagePortfolioPage() {
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-card rounded-xl border border-border p-6">
+                <div key={item} className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <div className="h-40 rounded-lg bg-muted animate-pulse mb-3" />
                   <div className="h-5 w-1/2 rounded bg-muted animate-pulse mb-2" />
                   <div className="h-4 w-2/3 rounded bg-muted/70 animate-pulse" />
@@ -402,7 +403,7 @@ export default function ManagePortfolioPage() {
           ) : (
             <div className="space-y-4">
               {items.map((item) => (
-                <div key={item.id} className="bg-card rounded-xl border border-border p-6">
+                <div key={item.id} className="bg-card rounded-xl border border-border p-4 sm:p-6">
                   <ImageCarousel images={item.images || []} />
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

@@ -144,6 +144,7 @@ export default function ApplyJobPage() {
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { isVerified: kycVerified } = useKycVerification();
+  const isVerified = kycVerified || !!profile?.is_verified;
   const [showKycModal, setShowKycModal] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<File[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
@@ -274,7 +275,7 @@ export default function ApplyJobPage() {
     if (!user || !id) return;
 
     // KYC gating for experts
-    if (!kycVerified) {
+    if (!isVerified) {
       setShowKycModal(true);
       return;
     }
@@ -479,8 +480,8 @@ export default function ApplyJobPage() {
     const pUnit = p.delivery_unit || "days";
 
     return (
-      <div className="bg-card rounded-xl border border-border p-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
           <h2 className="text-xl font-bold">Your Proposal</h2>
           <div className="flex gap-2">
             {editingProposal ? (
@@ -732,7 +733,7 @@ export default function ApplyJobPage() {
             {pType === "milestone" && p.milestones?.length > 0 ? (
               <div className="space-y-3">
                 {p.milestones.map((ms: any, idx: number) => (
-                  <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
+                  <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-start sm:items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium text-foreground">{ms.title}</p>
                       <p className="text-xs text-muted-foreground">
@@ -750,7 +751,7 @@ export default function ApplyJobPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Bid Amount (₦)</Label>
                   <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm font-medium">{format(p.bid_amount)}</div>
@@ -782,7 +783,7 @@ export default function ApplyJobPage() {
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-2">
               <span>Status: <Badge variant="secondary" className="text-xs">{p.status}</Badge></span>
               <span>Submitted: {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
               {!canEditProposal() && <span className="text-destructive">Edit window expired</span>}
@@ -797,9 +798,9 @@ export default function ApplyJobPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 bg-muted/30 py-8 flex items-center justify-center">
+        <main className="flex-1 bg-muted/30 py-4 sm:py-8 flex items-center justify-center">
           <div className="max-w-md w-full mx-auto px-4">
-            <div className="bg-card rounded-xl border border-border p-10 text-center space-y-6">
+            <div className="bg-card rounded-xl border border-border p-6 sm:p-10 text-center space-y-6">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                   <CheckCircle2 className="h-8 w-8 text-primary" />
@@ -830,19 +831,19 @@ export default function ApplyJobPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
-          <Button variant="ghost" onClick={() => navigate(`/job/${id}`)} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate(`/job/${id}`)} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Job
           </Button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Proposal Section */}
               {existingProposal ? renderExistingProposalView() : (
-                <div className="bg-card rounded-xl border border-border p-8">
-                  <h2 className="text-xl font-bold mb-6">Submit Your Proposal</h2>
+                <div className="bg-card rounded-xl border border-border p-4 sm:p-8">
+                  <h2 className="text-xl font-bold mb-4 sm:mb-6">Submit Your Proposal</h2>
                   <form onSubmit={handleSubmitProposal} className="space-y-6">
                     {/* Payment Type Selection */}
                     <div className="space-y-3">
@@ -1064,19 +1065,19 @@ export default function ApplyJobPage() {
                       </div>
                     )}
 
-                    <div className="flex gap-3">
-                      <Button type="submit" disabled={submitting || (job?.is_nda && !ndaAcknowledged)}>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button type="submit" disabled={submitting || (job?.is_nda && !ndaAcknowledged)} className="w-full sm:w-auto">
                         {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                         Submit Proposal
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => navigate(`/job/${id}`)}>Cancel</Button>
+                      <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/job/${id}`)}>Cancel</Button>
                     </div>
                   </form>
                 </div>
               )}
 
               {/* Job Details Summary */}
-              <div className="bg-card rounded-xl border border-border p-6">
+              <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Briefcase className="h-5 w-5 text-primary" />
                   Job Details
@@ -1117,8 +1118,8 @@ export default function ApplyJobPage() {
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-card rounded-xl border border-border p-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <h3 className="font-semibold mb-4">Budget</h3>
                 <p className="text-2xl font-bold text-primary">
                   {job.budget_min && job.budget_max
@@ -1128,7 +1129,7 @@ export default function ApplyJobPage() {
                 {job.is_hourly && <p className="text-sm text-muted-foreground mt-1">Hourly rate</p>}
               </div>
 
-              <div className="bg-card rounded-xl border border-border p-6">
+              <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <h3 className="font-semibold mb-2">Tips for a great proposal</h3>
                 <ul className="text-sm text-muted-foreground space-y-2">
                   <li>• Highlight relevant experience</li>

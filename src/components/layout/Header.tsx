@@ -269,7 +269,7 @@ export function Header() {
                     </Link>
                     <NavDropdown
                       label="Browse"
-                      items={browseItems}
+                      items={isFreelancer ? browseItemsLimited : browseItems}
                       active={isActive(["/blog", "/how-it-works"])}
                     />
                   </>
@@ -509,7 +509,7 @@ export function Header() {
             )}
             <MobileDropdown
               label="Browse"
-              items={isAdmin || !user ? browseItemsLimited : browseItems}
+              items={isAdmin || !user || isFreelancer ? browseItemsLimited : browseItems}
               open={mobileSubMenu === "browse"}
               toggle={() => setMobileSubMenu(mobileSubMenu === "browse" ? null : "browse")}
               close={() => setMobileMenuOpen(false)}

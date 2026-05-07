@@ -79,6 +79,7 @@ export default function TransactionsPage() {
   const exportRef = useRef<HTMLDivElement>(null);
   const { requireAuthCode, SetupModal: AuthSetupModal, VerifyModal: AuthVerifyModal } = useRequireAuthCode();
   const { isVerified: kycVerified } = useKycVerification();
+  const isKycVerified = kycVerified || !!profile?.is_verified;
   const [showKycModal, setShowKycModal] = useState(false);
 
   const transactionsQuery = useQuery({
@@ -194,7 +195,7 @@ export default function TransactionsPage() {
                   <Plus className="h-4 w-4 mr-1" /> Fund
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => {
-                  if (isFreelancer && !kycVerified) {
+                  if (isFreelancer && !isKycVerified) {
                     setShowKycModal(true);
                     return;
                   }
