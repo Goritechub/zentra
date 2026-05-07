@@ -16,6 +16,7 @@ import {
 "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/api/axios";
 import { createJobPost, updateJobPost, searchInviteExperts } from "@/api/jobs.api";
 import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,7 +68,6 @@ export default function PostJobPage() {
   const [searchingExperts, setSearchingExperts] = useState(false);
 
   const [isNda, setIsNda] = useState(false);
-  const [paymentReady, setPaymentReady] = useState(false);
 
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
@@ -116,7 +116,6 @@ export default function PostJobPage() {
         setOverallSkillLevel(j.skill_level || "Intermediate");
         setVisibility(j.visibility || "public");
         setIsNda(j.is_nda || false);
-        setPaymentReady(j.payment_ready || false);
         setExistingAttachmentUrls(j.attachments || []);
         if (j.invited_expert_ids?.length) {
           supabase
@@ -171,17 +170,36 @@ export default function PostJobPage() {
   const uploadAttachments = async (): Promise<string[]> => {
     if (!attachments.length || !user) return [];
     setUploading(true);
-    const urls: string[] = [];
-    for (const file of attachments) {
-      const path = `${user.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('job-attachments').upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from('job-attachments').getPublicUrl(path);
-        urls.push(data.publicUrl);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const form = new FormData();
+      for (const file of attachments) form.append("files", file);
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"}/jobs/attachments`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form, signal: controller.signal }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.message ?? `Upload failed (${res.status})`);
       }
+      const json = await res.json();
+      return json.data?.urls ?? [];
+    } catch (err: any) {
+      const msg = err?.name === "AbortError"
+        ? "File upload timed out — please try again"
+        : `File upload failed: ${err?.message ?? "unknown error"}`;
+      toast.error(msg);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      setUploading(false);
     }
-    setUploading(false);
-    return urls;
   };
 
   const toDays = (value: number, unit: DurationUnit): number => {
@@ -230,7 +248,13 @@ export default function PostJobPage() {
     }
 
     setLoading(true);
-    const uploadedUrls = await uploadAttachments();
+    let uploadedUrls: string[];
+    try {
+      uploadedUrls = await uploadAttachments();
+    } catch {
+      setLoading(false);
+      return;
+    }
 
     const deliveryDays = deliveryValue ? toDays(parseInt(deliveryValue), deliveryUnit) : null;
     const allAttachments = [...existingAttachmentUrls, ...uploadedUrls];
@@ -253,7 +277,6 @@ export default function PostJobPage() {
       visibility,
       invited_expert_ids: invitedExperts.map((invited) => invited.id),
       is_nda: isNda,
-      payment_ready: paymentReady,
     };
 
     try {
@@ -614,20 +637,6 @@ export default function PostJobPage() {
                     <Label htmlFor="is-nda" className="cursor-pointer font-medium">NDA Required</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Expert must sign a Non-Disclosure Agreement before starting work.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="payment-ready"
-                    checked={paymentReady}
-                    onCheckedChange={(checked) => setPaymentReady(checked === true)}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <Label htmlFor="payment-ready" className="cursor-pointer font-medium">Payment Ready</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Mark this job as funded and ready to pay — makes it more attractive to top experts.
                     </p>
                   </div>
                 </div>

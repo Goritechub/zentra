@@ -304,12 +304,12 @@ export default function ProposalsReceivedPage() {
           )}
 
           <Tabs defaultValue="all">
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">All ({proposals.length})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({filterByStatus("pending").length})</TabsTrigger>
-              <TabsTrigger value="interviewing">Interviewing ({filterByStatus("interviewing").length})</TabsTrigger>
-              <TabsTrigger value="accepted">Accepted ({filterByStatus("accepted").length})</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected ({filterByStatus("rejected").length})</TabsTrigger>
+            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1">
+              <TabsTrigger value="all" className="flex-1">All ({proposals.length})</TabsTrigger>
+              <TabsTrigger value="pending" className="flex-1">Pending ({filterByStatus("pending").length})</TabsTrigger>
+              <TabsTrigger value="interviewing" className="flex-1">Interviewing ({filterByStatus("interviewing").length})</TabsTrigger>
+              <TabsTrigger value="accepted" className="flex-1">Accepted ({filterByStatus("accepted").length})</TabsTrigger>
+              <TabsTrigger value="rejected" className="flex-1">Rejected ({filterByStatus("rejected").length})</TabsTrigger>
             </TabsList>
 
             {["all", "pending", "interviewing", "accepted", "rejected"].map((status) => (

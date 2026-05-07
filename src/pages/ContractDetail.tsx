@@ -389,17 +389,17 @@ export default function ContractDetail() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6 flex-wrap h-auto gap-1 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm">
-              <TabsTrigger value="overview"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
-              <TabsTrigger value="milestones" disabled={contract.status === "interviewing"}>
+            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1 sticky top-0 z-20 bg-muted/95 backdrop-blur-sm">
+              <TabsTrigger value="overview" className="flex-1"><Briefcase className="h-4 w-4 mr-1.5" /> Overview</TabsTrigger>
+              <TabsTrigger value="milestones" className="flex-1" disabled={contract.status === "interviewing"}>
                 <MilestoneIcon className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Milestones"}
               </TabsTrigger>
-              <TabsTrigger value="activity"><FileText className="h-4 w-4 mr-1.5" /> Activity</TabsTrigger>
-              <TabsTrigger value="chat"><MessageSquare className="h-4 w-4 mr-1.5" /> Chat</TabsTrigger>
-              <TabsTrigger value="transactions" disabled={contract.status === "interviewing"}>
+              <TabsTrigger value="activity" className="flex-1"><FileText className="h-4 w-4 mr-1.5" /> Activity</TabsTrigger>
+              <TabsTrigger value="chat" className="flex-1"><MessageSquare className="h-4 w-4 mr-1.5" /> Chat</TabsTrigger>
+              <TabsTrigger value="transactions" className="flex-1" disabled={contract.status === "interviewing"}>
                 <History className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Transactions"}
               </TabsTrigger>
-              <TabsTrigger value="disputes" disabled={contract.status === "interviewing"}>
+              <TabsTrigger value="disputes" className="flex-1" disabled={contract.status === "interviewing"}>
                 <AlertTriangle className="h-4 w-4 mr-1.5" /> {contract.status === "interviewing" ? "Still Interviewing" : "Disputes"}
               </TabsTrigger>
             </TabsList>

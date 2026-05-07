@@ -296,12 +296,12 @@ export default function TransactionsPage() {
 
             <div className="px-6 pt-4">
               <Tabs value={txFilter} onValueChange={(v) => setTxFilter(v as TxFilter)}>
-                <TabsList>
-                  <TabsTrigger value="all">All Activity</TabsTrigger>
-                  <TabsTrigger value="credits">
+                <TabsList className="w-full">
+                  <TabsTrigger value="all" className="flex-1">All Activity</TabsTrigger>
+                  <TabsTrigger value="credits" className="flex-1">
                     <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Money In
                   </TabsTrigger>
-                  <TabsTrigger value="debits">
+                  <TabsTrigger value="debits" className="flex-1">
                     <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Money Out
                   </TabsTrigger>
                 </TabsList>

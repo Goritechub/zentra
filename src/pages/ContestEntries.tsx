@@ -231,10 +231,10 @@ export default function ContestEntriesPage() {
           </h1>
 
           <Tabs defaultValue="entered" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="entered">Entered ({entered.length})</TabsTrigger>
-              <TabsTrigger value="won">Won ({won.length})</TabsTrigger>
-              <TabsTrigger value="saved">Saved</TabsTrigger>
+            <TabsList className="w-full">
+              <TabsTrigger value="entered" className="flex-1">Entered ({entered.length})</TabsTrigger>
+              <TabsTrigger value="won" className="flex-1">Won ({won.length})</TabsTrigger>
+              <TabsTrigger value="saved" className="flex-1">Saved</TabsTrigger>
             </TabsList>
 
             <TabsContent value="entered">

@@ -147,12 +147,12 @@ export default function ClientJobsPage() {
           )}
 
           <Tabs defaultValue="all">
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">All ({jobs.length})</TabsTrigger>
-              <TabsTrigger value="open">Open ({filterByStatus("open").length})</TabsTrigger>
-              <TabsTrigger value="in_progress">Ongoing ({filterByStatus("in_progress").length})</TabsTrigger>
-              <TabsTrigger value="completed">Completed ({filterByStatus("completed").length})</TabsTrigger>
-              <TabsTrigger value="cancelled">Closed ({filterByStatus("cancelled").length})</TabsTrigger>
+            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1">
+              <TabsTrigger value="all" className="flex-1">All ({jobs.length})</TabsTrigger>
+              <TabsTrigger value="open" className="flex-1">Open ({filterByStatus("open").length})</TabsTrigger>
+              <TabsTrigger value="in_progress" className="flex-1">Ongoing ({filterByStatus("in_progress").length})</TabsTrigger>
+              <TabsTrigger value="completed" className="flex-1">Completed ({filterByStatus("completed").length})</TabsTrigger>
+              <TabsTrigger value="cancelled" className="flex-1">Closed ({filterByStatus("cancelled").length})</TabsTrigger>
             </TabsList>
 
             {["all", "open", "in_progress", "completed", "cancelled"].map(status => (

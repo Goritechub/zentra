@@ -33,7 +33,7 @@ export function AuthGuard({ children, allowIncomplete = false }: AuthGuardProps)
 
   // Redirect admins to the admin panel unless they're visiting a personal page
   // or the admin panel itself.
-  const ADMIN_PERSONAL_PATHS = ["/my-profile", "/transactions", "/messages", "/notifications"];
+  const ADMIN_PERSONAL_PATHS = ["/my-profile", "/settings", "/transactions", "/messages", "/notifications"];
   if (
     isAdmin &&
     !location.pathname.startsWith("/admin") &&

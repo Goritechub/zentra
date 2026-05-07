@@ -398,9 +398,9 @@ export default function FreelancersPage() {
           )}
 
           <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setPage(1); }}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">All Experts</TabsTrigger>
-              <TabsTrigger value="saved">
+            <TabsList className="mb-6 w-full">
+              <TabsTrigger value="all" className="flex-1">All Experts</TabsTrigger>
+              <TabsTrigger value="saved" className="flex-1">
                 <Heart className="h-4 w-4 mr-1.5" /> Saved
                 {savedExperts.length > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-xs px-1.5">{savedExperts.length}</Badge>
@@ -438,10 +438,20 @@ export default function FreelancersPage() {
                         return (
                           <div
                             key={f.id}
-                            className="bg-card rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                            className="relative bg-card rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
                             onClick={() => navigate(`/expert/${f.user_id}/profile`)}
                           >
-                            <div className="flex gap-3 mb-3">
+                            {/* Heart — top right */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="absolute top-3 right-3 h-7 w-7 p-0 z-10"
+                              onClick={(e) => handleSaveExpert(e, f.user_id)}
+                            >
+                              <Heart className={`h-3.5 w-3.5 ${savedIds.has(f.user_id) ? "fill-current text-rose-500" : ""}`} />
+                            </Button>
+
+                            <div className="flex gap-3 mb-3 pr-8">
                               <Avatar className="h-12 w-12 shrink-0 border border-border">
                                 <AvatarImage src={p?.avatar_url || undefined} />
                                 <AvatarFallback className="bg-primary/10 text-primary font-semibold">
@@ -480,19 +490,11 @@ export default function FreelancersPage() {
                               </div>
                             )}
 
-                            <div className="flex items-center justify-between pt-3 border-t border-border">
-                              <span className="text-sm font-bold text-primary">
-                                {f.hourly_rate ? `${format(f.hourly_rate)}/hr` : "Negotiable"}
-                              </span>
+                            <div className="pt-3 border-t border-border">
+                              <p className="text-sm font-bold text-primary mb-2">
+                                {f.hourly_rate ? `${format(f.hourly_rate)}/hr` : <span className="text-muted-foreground font-normal text-xs">Rate not set</span>}
+                              </p>
                               <div className="flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
-                                  onClick={(e) => handleSaveExpert(e, f.user_id)}
-                                >
-                                  <Heart className={`h-3.5 w-3.5 ${savedIds.has(f.user_id) ? "fill-current text-rose-500" : ""}`} />
-                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

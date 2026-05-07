@@ -66,7 +66,7 @@ export default function ContractsPage() {
           )}
 
           <Tabs defaultValue="all">
-            <TabsList className="mb-6 flex-wrap h-auto gap-1">
+            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1">
               <TabsTrigger value="all">All ({contracts.length})</TabsTrigger>
               <TabsTrigger value="interviewing">Interviewing ({filterByStatus("interviewing").length})</TabsTrigger>
               <TabsTrigger value="active">Active ({filterByStatus("active").length})</TabsTrigger>

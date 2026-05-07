@@ -137,7 +137,7 @@ export default function DashboardPage() {
   const freelancerMenuItems = [
     { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
     { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
-    { icon: Settings, label: "Edit My Profile", to: "/my-profile", desc: "Update your information" },
+    { icon: Settings, label: "Account Settings", to: "/settings", desc: "Update your information" },
     { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
     { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
     { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
@@ -393,18 +393,18 @@ export default function DashboardPage() {
                 </div>
                 <Progress value={profilePct} className="h-2 mb-4" />
                 <div className="space-y-2.5">
-                  <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/my-profile" />
-                  <ProfileCheckItem label="Location" done={!!profile.state} to="/my-profile" />
+                  <ProfileCheckItem label="Profile photo" done={!!profile.avatar_url} to="/settings" />
+                  <ProfileCheckItem label="Location" done={!!profile.state} to="/settings" />
                   {isFreelancer && (
-                    <ProfileCheckItem label="Skills" done={hasSkills} to="/my-profile" />
+                    <ProfileCheckItem label="Skills" done={hasSkills} to="/settings" />
                   )}
-                  <ProfileCheckItem label="KYC Verified" done={kycVerified} to="/my-profile" />
-                  <ProfileCheckItem label="Zentra Badge" done={isZentraVerified} to="/my-profile" />
+                  <ProfileCheckItem label="KYC Verified" done={kycVerified} to="/settings?tab=payment" />
+                  <ProfileCheckItem label="Zentra Badge" done={isZentraVerified} to="/settings?tab=payment" />
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <Link to="/my-profile" className="flex-1">
+                  <Link to="/settings" className="flex-1">
                     <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs">
-                      <Settings className="h-3.5 w-3.5" /> Edit Profile
+                      <Settings className="h-3.5 w-3.5" /> Account Settings
                     </Button>
                   </Link>
                   {isFreelancer && (

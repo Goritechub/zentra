@@ -249,8 +249,8 @@ export default function ClientProfile() {
 
                 {isOwner && (
                   <Button variant="outline" size="sm" className="w-full mt-5 rounded-xl" asChild>
-                    <Link to="/my-profile">
-                      <Settings className="h-3.5 w-3.5 mr-1.5" /> Edit Profile
+                    <Link to="/settings">
+                      <Settings className="h-3.5 w-3.5 mr-1.5" /> Account Settings
                     </Link>
                   </Button>
                 )}

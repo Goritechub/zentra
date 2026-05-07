@@ -166,17 +166,17 @@ export default function ExpertProposalsPage() {
           <h1 className="text-3xl font-bold text-foreground mb-8">My Proposals & Offers</h1>
 
           <Tabs defaultValue="offers" className="space-y-6">
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="offers" className="gap-2">
+            <TabsList className="w-full flex-wrap h-auto gap-1">
+              <TabsTrigger value="offers" className="flex-1 gap-2">
                 Pending Job Offers
                 {pendingOffers.length > 0 && <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[20px]">{pendingOffers.length}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="invites">Unanswered Invites</TabsTrigger>
-              <TabsTrigger value="interviewing" className="gap-2">
+              <TabsTrigger value="invites" className="flex-1">Unanswered Invites</TabsTrigger>
+              <TabsTrigger value="interviewing" className="flex-1 gap-2">
                 Interview in Progress
                 {interviewingProposals.length > 0 && <Badge variant="default" className="text-xs px-1.5 py-0 min-w-[20px]">{interviewingProposals.length}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="applications">Your Applications</TabsTrigger>
+              <TabsTrigger value="applications" className="flex-1">Your Applications</TabsTrigger>
             </TabsList>
 
             <TabsContent value="offers">

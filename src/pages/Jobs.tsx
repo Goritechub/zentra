@@ -18,7 +18,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   Search, MapPin, Clock, Briefcase, X, ArrowRight,
-  Bookmark, BookmarkCheck, Shield, CreditCard, ChevronDown, ChevronUp, Building2, Wrench,
+  Bookmark, BookmarkCheck, Shield, ChevronDown, ChevronUp, Building2, Wrench,
 } from "lucide-react";
 import { JobCardSkeleton } from "@/components/skeletons/JobCardSkeleton";
 
@@ -218,11 +218,6 @@ export default function JobsPage() {
               {job.is_nda && (
                 <Badge variant="outline" className="text-xs gap-1 border-amber-400/60 text-amber-700 dark:text-amber-400">
                   <Shield className="h-3 w-3" /> NDA
-                </Badge>
-              )}
-              {job.payment_ready && (
-                <Badge variant="outline" className="text-xs gap-1 border-green-500/60 text-green-700 dark:text-green-400">
-                  <CreditCard className="h-3 w-3" /> Payment ready
                 </Badge>
               )}
             </div>
@@ -445,9 +440,9 @@ export default function JobsPage() {
 
           {/* ─── Tabs ─── */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">All Jobs ({allFiltered.length})</TabsTrigger>
-              <TabsTrigger value="saved">Saved ({savedFiltered.length})</TabsTrigger>
+            <TabsList className="mb-4 w-full">
+              <TabsTrigger value="all" className="flex-1">All Jobs ({allFiltered.length})</TabsTrigger>
+              <TabsTrigger value="saved" className="flex-1">Saved ({savedFiltered.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all">

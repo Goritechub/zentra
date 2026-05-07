@@ -1488,14 +1488,14 @@ export default function ContestDetailPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="description">
+            <TabsList className="mb-6 w-full">
+              <TabsTrigger value="description" className="flex-1">
                 <FileText className="h-4 w-4 mr-1.5" /> Description
               </TabsTrigger>
-              <TabsTrigger value="entries">
+              <TabsTrigger value="entries" className="flex-1">
                 <Users className="h-4 w-4 mr-1.5" /> Entries ({trueEntryCount})
               </TabsTrigger>
-              <TabsTrigger value="winners">
+              <TabsTrigger value="winners" className="flex-1">
                 <Award className="h-4 w-4 mr-1.5" /> Winners
               </TabsTrigger>
             </TabsList>

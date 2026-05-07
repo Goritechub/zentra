@@ -34,7 +34,7 @@ export function KycRequiredModal({ open, onClose, action = "start a contract" }:
             </ul>
           </div>
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={() => { onClose(); navigate("/my-profile?tab=verification"); }}>
+            <Button className="flex-1" onClick={() => { onClose(); navigate("/settings?tab=payment"); }}>
               <ShieldCheck className="h-4 w-4 mr-2" />
               Verify Now
             </Button>

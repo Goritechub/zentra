@@ -270,7 +270,7 @@ export function Header() {
                     <NavDropdown
                       label="Browse"
                       items={browseItems}
-                      active={isActive(["/browse-services", "/freelancers", "/blog", "/how-it-works"])}
+                      active={isActive(["/blog", "/how-it-works"])}
                     />
                   </>
                 )}
@@ -361,6 +361,11 @@ export function Header() {
                             </DropdownMenuItem>
                           </>
                         )}
+                        <DropdownMenuItem asChild>
+                          <Link to="/settings" className="cursor-pointer">
+                            <Settings className="mr-2 h-4 w-4" />Account Settings
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/messages" className="cursor-pointer">
                             <MessageSquare className="mr-2 h-4 w-4" />Messages

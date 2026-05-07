@@ -58,6 +58,7 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const WalletCallback = lazy(() => import("./pages/WalletCallback"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -158,6 +159,7 @@ const AppShell = () => {
               <Route path="/dispute/:disputeId" element={<AuthGuard><DisputeDetail /></AuthGuard>} />
               <Route path="/messages" element={<AuthGuard><Messages /></AuthGuard>} />
               <Route path="/my-profile" element={<AuthGuard><MyProfile /></AuthGuard>} />
+              <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
               <Route path="/post-job" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><PostJob /></RoleGuard></AuthGuard>} />
               <Route path="/launch-contest" element={<AuthGuard><RoleGuard allowedRoles={["client"]}><LaunchContest /></RoleGuard></AuthGuard>} />
               <Route path="/transactions" element={<AuthGuard><Transactions /></AuthGuard>} />

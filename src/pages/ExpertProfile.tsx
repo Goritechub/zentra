@@ -493,8 +493,8 @@ export default function ExpertProfile() {
                   <div className="mt-5 space-y-2">
                     {isOwner && (
                       <Button variant="outline" size="sm" className="w-full rounded-xl" asChild>
-                        <Link to="/my-profile">
-                          <Settings className="h-3.5 w-3.5 mr-1.5" /> Edit Profile
+                        <Link to="/settings">
+                          <Settings className="h-3.5 w-3.5 mr-1.5" /> Account Settings
                         </Link>
                       </Button>
                     )}
@@ -870,7 +870,7 @@ export default function ExpertProfile() {
                       <Button
                         className="mt-4 rounded-xl"
                         variant="outline"
-                        onClick={() => navigate("/my-profile")}
+                        onClick={() => navigate("/settings")}
                       >
                         Complete Profile
                       </Button>

@@ -31,7 +31,7 @@ import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye,
   CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle,
-  Shield, CreditCard, Bookmark, BookmarkCheck, TrendingUp
+  Shield, Bookmark, BookmarkCheck, TrendingUp
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -373,11 +373,6 @@ export default function JobDetailsPage() {
                   <Shield className="h-3 w-3" /> NDA Required
                 </Badge>
               )}
-              {job.payment_ready && (
-                <Badge variant="outline" className="gap-1 border-green-500/50 text-green-600 bg-green-50 dark:bg-green-950/30">
-                  <CreditCard className="h-3 w-3" /> Payment Ready
-                </Badge>
-              )}
               {isAssigned && (
                 <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/30">
                   Assigned — No longer accepting proposals
@@ -444,10 +439,10 @@ export default function JobDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
                 <Tabs defaultValue="overview">
-                  <TabsList className="mb-6 w-full justify-start">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="proposals">Proposals ({activeProposals.length})</TabsTrigger>
-                    <TabsTrigger value="interviewing">Interviewing ({interviewContracts.length})</TabsTrigger>
+                  <TabsList className="mb-6 w-full">
+                    <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
+                    <TabsTrigger value="proposals" className="flex-1">Proposals ({activeProposals.length})</TabsTrigger>
+                    <TabsTrigger value="interviewing" className="flex-1">Interviewing ({interviewContracts.length})</TabsTrigger>
                   </TabsList>
 
                   {/* Overview Tab */}

@@ -205,7 +205,7 @@ export default function ManagePortfolioPage() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-muted-foreground mb-4">Please complete your profile first.</p>
-            <Button onClick={() => navigate("/my-profile")}>Edit Profile</Button>
+            <Button onClick={() => navigate("/settings")}>Account Settings</Button>
           </div>
         </div>
         <Footer />
