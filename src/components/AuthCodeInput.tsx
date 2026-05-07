@@ -139,7 +139,7 @@ export function AuthCodeInput({ value, onChange, disabled, locked, onUnlocked }:
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 justify-center">
+      <div className="flex gap-1.5 sm:gap-2 justify-center">
         {Array.from({ length: 6 }).map((_, i) => (
           <Input
             key={i}
@@ -152,7 +152,7 @@ export function AuthCodeInput({ value, onChange, disabled, locked, onUnlocked }:
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={i === 0 ? handlePaste : undefined}
             disabled={disabled || locked}
-            className="w-12 h-14 text-center text-xl font-bold"
+            className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold p-0"
           />
         ))}
       </div>

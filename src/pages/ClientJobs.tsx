@@ -183,7 +183,7 @@ export default function ClientJobsPage() {
                 ) : filterByStatus(status).length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">
                     <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No {status === "all" ? "" : status} jobs found</p>
+                    <p>{status === "all" ? "No jobs found" : `No ${status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} jobs found`}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">

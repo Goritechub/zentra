@@ -374,7 +374,7 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 bg-muted/30 py-8">
+        <main className="flex-1 bg-muted/30 py-4 sm:py-8">
           <div className="w-full min-w-0 max-w-4xl mx-auto px-4 sm:px-6 space-y-4">
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-10 w-64" />
@@ -393,15 +393,15 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-muted/30 py-8">
+      <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="w-full min-w-0 max-w-4xl mx-auto px-4 sm:px-6">
           {authError && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
               {authError}
             </div>
           )}
-          <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Account Settings</h1>
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Account Settings</h1>
             <p className="text-muted-foreground mt-1 text-sm">Manage your profile, security, and payment details.</p>
           </div>
 
@@ -409,19 +409,19 @@ export default function SettingsPage() {
             value={activeTab}
             onValueChange={(v) => setSearchParams({ tab: v })}
           >
-            <TabsList className="mb-6 w-full">
+            <TabsList className="mb-4 sm:mb-6 w-full">
               <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
               <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
               <TabsTrigger value="payment" className="flex-1">Payment</TabsTrigger>
             </TabsList>
 
             {/* ══════════════ PROFILE TAB ══════════════ */}
-            <TabsContent value="profile" className="space-y-8 mt-0">
+            <TabsContent value="profile" className="space-y-4 sm:space-y-8 mt-0">
 
               {/* Avatar */}
-              <section className="bg-card rounded-xl border border-border p-6">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <h2 className="text-base font-semibold text-foreground mb-4">Profile Picture</h2>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <div className="relative group">
                     <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
                       <AvatarImage src={avatarUrl || undefined} />
@@ -450,7 +450,7 @@ export default function SettingsPage() {
               </section>
 
               {/* General info */}
-              <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                 <h2 className="text-base font-semibold text-foreground">General Information</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -493,7 +493,7 @@ export default function SettingsPage() {
               {/* Freelancer-specific sections */}
               {isFreelancer && (
                 <>
-                  <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                     <h2 className="text-base font-semibold text-foreground">Professional Details</h2>
                     <div className="space-y-2">
                       <Label htmlFor="title">Professional Title</Label>
@@ -532,7 +532,7 @@ export default function SettingsPage() {
                     </div>
                   </section>
 
-                  <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                     <h2 className="text-base font-semibold text-foreground">Rates & Availability</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2"><Label>Hourly Rate (₦)</Label><Input type="number" min={0} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="e.g. 15000" /></div>
@@ -563,7 +563,7 @@ export default function SettingsPage() {
                   </section>
 
                   {/* Certifications */}
-                  <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> Certifications</h2>
                       <Button type="button" variant="outline" size="sm" onClick={addCertification}><Plus className="h-3 w-3 mr-1" /> Add</Button>
@@ -585,7 +585,7 @@ export default function SettingsPage() {
                   </section>
 
                   {/* Work Experience */}
-                  <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+                  <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> Work Experience</h2>
                       <Button type="button" variant="outline" size="sm" onClick={addWorkExp}><Plus className="h-3 w-3 mr-1" /> Add</Button>
@@ -612,9 +612,9 @@ export default function SettingsPage() {
                 </>
               )}
 
-              <div className="flex justify-end gap-3 pb-8">
-                <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-                <Button onClick={handleSave} disabled={saving}>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pb-4 sm:pb-8">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate(-1)}>Cancel</Button>
+                <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Profile
                 </Button>
@@ -622,10 +622,10 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* ══════════════ SECURITY TAB ══════════════ */}
-            <TabsContent value="security" className="space-y-8 mt-0">
+            <TabsContent value="security" className="space-y-4 sm:space-y-8 mt-0">
 
               {/* Change Password */}
-              <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                 <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-primary" /> Change Password
                 </h2>
@@ -656,7 +656,7 @@ export default function SettingsPage() {
               </section>
 
               {/* Auth Code */}
-              <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                 <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary" /> Authentication Code
                 </h2>
@@ -708,7 +708,7 @@ export default function SettingsPage() {
             </TabsContent>
 
             {/* ══════════════ PAYMENT TAB ══════════════ */}
-            <TabsContent value="payment" className="space-y-8 mt-0">
+            <TabsContent value="payment" className="space-y-4 sm:space-y-8 mt-0">
 
               {/* KYC */}
               <section className="bg-card rounded-xl border border-border overflow-hidden">
@@ -716,7 +716,7 @@ export default function SettingsPage() {
               </section>
 
               {/* Currency */}
-              <section className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4">
                 <h2 className="text-base font-semibold text-foreground">Display Currency</h2>
                 <p className="text-sm text-muted-foreground">Choose how prices and amounts are displayed. All values are stored in NGN.</p>
                 <div className="flex items-center gap-3">
@@ -727,14 +727,14 @@ export default function SettingsPage() {
               </section>
 
               {/* Bank Details */}
-              <section className="bg-card rounded-xl border border-border p-6 space-y-5">
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                     <Building className="h-4 w-4 text-primary" /> Saved Bank Accounts
                   </h2>
                   {!showAddBank && (
                     <Button size="sm" variant="outline" onClick={() => { setShowAddBank(true); fetchBanks(); }}>
-                      <Plus className="h-3 w-3 mr-1" /> Add Account
+                      <Plus className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Add Account</span>
                     </Button>
                   )}
                 </div>
@@ -758,7 +758,7 @@ export default function SettingsPage() {
                 ))}
 
                 {showAddBank && (
-                  <div className="border border-border rounded-lg p-5 space-y-4">
+                  <div className="border border-border rounded-lg p-4 sm:p-5 space-y-4">
                     <h3 className="text-sm font-semibold">Add New Bank Account (NGN)</h3>
                     <div className="space-y-2">
                       <Label className="text-xs">Bank</Label>

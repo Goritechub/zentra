@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Loader2, ExternalLink, RefreshCw, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { useKycVerification } from "@/hooks/useKycVerification";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export function KycVerificationCard({ role }: { role?: "client" | "freelancer" | null }) {
-  const { kycData, loading, startVerification, checkStatus, isVerified, isZentraVerified } = useKycVerification();
-  const zentraLabel = role === "client" ? "ZentraGig Verified Partner" : "{zentraLabel}";
+  const { kycData, loading, startVerification, checkStatus, isVerified: kycVerified, isZentraVerified } = useKycVerification();
+  const { profile } = useAuth();
+  const isVerified = kycVerified || !!profile?.is_verified;
+  const zentraLabel = role === "client" ? "ZentraGig Verified Partner" : "ZentraGig Verified Expert";
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
 
@@ -45,7 +48,7 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
     );
   }
 
-  const status = kycData?.kyc_status || "not_started";
+  const status = kycData?.kyc_status || (isVerified ? "verified" : "not_started");
 
   return (
     <Card>
