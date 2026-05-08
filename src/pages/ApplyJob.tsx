@@ -27,8 +27,19 @@ import { vetContent } from "@/lib/content-vetting";
 import {
   ArrowLeft, Send, Loader2, FileText, Download, Info, DollarSign,
   Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye, Plus, Trash2,
-  CheckCircle2, ArrowRight
+  CheckCircle2, ArrowRight, AlertCircle,
 } from "lucide-react";
+import { getLocalStorageToken } from "@/api/axios";
+
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = {
+  id: string;
+  file: File;
+  progress: number;
+  status: UploadStatus;
+  url: string | null;
+  errorMsg: string | null;
+};
 
 // Format number with commas: 1000 -> 1,000
 function formatWithCommas(value: string): string {
@@ -146,7 +157,7 @@ export default function ApplyJobPage() {
   const { isVerified: kycVerified } = useKycVerification();
   const isVerified = kycVerified || !!profile?.is_verified;
   const [showKycModal, setShowKycModal] = useState(false);
-  const [proposalFiles, setProposalFiles] = useState<File[]>([]);
+  const [proposalUploads, setProposalUploads] = useState<UploadItem[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
   const [ndaAcknowledged, setNdaAcknowledged] = useState(false);
   const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
@@ -165,7 +176,7 @@ export default function ApplyJobPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [submittedConfirmation, setSubmittedConfirmation] = useState(false);
   const [editAttachmentUrls, setEditAttachmentUrls] = useState<string[]>([]);
-  const [editProposalFiles, setEditProposalFiles] = useState<File[]>([]);
+  const [editProposalUploads, setEditProposalUploads] = useState<UploadItem[]>([]);
   const editProposalFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -181,7 +192,7 @@ export default function ApplyJobPage() {
     setEditCoverLetter(proposal.cover_letter);
     setEditPaymentType(proposal.payment_type || "project");
     setEditAttachmentUrls(proposal.attachments ?? []);
-    setEditProposalFiles([]);
+    setEditProposalUploads([]);
 
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
       setEditMilestones(proposal.milestones.map((ms: any) => {
@@ -243,31 +254,77 @@ export default function ApplyJobPage() {
     return new Date() < threeHoursLater;
   };
 
+  const uploadOneFile = (file: File, onProgress: (pct: number) => void): Promise<string> => {
+    const token = getLocalStorageToken();
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("files", file);
+      const xhr = new XMLHttpRequest();
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+      xhr.open("POST", `${baseUrl}/proposals/attachments`, true);
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.timeout = 30000;
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(Math.round((e.loaded / e.total) * 100));
+      });
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            const urls: string[] = json.data?.urls ?? [];
+            urls.length ? resolve(urls[0]) : reject(new Error("No URL returned from server"));
+          } catch { reject(new Error("Invalid server response")); }
+        } else {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            reject(new Error(json?.message || `Upload failed (${xhr.status})`));
+          } catch { reject(new Error(`Upload failed (${xhr.status})`)); }
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.ontimeout = () => reject(new Error("Upload timed out"));
+      xhr.send(form);
+    });
+  };
+
+  const startUpload = (item: UploadItem, setter: React.Dispatch<React.SetStateAction<UploadItem[]>>) => {
+    uploadOneFile(item.file, (pct) => {
+      setter(prev => prev.map(u => u.id === item.id ? { ...u, progress: pct } : u));
+    }).then((url) => {
+      setter(prev => prev.map(u => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
+    }).catch((err) => {
+      setter(prev => prev.map(u => u.id === item.id ? { ...u, status: "error", errorMsg: err.message } : u));
+    });
+  };
+
   const handleProposalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const allowed = files.filter(f => {
       const ext = f.name.split('.').pop()?.toLowerCase();
       return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'dwg', 'dxf', 'zip'].includes(ext || '');
     });
-    if (allowed.length < files.length) {
-      toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
-    }
-    setProposalFiles(prev => [...prev, ...allowed].slice(0, 5));
+    if (allowed.length < files.length) toast.error("Some files were skipped. Allowed: PDF, DOC, DOCX, PNG, JPG, DWG, DXF, ZIP");
+    const remaining = 5 - proposalUploads.length;
+    const toAdd = allowed.slice(0, remaining).map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file, progress: 0, status: "uploading" as UploadStatus, url: null, errorMsg: null,
+    }));
+    setProposalUploads(prev => [...prev, ...toAdd]);
+    toAdd.forEach(item => startUpload(item, setProposalUploads));
     if (proposalFileRef.current) proposalFileRef.current.value = '';
   };
 
-  const uploadProposalAttachments = async (files: File[] = proposalFiles): Promise<string[]> => {
-    if (!files.length || !user) return [];
-    const urls: string[] = [];
-    for (const file of files) {
-      const path = `${user.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('proposal-attachments').upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from('proposal-attachments').getPublicUrl(path);
-        urls.push(data.publicUrl);
-      }
-    }
-    return urls;
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files || []);
+    const allowed = incoming.filter(f => f.size <= 10 * 1024 * 1024);
+    const remaining = 5 - editAttachmentUrls.length - editProposalUploads.length;
+    const toAdd = allowed.slice(0, remaining).map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file, progress: 0, status: "uploading" as UploadStatus, url: null, errorMsg: null,
+    }));
+    setEditProposalUploads(prev => [...prev, ...toAdd]);
+    toAdd.forEach(item => startUpload(item, setEditProposalUploads));
+    if (editProposalFileRef.current) editProposalFileRef.current.value = "";
   };
 
   const handleSubmitProposal = async (e: React.FormEvent) => {
@@ -314,15 +371,24 @@ export default function ApplyJobPage() {
       return;
     }
 
+    if (proposalUploads.some(u => u.status === "uploading")) {
+      toast.error("Please wait for file uploads to complete.");
+      return;
+    }
+    if (proposalUploads.some(u => u.status === "error")) {
+      toast.error("Some files failed to upload. Remove or retry them before submitting.");
+      return;
+    }
+
     setSubmitting(true);
-    const attachmentUrls = await uploadProposalAttachments();
+    const attachmentUrls = proposalUploads.filter(u => u.status === "done" && u.url).map(u => u.url!);
 
     const totalBid = paymentType === "milestone"
       ? milestones.reduce((sum, m) => sum + parseCommaNumber(m.amountFormatted), 0)
       : parseCommaNumber(bidAmountFormatted);
 
     const totalDays = paymentType === "milestone"
-      ? Math.max(...milestones.map(m => toDays(parseInt(m.duration) || 0, m.durationUnit)), 1)
+      ? Math.max(milestones.reduce((sum, m) => sum + toDays(parseInt(m.duration) || 0, m.durationUnit), 0), 1)
       : toDays(parseInt(deliveryValue) || 1, deliveryUnit);
 
     const milestonesData = paymentType === "milestone"
@@ -387,9 +453,18 @@ export default function ApplyJobPage() {
       return;
     }
 
+    if (editProposalUploads.some(u => u.status === "uploading")) {
+      toast.error("Please wait for file uploads to complete.");
+      return;
+    }
+    if (editProposalUploads.some(u => u.status === "error")) {
+      toast.error("Some files failed to upload. Remove or retry them before saving.");
+      return;
+    }
+
     setEditSubmitting(true);
 
-    const freshUrls = await uploadProposalAttachments(editProposalFiles);
+    const freshUrls = editProposalUploads.filter(u => u.status === "done" && u.url).map(u => u.url!);
     const allAttachments = [...editAttachmentUrls, ...freshUrls];
 
     const totalBid = editPaymentType === "milestone"
@@ -397,7 +472,7 @@ export default function ApplyJobPage() {
       : parseCommaNumber(editBidAmountFormatted);
 
     const totalDays = editPaymentType === "milestone"
-      ? Math.max(...editMilestones.map(m => toDays(parseInt(m.duration) || 0, m.durationUnit)), 1)
+      ? Math.max(editMilestones.reduce((sum, m) => sum + toDays(parseInt(m.duration) || 0, m.durationUnit), 0), 1)
       : toDays(parseInt(editDeliveryValue) || 1, editDeliveryUnit);
 
     const milestonesData = editPaymentType === "milestone"
@@ -486,9 +561,10 @@ export default function ApplyJobPage() {
           <div className="flex gap-2">
             {editingProposal ? (
               <>
-                <Button size="sm" onClick={handleEditProposal} disabled={editSubmitting}>
-                  {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save Changes
+                <Button size="sm" onClick={handleEditProposal} disabled={editSubmitting || editProposalUploads.some(u => u.status === "uploading")}>
+                  {editSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving...</>
+                    : editProposalUploads.some(u => u.status === "uploading") ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Uploading...</>
+                    : "Save Changes"}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => {
                   setEditingProposal(false);
@@ -683,22 +759,43 @@ export default function ApplyJobPage() {
                   })}
                 </div>
               )}
-              {editProposalFiles.map((file, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Paperclip className="h-4 w-4 text-primary shrink-0" />
-                    <span className="truncate">{file.name}</span>
+              {editProposalUploads.map((item) => (
+                <div key={item.id} className="space-y-1">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                      <span className="truncate">{item.file.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                      {item.status === "uploading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                      {item.status === "error" && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
+                      {item.status !== "uploading" && (
+                        <button type="button" onClick={() => setEditProposalUploads(prev => prev.filter(u => u.id !== item.id))} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditProposalFiles(editProposalFiles.filter((_, i) => i !== idx))}
-                    className="ml-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  {item.status === "uploading" && (
+                    <div className="h-1 bg-muted rounded-full overflow-hidden ml-7">
+                      {item.progress > 0
+                        ? <div className="h-full bg-primary transition-all duration-150" style={{ width: `${item.progress}%` }} />
+                        : <div className="h-full bg-primary animate-pulse w-1/3" />}
+                    </div>
+                  )}
+                  {item.status === "error" && (
+                    <div className="flex items-center gap-2 ml-7">
+                      <p className="text-xs text-destructive flex-1">{item.errorMsg}</p>
+                      <button type="button" onClick={() => {
+                        const reset = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null };
+                        setEditProposalUploads(prev => prev.map(u => u.id === item.id ? reset : u));
+                        startUpload(reset, setEditProposalUploads);
+                      }} className="text-xs text-primary hover:underline shrink-0">Retry</button>
+                    </div>
+                  )}
                 </div>
               ))}
-              {editAttachmentUrls.length + editProposalFiles.length < 5 && (
+              {editAttachmentUrls.length + editProposalUploads.length < 5 && (
                 <button
                   type="button"
                   onClick={() => editProposalFileRef.current?.click()}
@@ -713,13 +810,7 @@ export default function ApplyJobPage() {
                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip"
                 multiple
                 className="hidden"
-                onChange={(e) => {
-                  const incoming = Array.from(e.target.files || []);
-                  const allowed = incoming.filter(f => f.size <= 10 * 1024 * 1024);
-                  const remaining = 5 - editAttachmentUrls.length - editProposalFiles.length;
-                  setEditProposalFiles(prev => [...prev, ...allowed].slice(0, prev.length + remaining));
-                  if (editProposalFileRef.current) editProposalFileRef.current.value = "";
-                }}
+                onChange={handleEditFileChange}
               />
             </div>
           </div>
@@ -1011,17 +1102,42 @@ export default function ApplyJobPage() {
                         className="hidden"
                         onChange={handleProposalFileChange}
                       />
-                      <Button type="button" variant="outline" size="sm" onClick={() => proposalFileRef.current?.click()} disabled={proposalFiles.length >= 5}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => proposalFileRef.current?.click()} disabled={proposalUploads.length >= 5}>
                         <Paperclip className="h-4 w-4 mr-2" /> Add Files
                       </Button>
-                      {proposalFiles.length > 0 && (
-                        <div className="space-y-1 mt-2">
-                          {proposalFiles.map((file, idx) => (
-                            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm">
-                              <FileText className="h-4 w-4 text-primary shrink-0" />
-                              <span className="flex-1 truncate">{file.name}</span>
-                              <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
-                              <X className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setProposalFiles(proposalFiles.filter((_, i) => i !== idx))} />
+                      {proposalUploads.length > 0 && (
+                        <div className="space-y-1.5 mt-2">
+                          {proposalUploads.map((item) => (
+                            <div key={item.id} className="space-y-1">
+                              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border text-sm">
+                                <FileText className="h-4 w-4 text-primary shrink-0" />
+                                <span className="flex-1 truncate">{item.file.name}</span>
+                                <span className="text-xs text-muted-foreground">{(item.file.size / 1024).toFixed(0)} KB</span>
+                                {item.status === "uploading" && <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />}
+                                {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+                                {item.status !== "uploading" && (
+                                  <button type="button" onClick={() => setProposalUploads(prev => prev.filter(u => u.id !== item.id))}>
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                  </button>
+                                )}
+                              </div>
+                              {item.status === "uploading" && (
+                                <div className="h-1 bg-muted rounded-full overflow-hidden ml-7">
+                                  {item.progress > 0
+                                    ? <div className="h-full bg-primary transition-all duration-150" style={{ width: `${item.progress}%` }} />
+                                    : <div className="h-full bg-primary animate-pulse w-1/3" />}
+                                </div>
+                              )}
+                              {item.status === "error" && (
+                                <div className="flex items-center gap-2 ml-7">
+                                  <p className="text-xs text-destructive flex-1">{item.errorMsg}</p>
+                                  <button type="button" onClick={() => {
+                                    const reset = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null };
+                                    setProposalUploads(prev => prev.map(u => u.id === item.id ? reset : u));
+                                    startUpload(reset, setProposalUploads);
+                                  }} className="text-xs text-primary hover:underline shrink-0">Retry</button>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1066,9 +1182,10 @@ export default function ApplyJobPage() {
                     )}
 
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button type="submit" disabled={submitting || (job?.is_nda && !ndaAcknowledged)} className="w-full sm:w-auto">
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                        Submit Proposal
+                      <Button type="submit" disabled={submitting || proposalUploads.some(u => u.status === "uploading") || (job?.is_nda && !ndaAcknowledged)} className="w-full sm:w-auto">
+                        {submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</>
+                          : proposalUploads.some(u => u.status === "uploading") ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Uploading files...</>
+                          : <><Send className="h-4 w-4 mr-2" />Submit Proposal</>}
                       </Button>
                       <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/job/${id}`)}>Cancel</Button>
                     </div>

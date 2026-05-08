@@ -5,12 +5,17 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { getExpertProposalsOverview } from "@/api/proposals.api";
+import { getExpertProposalsOverview, withdrawMyJobProposal } from "@/api/proposals.api";
 import { useCurrency } from "@/hooks/useCurrency";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
-  Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle
+  Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle, LogOut
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
@@ -22,6 +27,8 @@ export default function ExpertProposalsPage() {
   const [proposals, setProposals] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [interviewContracts, setInterviewContracts] = useState<Record<string, string>>({});
+  const [withdrawConfirm, setWithdrawConfirm] = useState<any | null>(null);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) navigate("/auth");
@@ -54,6 +61,21 @@ export default function ExpertProposalsPage() {
     const cfg = map[status] || { variant: "secondary" as const, icon: Clock };
     const Icon = cfg.icon;
     return <Badge variant={cfg.variant} className="gap-1 capitalize"><Icon className="h-3 w-3" />{status}</Badge>;
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawConfirm) return;
+    setWithdrawingId(withdrawConfirm.id);
+    try {
+      await withdrawMyJobProposal(withdrawConfirm.id);
+      toast.success("Proposal withdrawn.");
+      setProposals((prev) => prev.map((p) => p.id === withdrawConfirm.id ? { ...p, status: "withdrawn" } : p));
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to withdraw proposal.");
+    } finally {
+      setWithdrawingId(null);
+      setWithdrawConfirm(null);
+    }
   };
 
   const EmptyState = ({ icon: Icon, text }: { icon: any; text: string }) => (
@@ -111,6 +133,18 @@ export default function ExpertProposalsPage() {
               }}
             >
               <MessageCircle className="h-4 w-4" />
+            </Button>
+          )}
+          {p.status === "pending" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+              disabled={withdrawingId === p.id}
+              onClick={(e) => { e.preventDefault(); setWithdrawConfirm(p); }}
+            >
+              {withdrawingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+              Withdraw
             </Button>
           )}
         </div>
@@ -264,6 +298,27 @@ export default function ExpertProposalsPage() {
         </div>
       </main>
       <Footer />
+
+      <AlertDialog open={!!withdrawConfirm} onOpenChange={(open) => { if (!open) setWithdrawConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Withdraw Proposal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to withdraw your proposal for <strong>{withdrawConfirm?.job?.title || "this job"}</strong>? You won't be able to reapply to this job after withdrawing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleWithdraw}
+            >
+              {withdrawingId ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Withdraw
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

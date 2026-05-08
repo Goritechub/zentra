@@ -68,7 +68,8 @@ export default function ProposalsReceivedPage() {
   const proposalsOverviewQuery = useQuery({
     queryKey: ["client-received-proposals", user?.id],
     enabled: bootstrapStatus === "ready" && !!user,
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     placeholderData: (previousData) => previousData,
     queryFn: getClientReceivedProposalsOverview,
   });
@@ -246,9 +247,16 @@ export default function ProposalsReceivedPage() {
     }));
   };
 
-  const paymentReady = wallet && wallet.balance > 0;
+  const actionableProposals = proposals.filter((p) => p.status === "pending" || p.status === "interviewing");
+  const minRequired =
+    actionableProposals.length > 0
+      ? Math.min(...actionableProposals.map((p) => getRequiredAmount(p)))
+      : 0;
+  const paymentReady =
+    wallet !== null &&
+    (actionableProposals.length === 0 ? wallet.balance > 0 : wallet.balance >= minRequired);
 
-  const showInitialPageLoader = !user && (authLoading || bootstrapStatus === "loading");
+  const showInitialPageLoader = !user && bootstrapStatus === "loading";
 
   if (showInitialPageLoader) {
     return (
@@ -294,12 +302,12 @@ export default function ProposalsReceivedPage() {
             </div>
           </div>
 
-          {!paymentReady && (
+          {!paymentReady && actionableProposals.length > 0 && (
             <Alert className="mb-6 border-destructive/30 bg-destructive/5">
               <Wallet className="h-4 w-4 text-destructive" />
               <AlertDescription className="text-sm">
-                You need to fund your wallet before you can assign experts to jobs.{" "}
-                <Link to="/transactions" className="text-primary hover:underline font-medium">Go to Wallet →</Link>
+                Your wallet balance ({format(wallet?.balance || 0)}) is insufficient to assign any expert. You need at least {format(minRequired)} to fund the cheapest pending proposal.{" "}
+                <Link to="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</Link>
               </AlertDescription>
             </Alert>
           )}
@@ -328,12 +336,12 @@ export default function ProposalsReceivedPage() {
                         <div key={group.jobId} className={`rounded-xl border ${isAssigned ? "border-border/50 bg-muted/30" : "border-border bg-card"}`}>
                           {/* Job Group Header */}
                           <div className={`flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b ${isAssigned ? "border-border/50" : "border-border"}`}>
-                            <div className="flex items-center gap-3">
-                              <Briefcase className={`h-4 w-4 ${isAssigned ? "text-muted-foreground" : "text-primary"}`} />
-                              <Link to={`/job/${group.jobId}`} className={`font-semibold hover:underline ${isAssigned ? "text-muted-foreground" : "text-foreground hover:text-primary"}`}>
+                            <div className="flex items-center gap-x-3 gap-y-1 flex-wrap min-w-0">
+                              <Briefcase className={`h-4 w-4 shrink-0 ${isAssigned ? "text-muted-foreground" : "text-primary"}`} />
+                              <Link to={`/job/${group.jobId}`} className={`font-semibold hover:underline min-w-0 break-words ${isAssigned ? "text-muted-foreground" : "text-foreground hover:text-primary"}`}>
                                 {group.jobTitle}
                               </Link>
-                              <Badge variant="outline" className="text-xs">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</Badge>
+                              <Badge variant="outline" className="text-xs whitespace-nowrap shrink-0">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</Badge>
                             </div>
                             <div className="flex items-center gap-2">
                               {isAssigned && contractStatusLabel(group.contract.status)}
