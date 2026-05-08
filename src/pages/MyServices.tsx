@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getLocalStorageToken } from "@/api/axios";
 import {
   createMyService,
   deleteMyService as deleteMyServiceApi,
@@ -24,8 +24,11 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, ShoppingBag, Trash2, X, Clock,
-  Upload, Pause, Play, Pencil,
+  Upload, Pause, Play, Pencil, AlertCircle, RotateCcw, CheckCircle2,
 } from "lucide-react";
+
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null; localPreview: string };
 import { categoryNames } from "@/lib/categories";
 
 const CATEGORIES = categoryNames;
@@ -64,7 +67,7 @@ export default function MyServicesPage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
   const [images, setImages] = useState<string[]>([]);
-  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageUploads, setImageUploads] = useState<UploadItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const basicsRef = useRef<HTMLDivElement>(null);
@@ -95,6 +98,7 @@ export default function MyServicesPage() {
     setTitle(""); setDescription(""); setCategory(""); setPricingType("fixed");
     setPrice(""); setDeliveryDays(""); setDeliveryUnit("days"); setRevisions("");
     setSkills([]); setSkillInput(""); setEditing(null); setImages([]);
+    setImageUploads(prev => { prev.forEach(u => URL.revokeObjectURL(u.localPreview)); return []; });
   };
 
   const openEditForm = (svc: any) => {
@@ -109,33 +113,65 @@ export default function MyServicesPage() {
     setRevisions(svc.revisions_allowed?.toString() || "");
     setSkills(svc.skills || []);
     setImages(svc.images || []);
+    setImageUploads([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleImageUpload = async (files: FileList | null) => {
-    if (!files || !user) return;
-    setUploadingImages(true);
-    const newUrls: string[] = [];
-    for (const file of Array.from(files).slice(0, 5 - images.length)) {
-      const path = `${user.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from("service-images").upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from("service-images").getPublicUrl(path);
-        newUrls.push(data.publicUrl);
+  const uploadOneServiceImage = (item: UploadItem) => {
+    const token = getLocalStorageToken();
+    const formData = new FormData();
+    formData.append("files", item.file);
+    const xhr = new XMLHttpRequest();
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    xhr.open("POST", `${baseUrl}/services/attachments`, true);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, progress: Math.round((e.loaded / e.total) * 100) } : u));
       }
-    }
-    setImages((prev) => [...prev, ...newUrls]);
-    setUploadingImages(false);
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const url = JSON.parse(xhr.responseText)?.data?.urls?.[0] ?? null;
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
+      } else {
+        let msg = "Upload failed";
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
+      }
+    });
+    xhr.addEventListener("error", () => {
+      setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: "Network error" } : u));
+    });
+    xhr.send(formData);
+  };
+
+  const handleImageUpload = (files: FileList | null) => {
+    if (!files || !user) return;
+    const total = images.length + imageUploads.length;
+    const newItems: UploadItem[] = Array.from(files)
+      .slice(0, 5 - total)
+      .map(f => ({ id: `${Date.now()}_${Math.random()}`, file: f, progress: 0, status: "uploading", url: null, errorMsg: null, localPreview: URL.createObjectURL(f) }));
+    setImageUploads((prev) => {
+      const merged = [...prev, ...newItems].slice(0, 5 - images.length);
+      newItems.forEach(uploadOneServiceImage);
+      return merged;
+    });
   };
 
   const removeImage = (idx: number) => setImages(images.filter((_, i) => i !== idx));
+  const removeUpload = (id: string) => setImageUploads(prev => { const item = prev.find(u => u.id === id); if (item) URL.revokeObjectURL(item.localPreview); return prev.filter(u => u.id !== id); });
+  const retryUpload = (item: UploadItem) => { const retry = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null }; setImageUploads(prev => prev.map(u => u.id === item.id ? retry : u)); uploadOneServiceImage(retry); };
 
   const handleSave = async () => {
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description required");
       return;
     }
+    if (imageUploads.some(u => u.status === "uploading")) { toast.error("Please wait for images to finish uploading"); return; }
+    if (imageUploads.some(u => u.status === "error")) { toast.error("Some images failed. Remove or retry them first."); return; }
     setSaving(true);
+    const allImages = [...images, ...imageUploads.filter(u => u.status === "done" && u.url).map(u => u.url!)];
     const data: any = {
       freelancer_id: user!.id,
       title: title.trim(),
@@ -147,8 +183,8 @@ export default function MyServicesPage() {
       delivery_unit: deliveryUnit,
       revisions_allowed: revisions ? parseInt(revisions) : null,
       skills,
-      images,
-      banner_image: images.length > 0 ? images[0] : null,
+      images: allImages,
+      banner_image: allImages.length > 0 ? allImages[0] : null,
       is_active: true,
     };
     try {
@@ -383,56 +419,46 @@ export default function MyServicesPage() {
                         {/* Media */}
                         <div ref={mediaRef} className="snap-start space-y-4 pb-6 pt-2">
                           <FormSectionLabel label="Media" />
-                          {images.length > 0 && (
+                          {(images.length > 0 || imageUploads.length > 0) && (
                             <div className="grid grid-cols-2 gap-2">
                               {images.map((url, i) => (
-                                <div
-                                  key={i}
-                                  className="relative aspect-video bg-muted rounded-lg overflow-hidden group"
-                                >
-                                  <img
-                                    src={url}
-                                    alt={`Service image ${i + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImage(i)}
-                                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
+                                <div key={i} className="relative aspect-video bg-muted rounded-lg overflow-hidden group">
+                                  <img src={url} alt={`Service image ${i + 1}`} className="w-full h-full object-cover" />
+                                  <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <X className="h-3 w-3" />
                                   </button>
-                                  {i === 0 && (
-                                    <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 text-foreground px-1.5 py-0.5 rounded">
-                                      Thumbnail
-                                    </span>
+                                  {i === 0 && <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 text-foreground px-1.5 py-0.5 rounded">Thumbnail</span>}
+                                </div>
+                              ))}
+                              {imageUploads.map((item) => (
+                                <div key={item.id} className="relative aspect-video bg-muted rounded-lg overflow-hidden group">
+                                  <img src={item.localPreview} alt="Uploading" className="w-full h-full object-cover" />
+                                  {item.status === "uploading" && (
+                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                                      <div className="w-3/4 h-1 bg-white/30 rounded-full overflow-hidden">
+                                        <div className="h-full bg-white transition-all duration-200 rounded-full" style={{ width: `${item.progress}%` }} />
+                                      </div>
+                                    </div>
                                   )}
+                                  {item.status === "done" && <div className="absolute top-1 left-1 bg-emerald-500 rounded-full p-0.5"><CheckCircle2 className="h-3 w-3 text-white" /></div>}
+                                  {item.status === "error" && (
+                                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
+                                      <AlertCircle className="h-4 w-4 text-destructive" />
+                                      <button type="button" onClick={() => retryUpload(item)} className="text-[10px] text-white underline flex items-center gap-0.5"><RotateCcw className="h-2.5 w-2.5" /> Retry</button>
+                                    </div>
+                                  )}
+                                  <button type="button" onClick={() => removeUpload(item.id)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3" /></button>
                                 </div>
                               ))}
                             </div>
                           )}
-                          {images.length < 5 && (
+                          {images.length + imageUploads.length < 5 && (
                             <>
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e.target.files)}
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full rounded-lg text-xs"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploadingImages}
-                              >
-                                {uploadingImages
-                                  ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                                  : <Upload className="h-3 w-3 mr-1.5" />}
-                                Upload Images ({images.length}/5)
+                              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleImageUpload(e.target.files)} />
+                              <Button type="button" variant="outline" size="sm" className="w-full rounded-lg text-xs" onClick={() => fileInputRef.current?.click()} disabled={imageUploads.some(u => u.status === "uploading")}>
+                                {imageUploads.some(u => u.status === "uploading") ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <Upload className="h-3 w-3 mr-1.5" />}
+                                Upload Images ({images.length + imageUploads.length}/5)
                               </Button>
                             </>
                           )}

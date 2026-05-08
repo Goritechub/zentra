@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getLocalStorageToken } from "@/api/axios";
 import {
   createMyPortfolioItem,
   deleteMyPortfolioItem,
@@ -26,7 +26,13 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  AlertCircle,
+  RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
+
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null; localPreview: string };
 
 function ImageCarousel({ images }: { images: string[] }) {
   const [idx, setIdx] = useState(0);
@@ -78,8 +84,7 @@ export default function ManagePortfolioPage() {
   const [projectType, setProjectType] = useState("");
   const [softwareUsed, setSoftwareUsed] = useState<string[]>([]);
   const [swSearch, setSwSearch] = useState("");
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageUploads, setImageUploads] = useState<UploadItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -106,66 +111,85 @@ export default function ManagePortfolioPage() {
     }
   }, [bootstrapStatus, user, fetchPortfolio]);
 
+  const uploadOneImage = (item: UploadItem) => {
+    const token = getLocalStorageToken();
+    const formData = new FormData();
+    formData.append("files", item.file);
+    const xhr = new XMLHttpRequest();
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    xhr.open("POST", `${baseUrl}/portfolio/attachments`, true);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, progress: Math.round((e.loaded / e.total) * 100) } : u));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const url = JSON.parse(xhr.responseText)?.data?.urls?.[0] ?? null;
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
+      } else {
+        let msg = "Upload failed";
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
+      }
+    });
+    xhr.addEventListener("error", () => {
+      setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: "Network error" } : u));
+    });
+    xhr.send(formData);
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).filter((f) =>
-      ["jpg", "jpeg", "png", "webp"].includes(f.name.split(".").pop()?.toLowerCase() || ""),
+      /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name),
     );
-    const combined = [...imageFiles, ...files].slice(0, 5);
-    setImageFiles(combined);
-
-    const previews: string[] = [];
-    combined.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        previews.push(ev.target?.result as string);
-        if (previews.length === combined.length) setImagePreviews([...previews]);
-      };
-      reader.readAsDataURL(file);
+    const newItems: UploadItem[] = files
+      .slice(0, 5 - imageUploads.length)
+      .map(f => ({ id: `${Date.now()}_${Math.random()}`, file: f, progress: 0, status: "uploading", url: null, errorMsg: null, localPreview: URL.createObjectURL(f) }));
+    setImageUploads((prev) => {
+      const merged = [...prev, ...newItems].slice(0, 5);
+      newItems.forEach(uploadOneImage);
+      return merged;
     });
-
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
-  const removeImage = (idx: number) => {
-    setImageFiles((f) => f.filter((_, i) => i !== idx));
-    setImagePreviews((p) => p.filter((_, i) => i !== idx));
+  const removeImage = (id: string) => {
+    setImageUploads((prev) => {
+      const item = prev.find(u => u.id === id);
+      if (item) URL.revokeObjectURL(item.localPreview);
+      return prev.filter(u => u.id !== id);
+    });
+  };
+
+  const retryImage = (item: UploadItem) => {
+    const retry = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null };
+    setImageUploads((prev) => prev.map(u => u.id === item.id ? retry : u));
+    uploadOneImage(retry);
   };
 
   const handleAdd = async () => {
-    if (!profileId || !title.trim()) {
-      toast.error("Please enter a title");
-      return;
-    }
+    if (!profileId || !title.trim()) { toast.error("Please enter a title"); return; }
+    if (imageUploads.some(u => u.status === "uploading")) { toast.error("Please wait for images to finish uploading"); return; }
+    if (imageUploads.some(u => u.status === "error")) { toast.error("Some images failed to upload. Remove or retry them first."); return; }
 
     setSaving(true);
-    const uploadedUrls: string[] = [];
-    for (const file of imageFiles) {
-      const path = `portfolio/${user!.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from("contract-attachments").upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from("contract-attachments").getPublicUrl(path);
-        uploadedUrls.push(data.publicUrl);
-      }
-    }
-
     try {
       await createMyPortfolioItem({
         title: title.trim(),
         description: description.trim() || null,
         projectType: projectType.trim() || null,
         softwareUsed,
-        images: uploadedUrls,
+        images: imageUploads.filter(u => u.status === "done" && u.url).map(u => u.url!),
       });
       toast.success("Portfolio item added!");
-      setTitle("");
-      setDescription("");
-      setProjectType("");
-      setSoftwareUsed([]);
-      setImageFiles([]);
-      setImagePreviews([]);
+      setTitle(""); setDescription(""); setProjectType(""); setSoftwareUsed([]);
+      imageUploads.forEach(u => URL.revokeObjectURL(u.localPreview));
+      setImageUploads([]);
       setShowForm(false);
       void fetchPortfolio();
-    } catch (error) {
+    } catch {
       toast.error("Failed to add portfolio item");
     } finally {
       setSaving(false);
@@ -340,17 +364,39 @@ export default function ManagePortfolioPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => imageInputRef.current?.click()}
-                    disabled={imageFiles.length >= 5}
+                    disabled={imageUploads.length >= 5}
                   >
-                    <Upload className="h-4 w-4 mr-2" /> Upload Images
+                    <Upload className="h-4 w-4 mr-2" /> Upload Images ({imageUploads.length}/5)
                   </Button>
-                  {imagePreviews.length > 0 && (
+                  {imageUploads.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 mt-2">
-                      {imagePreviews.map((src, i) => (
-                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
-                          <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                      {imageUploads.map((item) => (
+                        <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                          <img src={item.localPreview} alt="Preview" className="w-full h-full object-cover" />
+                          {item.status === "uploading" && (
+                            <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                              <Loader2 className="h-5 w-5 text-white animate-spin" />
+                              <div className="w-3/4 h-1 bg-white/30 rounded-full overflow-hidden">
+                                <div className="h-full bg-white transition-all duration-200 rounded-full" style={{ width: `${item.progress}%` }} />
+                              </div>
+                            </div>
+                          )}
+                          {item.status === "done" && (
+                            <div className="absolute top-1 left-1 bg-emerald-500 rounded-full p-0.5">
+                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                          {item.status === "error" && (
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5 p-1">
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                              <button type="button" onClick={() => retryImage(item)} className="text-[10px] text-white underline flex items-center gap-0.5">
+                                <RotateCcw className="h-2.5 w-2.5" /> Retry
+                              </button>
+                            </div>
+                          )}
                           <button
-                            onClick={() => removeImage(i)}
+                            type="button"
+                            onClick={() => removeImage(item.id)}
                             className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <X className="h-3 w-3" />
@@ -367,15 +413,15 @@ export default function ManagePortfolioPage() {
                     className="w-full sm:w-auto"
                     onClick={() => {
                       setShowForm(false);
-                      setImageFiles([]);
-                      setImagePreviews([]);
+                      imageUploads.forEach(u => URL.revokeObjectURL(u.localPreview));
+                      setImageUploads([]);
                     }}
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleAdd} disabled={saving} className="w-full sm:w-auto">
-                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Add Item
+                  <Button onClick={handleAdd} disabled={saving || imageUploads.some(u => u.status === "uploading")} className="w-full sm:w-auto">
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : imageUploads.some(u => u.status === "uploading") ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                    {imageUploads.some(u => u.status === "uploading") ? "Uploading..." : "Add Item"}
                   </Button>
                 </div>
               </div>
