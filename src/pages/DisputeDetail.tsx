@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getLocalStorageToken } from "@/api/axios";
 import { getDisputeDetail, submitDisputeResponse } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
@@ -35,7 +35,12 @@ import {
   CheckCircle2,
   Gavel,
   MessageSquare,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
+
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null };
 
 const DISPUTE_STATUS_CONFIG: Record<
   string,
@@ -57,7 +62,7 @@ export default function DisputeDetail() {
   const [loading, setLoading] = useState(true);
   const [showRespond, setShowRespond] = useState(false);
   const [responseText, setResponseText] = useState("");
-  const [responseFiles, setResponseFiles] = useState<File[]>([]);
+  const [responseUploads, setResponseUploads] = useState<UploadItem[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -95,36 +100,68 @@ export default function DisputeDetail() {
   const deadlineExpired =
     dispute?.response_deadline && isPast(new Date(dispute.response_deadline));
 
+  const uploadOneFile = (item: UploadItem) => {
+    const token = getLocalStorageToken();
+    const formData = new FormData();
+    formData.append("files", item.file);
+    const xhr = new XMLHttpRequest();
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    xhr.open("POST", `${baseUrl}/contracts/attachments`, true);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, progress: pct } : u));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const res = JSON.parse(xhr.responseText);
+        const url = res?.data?.urls?.[0] ?? null;
+        setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
+      } else {
+        let msg = "Upload failed";
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
+      }
+    });
+    xhr.addEventListener("error", () => {
+      setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: "Network error" } : u));
+    });
+    xhr.send(formData);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 5);
-    setResponseFiles((prev) => [...prev, ...files].slice(0, 5));
+    const files = Array.from(e.target.files || []).filter(f => /\.(pdf|png|jpg|jpeg|zip|doc|docx)$/i.test(f.name));
+    const newItems: UploadItem[] = files.map(f => ({ id: `${Date.now()}_${Math.random()}`, file: f, progress: 0, status: "uploading", url: null, errorMsg: null }));
+    setResponseUploads((prev) => {
+      const merged = [...prev, ...newItems].slice(0, 5);
+      newItems.forEach(item => uploadOneFile(item));
+      return merged;
+    });
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  const retryUpload = (item: UploadItem) => {
+    const retry = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null };
+    setResponseUploads((prev) => prev.map((u) => u.id === item.id ? retry : u));
+    uploadOneFile(retry);
+  };
+
   const handleSubmitResponse = async () => {
-    if (!responseText.trim()) {
-      toast.error("Please provide your explanation");
-      return;
-    }
+    if (!responseText.trim()) { toast.error("Please provide your explanation"); return; }
+    if (responseUploads.some(u => u.status === "uploading")) { toast.error("Please wait for evidence uploads to finish"); return; }
+    if (responseUploads.some(u => u.status === "error")) { toast.error("Some evidence files failed to upload. Remove or retry before submitting."); return; }
 
     setActionLoading(true);
-    const evidenceUrls: string[] = [];
-
-    for (const file of responseFiles) {
-      const path = `disputes/${user!.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from("contract-attachments").upload(path, file);
-      if (!error) {
-        const { data } = supabase.storage.from("contract-attachments").getPublicUrl(path);
-        evidenceUrls.push(data.publicUrl);
-      }
-    }
+    const evidenceUrls = responseUploads.filter(u => u.status === "done" && u.url).map(u => u.url!);
 
     try {
       await submitDisputeResponse(disputeId!, responseText.trim(), evidenceUrls);
       toast.success("Response submitted. Case is now under review.");
       setShowRespond(false);
       setResponseText("");
-      setResponseFiles([]);
+      setResponseUploads([]);
       void fetchData();
     } catch (error) {
       toast.error("Failed to submit response");
@@ -369,7 +406,7 @@ export default function DisputeDetail() {
       </main>
       <Footer />
 
-      <Dialog open={showRespond} onOpenChange={setShowRespond}>
+      <Dialog open={showRespond} onOpenChange={(open) => { if (!open) { setResponseUploads([]); setResponseText(""); } setShowRespond(open); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Submit Dispute Response</DialogTitle>
@@ -390,19 +427,33 @@ export default function DisputeDetail() {
             </div>
 
             <div className="space-y-2">
-              <Label>Evidence Files (optional, max 5)</Label>
-              <input ref={fileRef} type="file" className="hidden" multiple onChange={handleFileChange} />
-              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>
+              <Label>Evidence Files <span className="text-muted-foreground text-xs">(optional, up to 5)</span></Label>
+              <input ref={fileRef} type="file" className="hidden" multiple accept=".pdf,.png,.jpg,.jpeg,.zip,.doc,.docx" onChange={handleFileChange} />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={responseUploads.length >= 5}>
                 <Paperclip className="h-4 w-4 mr-2" /> Add Files
               </Button>
-              {responseFiles.length > 0 && (
-                <div className="space-y-2">
-                  {responseFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded border border-border bg-muted/50">
-                      <span className="text-sm truncate">{file.name}</span>
-                      <button onClick={() => setResponseFiles((prev) => prev.filter((_, i) => i !== idx))}>
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </button>
+              {responseUploads.length > 0 && (
+                <div className="space-y-2 mt-1">
+                  {responseUploads.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+                        <span className="text-sm flex-1 truncate">{item.file.name}</span>
+                        {item.status === "error" && (
+                          <button type="button" onClick={() => retryUpload(item)} className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0">
+                            <RotateCcw className="h-3 w-3" /> Retry
+                          </button>
+                        )}
+                        <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground shrink-0" onClick={() => setResponseUploads(p => p.filter(u => u.id !== item.id))} />
+                      </div>
+                      {item.status === "uploading" && (
+                        <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-200 rounded-full" style={{ width: `${item.progress}%` }} />
+                        </div>
+                      )}
+                      {item.status === "error" && <p className="text-xs text-destructive">{item.errorMsg}</p>}
                     </div>
                   ))}
                 </div>
@@ -411,12 +462,12 @@ export default function DisputeDetail() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRespond(false)}>
+            <Button variant="outline" onClick={() => { setShowRespond(false); setResponseUploads([]); setResponseText(""); }}>
               Cancel
             </Button>
-            <Button onClick={handleSubmitResponse} disabled={actionLoading || !responseText.trim()}>
-              {actionLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Submit Response
+            <Button onClick={handleSubmitResponse} disabled={actionLoading || !responseText.trim() || responseUploads.some(u => u.status === "uploading")}>
+              {(actionLoading || responseUploads.some(u => u.status === "uploading")) ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              {responseUploads.some(u => u.status === "uploading") ? "Uploading evidence..." : "Submit Response"}
             </Button>
           </DialogFooter>
         </DialogContent>
