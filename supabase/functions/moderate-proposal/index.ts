@@ -21,7 +21,7 @@ const PATTERNS = {
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet)\b/i,
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?)\b/i,
   obfuscatedEmail: /\bat\s+(?:gmail|yahoo|outlook|hotmail)\s+dot\s+com\b/i,
-  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|signal|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|signal|instagram|facebook|my\s+(?:phone|number|email)))\b/i,
+  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|signal|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|signal|instagram|facebook|my\s+(?:phone|number|e[...]
 };
 
 function regexModerate(content: string): { allowed: boolean; reason: string; confidence: number } {
@@ -59,21 +59,30 @@ async function aiModerate(content: string): Promise<{ allowed: boolean; reason: 
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "gpt-4-mini",
         temperature: 0,
         messages: [
           {
             role: "system",
-            content: `You are a content moderator for a freelance marketplace proposal/cover letter. ONLY block content that contains EXPLICIT contact details (real phone numbers, email addresses, social media handles/usernames) or CLEAR attempts to move communication off-platform (e.g. "message me on WhatsApp", "here's my number").
+            content: `You are a content moderator for a freelance marketplace proposal/cover letter. Your job is to identify REAL ATTEMPTS to share contact information to move communication OFF THE PLATFORM.
+
+BLOCK ONLY if the text contains:
+- ACTUAL phone numbers (real number sequences)
+- ACTUAL email addresses (real email patterns)
+- EXPLICIT instructions to contact on WhatsApp, Telegram, Instagram, Facebook, etc. with clear intent
+- Clear instructions like "call me at", "email me at", "message me on [platform]"
 
 DO NOT block:
-- Professional language like "call it done", "call this project", "contact you through the platform"
-- Generic words like "call", "reach", "contact" used in normal professional context
-- Discussion of project scope, timelines, deliverables
-- Technical descriptions or professional qualifications
+- Generic professional phrases: "I'll contact you", "let's discuss", "I can reach out"
+- The word "call" in phrases like "call it done", "call this complete", "call this project"
+- Mentioning communication methods in general: "we can discuss via chat", "I prefer video calls"
+- Professional language about project delivery and scope
+- Technical descriptions or qualifications
+- Legitimate business discussion
 
-Only flag with high confidence (0.95+) when there is an UNMISTAKABLE attempt to share real contact info.
-Respond ONLY with JSON: {"allowed":boolean,"reason":"string","confidence":number}`,
+IMPORTANT: If you see technical language or professional proposal content, default to ALLOW unless there's an unmistakable attempt to share real contact info.
+
+Respond ONLY with valid JSON: {"allowed":boolean,"reason":"string","confidence":number}`,
           },
           { role: "user", content },
         ],
@@ -190,9 +199,10 @@ serve(async (req) => {
       );
     }
 
-    // Layer B: AI moderation
+    // Layer B: AI moderation - ONLY use if regex passed and use MUCH higher confidence threshold
+    // This prevents false positives on legitimate professional proposals
     const aiResult = await aiModerate(cover_letter);
-    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.9) {
+    if (aiResult && !aiResult.allowed && aiResult.confidence > 0.95) {
       await supabaseAdmin.from("moderation_logs").insert({
         user_id: user.id,
         content_type: "proposal",
