@@ -351,7 +351,7 @@ export default function ApplyJobPage() {
       }
       setSubmittedConfirmation(true);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Your proposal was blocked due to policy violations.");
+      toast.error(error?.message || "Your proposal was blocked due to policy violations.");
       setSubmitting(false);
       return;
     }
