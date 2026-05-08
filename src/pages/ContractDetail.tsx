@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { ContractChat } from "@/components/contract/ContractChat";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { api } from "@/api/axios";
+import { api, getLocalStorageToken } from "@/api/axios";
 import {
   addContractMilestone,
   getContractDetail,
@@ -29,10 +28,13 @@ import {
   ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
-  Wallet, History, XCircle, Star
+  Wallet, History, XCircle, Star, AlertCircle, RotateCcw
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type UploadStatus = "uploading" | "done" | "error";
+type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null };
 
 const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   interviewing: { variant: "outline", label: "Interviewing" },
@@ -86,11 +88,11 @@ export default function ContractDetail() {
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
   const [disputeReason, setDisputeReason] = useState("");
-  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const [disputeUploads, setDisputeUploads] = useState<UploadItem[]>([]);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [submissionNotes, setSubmissionNotes] = useState("");
-  const [submissionFiles, setSubmissionFiles] = useState<File[]>([]);
+  const [submissionUploads, setSubmissionUploads] = useState<UploadItem[]>([]);
   const submissionFileRef = useRef<HTMLInputElement>(null);
   const disputeFileRef = useRef<HTMLInputElement>(null);
 
@@ -163,26 +165,71 @@ export default function ContractDetail() {
     setActionLoading(false);
   };
 
+  const uploadOneFile = (item: UploadItem, setter: React.Dispatch<React.SetStateAction<UploadItem[]>>) => {
+    const token = getLocalStorageToken();
+    const formData = new FormData();
+    formData.append("files", item.file);
+    const xhr = new XMLHttpRequest();
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    xhr.open("POST", `${baseUrl}/contracts/attachments`, true);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setter((prev) => prev.map((u) => u.id === item.id ? { ...u, progress: pct } : u));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const res = JSON.parse(xhr.responseText);
+        const url = res?.data?.urls?.[0] ?? null;
+        setter((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
+      } else {
+        let msg = "Upload failed";
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        setter((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
+      }
+    });
+    xhr.addEventListener("error", () => {
+      setter((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: "Network error" } : u));
+    });
+    xhr.send(formData);
+  };
+
   const handleSubmissionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => ['pdf','doc','docx','png','jpg','jpeg','dwg','dxf','zip'].includes(f.name.split('.').pop()?.toLowerCase() || ''));
-    setSubmissionFiles(prev => [...prev, ...allowed].slice(0, 5));
-    if (submissionFileRef.current) submissionFileRef.current.value = '';
+    const allowed = files.filter(f => /\.(pdf|doc|docx|png|jpg|jpeg|dwg|dxf|zip)$/i.test(f.name));
+    const newItems: UploadItem[] = allowed.map(f => ({ id: `${Date.now()}_${Math.random()}`, file: f, progress: 0, status: "uploading", url: null, errorMsg: null }));
+    setSubmissionUploads(prev => {
+      const merged = [...prev, ...newItems].slice(0, 5);
+      merged.filter(u => u.status === "uploading" && newItems.some(n => n.id === u.id)).forEach(u => uploadOneFile(u, setSubmissionUploads));
+      return merged;
+    });
+    if (submissionFileRef.current) submissionFileRef.current.value = "";
+  };
+
+  const handleDisputeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => /\.(pdf|png|jpg|jpeg|zip)$/i.test(f.name));
+    const newItems: UploadItem[] = allowed.map(f => ({ id: `${Date.now()}_${Math.random()}`, file: f, progress: 0, status: "uploading", url: null, errorMsg: null }));
+    setDisputeUploads(prev => {
+      const merged = [...prev, ...newItems].slice(0, 5);
+      merged.filter(u => u.status === "uploading" && newItems.some(n => n.id === u.id)).forEach(u => uploadOneFile(u, setDisputeUploads));
+      return merged;
+    });
+    if (disputeFileRef.current) disputeFileRef.current.value = "";
   };
 
   const handleSubmitDelivery = async () => {
     if (!submissionNotes.trim()) { toast.error("Please add submission notes"); return; }
+    if (submissionUploads.some(u => u.status === "uploading")) { toast.error("Please wait for uploads to finish"); return; }
+    if (submissionUploads.some(u => u.status === "error")) { toast.error("Some files failed to upload. Remove them or retry before submitting."); return; }
     setActionLoading(true);
-    const urls: string[] = [];
-    for (const file of submissionFiles) {
-      const path = `submissions/${user!.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('contract-attachments').upload(path, file);
-      if (!error) { const { data } = supabase.storage.from('contract-attachments').getPublicUrl(path); urls.push(data.publicUrl); }
-    }
+    const urls = submissionUploads.filter(u => u.status === "done" && u.url).map(u => u.url!);
     try {
       const response = await api.post("/contracts/escrow", { action: "submit_delivery", milestone_id: selectedMilestoneId, contract_id: id, submission_notes: submissionNotes.trim(), submission_attachments: urls });
       if (response.data?.error) toast.error(response.data.error);
-      else { toast.success("Delivery submitted!"); setShowSubmitDelivery(false); setSubmissionNotes(""); setSubmissionFiles([]); setSelectedMilestoneId(null); fetchData(); }
+      else { toast.success("Delivery submitted!"); setShowSubmitDelivery(false); setSubmissionNotes(""); setSubmissionUploads([]); setSelectedMilestoneId(null); fetchData(); }
     } catch (err: any) { toast.error(err?.message || "Submission failed"); }
     setActionLoading(false);
   };
@@ -212,17 +259,14 @@ export default function ContractDetail() {
 
   const handleRaiseDispute = async () => {
     if (!disputeReason.trim()) { toast.error("Please provide a reason"); return; }
+    if (disputeUploads.some(u => u.status === "uploading")) { toast.error("Please wait for evidence uploads to finish"); return; }
+    if (disputeUploads.some(u => u.status === "error")) { toast.error("Some evidence files failed to upload. Remove them or retry before submitting."); return; }
     setActionLoading(true);
-    const evidenceUrls: string[] = [];
-    for (const file of disputeFiles) {
-      const path = `disputes/${user!.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('contract-attachments').upload(path, file);
-      if (!error) { const { data } = supabase.storage.from('contract-attachments').getPublicUrl(path); evidenceUrls.push(data.publicUrl); }
-    }
+    const evidenceUrls = disputeUploads.filter(u => u.status === "done" && u.url).map(u => u.url!);
     try {
       const response = await api.post("/contracts/escrow", { action: "raise_dispute", contract_id: id, reason: disputeReason, evidence_urls: evidenceUrls });
       if (response.data?.error) toast.error(response.data.error);
-      else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeFiles([]); fetchData(); }
+      else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeUploads([]); fetchData(); }
     } catch (err: any) { toast.error(err?.message || "Failed to raise dispute"); }
     setActionLoading(false);
   };
@@ -772,21 +816,37 @@ export default function ContractDetail() {
       <Footer />
 
       {/* Submit Delivery Dialog */}
-      <Dialog open={showSubmitDelivery} onOpenChange={setShowSubmitDelivery}>
+      <Dialog open={showSubmitDelivery} onOpenChange={(open) => { if (!open) { setSubmissionUploads([]); setSubmissionNotes(""); } setShowSubmitDelivery(open); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Submit Delivery</DialogTitle><DialogDescription>Describe work completed and attach deliverables.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Notes *</Label><Textarea placeholder="Describe what you've completed..." rows={5} value={submissionNotes} onChange={(e) => setSubmissionNotes(e.target.value)} /></div>
             <div className="space-y-2">
-              <Label>Attachments</Label>
+              <Label>Attachments <span className="text-muted-foreground text-xs">(up to 5 files)</span></Label>
               <input ref={submissionFileRef} type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip" className="hidden" onChange={handleSubmissionFileChange} />
-              <Button type="button" variant="outline" size="sm" onClick={() => submissionFileRef.current?.click()} disabled={submissionFiles.length >= 5}><Paperclip className="h-4 w-4 mr-2" /> Add Files</Button>
-              {submissionFiles.length > 0 && (
+              <Button type="button" variant="outline" size="sm" onClick={() => submissionFileRef.current?.click()} disabled={submissionUploads.length >= 5}>
+                <Paperclip className="h-4 w-4 mr-2" /> Add Files
+              </Button>
+              {submissionUploads.length > 0 && (
                 <div className="space-y-2 mt-2">
-                  {submissionFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
-                      <FileText className="h-4 w-4 text-primary shrink-0" /><span className="text-sm flex-1 truncate">{file.name}</span>
-                      <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setSubmissionFiles(f => f.filter((_, i) => i !== idx))} />
+                  {submissionUploads.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+                        <span className="text-sm flex-1 truncate">{item.file.name}</span>
+                        {item.status === "error" && (
+                          <button type="button" onClick={() => { const retry = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null }; setSubmissionUploads(p => p.map(u => u.id === item.id ? retry : u)); uploadOneFile(retry, setSubmissionUploads); }} className="text-xs text-primary hover:underline flex items-center gap-1"><RotateCcw className="h-3 w-3" /> Retry</button>
+                        )}
+                        <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground shrink-0" onClick={() => setSubmissionUploads(p => p.filter(u => u.id !== item.id))} />
+                      </div>
+                      {item.status === "uploading" && (
+                        <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-200 rounded-full" style={{ width: `${item.progress}%` }} />
+                        </div>
+                      )}
+                      {item.status === "error" && <p className="text-xs text-destructive">{item.errorMsg}</p>}
                     </div>
                   ))}
                 </div>
@@ -794,8 +854,11 @@ export default function ContractDetail() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSubmitDelivery(false)}>Cancel</Button>
-            <Button onClick={handleSubmitDelivery} disabled={actionLoading}>{actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />} Submit</Button>
+            <Button variant="outline" onClick={() => { setShowSubmitDelivery(false); setSubmissionUploads([]); setSubmissionNotes(""); }}>Cancel</Button>
+            <Button onClick={handleSubmitDelivery} disabled={actionLoading || submissionUploads.some(u => u.status === "uploading")}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : submissionUploads.some(u => u.status === "uploading") ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              {submissionUploads.some(u => u.status === "uploading") ? "Uploading files..." : "Submit Delivery"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -871,21 +934,49 @@ export default function ContractDetail() {
       </Dialog>
 
       {/* Dispute Dialog */}
-      <Dialog open={showDispute} onOpenChange={setShowDispute}>
+      <Dialog open={showDispute} onOpenChange={(open) => { if (!open) { setDisputeUploads([]); setDisputeReason(""); } setShowDispute(open); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Raise a Dispute</DialogTitle><DialogDescription>Funds remain locked until resolved.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Raise a Dispute</DialogTitle><DialogDescription>Funds remain locked until resolved. Strong evidence helps adjudication.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>Reason</Label><Textarea placeholder="Describe the issue..." rows={4} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Reason *</Label><Textarea placeholder="Describe the issue in detail..." rows={4} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} /></div>
             <div className="space-y-2">
-              <Label>Evidence (optional)</Label>
-              <input ref={disputeFileRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.zip" className="hidden" onChange={(e) => setDisputeFiles(Array.from(e.target.files || []).slice(0, 5))} />
-              <Button type="button" variant="outline" size="sm" onClick={() => disputeFileRef.current?.click()}><Paperclip className="h-4 w-4 mr-2" /> Add Evidence</Button>
-              {disputeFiles.length > 0 && <p className="text-xs text-muted-foreground">{disputeFiles.length} file(s) selected</p>}
+              <Label>Evidence <span className="text-muted-foreground text-xs">(optional, up to 5 files)</span></Label>
+              <input ref={disputeFileRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.zip" className="hidden" onChange={handleDisputeFileChange} />
+              <Button type="button" variant="outline" size="sm" onClick={() => disputeFileRef.current?.click()} disabled={disputeUploads.length >= 5}>
+                <Paperclip className="h-4 w-4 mr-2" /> Add Evidence
+              </Button>
+              {disputeUploads.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {disputeUploads.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
+                        <span className="text-sm flex-1 truncate">{item.file.name}</span>
+                        {item.status === "error" && (
+                          <button type="button" onClick={() => { const retry = { ...item, status: "uploading" as UploadStatus, progress: 0, errorMsg: null }; setDisputeUploads(p => p.map(u => u.id === item.id ? retry : u)); uploadOneFile(retry, setDisputeUploads); }} className="text-xs text-primary hover:underline flex items-center gap-1"><RotateCcw className="h-3 w-3" /> Retry</button>
+                        )}
+                        <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground shrink-0" onClick={() => setDisputeUploads(p => p.filter(u => u.id !== item.id))} />
+                      </div>
+                      {item.status === "uploading" && (
+                        <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-200 rounded-full" style={{ width: `${item.progress}%` }} />
+                        </div>
+                      )}
+                      {item.status === "error" && <p className="text-xs text-destructive">{item.errorMsg}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDispute(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleRaiseDispute} disabled={actionLoading}>{actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />} Submit</Button>
+            <Button variant="outline" onClick={() => { setShowDispute(false); setDisputeUploads([]); setDisputeReason(""); }}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRaiseDispute} disabled={actionLoading || disputeUploads.some(u => u.status === "uploading")}>
+              {(actionLoading || disputeUploads.some(u => u.status === "uploading")) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
+              {disputeUploads.some(u => u.status === "uploading") ? "Uploading evidence..." : "Submit Dispute"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
