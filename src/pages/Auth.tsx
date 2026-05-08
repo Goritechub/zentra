@@ -786,30 +786,22 @@ export default function AuthPage() {
     const input = forgotEmail.trim();
     let email = input;
 
-    // If input doesn't look like an email, treat as username
-    if (!input.includes("@")) {
-      const profileData = await lookupAuthUser(input);
-
-      if (!profileData.found || !profileData.email) {
-        setForgotErrors({ identifier: "No account found with this username" });
-        setForgotLoading(false);
-        return;
-      }
-      email = profileData.email;
-    } else {
-      // Verify email exists
-      const profileData = await lookupAuthUser(input.toLowerCase());
-
-      if (!profileData.found) {
-        setForgotErrors({
-          identifier: "No account found with this email address",
-        });
-        setForgotLoading(false);
-        return;
-      }
-    }
-
     try {
+      if (!input.includes("@")) {
+        const profileData = await lookupAuthUser(input);
+        if (!profileData.found || !profileData.email) {
+          setForgotErrors({ identifier: "No account found with this username" });
+          return;
+        }
+        email = profileData.email;
+      } else {
+        const profileData = await lookupAuthUser(input.toLowerCase());
+        if (!profileData.found) {
+          setForgotErrors({ identifier: "No account found with this email address" });
+          return;
+        }
+      }
+
       await requestPasswordReset(email);
       setForgotSuccess(true);
     } catch (err: any) {

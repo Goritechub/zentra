@@ -21,7 +21,7 @@ import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 
 export default function ExpertProposalsPage() {
   const { format } = useCurrency();
-  const { user, profile, bootstrapStatus, authError } = useAuth();
+  const { user, profile, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState<any[]>([]);
@@ -186,11 +186,7 @@ export default function ExpertProposalsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           {loading && (
             <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals and offers...</p>
           )}

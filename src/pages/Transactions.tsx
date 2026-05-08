@@ -67,7 +67,7 @@ function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
 export default function TransactionsPage() {
   const { format } = useCurrency();
   const navigate = useNavigate();
-  const { user, profile, role, bootstrapStatus, authError } = useAuth();
+  const { user, profile, role, bootstrapStatus } = useAuth();
   const queryClient = useQueryClient();
   const [showFund, setShowFund] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -175,11 +175,7 @@ export default function TransactionsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-8">
             {isFreelancer ? "Wallet & Earnings" : "Wallet & Transactions"}
           </h1>
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           {transactionsQuery.isFetching && (
             <p className="text-sm text-muted-foreground mb-4">Refreshing wallet activity...</p>
           )}

@@ -115,7 +115,7 @@ export function Header() {
   const {
     user, profile, signOut, isAdmin,
     bootstrapStatus, onboardingComplete,
-    role, authError, refreshProfile, profileLoading,
+    role, refreshProfile, profileLoading,
   } = useAuth();
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -450,23 +450,6 @@ export function Header() {
         </div>
       </div>
 
-      {/* Auth error banner */}
-      {isAuthenticated && authError && (
-        <div className="border-t border-border/60 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          <div className="container-wide flex flex-col gap-2 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-            <p>{authError}</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto px-0 text-xs font-medium text-amber-900 hover:bg-transparent hover:text-amber-950 dark:text-amber-100 dark:hover:text-white"
-              onClick={() => void handleRetryAccountSync()}
-              disabled={profileLoading}
-            >
-              {profileLoading ? "Refreshing..." : "Retry account sync"}
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Mobile menu */}
       {mobileMenuOpen && (

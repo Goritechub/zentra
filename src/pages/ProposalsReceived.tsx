@@ -48,7 +48,7 @@ function formatDurationDisplay(days: number, unit?: string): string {
 
 export default function ProposalsReceivedPage() {
   const { format } = useCurrency();
-  const { user, bootstrapStatus, authError } = useAuth();
+  const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,11 +279,7 @@ export default function ProposalsReceivedPage() {
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
 
           {loading && (
             <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals...</p>

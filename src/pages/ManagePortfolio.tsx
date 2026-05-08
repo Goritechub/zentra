@@ -71,7 +71,7 @@ function ImageCarousel({ images }: { images: string[] }) {
 }
 
 export default function ManagePortfolioPage() {
-  const { user, role, bootstrapStatus, authError } = useAuth();
+  const { user, role, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -242,11 +242,7 @@ export default function ManagePortfolioPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide max-w-3xl">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           {loadError && (
             <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {loadError}

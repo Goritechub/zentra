@@ -20,7 +20,7 @@ import {
 
 export default function ReceivedOffersPage() {
   const { format } = useCurrency();
-  const { user, bootstrapStatus, authError } = useAuth();
+  const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,11 +196,7 @@ export default function ReceivedOffersPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           {loading && (
             <p className="mb-4 text-sm text-muted-foreground">Refreshing offers...</p>
           )}

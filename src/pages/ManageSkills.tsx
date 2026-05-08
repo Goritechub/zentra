@@ -14,7 +14,7 @@ import { ArrowLeft, Loader2, Save, Plus, X, Wrench } from "lucide-react";
 const allOptions = [...cadSoftwareList, ...cadSkills];
 
 export default function ManageSkillsPage() {
-  const { user, role, bootstrapStatus, authError } = useAuth();
+  const { user, role, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [skills, setSkills] = useState<string[]>([]);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -80,11 +80,7 @@ export default function ManageSkillsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-2xl">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>

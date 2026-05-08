@@ -29,7 +29,7 @@ function deriveContestStatus(
 
 export default function ContestEntriesPage() {
   const { format } = useCurrency();
-  const { user, bootstrapStatus, authError } = useAuth();
+  const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<any[]>([]);
@@ -66,11 +66,7 @@ export default function ContestEntriesPage() {
         <Header />
         <main className="flex-1 bg-muted/30 py-8">
           <div className="container-wide">
-            {authError && (
-              <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-                {authError}
-              </div>
-            )}
+
             <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
               <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
             </Button>
@@ -213,11 +209,7 @@ export default function ContestEntriesPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           {loadError && (
             <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {loadError}

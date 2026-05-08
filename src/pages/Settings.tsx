@@ -58,7 +58,7 @@ interface WorkExp {
 /* ─── main component ─────────────────────────────────────────────────── */
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile, signOut, bootstrapStatus, authError } = useAuth();
+  const { user, profile, refreshProfile, signOut, bootstrapStatus } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -395,11 +395,7 @@ export default function SettingsPage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="w-full min-w-0 max-w-4xl mx-auto px-4 sm:px-6">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           <div className="mb-4 sm:mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Account Settings</h1>
             <p className="text-muted-foreground mt-1 text-sm">Manage your profile, security, and payment details.</p>

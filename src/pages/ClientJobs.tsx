@@ -32,7 +32,7 @@ interface JobWithCounts {
 
 export default function ClientJobsPage() {
   const { format } = useCurrency();
-  const { user, profile, authError } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: any | null; hasAssignment: boolean }>({
@@ -133,11 +133,7 @@ export default function ClientJobsPage() {
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4 sm:mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           <div className="flex items-center justify-between mb-4 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Jobs</h1>
             <Button asChild size="sm">

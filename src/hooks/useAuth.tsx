@@ -428,7 +428,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cached) {
           applyCachedBootstrap(authUser, nextSession, cached);
           setLastBootstrapUserId(authUser.id);
-          setAuthError(`${message} Using cached account data.`);
+          // Retry silently in the background after 30 s; no error shown to user.
+          window.setTimeout(() => {
+            if (mounted) void loadUserAndBootstrap(nextSession, { background: true });
+          }, 30_000);
           return;
         }
 

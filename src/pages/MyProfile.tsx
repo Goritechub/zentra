@@ -66,7 +66,7 @@ interface WorkExp {
 }
 
 export default function MyProfilePage() {
-  const { user, profile, refreshProfile, signOut, bootstrapStatus, authError } = useAuth();
+  const { user, profile, refreshProfile, signOut, bootstrapStatus } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -573,11 +573,7 @@ export default function MyProfilePage() {
       <Header />
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container-wide max-w-3xl">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              {authError}
-            </div>
-          )}
+
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>

@@ -34,7 +34,7 @@ function computeMatch(jobSkills: string[], userSkills: string[]): number | null 
 
 export default function JobsPage() {
   const { format } = useCurrency();
-  const { user, authError } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -312,12 +312,6 @@ export default function JobsPage() {
       <Header />
       <main className="flex-1 bg-muted/30">
         <div className="container-wide py-8">
-          {authError && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {authError}
-            </div>
-          )}
-
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">Job Listings</h1>
             <p className="text-sm text-muted-foreground mt-1">
