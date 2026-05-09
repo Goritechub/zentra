@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -12,7 +13,7 @@ import {
 import {
   Star, ArrowLeft, ChevronLeft, ChevronRight, X,
   Send, Award, Settings, Share2, Download, Link as LinkIcon,
-  Image, Clock, Pencil,
+  Image, Clock, Pencil, Copy, Check,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExpertProfileOverview } from "@/api/expert-read.api";
@@ -23,6 +24,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
 import { useKycVerification } from "@/hooks/useKycVerification";
+import { getReferralInfo } from "@/api/auth.api";
 import html2canvas from "html2canvas";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -205,9 +207,17 @@ export default function ExpertProfile() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const isOwner = user?.id === id;
+
+  const referralQuery = useQuery({
+    queryKey: ["referral-info", id],
+    enabled: isOwner,
+    staleTime: 5 * 60 * 1000,
+    queryFn: getReferralInfo,
+  });
   const isClient = authProfile?.role === "client";
 
   const { isVerified: ownerKycVerified, isZentraVerified: ownerZentraVerified } = useKycVerification(
@@ -256,6 +266,16 @@ export default function ExpertProfile() {
     navigator.clipboard.writeText(`${window.location.origin}/expert/${id}/profile`);
     toast.success("Profile link copied!");
     setShowShareMenu(false);
+  };
+
+  const handleCopyReferral = () => {
+    const url = referralQuery.data?.share_url;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedReferral(true);
+      setShowShareMenu(false);
+      setTimeout(() => setCopiedReferral(false), 2000);
+    });
   };
 
   const handleExportImage = async () => {
@@ -384,6 +404,15 @@ export default function ExpertProfile() {
                     >
                       <LinkIcon className="h-4 w-4" /> Copy Link
                     </button>
+                    {referralQuery.data?.share_url && (
+                      <button
+                        onClick={handleCopyReferral}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+                      >
+                        {copiedReferral ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        {copiedReferral ? "Copied!" : "Copy Referral Link"}
+                      </button>
+                    )}
                     <button
                       onClick={handleExportImage}
                       className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
