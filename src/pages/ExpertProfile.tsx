@@ -12,7 +12,7 @@ import {
 import {
   Star, ArrowLeft, ChevronLeft, ChevronRight, X,
   Send, Award, Settings, Share2, Download, Link as LinkIcon,
-  Image, Clock,
+  Image, Clock, Pencil,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExpertProfileOverview } from "@/api/expert-read.api";
@@ -410,12 +410,22 @@ export default function ExpertProfile() {
               {/* Identity card */}
               <Card className="rounded-2xl border-border/60">
                 <CardContent className="pt-8 pb-6 text-center">
-                  <Avatar className="h-24 w-24 mx-auto ring-2 ring-border/60 ring-offset-2 ring-offset-background">
-                    <AvatarImage src={profile.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      {getInitials(profile.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative mx-auto w-fit">
+                    <Avatar className="h-24 w-24 ring-2 ring-border/60 ring-offset-2 ring-offset-background">
+                      <AvatarImage src={profile.avatar_url || undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        {getInitials(profile.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {isOwner && (
+                      <Link
+                        to="/settings?tab=profile"
+                        className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-md border-2 border-background hover:bg-primary/90 transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                  </div>
 
                   <h1 className="text-2xl font-bold text-foreground mt-4 leading-tight">
                     {profile.full_name}

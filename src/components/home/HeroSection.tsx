@@ -49,19 +49,20 @@ export function HeroSection() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up animation-delay-200">
-              <Button size="xl" variant="hero" asChild>
+              <Button size="xl" variant="hero" className="min-w-[200px]" asChild>
                 <Link to="/freelancers">
                   <Search className="h-5 w-5 mr-2" />
                   Find Experts
                 </Link>
               </Button>
-              <Button size="xl" variant="heroOutline" asChild>
+              <Button size="xl" variant="heroOutline" className="min-w-[200px]" asChild>
                 <Link to="/auth?tab=signup&role=freelancer">
                   Become a Freelancer
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Link>
               </Button>
             </div>
+            <p className="mt-3 text-sm text-white/60">Free to join · No credit card required</p>
 
             {/* Trust indicators */}
             <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-white/70 animate-fade-in-up animation-delay-300">

@@ -443,6 +443,11 @@ export function Header() {
                 </Avatar>
               </Link>
             )}
+            {!isAuthenticated && (
+              <Button variant="outline" size="sm" className="text-xs px-3 h-8" asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
+            )}
             <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -543,14 +548,14 @@ export function Header() {
                   <div className="h-10 rounded-lg bg-muted animate-pulse" />
                 )
               ) : (
-                <>
-                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full">Sign In</Button>
-                  </Link>
+                <div className="space-y-3 pt-1">
                   <Link to="/auth?tab=signup" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="w-full">Get Started</Button>
+                    <Button size="lg" className="w-full">Get Started</Button>
                   </Link>
-                </>
+                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="lg" className="w-full text-muted-foreground">Already have an account? Sign in</Button>
+                  </Link>
+                </div>
               )}
             </div>
           </div>

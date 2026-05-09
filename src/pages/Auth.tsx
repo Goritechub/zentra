@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,6 @@ import {
   Check,
   ShieldCheck,
 } from "lucide-react";
-import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { TermsModal } from "@/components/TermsModal";
@@ -889,9 +888,6 @@ export default function AuthPage() {
       <main className="flex-1 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-6">
-              <ZentraGigLogo size="lg" />
-            </Link>
             <h1 className="text-2xl font-bold text-foreground">
               {activeTab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
