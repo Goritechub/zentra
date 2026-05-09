@@ -81,9 +81,20 @@ export async function applyAuthOccupation(occupation: string) {
 export async function completeAuthOnboarding(input: {
   role: "client" | "freelancer";
   username: string;
+  referralCode?: string;
 }) {
   const response = await api.patch("/auth/onboarding", input);
   return response.data.data as { role: "client" | "freelancer"; username: string };
+}
+
+export async function getReferralInfo() {
+  const response = await api.get("/auth/referral-info");
+  return response.data.data as {
+    referral_code: string | null;
+    share_url: string | null;
+    expires_at: string | null;
+    referral_count: number;
+  };
 }
 
 export async function signOutUser() {

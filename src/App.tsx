@@ -108,6 +108,10 @@ const PageLoader = () => (
 
 const AppShell = () => {
   useEffect(() => {
+    // Capture referral code from ?ref= query param on any page load
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) sessionStorage.setItem("referral_code", ref.toUpperCase());
+
     let cancelled = false;
 
     void getBackendHealth()

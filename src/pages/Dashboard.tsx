@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { getDashboardOverview } from "@/api/dashboard.api";
+import { getReferralInfo } from "@/api/auth.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, ArrowRight, Trophy, Send, Heart, Wallet, BarChart3,
   ShieldAlert, ImageIcon, Award, Inbox, CheckCircle2, ChevronRight,
-  CircleDot, ArrowUpRight,
+  CircleDot, ArrowUpRight, Gift, Copy, Check,
 } from "lucide-react";
 import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,6 +59,23 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
     queryFn: async (): Promise<DashboardData> => getDashboardOverview(),
   });
+
+  const referralQuery = useQuery({
+    queryKey: ["referral-info", user?.id],
+    enabled: !!user && role === "freelancer" && bootstrapStatus === "ready",
+    staleTime: 5 * 60 * 1000,
+    queryFn: getReferralInfo,
+  });
+
+  const [copied, setCopied] = useState(false);
+  const handleCopyReferral = () => {
+    const url = referralQuery.data?.share_url;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (!user || bootstrapStatus !== "ready") return null;
 
@@ -463,6 +481,29 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </Link>
+
+              {/* Referral card — freelancers only */}
+              {isFreelancer && referralQuery.data?.share_url && (
+                <div className="bg-card rounded-xl border border-border p-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">Refer a Client</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Clients who sign up via your link and hire you pay <span className="font-semibold text-foreground">50% less</span> in platform fees.
+                    {referralQuery.data.referral_count > 0 && (
+                      <span className="ml-1">You've referred <span className="font-semibold text-foreground">{referralQuery.data.referral_count}</span> client{referralQuery.data.referral_count !== 1 ? "s" : ""} so far.</span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground mb-3 overflow-hidden">
+                    <span className="truncate flex-1">{referralQuery.data.share_url}</span>
+                  </div>
+                  <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs" onClick={handleCopyReferral}>
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copied!" : "Copy Referral Link"}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

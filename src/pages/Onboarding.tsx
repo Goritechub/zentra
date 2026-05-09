@@ -16,6 +16,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<"client" | "freelancer">(role === "freelancer" ? "freelancer" : "client");
   const [username, setUsername] = useState("");
+  const [referralCode, setReferralCode] = useState(() => sessionStorage.getItem("referral_code") ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -74,6 +75,7 @@ export default function OnboardingPage() {
       updatedProfile = await completeAuthOnboarding({
         role: selectedRole,
         username: normalizedUsername,
+        referralCode: selectedRole === "client" && referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
       });
     } catch (error: any) {
       const message = error?.response?.data?.message || "We could not finish your account setup. Please try again.";
@@ -94,6 +96,7 @@ export default function OnboardingPage() {
 
     localStorage.removeItem("pending_oauth_role_choice");
     localStorage.removeItem("pending_oauth_ts");
+    sessionStorage.removeItem("referral_code");
     await refreshProfile();
 
     // Non-blocking: set USD for users outside Africa
@@ -184,6 +187,22 @@ export default function OnboardingPage() {
                 </p>
                 {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
               </div>
+
+              {selectedRole === "client" && (
+                <div className="space-y-2">
+                  <Label htmlFor="onboarding-referral">Referral code <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    id="onboarding-referral"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                    maxLength={12}
+                    placeholder="e.g. AB12CD34"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If a freelancer shared a link with you, their code is already filled in above.
+                  </p>
+                </div>
+              )}
 
               {errors.general && (
                 <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
