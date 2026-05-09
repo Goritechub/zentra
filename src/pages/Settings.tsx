@@ -32,9 +32,31 @@ import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import {
   Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck,
-  AlertTriangle, Camera, KeyRound, Building, CheckCircle2, Eye, EyeOff,
+  AlertTriangle, Camera, KeyRound, Building, CheckCircle2, Eye, EyeOff, Mail,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+
+/* ─── email prefs ────────────────────────────────────────────────────── */
+
+interface EmailPrefs {
+  transactional: boolean;
+  proposals: boolean;
+  job_alerts: boolean;
+  job_alert_mode: "instant" | "digest";
+  contest_alerts: boolean;
+  blog: boolean;
+  platform_updates: boolean;
+}
+
+const DEFAULT_EMAIL_PREFS: EmailPrefs = {
+  transactional: true,
+  proposals: true,
+  job_alerts: true,
+  job_alert_mode: "instant",
+  contest_alerts: true,
+  blog: false,
+  platform_updates: true,
+};
 
 /* ─── types ─────────────────────────────────────────────────────────── */
 
@@ -113,6 +135,10 @@ export default function SettingsPage() {
   const [showDeleteAuthCode, setShowDeleteAuthCode] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  /* ── email prefs state ── */
+  const [emailPrefs, setEmailPrefs] = useState<EmailPrefs>(DEFAULT_EMAIL_PREFS);
+  const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
+
   /* ── bank details state ── */
   const [bankDetails, setBankDetails] = useState<any[]>([]);
   const [banks, setBanks] = useState<any[]>([]);
@@ -181,6 +207,8 @@ export default function SettingsPage() {
       setCity((gp as any)?.city || "");
       setAvatarUrl(gp?.avatar_url || profile?.avatar_url || null);
       setOccupation((gp as any)?.occupation || "");
+      const ep = (gp as any)?.email_preferences;
+      if (ep && typeof ep === "object") setEmailPrefs({ ...DEFAULT_EMAIL_PREFS, ...ep });
     }
   }, [generalProfileQuery.data, profile]);
 
@@ -270,6 +298,20 @@ export default function SettingsPage() {
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to save profile.", variant: "destructive" });
     } finally { setSaving(false); }
+  };
+
+  /* ── save email prefs ── */
+  const handleSaveEmailPrefs = async () => {
+    setSavingEmailPrefs(true);
+    try {
+      await updateMyProfileData({ emailPreferences: emailPrefs });
+      await queryClient.invalidateQueries({ queryKey: ["my-profile-general", user?.id] });
+      toast({ title: "Email preferences saved" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to save preferences.", variant: "destructive" });
+    } finally {
+      setSavingEmailPrefs(false);
+    }
   };
 
   /* ── change password ── */
@@ -409,6 +451,7 @@ export default function SettingsPage() {
               <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
               <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
               <TabsTrigger value="payment" className="flex-1">Payment</TabsTrigger>
+              <TabsTrigger value="emails" className="flex-1">Emails</TabsTrigger>
             </TabsList>
 
             {/* ══════════════ PROFILE TAB ══════════════ */}
@@ -796,6 +839,136 @@ export default function SettingsPage() {
                 )}
               </section>
             </TabsContent>
+            {/* ══════════════ EMAILS TAB ══════════════ */}
+            <TabsContent value="emails" className="space-y-4 sm:space-y-6 mt-0">
+
+              <div className="flex items-start gap-3 bg-muted/50 border border-border rounded-xl p-4">
+                <Mail className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Email Notification Preferences</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Control which emails ZentraGig sends you. You can always unsubscribe from any email using the link in the footer.</p>
+                </div>
+              </div>
+
+              {/* Contract & Work */}
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-1">
+                <h2 className="text-sm font-semibold text-foreground mb-3">Contract & Work</h2>
+                <div className="flex items-center justify-between py-3 border-b border-border">
+                  <div>
+                    <p className="text-sm font-medium">Contract & milestone emails</p>
+                    <p className="text-xs text-muted-foreground">Get emailed when you're hired, a milestone is funded, approved, rejected, or a dispute is filed.</p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.transactional}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, transactional: v }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm font-medium">Proposal & application updates</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFreelancer
+                        ? "Emails when your proposal is shortlisted, rejected, or a job you applied to is removed."
+                        : "Emails when a new proposal arrives on your job posting."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.proposals}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, proposals: v }))}
+                  />
+                </div>
+              </section>
+
+              {/* Job Alerts — expert only */}
+              {isFreelancer && (
+                <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-1">
+                  <h2 className="text-sm font-semibold text-foreground mb-3">Job Alerts</h2>
+                  <div className="flex items-center justify-between py-3 border-b border-border">
+                    <div>
+                      <p className="text-sm font-medium">New job alerts</p>
+                      <p className="text-xs text-muted-foreground">Get notified when new jobs matching your expertise are posted on the platform.</p>
+                    </div>
+                    <Switch
+                      checked={emailPrefs.job_alerts}
+                      onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, job_alerts: v }))}
+                    />
+                  </div>
+                  {emailPrefs.job_alerts && (
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium">Alert frequency</p>
+                        <p className="text-xs text-muted-foreground">Instant sends an email per matching job. Digest sends one daily summary.</p>
+                      </div>
+                      <Select
+                        value={emailPrefs.job_alert_mode}
+                        onValueChange={(v: "instant" | "digest") => setEmailPrefs((p) => ({ ...p, job_alert_mode: v }))}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="instant">Instant</SelectItem>
+                          <SelectItem value="digest">Daily digest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Contests */}
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-1">
+                <h2 className="text-sm font-semibold text-foreground mb-3">Contests</h2>
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm font-medium">Contest updates</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFreelancer
+                        ? "Emails about contest approvals, voting periods, results, and new contests in your field."
+                        : "Emails when your hosted contest is approved, enters voting, or ends."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.contest_alerts}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, contest_alerts: v }))}
+                  />
+                </div>
+              </section>
+
+              {/* Platform & Marketing */}
+              <section className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-1">
+                <h2 className="text-sm font-semibold text-foreground mb-3">Platform & Updates</h2>
+                <div className="flex items-center justify-between py-3 border-b border-border">
+                  <div>
+                    <p className="text-sm font-medium">Blog posts & newsletters</p>
+                    <p className="text-xs text-muted-foreground">Occasional articles, industry insights, and platform news. Opt-in only.</p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.blog}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, blog: v }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm font-medium">Feature announcements</p>
+                    <p className="text-xs text-muted-foreground">Emails about new features, improvements, and important platform changes.</p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.platform_updates}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, platform_updates: v }))}
+                  />
+                </div>
+              </section>
+
+              <div className="flex justify-end pb-4 sm:pb-8">
+                <Button onClick={handleSaveEmailPrefs} disabled={savingEmailPrefs}>
+                  {savingEmailPrefs ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Preferences
+                </Button>
+              </div>
+
+            </TabsContent>
+
           </Tabs>
         </div>
       </main>
