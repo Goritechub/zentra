@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { filterMessageContent } from "@/lib/message-filters";
-import { vetAttachmentName } from "@/lib/content-vetting";
-import { FILE_SIZE_LIMIT, LARGE_FILE_MESSAGE } from "@/lib/google-drive-validator";
 import { toast } from "sonner";
 import { getContractMessages, sendContractMessage } from "@/api/contracts.api";
 
@@ -37,9 +35,12 @@ export function useContractMessages(contractId?: string) {
     }
   }, [contractId, user]);
 
-  const sendMessage = async (content: string, files?: File[]): Promise<boolean> => {
+  const sendMessage = async (
+    content: string,
+    attachments?: { url: string; name: string; type: string }[],
+  ): Promise<boolean> => {
     if (!user || !contractId) return false;
-    if (!content.trim() && (!files || files.length === 0)) return false;
+    if (!content.trim() && (!attachments || attachments.length === 0)) return false;
 
     if (content.trim()) {
       const result = filterMessageContent(content.trim());
@@ -49,23 +50,9 @@ export function useContractMessages(contractId?: string) {
       }
     }
 
-    if (files?.length) {
-      for (const file of files) {
-        if (file.size > FILE_SIZE_LIMIT) {
-          toast.error(LARGE_FILE_MESSAGE);
-          return false;
-        }
-        const nameCheck = vetAttachmentName(file.name);
-        if (nameCheck.blocked) {
-          toast.error(`${file.name}: ${nameCheck.reason}`);
-          return false;
-        }
-      }
-    }
-
     setSending(true);
     try {
-      await sendContractMessage(contractId, content, files);
+      await sendContractMessage(contractId, content, attachments);
       return true;
     } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message || "Failed to send message");

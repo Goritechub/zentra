@@ -54,14 +54,10 @@ export async function getContractMessages(contractId: string): Promise<ContractM
 export async function sendContractMessage(
   contractId: string,
   content: string,
-  files?: File[],
+  attachments?: { url: string; name: string; type: string }[],
 ): Promise<void> {
-  const form = new FormData();
-  form.append("content", content);
-  if (files?.length) {
-    for (const file of files) form.append("files", file);
-  }
-  await api.post(`/contracts/${contractId}/messages`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
+  await api.post(`/contracts/${contractId}/messages`, {
+    content,
+    attachments: attachments || [],
   });
 }

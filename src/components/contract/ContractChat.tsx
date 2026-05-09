@@ -9,21 +9,34 @@ import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns
 import { cn } from "@/lib/utils";
 import {
   Send, Loader2, Paperclip, X, FileText, ShieldAlert, MessageSquare, Bot, ArrowDown,
+  CheckCircle2, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   FILE_SIZE_LIMIT,
-  FILE_SIZE_LIMIT_LABEL,
   LARGE_FILE_MESSAGE,
   isGoogleDriveLink,
   quickValidateGDriveLink,
 } from "@/lib/google-drive-validator";
+import { vetAttachmentName } from "@/lib/content-vetting";
+import { getLocalStorageToken } from "@/api/axios";
 
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/gif",
   "application/pdf",
   "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
+const MAX_FILES = 5;
+
+type UploadStatus = "uploading" | "done" | "error";
+interface UploadItem {
+  id: string;
+  file: File;
+  progress: number;
+  status: UploadStatus;
+  url: string | null;
+  errorMsg: string | null;
+}
 
 function isImageUrl(url: string) {
   return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
@@ -49,7 +62,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   const { user } = useAuth();
   const { messages, loading, sending, sendMessage } = useContractMessages(contractId);
   const [content, setContent] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -88,10 +101,53 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
     }
   }, [loading]);
 
-  const handleSend = async () => {
-    if ((!content.trim() && files.length === 0) || sending) return;
+  const uploadOneFile = useCallback((item: UploadItem) => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+    const token = getLocalStorageToken();
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${baseUrl}/contracts/attachments`, true);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    // Validate Google Drive links
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setUploadItems(prev => prev.map(u => u.id === item.id ? { ...u, progress: pct } : u));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      try {
+        const res = JSON.parse(xhr.responseText);
+        const url = res?.data?.urls?.[0];
+        if (xhr.status >= 200 && xhr.status < 300 && url) {
+          setUploadItems(prev => prev.map(u => u.id === item.id ? { ...u, status: "done", url, progress: 100 } : u));
+        } else {
+          const msg = res?.message || "Upload failed";
+          setUploadItems(prev => prev.map(u => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
+        }
+      } catch {
+        setUploadItems(prev => prev.map(u => u.id === item.id ? { ...u, status: "error", errorMsg: "Upload failed" } : u));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      setUploadItems(prev => prev.map(u => u.id === item.id ? { ...u, status: "error", errorMsg: "Network error" } : u));
+    });
+
+    const form = new FormData();
+    form.append("files", item.file);
+    xhr.send(form);
+  }, []);
+
+  const handleSend = async () => {
+    const anyUploading = uploadItems.some(u => u.status === "uploading");
+    const anyError = uploadItems.some(u => u.status === "error");
+    if ((!content.trim() && uploadItems.length === 0) || sending || anyUploading) return;
+    if (anyError) {
+      toast.error("Some files failed to upload. Retry or remove them before sending.");
+      return;
+    }
+
     if (content.trim()) {
       const urls = content.match(/https?:\/\/[^\s]+/g) || [];
       for (const url of urls) {
@@ -105,10 +161,14 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
       }
     }
 
-    const success = await sendMessage(content, files.length > 0 ? files : undefined);
+    const attachments = uploadItems
+      .filter(u => u.status === "done")
+      .map(u => ({ url: u.url!, name: u.file.name, type: u.file.type }));
+
+    const success = await sendMessage(content, attachments.length > 0 ? attachments : undefined);
     if (success) {
       setContent("");
-      setFiles([]);
+      setUploadItems([]);
     }
   };
 
@@ -118,12 +178,30 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
+    const remaining = MAX_FILES - uploadItems.length;
+    let added = 0;
     for (const file of selected) {
+      if (added >= remaining) { toast.error(`Maximum ${MAX_FILES} files per message`); break; }
       if (file.size > FILE_SIZE_LIMIT) { toast.error(LARGE_FILE_MESSAGE, { duration: 8000 }); continue; }
-      if (!ALLOWED_TYPES.includes(file.type)) { toast.error(`${file.name}: unsupported type`); continue; }
-      setFiles(prev => [...prev, file]);
+      if (!ALLOWED_TYPES.includes(file.type)) { toast.error(`${file.name}: unsupported file type`); continue; }
+      const nameCheck = vetAttachmentName(file.name);
+      if (nameCheck.blocked) { toast.error(`${file.name}: ${nameCheck.reason}`); continue; }
+      const item: UploadItem = { id: `${Date.now()}-${Math.random()}`, file, progress: 0, status: "uploading", url: null, errorMsg: null };
+      setUploadItems(prev => [...prev, item]);
+      uploadOneFile(item);
+      added++;
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const retryUpload = (item: UploadItem) => {
+    const reset: UploadItem = { ...item, status: "uploading", progress: 0, errorMsg: null };
+    setUploadItems(prev => prev.map(u => u.id === item.id ? reset : u));
+    uploadOneFile(reset);
+  };
+
+  const removeUpload = (id: string) => {
+    setUploadItems(prev => prev.filter(u => u.id !== id));
   };
 
   if (loading) {
@@ -257,13 +335,27 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
         </div>
       ) : (
         <div className="p-3 border-t bg-background">
-          {files.length > 0 && (
+          {uploadItems.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
-              {files.map((file, idx) => (
-                <div key={idx} className="flex items-center gap-1 bg-muted rounded-lg px-2 py-1 text-xs">
-                  <FileText className="h-3 w-3 text-primary shrink-0" />
-                  <span className="truncate max-w-[120px]">{file.name}</span>
-                  <button onClick={() => setFiles(f => f.filter((_, i) => i !== idx))} className="ml-1 text-muted-foreground hover:text-destructive">
+              {uploadItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-1.5 bg-muted rounded-lg px-2 py-1 text-xs max-w-[200px]">
+                  {item.status === "uploading" ? (
+                    <Loader2 className="h-3 w-3 text-primary shrink-0 animate-spin" />
+                  ) : item.status === "done" ? (
+                    <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
+                  )}
+                  <span className="truncate flex-1">{item.file.name}</span>
+                  {item.status === "uploading" && (
+                    <span className="text-muted-foreground shrink-0">{item.progress}%</span>
+                  )}
+                  {item.status === "error" && (
+                    <button onClick={() => retryUpload(item)} className="text-muted-foreground hover:text-primary shrink-0">
+                      <RotateCcw className="h-3 w-3" />
+                    </button>
+                  )}
+                  <button onClick={() => removeUpload(item.id)} className="text-muted-foreground hover:text-destructive shrink-0">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -272,7 +364,12 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
           )}
           <div className="flex gap-2 items-end">
             <input ref={fileInputRef} type="file" className="hidden" multiple accept={ALLOWED_TYPES.join(",")} onChange={handleFileSelect} />
-            <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} disabled={sending}>
+            <Button
+              variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || uploadItems.length >= MAX_FILES}
+              title={uploadItems.length === 0 ? `Attach files (max ${MAX_FILES})` : `${MAX_FILES - uploadItems.length} of ${MAX_FILES} slots remaining`}
+            >
               <Paperclip className="h-4 w-4" />
             </Button>
             <Textarea
@@ -284,7 +381,11 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
               className="min-h-[36px] max-h-24 resize-none text-sm"
               rows={1}
             />
-            <Button onClick={handleSend} disabled={(!content.trim() && files.length === 0) || sending} size="icon" className="flex-shrink-0 h-9 w-9">
+            <Button
+              onClick={handleSend}
+              disabled={(!content.trim() && uploadItems.length === 0) || sending || uploadItems.some(u => u.status === "uploading")}
+              size="icon" className="flex-shrink-0 h-9 w-9"
+            >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
