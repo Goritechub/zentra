@@ -159,7 +159,7 @@ export default function ReceivedOffersPage() {
             <div className="flex flex-wrap gap-2 mt-4">
               {offer._type === "job_offer" ? (
                 <Button size="sm" onClick={() => navigate(`/job/${offer.job_id}/apply`)}>
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Apply to Job
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Apply to this Gig
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => handleAcceptDirect(offer)} disabled={actionLoading}>

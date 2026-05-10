@@ -1197,7 +1197,7 @@ export default function ApplyJobPage() {
               <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Briefcase className="h-5 w-5 text-primary" />
-                  Job Details
+                  About this Gig
                 </h3>
                 <div className="space-y-4">
                   <div>

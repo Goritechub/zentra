@@ -163,7 +163,7 @@ export function Header() {
   /* ── Nav item arrays ── */
   const findGigsItems = isFreelancer
     ? [
-        { to: "/jobs", icon: Search, label: "Job Listings" },
+        { to: "/jobs", icon: Search, label: "Browse Gigs" },
         { to: "/contests", icon: Trophy, label: "Browse Contests" },
         { to: "/dashboard/my-services", icon: Briefcase, label: "My Services" },
       ]

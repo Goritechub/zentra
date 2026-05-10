@@ -95,7 +95,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleSend();
     }
@@ -177,9 +177,9 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
           value={content}
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message... (Press Enter to send)"
+          placeholder="Type a message..."
           disabled={disabled || sending || uploading}
-          className="min-h-[44px] max-h-32 resize-none"
+          className="min-h-[44px] max-h-36 resize-none"
           rows={1}
         />
         <Button

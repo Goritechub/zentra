@@ -313,9 +313,9 @@ export default function JobsPage() {
       <main className="flex-1 bg-muted/30">
         <div className="container-wide py-8">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Job Listings</h1>
+            <h1 className="text-2xl font-bold text-foreground">Browse Gigs</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {jobsQuery.isFetching ? "Refreshing…" : `${jobs.length} open jobs`}
+              {jobsQuery.isFetching ? "Refreshing…" : `${jobs.length} open gigs`}
             </p>
           </div>
 

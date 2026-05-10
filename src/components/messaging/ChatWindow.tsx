@@ -28,6 +28,19 @@ function isImageUrl(url: string) {
   return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
 }
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+function renderMessageContent(text: string, isOwn: boolean) {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+        className={cn("underline break-all hover:opacity-80", isOwn ? "text-primary-foreground" : "text-primary")}>
+        {part}
+      </a>
+    ) : part
+  );
+}
+
 function getDateLabel(date: Date): string {
   if (isToday(date)) return "Today";
   if (isYesterday(date)) return "Yesterday";
@@ -126,7 +139,7 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
                   {!showAvatar && !isOwn && <div className="w-8" />}
 
                   <div className={cn("max-w-[70%] rounded-2xl px-4 py-2", isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md")}>
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{renderMessageContent(message.content, isOwn)}</p>
 
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-2 space-y-1.5">
