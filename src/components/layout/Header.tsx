@@ -240,7 +240,7 @@ export function Header() {
               </>
             ) : (
               <>
-                {!user && (
+                {!isAuthenticated && (
                   <NavDropdown
                     label="Browse"
                     items={browseItemsLimited}
@@ -394,7 +394,10 @@ export function Header() {
                   <Button variant="ghost" onClick={handleSignOut}>Sign Out</Button>
                 </>
               ) : (
-                <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-muted-foreground/20 animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-muted-foreground/20 animate-pulse" />
+                </div>
               )
             ) : (
               <>
