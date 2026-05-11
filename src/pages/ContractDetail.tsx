@@ -49,14 +49,15 @@ const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destru
   rejected: { variant: "destructive", label: "Rejected" },
 };
 
-const MILESTONE_COLORS: Record<string, string> = {
-  pending: "secondary",
-  funded: "default",
-  in_progress: "default",
-  submitted: "outline",
-  approved: "secondary",
-  paid: "default",
-  disputed: "destructive",
+const MILESTONE_STATUS: Record<string, { variant: string; label: string }> = {
+  pending:    { variant: "secondary", label: "Not Funded" },
+  funded:     { variant: "default",   label: "Funded" },
+  in_progress:{ variant: "default",   label: "In Progress" },
+  submitted:  { variant: "outline",   label: "Submitted" },
+  approved:   { variant: "secondary", label: "Approved" },
+  paid:       { variant: "default",   label: "Paid" },
+  disputed:   { variant: "destructive", label: "Disputed" },
+  cancelled:  { variant: "destructive", label: "Cancelled" },
 };
 
 function maskDescription(desc: string): string {
@@ -85,6 +86,7 @@ export default function ContractDetail() {
   const [showSubmitDelivery, setShowSubmitDelivery] = useState(false);
   const [showSubmissionDetail, setShowSubmissionDetail] = useState<any>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [fundConfirmMilestone, setFundConfirmMilestone] = useState<any>(null);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
   const [disputeReason, setDisputeReason] = useState("");
@@ -611,15 +613,30 @@ export default function ContractDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {milestones.map((ms) => {
+                    {milestones.map((ms, msIdx) => {
                       const feeInfo = calculateServiceCharge(ms.amount);
+                      const isCancelled = ms.status === "cancelled";
+                      const isCompleted = ms.status === "approved" || ms.status === "paid";
+                      const firstPendingIdx = milestones.findIndex(m => m.status === "pending");
+                      const isNextToFund = msIdx === firstPendingIdx;
+                      const isLockedPending = ms.status === "pending" && !isNextToFund;
+                      const msCfg = MILESTONE_STATUS[ms.status] || { variant: "secondary", label: ms.status };
                       return (
-                        <div key={ms.id} className="border border-border rounded-lg p-4">
+                        <div
+                          key={ms.id}
+                          className={`border rounded-lg p-4 transition-opacity ${
+                            isCancelled || isLockedPending
+                              ? "border-border opacity-50 bg-muted/30"
+                              : isCompleted
+                              ? "border-border bg-muted/20"
+                              : "border-border"
+                          }`}
+                        >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-medium text-foreground">{ms.title}</h3>
-                                <Badge variant={(MILESTONE_COLORS[ms.status] || "secondary") as any}>{ms.status}</Badge>
+                                <h3 className={`font-medium ${isCancelled ? "line-through text-muted-foreground" : "text-foreground"}`}>{ms.title}</h3>
+                                <Badge variant={msCfg.variant as any}>{msCfg.label}</Badge>
                               </div>
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -642,10 +659,15 @@ export default function ContractDetail() {
                               )}
                             </div>
                             <div className="flex flex-col gap-1">
-                              {isClient && ms.status === "pending" && (
-                                <Button size="sm" onClick={() => handleMilestoneAction("fund_milestone", ms.id)} disabled={actionLoading}>
+                              {isClient && ms.status === "pending" && isNextToFund && (
+                                <Button size="sm" onClick={() => setFundConfirmMilestone(ms)} disabled={actionLoading}>
                                   <DollarSign className="h-3 w-3 mr-1" /> Fund Milestone
                                 </Button>
+                              )}
+                              {isClient && ms.status === "pending" && isLockedPending && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> Fund previous first
+                                </span>
                               )}
                               {isFreelancer && (ms.status === "funded" || ms.status === "in_progress") && (
                                 <Button size="sm" onClick={() => { setSelectedMilestoneId(ms.id); setShowSubmitDelivery(true); }} disabled={actionLoading}>
@@ -976,6 +998,33 @@ export default function ContractDetail() {
             <Button variant="destructive" onClick={handleRaiseDispute} disabled={actionLoading || disputeUploads.some(u => u.status === "uploading")}>
               {(actionLoading || disputeUploads.some(u => u.status === "uploading")) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
               {disputeUploads.some(u => u.status === "uploading") ? "Uploading evidence..." : "Submit Dispute"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fund Milestone Confirmation */}
+      <Dialog open={!!fundConfirmMilestone} onOpenChange={(open) => { if (!open) setFundConfirmMilestone(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fund Milestone</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to fund <strong>"{fundConfirmMilestone?.title}"</strong>?{" "}
+              The amount of <strong>{format(fundConfirmMilestone?.amount || 0)}</strong> will be held in escrow until the work is approved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFundConfirmMilestone(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const ms = fundConfirmMilestone;
+                setFundConfirmMilestone(null);
+                handleMilestoneAction("fund_milestone", ms.id);
+              }}
+              disabled={actionLoading}
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DollarSign className="h-4 w-4 mr-2" />}
+              Yes, Fund Milestone
             </Button>
           </DialogFooter>
         </DialogContent>

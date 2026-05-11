@@ -232,7 +232,7 @@ export default function ClientJobsPage() {
                               : <span className="text-sm text-muted-foreground font-normal">No budget set</span>}
                           </p>
                           <div className="flex items-center gap-2">
-                            {job.status !== "cancelled" && job.status !== "completed" && (
+                            {job.status !== "cancelled" && job.status !== "completed" && job.status !== "in_progress" && (
                               <Button
                                 size="sm"
                                 variant="destructive"

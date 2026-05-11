@@ -1,4 +1,4 @@
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -36,6 +36,14 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+  }, [content]);
 
   const handleSend = async () => {
     if ((!content.trim() && attachments.length === 0) || disabled || sending || uploading) return;
@@ -174,13 +182,13 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
           <Paperclip className="h-5 w-5" />
         </Button>
         <Textarea
+          ref={textareaRef}
           value={content}
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           disabled={disabled || sending || uploading}
-          className="min-h-[44px] max-h-36 resize-none"
-          rows={1}
+          className="min-h-[44px] max-h-36 resize-none overflow-y-auto"
         />
         <Button
           onClick={handleSend}

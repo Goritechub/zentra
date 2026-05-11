@@ -17,11 +17,11 @@ export interface Notification {
 }
 
 export function useNotifications() {
-  const { user, bootstrapStatus, onboardingComplete } = useAuth();
+  const { user, bootstrapStatus } = useAuth();
   const queryClient = useQueryClient();
 
   const queryKey = ["notifications", user?.id];
-  const enabled = !!user && bootstrapStatus === "ready" && onboardingComplete;
+  const enabled = !!user && bootstrapStatus === "ready";
 
   const {
     data: notifications = [],
