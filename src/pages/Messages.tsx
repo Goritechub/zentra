@@ -65,7 +65,7 @@ const Messages = () => {
   useEffect(() => {
     if (bootstrapStatus !== "ready" || !user) return;
     const channel = supabase
-      .channel("messages-page-realtime")
+      .channel(`messages-page-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "contract_messages" }, () => {
         queryClient.invalidateQueries({ queryKey });
       })

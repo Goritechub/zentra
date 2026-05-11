@@ -22,7 +22,7 @@ export function useUnreadMessages() {
     if (!enabled || !user) return;
 
     const channel = supabase
-      .channel("unread-contract-messages")
+      .channel(`unread-contract-messages-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "contract_messages" },

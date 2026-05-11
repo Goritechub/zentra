@@ -169,7 +169,7 @@ export function useMessages(selectedUserId?: string) {
     fetchConversations();
 
     const channel = supabase
-      .channel("messages-realtime")
+      .channel(`messages-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

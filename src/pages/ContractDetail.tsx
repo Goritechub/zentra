@@ -693,7 +693,10 @@ export default function ContractDetail() {
                     {(() => {
                       const milestoneNumberMap = new Map(
                         [...milestones]
-                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                          .sort((a, b) => {
+                          const d = (m: any) => m.due_date || m.created_at;
+                          return new Date(d(a)).getTime() - new Date(d(b)).getTime();
+                        })
                           .map((m, i) => [m.id, i + 1])
                       );
                       return milestones.map((ms, msIdx) => {
