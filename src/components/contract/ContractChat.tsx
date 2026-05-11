@@ -64,7 +64,15 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   const [content, setContent] = useState("");
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+  }, [content]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
@@ -373,13 +381,13 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
               <Paperclip className="h-4 w-4" />
             </Button>
             <Textarea
+              ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               disabled={sending}
-              className="min-h-[36px] max-h-24 resize-none text-sm"
-              rows={1}
+              className="min-h-[36px] max-h-36 resize-none text-sm overflow-y-auto"
             />
             <Button
               onClick={handleSend}
