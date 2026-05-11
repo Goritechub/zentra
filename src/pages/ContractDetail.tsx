@@ -28,7 +28,7 @@ import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Loader2, CheckCircle2, Clock, DollarSign, Plus, Send,
+  ArrowLeft, Loader2, CheckCircle2, Check, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
   Wallet, History, XCircle, Star, AlertCircle, RotateCcw
@@ -92,6 +92,8 @@ export default function ContractDetail() {
   const [fundConfirmMilestone, setFundConfirmMilestone] = useState<any>(null);
   const [extendMilestone, setExtendMilestone] = useState<any>(null);
   const [extendNewDate, setExtendNewDate] = useState("");
+  const [requestExtensionMs, setRequestExtensionMs] = useState<any>(null);
+  const [requestExtensionDate, setRequestExtensionDate] = useState("");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
   const [disputeReason, setDisputeReason] = useState("");
@@ -256,22 +258,34 @@ export default function ContractDetail() {
     setActionLoading(false);
   };
 
-  const handleRequestExtension = async (msId: string) => {
+  const handleRequestExtension = (ms: any) => {
+    setRequestExtensionMs(ms);
+    setRequestExtensionDate("");
+  };
+
+  const handleRequestExtensionSubmit = async () => {
+    if (!requestExtensionDate) { toast.error("Please pick a proposed new due date"); return; }
     setActionLoading(true);
     try {
-      await requestMilestoneExtension(msId);
+      await requestMilestoneExtension(requestExtensionMs.id, requestExtensionDate);
       toast.success("Extension requested. The client has been notified.");
+      setRequestExtensionMs(null);
       fetchData();
     } catch (err: any) { toast.error(err?.message || "Failed to request extension"); }
     setActionLoading(false);
   };
 
-  const handleRespondExpiry = async (ms: any, action: "extend" | "cancel" | "ignore") => {
+  const handleRespondExpiry = async (ms: any, action: "extend" | "cancel" | "accept_extension" | "reject_extension") => {
     if (action === "extend") { setExtendMilestone(ms); setExtendNewDate(""); return; }
     setActionLoading(true);
     try {
       await respondMilestoneExpiry(ms.id, action);
-      toast.success(action === "cancel" ? "Cancellation request sent to expert." : "Milestone resumed.");
+      const messages: Record<string, string> = {
+        cancel: "Cancellation request sent to expert.",
+        accept_extension: "Extension accepted. Deadline updated.",
+        reject_extension: "Extension request rejected.",
+      };
+      toast.success(messages[action] || "Done.");
       fetchData();
     } catch (err: any) { toast.error(err?.message || "Action failed"); }
     setActionLoading(false);
@@ -689,7 +703,7 @@ export default function ContractDetail() {
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
-                                  {ms.due_date && (() => {
+                                  {ms.due_date && ["funded", "in_progress", "overdue"].includes(ms.status) && (() => {
                                   const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000);
                                   const isOverdue = daysLeft < 0;
                                   return (
@@ -732,14 +746,14 @@ export default function ContractDetail() {
                                     <Send className="h-3 w-3 mr-1" /> Submit Delivery
                                   </Button>
                                   {ms.due_date && Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000) <= 2 && (
-                                    <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms.id)} disabled={actionLoading}>
+                                    <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms)} disabled={actionLoading}>
                                       <RotateCcw className="h-3 w-3 mr-1" /> Request Extension
                                     </Button>
                                   )}
                                 </>
                               )}
                               {isFreelancer && ms.status === "overdue" && (
-                                <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms.id)} disabled={actionLoading}>
+                                <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms)} disabled={actionLoading}>
                                   <RotateCcw className="h-3 w-3 mr-1" /> Request Extension
                                 </Button>
                               )}
@@ -751,8 +765,24 @@ export default function ContractDetail() {
                                   <Button size="sm" variant="destructive" onClick={() => handleRespondExpiry(ms, "cancel")} disabled={actionLoading}>
                                     <XCircle className="h-3 w-3 mr-1" /> Cancel Milestone
                                   </Button>
-                                  <Button size="sm" variant="ghost" onClick={() => handleRespondExpiry(ms, "ignore")} disabled={actionLoading}>
-                                    Ignore
+                                </div>
+                              )}
+                              {isClient && ms.status === "extension_requested" && (
+                                <div className="flex flex-col gap-1">
+                                  {ms.proposed_extension_date && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-0.5">
+                                      <RotateCcw className="h-3 w-3" />
+                                      Proposed: {new Date(ms.proposed_extension_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </p>
+                                  )}
+                                  <Button size="sm" onClick={() => handleRespondExpiry(ms, "accept_extension")} disabled={actionLoading}>
+                                    <Check className="h-3 w-3 mr-1" /> Accept Extension
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => handleRespondExpiry(ms, "reject_extension")} disabled={actionLoading}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Reject
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setActiveTab("chat")} disabled={actionLoading}>
+                                    <MessageSquare className="h-3 w-3 mr-1" /> Chat
                                   </Button>
                                 </div>
                               )}
@@ -1111,6 +1141,35 @@ export default function ContractDetail() {
             <Button onClick={handleExtendSubmit} disabled={actionLoading || !extendNewDate}>
               {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Clock className="h-4 w-4 mr-2" />}
               Confirm Extension
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Expert — Request Extension dialog (expert proposes a date) */}
+      <Dialog open={!!requestExtensionMs} onOpenChange={(open) => { if (!open) setRequestExtensionMs(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Extension</DialogTitle>
+            <DialogDescription>
+              Propose a new due date for <strong>"{requestExtensionMs?.title}"</strong>. The client will be notified and can accept or reject.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>Proposed New Due Date</Label>
+            <Input
+              type="date"
+              value={requestExtensionDate}
+              onChange={e => setRequestExtensionDate(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestExtensionMs(null)}>Cancel</Button>
+            <Button onClick={handleRequestExtensionSubmit} disabled={actionLoading || !requestExtensionDate}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Send Request
             </Button>
           </DialogFooter>
         </DialogContent>

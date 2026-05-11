@@ -46,12 +46,16 @@ export async function submitContractReview(contractId: string, payload: Record<s
   return response.data.data;
 }
 
-export async function requestMilestoneExtension(milestoneId: string) {
-  const response = await api.post(`/contracts/milestones/${milestoneId}/request-extension`);
+export async function requestMilestoneExtension(milestoneId: string, proposedDate: string) {
+  const response = await api.post(`/contracts/milestones/${milestoneId}/request-extension`, { proposedDate });
   return response.data;
 }
 
-export async function respondMilestoneExpiry(milestoneId: string, action: "extend" | "cancel" | "ignore", newDueDate?: string) {
+export async function respondMilestoneExpiry(
+  milestoneId: string,
+  action: "extend" | "cancel" | "accept_extension" | "reject_extension",
+  newDueDate?: string,
+) {
   const response = await api.post(`/contracts/milestones/${milestoneId}/respond-expiry`, { action, newDueDate });
   return response.data;
 }
