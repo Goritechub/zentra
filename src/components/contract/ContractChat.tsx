@@ -181,7 +181,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSend(); }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

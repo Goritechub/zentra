@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface EmailPrefs {
   transactional: boolean;
+  messages: boolean;
   proposals: boolean;
   job_alerts: boolean;
   job_alert_mode: "instant" | "digest";
@@ -50,6 +51,7 @@ interface EmailPrefs {
 
 const DEFAULT_EMAIL_PREFS: EmailPrefs = {
   transactional: true,
+  messages: true,
   proposals: true,
   job_alerts: true,
   job_alert_mode: "instant",
@@ -861,6 +863,16 @@ export default function SettingsPage() {
                   <Switch
                     checked={emailPrefs.transactional}
                     onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, transactional: v }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between py-3 border-b border-border">
+                  <div>
+                    <p className="text-sm font-medium">Message notifications</p>
+                    <p className="text-xs text-muted-foreground">Get emailed when you receive a new message from your client or expert on a contract.</p>
+                  </div>
+                  <Switch
+                    checked={emailPrefs.messages}
+                    onCheckedChange={(v) => setEmailPrefs((p) => ({ ...p, messages: v }))}
                   />
                 </div>
                 <div className="flex items-center justify-between py-3">
