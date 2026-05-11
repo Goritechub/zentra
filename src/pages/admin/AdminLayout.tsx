@@ -67,6 +67,14 @@ export default function AdminLayout() {
   const [isSuspended, setIsSuspended] = useState(false);
   const [failCount, setFailCount] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
+  const [pendingBlogCount, setPendingBlogCount] = useState(0);
+
+  useEffect(() => {
+    if (!codeVerified) return;
+    api.get("/blog/posts/pending")
+      .then((res) => setPendingBlogCount(res.data?.data?.posts?.length || 0))
+      .catch(() => {});
+  }, [codeVerified]);
 
   // Guard against the fast-path + full-bootstrap double-fire: only fetch
   // permissions once per mounted session, regardless of how many times
@@ -310,21 +318,32 @@ export default function AdminLayout() {
         {/* Nav */}
         <ScrollArea className="flex-1 py-4">
           <nav className="space-y-1 px-2">
-            {navItems.map((item) =>
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive(item.path) ?
-                "bg-sidebar-accent text-sidebar-accent-foreground" :
-                "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )}>
-              
-                <item.icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            )}
+            {navItems.map((item) => {
+              const isBlog = item.path === "/admin/blog";
+              const showBadge = isBlog && pendingBlogCount > 0;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+                    isActive(item.path) ?
+                    "bg-sidebar-accent text-sidebar-accent-foreground" :
+                    "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}>
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && showBadge && (
+                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                      {pendingBlogCount > 99 ? "99+" : pendingBlogCount}
+                    </span>
+                  )}
+                  {collapsed && showBadge && (
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </ScrollArea>
 
