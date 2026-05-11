@@ -29,7 +29,7 @@ import { calculateServiceCharge } from "@/lib/service-charge";
 import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Loader2, CheckCircle2, Check, Clock, DollarSign, Plus, Send,
+  ArrowLeft, ArrowUp, Loader2, CheckCircle2, Check, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
   Wallet, History, XCircle, Star, AlertCircle, RotateCcw, CalendarDays,
@@ -690,7 +690,13 @@ export default function ContractDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {milestones.map((ms, msIdx) => {
+                    {(() => {
+                      const milestoneNumberMap = new Map(
+                        [...milestones]
+                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                          .map((m, i) => [m.id, i + 1])
+                      );
+                      return milestones.map((ms, msIdx) => {
                       const feeInfo = calculateServiceCharge(ms.amount);
                       const isCancelled = ms.status === "cancelled";
                       const isCompleted = ms.status === "approved" || ms.status === "paid";
@@ -709,19 +715,19 @@ export default function ContractDetail() {
                               : "border-border"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row items-start gap-3">
+                            <div className="flex-1 min-w-0 w-full">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`flex-shrink-0 w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
                                   isCompleted ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                   : isCancelled ? "bg-muted text-muted-foreground"
                                   : "bg-primary/10 text-primary"
-                                }`}>{msIdx + 1}</span>
+                                }`}>{milestoneNumberMap.get(ms.id)}</span>
                                 <h3 className={`font-medium ${isCancelled ? "line-through text-muted-foreground" : "text-foreground"}`}>{ms.title}</h3>
                                 <Badge variant={msCfg.variant as any}>{msCfg.label}</Badge>
                               </div>
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
-                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
                                   {ms.due_date && ms.status === "pending" && (() => {
                                   const prevDate = msIdx === 0
@@ -855,7 +861,8 @@ export default function ContractDetail() {
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 )}
               </div>
@@ -910,9 +917,16 @@ export default function ContractDetail() {
                             <p className="text-sm font-medium text-foreground">{maskDescription(txn.description)}</p>
                             <p className="text-xs text-muted-foreground">{txn.type} • {fnsFormat(new Date(txn.created_at), "PPp")}</p>
                           </div>
-                          <span className={`font-semibold text-sm ${txn.type === "escrow_lock" ? "text-destructive" : "text-primary"}`}>
-                            {txn.type === "escrow_lock" ? "-" : "+"}{format(txn.amount)}
-                          </span>
+                          {(() => {
+                            const isLock = txn.type === "escrow_lock";
+                            const isRelease = txn.type === "escrow_release";
+                            const clientNeutral = isRelease && isClient;
+                            return (
+                              <span className={`font-semibold text-sm ${isLock ? "text-destructive" : clientNeutral ? "text-foreground" : "text-primary"}`}>
+                                {isLock ? "-" : clientNeutral ? "" : "+"}{format(txn.amount)}
+                              </span>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>

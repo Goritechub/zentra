@@ -21,7 +21,7 @@ import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import {
-  Wallet, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
+  Wallet, ArrowUp, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
 } from "lucide-react";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
 import html2canvas from "html2canvas";
@@ -94,11 +94,13 @@ export default function TransactionsPage() {
   const wallet = transactionsQuery.data?.wallet ?? null;
   const transactions = transactionsQuery.data?.transactions ?? [];
   const pendingClearanceTxs = transactionsQuery.data?.pendingClearanceTxs ?? [];
-  const isCredit = (tx: any) => creditTypes.includes(tx.type);
+  // escrow_release is a credit for freelancers but neutral for clients (escrow_balance only, wallet balance unchanged)
+  const isNeutral = (tx: any) => !isFreelancer && tx.type === "escrow_release";
+  const isCredit = (tx: any) => !isNeutral(tx) && creditTypes.includes(tx.type);
 
   const filteredTransactions = transactions.filter(tx => {
     if (txFilter === "credits") return isCredit(tx);
-    if (txFilter === "debits") return !isCredit(tx);
+    if (txFilter === "debits") return !isCredit(tx) && !isNeutral(tx);
     return true;
   });
 
@@ -152,7 +154,7 @@ export default function TransactionsPage() {
 
   const pendingClearance = wallet?.pending_clearance || 0;
   const availableBalance = wallet?.balance || 0;
-  const walletBalance = availableBalance + pendingClearance;
+  const walletBalance = availableBalance;
 
   // Find the next clearance time
   const nextClearance = pendingClearanceTxs.length > 0
@@ -181,7 +183,7 @@ export default function TransactionsPage() {
           )}
 
           {/* Wallet Cards */}
-          <div className={`grid grid-cols-1 ${isFreelancer ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"} gap-4 sm:gap-6 mb-6 sm:mb-8`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8`}>
             {/* Wallet Balance (total) */}
             <div className="bg-hero-gradient text-white rounded-xl p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-2"><Wallet className="h-5 w-5" /><span className="text-sm text-white/70">Wallet Balance</span></div>
@@ -225,19 +227,8 @@ export default function TransactionsPage() {
               </div>
             )}
 
-            {/* Available for Withdrawal (freelancer) / In Escrow */}
-            {isFreelancer ? (
-              <div className="bg-card rounded-xl border border-primary/30 p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Download className="h-5 w-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">Available for Withdrawal</span>
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(availableBalance)}</p>
-                {availableBalance < 5000 && (
-                  <p className="text-xs text-muted-foreground mt-2">Min. ₦5,000 to withdraw</p>
-                )}
-              </div>
-            ) : (
+            {/* In Escrow (client only) */}
+            {!isFreelancer && (
               <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-2"><Clock className="h-5 w-5 text-accent" /><span className="text-sm text-muted-foreground">Project Budget</span></div>
                 <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(wallet?.escrow_balance || 0)}</p>
@@ -316,12 +307,15 @@ export default function TransactionsPage() {
               <div className="divide-y divide-border">
                 {filteredTransactions.map((tx: any) => {
                   const credit = isCredit(tx);
+                  const neutral = isNeutral(tx);
                   const isPendingClearance = tx.clearance_at && new Date(tx.clearance_at) > new Date();
                   return (
                     <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${credit ? "bg-primary/10" : "bg-destructive/10"}`}>
-                          {credit
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${neutral ? "bg-muted" : credit ? "bg-primary/10" : "bg-destructive/10"}`}>
+                          {neutral
+                            ? <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
+                            : credit
                             ? <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                             : <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />}
                         </div>
@@ -341,10 +335,10 @@ export default function TransactionsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold ${isPendingClearance ? "text-amber-500" : credit ? "text-primary" : "text-destructive"}`}>
-                          {credit ? "+" : "-"}{format(tx.amount)}
+                        <p className={`font-semibold ${neutral ? "text-foreground dark:text-gray-300" : isPendingClearance ? "text-amber-500" : credit ? "text-primary" : "text-destructive"}`}>
+                          {neutral ? "" : credit ? "+" : "-"}{format(tx.amount)}
                         </p>
-                        {tx.balance_after != null && <p className="text-xs text-muted-foreground">Bal: {format(tx.balance_after)}</p>}
+                        {tx.balance_after != null && <p className="text-xs text-muted-foreground">{neutral ? "Project balance:" : "Bal:"} {format(tx.balance_after)}</p>}
                       </div>
                     </div>
                   );
@@ -417,8 +411,8 @@ export default function TransactionsPage() {
                       <tr key={tx.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                         <td style={{ padding: "8px 4px" }}>{new Date(tx.created_at).toLocaleDateString("en-NG")}</td>
                         <td style={{ padding: "8px 4px" }}>{maskDescription(tx.description) || tx.type}</td>
-                        <td style={{ padding: "8px 4px", textAlign: "right", color: creditTypes.includes(tx.type) ? "#16a34a" : "#dc2626" }}>
-                          {creditTypes.includes(tx.type) ? "+" : "-"}₦{tx.amount?.toLocaleString()}
+                        <td style={{ padding: "8px 4px", textAlign: "right", color: isNeutral(tx) ? "#374151" : isCredit(tx) ? "#16a34a" : "#dc2626" }}>
+                          {isNeutral(tx) ? "" : isCredit(tx) ? "+" : "-"}₦{tx.amount?.toLocaleString()}
                         </td>
                         <td style={{ padding: "8px 4px", textAlign: "right" }}>₦{tx.balance_after?.toLocaleString()}</td>
                       </tr>
