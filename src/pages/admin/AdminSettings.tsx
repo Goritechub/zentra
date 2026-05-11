@@ -9,6 +9,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { CommissionTier, invalidateCommissionCache, preloadCommissionTiers } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
+import { TotpSetupCard } from "@/components/admin/TotpSetupCard";
 import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
 import { PlatformFreezeCard } from "@/components/admin/PlatformFreezeCard";
 import { broadcastNotification } from "@/lib/broadcast";
@@ -300,6 +301,7 @@ export default function AdminSettings() {
 
         {/* Authentication Code */}
         <ChangeAuthCodeCard />
+        <TotpSetupCard />
 
         {/* Broadcast Notifications */}
         <BroadcastNotificationCard />

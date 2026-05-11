@@ -9,7 +9,9 @@ import {
   LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { getTotpStatus } from "@/api/auth.api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -68,6 +70,9 @@ export default function AdminLayout() {
   const [failCount, setFailCount] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
   const [pendingBlogCount, setPendingBlogCount] = useState(0);
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recoveryInput, setRecoveryInput] = useState("");
 
   useEffect(() => {
     if (!codeVerified) return;
@@ -75,6 +80,11 @@ export default function AdminLayout() {
       .then((res) => setPendingBlogCount(res.data?.data?.posts?.length || 0))
       .catch(() => {});
   }, [codeVerified]);
+
+  useEffect(() => {
+    if (codeVerified || !user) return;
+    getTotpStatus().then((s) => setTotpEnabled(s.totp_enabled)).catch(() => {});
+  }, [codeVerified, user]);
 
   // Guard against the fast-path + full-bootstrap double-fire: only fetch
   // permissions once per mounted session, regardless of how many times
@@ -123,8 +133,14 @@ export default function AdminLayout() {
   };
 
   const handleVerifyCode = async () => {
-    if (authCode.length !== 6) {
+    const submittedCode = useRecovery ? recoveryInput.trim() : authCode;
+
+    if (!useRecovery && submittedCode.length !== 6) {
       toast.error("Please enter all 6 digits");
+      return;
+    }
+    if (useRecovery && !submittedCode) {
+      toast.error("Please enter your recovery code");
       return;
     }
 
@@ -141,7 +157,7 @@ export default function AdminLayout() {
       const [verifyRes, suspendedRes] = await Promise.all([
         api.post<{ success: boolean; data: { valid: boolean; error: string | null } }>(
           "/auth/auth-code/verify",
-          { code: authCode },
+          { code: submittedCode },
         ),
         api.get<{ is_suspended: boolean }>("/admin/me/suspended"),
       ]);
@@ -150,6 +166,7 @@ export default function AdminLayout() {
         const newFailCount = failCount + 1;
         setFailCount(newFailCount);
         setAuthCode("");
+        setRecoveryInput("");
 
         let lockoutMinutes = 0;
         if (newFailCount >= 9) lockoutMinutes = 30;
@@ -177,6 +194,7 @@ export default function AdminLayout() {
     } catch {
       toast.error("Verification failed. Please try again.");
       setAuthCode("");
+      setRecoveryInput("");
     } finally {
       setVerifying(false);
     }
@@ -229,6 +247,9 @@ export default function AdminLayout() {
 
   // Admin auth code gate
   if (!codeVerified) {
+    const isLocked = !!(lockoutUntil && new Date() < lockoutUntil);
+    const canSubmit = !verifying && !isLocked && (useRecovery ? !!recoveryInput.trim() : authCode.length === 6);
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-sm mx-auto">
@@ -239,24 +260,53 @@ export default function AdminLayout() {
               </div>
               <h2 className="text-xl font-bold text-foreground">Admin Verification</h2>
               <p className="text-sm text-muted-foreground">
-                Enter your 6-digit authentication code to access the admin panel.
+                {useRecovery
+                  ? "Enter one of your 8-character recovery codes."
+                  : totpEnabled
+                    ? "Enter the 6-digit code from your Google Authenticator app."
+                    : "Enter your 6-digit authentication code to access the admin panel."}
               </p>
             </div>
 
-            <div>
-              <AuthCodeInput
-                value={authCode}
-                onChange={setAuthCode}
-                disabled={verifying}
-                locked={!!(lockoutUntil && new Date() < lockoutUntil)}
-                onUnlocked={() => { setLockoutUntil(null); setFailCount(0); }}
-              />
+            <div className="space-y-3">
+              {useRecovery ? (
+                <Input
+                  placeholder="XXXX-XXXX"
+                  value={recoveryInput}
+                  onChange={(e) => setRecoveryInput(e.target.value.toUpperCase().slice(0, 9))}
+                  disabled={verifying}
+                  className="text-center tracking-widest font-mono"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && canSubmit && handleVerifyCode()}
+                />
+              ) : (
+                <AuthCodeInput
+                  value={authCode}
+                  onChange={setAuthCode}
+                  disabled={verifying}
+                  locked={isLocked}
+                  onUnlocked={() => { setLockoutUntil(null); setFailCount(0); }}
+                />
+              )}
+              {totpEnabled && (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors w-full text-center"
+                  onClick={() => {
+                    setUseRecovery((v) => !v);
+                    setAuthCode("");
+                    setRecoveryInput("");
+                  }}
+                >
+                  {useRecovery ? "Use Authenticator app instead" : "Use a recovery code"}
+                </button>
+              )}
             </div>
 
             <Button
               className="w-full"
               onClick={handleVerifyCode}
-              disabled={verifying || authCode.length !== 6 || !!(lockoutUntil && new Date() < lockoutUntil)}
+              disabled={!canSubmit}
             >
               {verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Verify &amp; Continue

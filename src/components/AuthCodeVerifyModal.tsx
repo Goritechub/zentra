@@ -3,9 +3,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { AuthCodeSetupModal } from "@/components/AuthCodeSetupModal";
-import { verifyAuthCode } from "@/api/auth.api";
+import { verifyAuthCode, getTotpStatus } from "@/api/auth.api";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 
@@ -24,39 +25,60 @@ export function AuthCodeVerifyModal({
   onOpenChange,
   onVerified,
   title = "Enter Authentication Code",
-  description = "Enter your 6-digit authentication code to proceed.",
+  description,
 }: AuthCodeVerifyModalProps) {
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setCode("");
+    if (!open) {
       setVerifying(false);
+      setUseRecovery(false);
+      setRecoveryCode("");
+      setCode("");
       return;
     }
-
+    setCode("");
     setVerifying(false);
+    setUseRecovery(false);
+    setRecoveryCode("");
+    getTotpStatus().then((s) => setTotpEnabled(s.totp_enabled)).catch(() => {});
   }, [open]);
 
+  const resolvedDescription = description ?? (
+    totpEnabled
+      ? "Enter the 6-digit code from your Google Authenticator app."
+      : "Enter your 6-digit authentication code to proceed."
+  );
+
   const handleVerify = async () => {
-    if (code.length !== 6) {
+    const submittedCode = useRecovery ? recoveryCode.trim() : code;
+    if (!useRecovery && submittedCode.length !== 6) {
       toast.error("Please enter all 6 digits");
       return;
     }
+    if (useRecovery && !submittedCode) {
+      toast.error("Please enter your recovery code");
+      return;
+    }
+
     setVerifying(true);
     let data: any = null;
-    let error: any = null;
     try {
       const result = await Promise.race([
-        verifyAuthCode(code),
+        verifyAuthCode(submittedCode),
         new Promise<never>((_, reject) =>
-          window.setTimeout(() => reject(new Error("Authentication code verification timed out.")), AUTH_CODE_VERIFY_TIMEOUT_MS),
+          window.setTimeout(
+            () => reject(new Error("Authentication code verification timed out.")),
+            AUTH_CODE_VERIFY_TIMEOUT_MS,
+          ),
         ),
       ]);
       data = result as any;
-      error = null;
     } catch (err: any) {
       setVerifying(false);
       toast.error(err?.message || "Authentication code verification failed. Please try again.");
@@ -64,8 +86,7 @@ export function AuthCodeVerifyModal({
     }
     setVerifying(false);
 
-    if (error || !data?.valid) {
-      // If the error indicates no code is set, redirect to setup
+    if (!data?.valid) {
       if (data?.error?.toLowerCase().includes("no auth code") || data?.error?.toLowerCase().includes("not set")) {
         setNeedsSetup(true);
         setCode("");
@@ -73,17 +94,18 @@ export function AuthCodeVerifyModal({
       }
       toast.error(data?.error || "Invalid authentication code");
       setCode("");
+      setRecoveryCode("");
       return;
     }
 
     setCode("");
+    setRecoveryCode("");
     onVerified();
     onOpenChange(false);
   };
 
   const handleSetupComplete = () => {
     setNeedsSetup(false);
-    // After setup, the verify modal is still open so they can verify
   };
 
   return (
@@ -94,6 +116,8 @@ export function AuthCodeVerifyModal({
           if (!v) {
             setCode("");
             setVerifying(false);
+            setUseRecovery(false);
+            setRecoveryCode("");
           }
           onOpenChange(v);
         }}
@@ -104,14 +128,42 @@ export function AuthCodeVerifyModal({
               <ShieldCheck className="h-5 w-5 text-primary" />
               {title}
             </DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+            <DialogDescription>{resolvedDescription}</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <AuthCodeInput value={code} onChange={setCode} disabled={verifying} />
+          <div className="py-4 space-y-3">
+            {useRecovery ? (
+              <Input
+                placeholder="XXXX-XXXX"
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().slice(0, 9))}
+                disabled={verifying}
+                className="text-center tracking-widest font-mono"
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+              />
+            ) : (
+              <AuthCodeInput value={code} onChange={setCode} disabled={verifying} />
+            )}
+            {totpEnabled && (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                onClick={() => {
+                  setUseRecovery((v) => !v);
+                  setCode("");
+                  setRecoveryCode("");
+                }}
+              >
+                {useRecovery ? "Use Authenticator app instead" : "Use a recovery code"}
+              </button>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleVerify} disabled={verifying || code.length !== 6}>
+            <Button
+              onClick={handleVerify}
+              disabled={verifying || (!useRecovery && code.length !== 6) || (useRecovery && !recoveryCode.trim())}
+            >
               {verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Verify
             </Button>

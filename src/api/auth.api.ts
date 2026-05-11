@@ -107,6 +107,26 @@ export async function verifyAuthCode(code: string) {
   return response.data.data as { valid: boolean; error: string | null };
 }
 
+export async function getTotpStatus() {
+  const response = await api.get("/auth/totp/status");
+  return response.data.data as { totp_enabled: boolean; has_code: boolean };
+}
+
+export async function setupTotp() {
+  const response = await api.post("/auth/totp/setup");
+  return response.data.data as { qrDataUrl: string; secret: string };
+}
+
+export async function confirmTotp(code: string) {
+  const response = await api.post("/auth/totp/confirm", { code });
+  return response.data.data as { recoveryCodes: string[] };
+}
+
+export async function disableTotp(code: string) {
+  const response = await api.post("/auth/totp/disable", { code });
+  return response.data.data as { success: boolean };
+}
+
 export function buildGoogleOauthStartUrl(redirectTo: string) {
   const params = new URLSearchParams({ redirectTo });
   return `${apiBaseUrl}/auth/oauth/google/start?${params.toString()}`;
