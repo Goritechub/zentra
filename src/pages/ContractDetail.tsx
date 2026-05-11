@@ -22,6 +22,7 @@ import {
   requestMilestoneExtension,
   respondMilestoneExpiry,
   respondMilestoneCancellation,
+  cancelUnfundedMilestone,
 } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { calculateServiceCharge } from "@/lib/service-charge";
@@ -31,7 +32,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, Check, Clock, DollarSign, Plus, Send,
   ShieldCheck, AlertTriangle, Milestone as MilestoneIcon, Paperclip, FileText,
   X, MessageSquare, Download, Eye, Briefcase, ScrollText, BarChart3,
-  Wallet, History, XCircle, Star, AlertCircle, RotateCcw
+  Wallet, History, XCircle, Star, AlertCircle, RotateCcw, CalendarDays,
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,6 +90,7 @@ export default function ContractDetail() {
   const [showSubmitDelivery, setShowSubmitDelivery] = useState(false);
   const [showSubmissionDetail, setShowSubmissionDetail] = useState<any>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showCancelUnfundedDialog, setShowCancelUnfundedDialog] = useState(false);
   const [fundConfirmMilestone, setFundConfirmMilestone] = useState<any>(null);
   const [extendMilestone, setExtendMilestone] = useState<any>(null);
   const [extendNewDate, setExtendNewDate] = useState("");
@@ -310,6 +312,19 @@ export default function ContractDetail() {
       toast.success(action === "accept" ? "Cancellation accepted. Funds refunded to client." : "Cancellation rejected. A dispute has been opened.");
       fetchData();
     } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    setActionLoading(false);
+  };
+
+  const handleCancelUnfunded = async () => {
+    if (!selectedMilestoneId) return;
+    setActionLoading(true);
+    try {
+      await cancelUnfundedMilestone(selectedMilestoneId);
+      toast.success("Milestone cancelled. The client has been notified and the case flagged for admin review.");
+      setShowCancelUnfundedDialog(false);
+      setSelectedMilestoneId(null);
+      fetchData();
+    } catch (err: any) { toast.error(err?.response?.data?.message || err?.message || "Action failed"); }
     setActionLoading(false);
   };
 
@@ -708,7 +723,20 @@ export default function ContractDetail() {
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
-                                  {ms.due_date && ["funded", "in_progress", "overdue"].includes(ms.status) && (() => {
+                                  {ms.due_date && ms.status === "pending" && (() => {
+                                  const prevDate = msIdx === 0
+                                    ? (contract.created_at ? new Date(contract.created_at) : null)
+                                    : (milestones[msIdx - 1]?.due_date ? new Date(milestones[msIdx - 1].due_date) : null);
+                                  const windowDays = prevDate ? Math.round((new Date(ms.due_date).getTime() - prevDate.getTime()) / 86_400_000) : 0;
+                                  const dueLabel = new Date(ms.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                  return (
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      <CalendarDays className="h-3 w-3" />
+                                      Due {dueLabel}{windowDays > 0 ? ` · ${windowDays}d window` : ""} · Awaiting funding
+                                    </span>
+                                  );
+                                })()}
+                                {ms.due_date && ["funded", "in_progress", "overdue"].includes(ms.status) && (() => {
                                   const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000);
                                   const isOverdue = daysLeft < 0;
                                   return (
@@ -790,6 +818,15 @@ export default function ContractDetail() {
                                     <MessageSquare className="h-3 w-3 mr-1" /> Chat
                                   </Button>
                                 </div>
+                              )}
+                              {isFreelancer && ms.status === "pending" && ms.due_date && new Date(ms.due_date) <= new Date() && (
+                                <Button
+                                  size="sm" variant="destructive"
+                                  onClick={() => { setSelectedMilestoneId(ms.id); setShowCancelUnfundedDialog(true); }}
+                                  disabled={actionLoading}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" /> Cancel — Not Funded
+                                </Button>
                               )}
                               {isFreelancer && ms.status === "pending_cancellation" && (
                                 <div className="flex flex-col gap-1">
@@ -1077,6 +1114,25 @@ export default function ContractDetail() {
             <Button variant="outline" onClick={() => { setShowRejectDialog(false); setRejectionReason(""); }}>Cancel</Button>
             <Button variant="destructive" onClick={handleRejectMilestone} disabled={actionLoading}>
               {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Unfunded Milestone Dialog */}
+      <Dialog open={showCancelUnfundedDialog} onOpenChange={setShowCancelUnfundedDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel unfunded milestone?</DialogTitle>
+            <DialogDescription>
+              This milestone was not funded by its due date. Cancelling will notify the client and flag this contract for admin review. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelUnfundedDialog(false)}>Go back</Button>
+            <Button variant="destructive" onClick={handleCancelUnfunded} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+              Cancel milestone
             </Button>
           </DialogFooter>
         </DialogContent>

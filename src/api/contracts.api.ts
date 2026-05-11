@@ -65,6 +65,11 @@ export async function respondMilestoneCancellation(milestoneId: string, action: 
   return response.data;
 }
 
+export async function cancelUnfundedMilestone(milestoneId: string) {
+  const response = await api.post(`/contracts/milestones/${milestoneId}/cancel-unfunded`);
+  return response.data;
+}
+
 export async function getContractMessages(contractId: string): Promise<ContractMessage[]> {
   const response = await api.get(`/contracts/${contractId}/messages`);
   return response.data.data.messages || [];
