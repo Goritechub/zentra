@@ -46,6 +46,21 @@ export async function submitContractReview(contractId: string, payload: Record<s
   return response.data.data;
 }
 
+export async function requestMilestoneExtension(milestoneId: string) {
+  const response = await api.post(`/contracts/milestones/${milestoneId}/request-extension`);
+  return response.data;
+}
+
+export async function respondMilestoneExpiry(milestoneId: string, action: "extend" | "cancel" | "ignore", newDueDate?: string) {
+  const response = await api.post(`/contracts/milestones/${milestoneId}/respond-expiry`, { action, newDueDate });
+  return response.data;
+}
+
+export async function respondMilestoneCancellation(milestoneId: string, action: "accept" | "reject") {
+  const response = await api.post(`/contracts/milestones/${milestoneId}/respond-cancellation`, { action });
+  return response.data;
+}
+
 export async function getContractMessages(contractId: string): Promise<ContractMessage[]> {
   const response = await api.get(`/contracts/${contractId}/messages`);
   return response.data.data.messages || [];

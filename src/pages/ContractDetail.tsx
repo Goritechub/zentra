@@ -19,6 +19,9 @@ import {
   addContractMilestone,
   getContractDetail,
   submitContractReview,
+  requestMilestoneExtension,
+  respondMilestoneExpiry,
+  respondMilestoneCancellation,
 } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { calculateServiceCharge } from "@/lib/service-charge";
@@ -87,6 +90,8 @@ export default function ContractDetail() {
   const [showSubmissionDetail, setShowSubmissionDetail] = useState<any>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [fundConfirmMilestone, setFundConfirmMilestone] = useState<any>(null);
+  const [extendMilestone, setExtendMilestone] = useState<any>(null);
+  const [extendNewDate, setExtendNewDate] = useState("");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
   const [disputeReason, setDisputeReason] = useState("");
@@ -247,6 +252,49 @@ export default function ContractDetail() {
         else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
         fetchData();
       }
+    } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    setActionLoading(false);
+  };
+
+  const handleRequestExtension = async (msId: string) => {
+    setActionLoading(true);
+    try {
+      await requestMilestoneExtension(msId);
+      toast.success("Extension requested. The client has been notified.");
+      fetchData();
+    } catch (err: any) { toast.error(err?.message || "Failed to request extension"); }
+    setActionLoading(false);
+  };
+
+  const handleRespondExpiry = async (ms: any, action: "extend" | "cancel" | "ignore") => {
+    if (action === "extend") { setExtendMilestone(ms); setExtendNewDate(""); return; }
+    setActionLoading(true);
+    try {
+      await respondMilestoneExpiry(ms.id, action);
+      toast.success(action === "cancel" ? "Cancellation request sent to expert." : "Milestone resumed.");
+      fetchData();
+    } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    setActionLoading(false);
+  };
+
+  const handleExtendSubmit = async () => {
+    if (!extendNewDate) { toast.error("Please pick a new due date"); return; }
+    setActionLoading(true);
+    try {
+      await respondMilestoneExpiry(extendMilestone.id, "extend", extendNewDate);
+      toast.success("Deadline extended.");
+      setExtendMilestone(null);
+      fetchData();
+    } catch (err: any) { toast.error(err?.message || "Failed to extend deadline"); }
+    setActionLoading(false);
+  };
+
+  const handleRespondCancellation = async (msId: string, action: "accept" | "reject") => {
+    setActionLoading(true);
+    try {
+      await respondMilestoneCancellation(msId, action);
+      toast.success(action === "accept" ? "Cancellation accepted. Funds refunded to client." : "Cancellation rejected. A dispute has been opened.");
+      fetchData();
     } catch (err: any) { toast.error(err?.message || "Action failed"); }
     setActionLoading(false);
   };
@@ -641,7 +689,16 @@ export default function ContractDetail() {
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
-                                {ms.due_date && <span>Due: {new Date(ms.due_date).toLocaleDateString()}</span>}
+                                  {ms.due_date && (() => {
+                                  const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000);
+                                  const isOverdue = daysLeft < 0;
+                                  return (
+                                    <span className={`flex items-center gap-1 ${isOverdue ? "text-destructive font-medium" : daysLeft <= 2 ? "text-amber-500 font-medium" : ""}`}>
+                                      <Clock className="h-3 w-3" />
+                                      {isOverdue ? `Overdue by ${Math.abs(daysLeft)}d` : daysLeft === 0 ? "Due today" : `${daysLeft}d left`}
+                                    </span>
+                                  );
+                                })()}
                                 {ms.funded_at && <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-primary" /> Funded</span>}
                                 {ms.submitted_at && <span className="flex items-center gap-1"><Send className="h-3 w-3" /> Submitted</span>}
                                 {ms.approved_at && <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Approved</span>}
@@ -670,9 +727,44 @@ export default function ContractDetail() {
                                 </span>
                               )}
                               {isFreelancer && (ms.status === "funded" || ms.status === "in_progress") && (
-                                <Button size="sm" onClick={() => { setSelectedMilestoneId(ms.id); setShowSubmitDelivery(true); }} disabled={actionLoading}>
-                                  <Send className="h-3 w-3 mr-1" /> Submit Delivery
+                                <>
+                                  <Button size="sm" onClick={() => { setSelectedMilestoneId(ms.id); setShowSubmitDelivery(true); }} disabled={actionLoading}>
+                                    <Send className="h-3 w-3 mr-1" /> Submit Delivery
+                                  </Button>
+                                  {ms.due_date && Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000) <= 2 && (
+                                    <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms.id)} disabled={actionLoading}>
+                                      <RotateCcw className="h-3 w-3 mr-1" /> Request Extension
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                              {isFreelancer && ms.status === "overdue" && (
+                                <Button size="sm" variant="outline" onClick={() => handleRequestExtension(ms.id)} disabled={actionLoading}>
+                                  <RotateCcw className="h-3 w-3 mr-1" /> Request Extension
                                 </Button>
+                              )}
+                              {isClient && ms.status === "overdue" && (
+                                <div className="flex flex-col gap-1">
+                                  <Button size="sm" variant="outline" onClick={() => handleRespondExpiry(ms, "extend")} disabled={actionLoading}>
+                                    <Clock className="h-3 w-3 mr-1" /> Extend Deadline
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => handleRespondExpiry(ms, "cancel")} disabled={actionLoading}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Cancel Milestone
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handleRespondExpiry(ms, "ignore")} disabled={actionLoading}>
+                                    Ignore
+                                  </Button>
+                                </div>
+                              )}
+                              {isFreelancer && ms.status === "pending_cancellation" && (
+                                <div className="flex flex-col gap-1">
+                                  <Button size="sm" variant="outline" onClick={() => handleRespondCancellation(ms.id, "accept")} disabled={actionLoading}>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" /> Accept
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => handleRespondCancellation(ms.id, "reject")} disabled={actionLoading}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Reject → Dispute
+                                  </Button>
+                                </div>
                               )}
                               {isClient && ms.status === "submitted" && (
                                 <div className="flex flex-col gap-1">
@@ -998,6 +1090,27 @@ export default function ContractDetail() {
             <Button variant="destructive" onClick={handleRaiseDispute} disabled={actionLoading || disputeUploads.some(u => u.status === "uploading")}>
               {(actionLoading || disputeUploads.some(u => u.status === "uploading")) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
               {disputeUploads.some(u => u.status === "uploading") ? "Uploading evidence..." : "Submit Dispute"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extend Milestone Deadline Dialog */}
+      <Dialog open={!!extendMilestone} onOpenChange={(open) => { if (!open) setExtendMilestone(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend Deadline</DialogTitle>
+            <DialogDescription>Set a new due date for <strong>"{extendMilestone?.title}"</strong>.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>New Due Date</Label>
+            <Input type="date" value={extendNewDate} onChange={e => setExtendNewDate(e.target.value)} min={new Date().toISOString().split("T")[0]} className="mt-1" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendMilestone(null)}>Cancel</Button>
+            <Button onClick={handleExtendSubmit} disabled={actionLoading || !extendNewDate}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Clock className="h-4 w-4 mr-2" />}
+              Confirm Extension
             </Button>
           </DialogFooter>
         </DialogContent>
