@@ -324,7 +324,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
                   <Building2 className="h-5 w-5 text-primary" />
                   <div>
                     <p className="font-medium text-foreground text-sm">Nigerian Bank Account</p>
-                    <p className="text-xs text-muted-foreground">Paystack transfer · NGN · 1–3 business days</p>
+                    <p className="text-xs text-muted-foreground">NGN withdrawal · processed by admin · 1–2 business days</p>
                   </div>
                 </div>
               </button>
@@ -720,7 +720,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
                   {ngnDeducted ? ` · ${format(ngnDeducted)} deducted` : ""}. Allow 1–3 business days.
                 </>
               ) : (
-                <>{format(ngnDeducted ?? parseFloat(amount))} is being transferred to your bank account. Allow 1–3 business days.</>
+                <>Your withdrawal request has been submitted. Funds will be sent to your bank account within 1–2 business days.</>
               )}
             </p>
             <Button className="w-full" onClick={() => handleClose(false)}>Done</Button>

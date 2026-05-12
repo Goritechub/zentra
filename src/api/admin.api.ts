@@ -125,6 +125,11 @@ export async function cancelAdminWithdrawal(withdrawalId: string) {
   return response.data.data;
 }
 
+export async function completeAdminWithdrawal(withdrawalId: string) {
+  const response = await api.patch(`/admin/payments/withdrawals/${withdrawalId}/complete`);
+  return response.data.data;
+}
+
 export async function getAdminDashboardData() {
   const response = await api.get("/admin/dashboard");
   return response.data.data as {
@@ -290,5 +295,20 @@ export async function suspendAdmin(targetUserId: string, suspend: boolean) {
 
 export async function resetAdminAuthCode(targetUserId: string, newCode: string) {
   const response = await api.patch(`/admin/admins/${targetUserId}/auth-code`, { newCode });
+  return response.data.data;
+}
+
+export async function getAdminPendingWithdrawalCount() {
+  const response = await api.get("/admin/payments/pending-count");
+  return response.data.data as { count: number };
+}
+
+export async function getAdminPayoutTransfers() {
+  const response = await api.get("/admin/payouts");
+  return response.data.data as { transfers: any[] };
+}
+
+export async function retryAdminPayoutTransfer(transferId: string) {
+  const response = await api.post(`/admin/payouts/${transferId}/retry`);
   return response.data.data;
 }

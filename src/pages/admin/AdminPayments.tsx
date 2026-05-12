@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   cancelAdminWithdrawal,
+  completeAdminWithdrawal,
   getAdminPaymentsOverview,
   setAdminWithdrawalsFreeze,
 } from "@/api/admin.api";
@@ -97,6 +98,25 @@ export default function AdminPayments() {
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to cancel withdrawal",
+      );
+    }
+  };
+
+  const markWithdrawalPaid = async (withdrawal: any) => {
+    if (
+      !confirm(
+        `Mark ${format(withdrawal.amount)} withdrawal for ${withdrawal.profile?.full_name} as paid? Only do this after manually sending the funds.`,
+      )
+    )
+      return;
+
+    try {
+      await completeAdminWithdrawal(withdrawal.id);
+      toast.success("Withdrawal marked as paid");
+      void fetchAll();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to mark as paid",
       );
     }
   };
@@ -440,7 +460,8 @@ export default function AdminPayments() {
                         {format(w.amount)}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {w.bank?.bank_name} - {w.bank?.account_number}
+                        <div>{w.bank?.bank_name || "—"}</div>
+                        <div className="text-muted-foreground font-mono text-xs">{w.bank?.account_number || "—"}</div>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -463,15 +484,22 @@ export default function AdminPayments() {
                         })}
                       </TableCell>
                       <TableCell>
-                        {(w.status === "pending" ||
-                          w.status === "processing") && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => cancelWithdrawal(w)}
-                          >
-                            <XCircle className="h-3 w-3 mr-1" /> Cancel
-                          </Button>
+                        {(w.status === "pending" || w.status === "processing") && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => markWithdrawalPaid(w)}
+                            >
+                              Mark as Paid
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => cancelWithdrawal(w)}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" /> Cancel
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>

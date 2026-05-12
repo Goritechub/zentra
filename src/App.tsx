@@ -81,6 +81,7 @@ const AdminBroadcast = lazy(() => import("./pages/admin/AdminBroadcast"));
 const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyControls"));
 const AdminWaitlist = lazy(() => import("./pages/admin/AdminWaitlist"));
 const AdminBlog = lazy(() => import("./pages/admin/AdminBlog"));
+const AdminPayoutTransfers = lazy(() => import("./pages/admin/AdminPayoutTransfers"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 import { preloadCommissionTiers } from "./lib/service-charge";
@@ -211,6 +212,7 @@ const AppShell = () => {
                 <Route path="emergency" element={<AdminEmergencyControls />} />
                 <Route path="waitlist" element={<AdminWaitlist />} />
                 <Route path="blog" element={<AdminBlog />} />
+                <Route path="payouts" element={<AdminPayoutTransfers />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen, ArrowUpRight } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ const allNavItems = [
 { label: "Contests", icon: Trophy, path: "/admin/contests", permission: "contests" },
 { label: "Contracts", icon: FileText, path: "/admin/contracts", permission: "contracts" },
 { label: "Payments", icon: Wallet, path: "/admin/payments", permission: "payments" },
+{ label: "Payouts", icon: ArrowUpRight, path: "/admin/payouts", permission: "payments" },
 { label: "Disputes", icon: Gavel, path: "/admin/disputes", permission: "disputes" },
 { label: "Reviews", icon: Star, path: "/admin/reviews", permission: "reviews" },
 { label: "Broadcast", icon: Megaphone, path: "/admin/broadcast", permission: "platform_settings" },
@@ -70,6 +71,7 @@ export default function AdminLayout() {
   const [failCount, setFailCount] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
   const [pendingBlogCount, setPendingBlogCount] = useState(0);
+  const [pendingWithdrawalCount, setPendingWithdrawalCount] = useState(0);
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [useRecovery, setUseRecovery] = useState(false);
   const [recoveryInput, setRecoveryInput] = useState("");
@@ -78,6 +80,9 @@ export default function AdminLayout() {
     if (!codeVerified) return;
     api.get("/blog/posts/pending")
       .then((res) => setPendingBlogCount(res.data?.data?.posts?.length || 0))
+      .catch(() => {});
+    api.get("/admin/payments/pending-count")
+      .then((res) => setPendingWithdrawalCount(res.data?.data?.count || 0))
       .catch(() => {});
   }, [codeVerified]);
 
@@ -370,7 +375,9 @@ export default function AdminLayout() {
           <nav className="space-y-1 px-2">
             {navItems.map((item) => {
               const isBlog = item.path === "/admin/blog";
-              const showBadge = isBlog && pendingBlogCount > 0;
+              const isPayments = item.path === "/admin/payments";
+              const showBadge = (isBlog && pendingBlogCount > 0) || (isPayments && pendingWithdrawalCount > 0);
+              const badgeCount = isBlog ? pendingBlogCount : pendingWithdrawalCount;
               return (
                 <button
                   key={item.path}
@@ -385,7 +392,7 @@ export default function AdminLayout() {
                   {!collapsed && <span>{item.label}</span>}
                   {!collapsed && showBadge && (
                     <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                      {pendingBlogCount > 99 ? "99+" : pendingBlogCount}
+                      {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
                   {collapsed && showBadge && (

@@ -21,8 +21,9 @@ import { useRequireAuthCode } from "@/hooks/useRequireAuthCode";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import {
-  Wallet, ArrowUp, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer
+  Wallet, ArrowUp, ArrowUpRight, ArrowDownLeft, Clock, CreditCard, Plus, ArrowLeft, Download, FileSpreadsheet, Image, Timer, Info
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
@@ -38,28 +39,24 @@ const hiddenTypes = ["escrow_credit", "escrow_hold"];
 type TxFilter = "all" | "credits" | "debits";
 
 function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
-  const [timeLeft, setTimeLeft] = useState("");
+  const [hoursLeft, setHoursLeft] = useState<number | null>(null);
 
   useEffect(() => {
     const update = () => {
       const diff = new Date(clearanceAt).getTime() - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("Cleared");
-        return;
-      }
-      const hours = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      setTimeLeft(`${hours}h ${mins}m`);
+      setHoursLeft(diff <= 0 ? 0 : Math.ceil(diff / 3600000));
     };
     update();
     const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
   }, [clearanceAt]);
 
+  if (hoursLeft === null) return null;
+
   return (
-    <span className={`text-xs font-medium ${timeLeft === "Cleared" ? "text-primary" : "text-amber-500"}`}>
+    <span className={`text-xs font-medium ${hoursLeft === 0 ? "text-primary" : "text-amber-500"}`}>
       <Timer className="h-3 w-3 inline mr-0.5" />
-      {timeLeft}
+      {hoursLeft === 0 ? "Releasing..." : `${hoursLeft}h`}
     </span>
   );
 }
@@ -213,6 +210,14 @@ export default function TransactionsPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <Timer className="h-5 w-5 text-amber-500" />
                   <span className="text-sm text-muted-foreground">Pending Clearance</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      Funds are held for 48 hours after a milestone is approved as a fraud prevention measure. They will automatically move to your wallet balance once cleared.
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <p className="text-2xl sm:text-3xl font-bold text-foreground">{format(pendingClearance)}</p>
                 {nextClearance && (
