@@ -765,7 +765,7 @@ export default function ContractDetail() {
                                   Fee: {feeInfo.rateLabel} → You get {format(feeInfo.takeHome)}
                                 </p>
                               )}
-                              {ms.status === "submitted" && ms.submission_notes && (
+                              {["submitted", "approved", "paid"].includes(ms.status) && (ms.submission_notes || ms.submission_attachments?.length > 0) && (
                                 <Button variant="link" size="sm" className="mt-2 p-0 h-auto text-primary" onClick={() => setShowSubmissionDetail(ms)}>
                                   <Eye className="h-3 w-3 mr-1" /> View Submission
                                 </Button>
@@ -1088,7 +1088,9 @@ export default function ContractDetail() {
                 <Button onClick={() => { handleMilestoneAction("approve_release", showSubmissionDetail.id); setShowSubmissionDetail(null); }} disabled={actionLoading}><CheckCircle2 className="h-4 w-4 mr-1" /> Approve & Release</Button>
               </>
             )}
-            {!isClient && <Button variant="outline" onClick={() => setShowSubmissionDetail(null)}>Close</Button>}
+            {(!isClient || showSubmissionDetail?.status !== "submitted") && (
+              <Button variant="outline" onClick={() => setShowSubmissionDetail(null)}>Close</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
