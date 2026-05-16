@@ -23,7 +23,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
 import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info, Check, AlertCircle, RefreshCw } from "lucide-react";
-import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
@@ -66,8 +65,6 @@ export default function PostJobPage() {
   const [customSkill, setCustomSkill] = useState("");
   const [overallSkillLevel, setOverallSkillLevel] = useState<SkillLevel>("Intermediate");
   const [attachmentUploads, setAttachmentUploads] = useState<UploadItem[]>([]);
-  const [showKycModal, setShowKycModal] = useState(false);
-
   // Visibility & invitations
   const [visibility, setVisibility] = useState<JobVisibility>("public");
   const [invitedExperts, setInvitedExperts] = useState<{id: string;full_name: string;}[]>([]);
@@ -312,7 +309,6 @@ export default function PostJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {navigate("/auth");return;}
-    if (!profile?.is_verified) { setShowKycModal(true); return; }
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required");
       return;
@@ -1092,11 +1088,6 @@ export default function PostJobPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <KycRequiredModal
-        open={showKycModal}
-        onClose={() => setShowKycModal(false)}
-        action="post a job"
-      />
     </div>);
 
 }

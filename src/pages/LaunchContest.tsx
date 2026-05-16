@@ -44,7 +44,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";
-import { KycRequiredModal } from "@/components/KycRequiredModal";
 
 export default function LaunchContestPage() {
   const { format } = useCurrency();
@@ -68,7 +67,6 @@ export default function LaunchContestPage() {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
-  const [showKycModal, setShowKycModal] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
@@ -211,10 +209,6 @@ export default function LaunchContestPage() {
     e.preventDefault();
     if (!user) {
       navigate("/auth");
-      return;
-    }
-    if (!profile?.is_verified) {
-      setShowKycModal(true);
       return;
     }
     if (!title.trim() || !description.trim() || !prizes[0] || !deadline) {
@@ -765,11 +759,6 @@ export default function LaunchContestPage() {
         userEmail={profile?.email}
       />
 
-      <KycRequiredModal
-        open={showKycModal}
-        onClose={() => setShowKycModal(false)}
-        action="host a contest"
-      />
     </div>
   );
 }
