@@ -11,7 +11,7 @@ const PATTERNS = {
   suspiciousDigits: /\b\d{7,}\b/,
   bankAccount: /\b\d{10}\b|\b\d{3}[-\s]?\d{3}[-\s]?\d{4}\b|(?:account\s*(?:number|no|#|num))\s*:?\s*\d+/i,
   whatsapp: /whatsapp|whats\s*app|wa\.me|chat\s*me\s*on/i,
-  socialMedia: /\b(?:instagram|facebook|twitter|tiktok|snapchat|telegram|linkedin|signal)\b/i,
+  socialMedia: /\b(?:instagram|facebook|twitter|tiktok|snapchat|telegram|linkedin)\b/i,
   url: /https?:\/\/[^\s]+|www\.[^\s]+/i,
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet|sort code|routing number)\b/i,
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?|hell|crap)\b/i,
