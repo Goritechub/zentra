@@ -8,7 +8,7 @@ const PATTERNS = {
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i,
   emailProvider: /\b(?:gmail|yahoo|outlook|hotmail|protonmail|ymail|aol|icloud|zoho|mail\.com)\b/i,
   phone: /(?:\+?234|0)?[789][01]\d{8}|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{10,11}\b/,
-  suspiciousDigits: /\b\d{7,}\b/,
+  suspiciousDigits: /\b\d{12,}\b/,
   bankAccount: /\b\d{10}\b|\b\d{3}[-\s]?\d{3}[-\s]?\d{4}\b|(?:account\s*(?:number|no|#|num))\s*:?\s*\d+/i,
   whatsapp: /whatsapp|whats\s*app|wa\.me|chat\s*me\s*on/i,
   socialMedia: /\b(?:instagram|facebook|twitter|tiktok|snapchat|telegram|linkedin)\b/i,
