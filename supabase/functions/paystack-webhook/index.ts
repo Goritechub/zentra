@@ -54,11 +54,13 @@ serve(async (req) => {
       const reference = event.data?.reference;
       if (!reference) return new Response("OK", { status: 200 });
 
-      // Update paystack_references
+      // Update paystack_references — capture Paystack's processing fee (kobo → naira)
+      const paystackFeeNaira = Math.round((event.data?.fees ?? 0) / 100);
       await supabase.from("paystack_references").update({
         status: "success",
         paystack_response: event.data,
         gateway_response: event.data?.gateway_response || null,
+        paystack_fee: paystackFeeNaira,
       }).eq("reference", reference);
 
       // Get the reference record

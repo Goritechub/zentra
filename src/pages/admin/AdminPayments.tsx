@@ -47,6 +47,7 @@ export default function AdminPayments() {
   const [pendingClearance, setPendingClearance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [totalGatewayFees, setTotalGatewayFees] = useState(0);
   const [withdrawalsFrozen, setWithdrawalsFrozen] = useState(false);
   const [togglingFreeze, setTogglingFreeze] = useState(false);
 
@@ -62,6 +63,7 @@ export default function AdminPayments() {
       setTransactions(data.transactions || []);
       setWithdrawals(data.withdrawals || []);
       setRevenue(data.revenue || []);
+      setTotalGatewayFees(data.totalGatewayFees || 0);
       setWithdrawalsFrozen(!!data.withdrawalsFrozen);
       setPendingClearance(data.pendingClearance || []);
     } finally {
@@ -209,6 +211,7 @@ export default function AdminPayments() {
               <p className="text-xl font-bold text-emerald-500">
                 {format(totalRev)}
               </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Net {format(totalRev - totalGatewayFees)} after gateway fees</p>
             </div>
             <TrendingUp className="h-8 w-8 text-emerald-500" />
           </CardContent>

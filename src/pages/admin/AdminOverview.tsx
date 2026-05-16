@@ -16,6 +16,7 @@ interface Stats {
   totalTransactions: number;
   openDisputes: number;
   totalRevenue: number;
+  totalGatewayFees: number;
 }
 
 export default function AdminOverview() {
@@ -43,6 +44,7 @@ export default function AdminOverview() {
         totalTransactions: data.totalTransactions || 0,
         openDisputes: data.openDisputes || 0,
         totalRevenue: data.totalRevenue || 0,
+        totalGatewayFees: data.totalGatewayFees || 0,
       });
     } finally {
       setLoading(false);
@@ -61,7 +63,7 @@ export default function AdminOverview() {
     { label: "Active Project Budget", value: format(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
     { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-indigo-500", route: "/admin/payments" },
     { label: "Open Disputes", value: stats!.openDisputes, icon: Gavel, color: "text-destructive", route: "/admin/disputes" },
-    { label: "Platform Revenue", value: format(stats!.totalRevenue), icon: DollarSign, color: "text-emerald-600", isNaira: true, route: "/admin/payments" },
+    { label: "Platform Revenue", value: format(stats!.totalRevenue), icon: DollarSign, color: "text-emerald-600", isNaira: true, route: "/admin/payments", subtitle: `Net ${format(stats!.totalRevenue - stats!.totalGatewayFees)}` },
   ];
 
   return (
@@ -79,6 +81,7 @@ export default function AdminOverview() {
                 <div>
                   <p className="text-sm text-muted-foreground">{card.label}</p>
                   <p className="text-2xl font-bold mt-1">{card.isNaira ? card.value : card.value.toLocaleString()}</p>
+                  {(card as any).subtitle && <p className="text-xs text-muted-foreground mt-0.5">{(card as any).subtitle} after gateway fees</p>}
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <card.icon className={`h-8 w-8 ${card.color}`} />
