@@ -90,29 +90,29 @@ export default function JobDetailsPage() {
   }, [id, user, profile]);
 
   const fetchJob = async () => {
-    const overview = await getJobDetailsOverview(id!);
-    const jobData = overview.job;
+    try {
+      const overview = await getJobDetailsOverview(id!);
+      const jobData = overview.job;
 
-    if (!jobData) {
+      if (!jobData) { setLoading(false); return; }
+      setJob(jobData);
+      setJobAssigned(jobData.status === "in_progress" || jobData.status === "completed");
+      setClient(overview.client || null);
+      setProposalCount(overview.proposalCount || 0);
+      setInterviewingCount(overview.interviewingCount || 0);
+      setWallet(overview.wallet || null);
+      setHasApplied(!!overview.hasApplied);
+      setMyProposal(overview.myProposal || null);
+      setProposals(overview.proposals || []);
+      setInterviewContracts(overview.interviewContracts || []);
+      setSimilarJobs(overview.similarJobs || []);
+      setClientStats(overview.clientStats || null);
+      setIsSaved(!!overview.isSaved);
+    } catch {
+      // silently fail — page shows empty state
+    } finally {
       setLoading(false);
-      return;
     }
-    setJob(jobData);
-    setJobAssigned(jobData.status === "in_progress" || jobData.status === "completed");
-
-    setClient(overview.client || null);
-    setProposalCount(overview.proposalCount || 0);
-    setInterviewingCount(overview.interviewingCount || 0);
-    setWallet(overview.wallet || null);
-    setHasApplied(!!overview.hasApplied);
-    setMyProposal(overview.myProposal || null);
-    setProposals(overview.proposals || []);
-    setInterviewContracts(overview.interviewContracts || []);
-    setSimilarJobs(overview.similarJobs || []);
-    setClientStats(overview.clientStats || null);
-    setIsSaved(!!overview.isSaved);
-
-    setLoading(false);
   };
 
   const fetchInterviewContracts = async (jobId: string) => {
