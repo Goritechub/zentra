@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { DollarSign, ShieldCheck, AlertTriangle } from "lucide-react";
@@ -39,6 +39,7 @@ const STATUS_MAP: Record<FundingStatus, { variant: "default" | "destructive" | "
 
 export function FundingStatusBadge({ clientId, budgetMin, budgetMax, contractId, status: precomputed, className }: FundingStatusBadgeProps) {
   const [status, setStatus] = useState<FundingStatus | null>(precomputed ?? null);
+  const channelName = useRef(`funding-status-${clientId}-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
     if (precomputed) { setStatus(precomputed); return; }
@@ -58,7 +59,7 @@ export function FundingStatusBadge({ clientId, budgetMin, budgetMax, contractId,
 
     // Subscribe to wallet changes for real-time updates
     const channel = supabase
-      .channel(`funding-status-${clientId}`)
+      .channel(channelName.current)
       .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${clientId}` }, () => compute())
       .on("postgres_changes", { event: "*", schema: "public", table: "escrow_ledger", ...(contractId ? { filter: `contract_id=eq.${contractId}` } : {}) }, () => compute())
       .subscribe();
