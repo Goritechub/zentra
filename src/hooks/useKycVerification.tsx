@@ -21,7 +21,7 @@ export interface KycVerification {
 }
 
 export function useKycVerification(userId?: string) {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const targetUserId = userId || user?.id;
   const [kycData, setKycData] = useState<KycVerification | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,7 +88,9 @@ export function useKycVerification(userId?: string) {
   const startVerification = async () => {
     if (!user) return null;
     try {
-      const callbackUrl = `${window.location.origin}/expert/${user.id}/profile?kyc=complete`;
+      const callbackUrl = profile?.role === "client"
+        ? `${window.location.origin}/settings?tab=payment&kyc=complete`
+        : `${window.location.origin}/expert/${user.id}/profile?kyc=complete`;
       const res = await api.post("/kyc/session", { callback_url: callbackUrl });
       await fetchKyc();
       return res.data;
