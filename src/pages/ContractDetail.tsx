@@ -97,7 +97,7 @@ export default function ContractDetail() {
   const [requestExtensionMs, setRequestExtensionMs] = useState<any>(null);
   const [requestExtensionDate, setRequestExtensionDate] = useState("");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
-  const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", due_date: "" });
+  const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", duration_value: "", duration_unit: "days" });
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeUploads, setDisputeUploads] = useState<UploadItem[]>([]);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -160,15 +160,17 @@ export default function ContractDetail() {
     if (!newMilestone.title || !newMilestone.amount) { toast.error("Title and amount are required"); return; }
     setActionLoading(true);
     try {
+      const durationMultiplier = newMilestone.duration_unit === "weeks" ? 7 : newMilestone.duration_unit === "months" ? 30 : 1;
+      const duration_days = newMilestone.duration_value ? parseInt(newMilestone.duration_value) * durationMultiplier : null;
       await addContractMilestone(id!, {
         title: newMilestone.title,
         description: newMilestone.description || null,
         amount: parseInt(newMilestone.amount),
-        due_date: newMilestone.due_date || null,
+        duration_days,
       });
       toast.success("Milestone added");
       setShowAddMilestone(false);
-      setNewMilestone({ title: "", description: "", amount: "", due_date: "" });
+      setNewMilestone({ title: "", description: "", amount: "", duration_value: "", duration_unit: "days" });
       fetchData();
     } catch (error) {
       toast.error("Failed to add milestone");
@@ -732,19 +734,12 @@ export default function ContractDetail() {
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
                                 <span className="font-semibold text-primary text-sm">{format(ms.amount)}</span>
-                                  {ms.due_date && ms.status === "pending" && (() => {
-                                  const prevDate = msIdx === 0
-                                    ? (contract.created_at ? new Date(contract.created_at) : null)
-                                    : (milestones[msIdx - 1]?.due_date ? new Date(milestones[msIdx - 1].due_date) : null);
-                                  const windowDays = prevDate ? Math.round((new Date(ms.due_date).getTime() - prevDate.getTime()) / 86_400_000) : 0;
-                                  const dueLabel = new Date(ms.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                                  return (
+                                  {ms.status === "pending" && (
                                     <span className="flex items-center gap-1 text-muted-foreground">
                                       <CalendarDays className="h-3 w-3" />
-                                      Due {dueLabel}{windowDays > 0 ? ` · ${windowDays}d window` : ""} · Awaiting funding
+                                      {ms.duration_days ? `${ms.duration_days}d delivery` : "Duration TBD"} · Awaiting funding
                                     </span>
-                                  );
-                                })()}
+                                  )}
                                 {ms.due_date && ["funded", "in_progress", "overdue"].includes(ms.status) && (() => {
                                   const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000);
                                   const isOverdue = daysLeft < 0;
@@ -1104,7 +1099,17 @@ export default function ContractDetail() {
             <div className="space-y-2"><Label>Description</Label><Textarea placeholder="What's included..." value={newMilestone.description} onChange={(e) => setNewMilestone(p => ({ ...p, description: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" min="1" value={newMilestone.amount} onChange={(e) => setNewMilestone(p => ({ ...p, amount: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>Due Date</Label><Input type="date" value={newMilestone.due_date} onChange={(e) => setNewMilestone(p => ({ ...p, due_date: e.target.value }))} /></div>
+              <div className="space-y-2">
+                <Label>Delivery Time</Label>
+                <div className="flex gap-2">
+                  <Input type="number" min="1" placeholder="e.g. 7" value={newMilestone.duration_value} onChange={(e) => setNewMilestone(p => ({ ...p, duration_value: e.target.value }))} className="w-20 flex-1" />
+                  <select value={newMilestone.duration_unit} onChange={(e) => setNewMilestone(p => ({ ...p, duration_unit: e.target.value }))} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                    <option value="days">days</option>
+                    <option value="weeks">weeks</option>
+                    <option value="months">months</option>
+                  </select>
+                </div>
+              </div>
             </div>
             {newMilestone.amount && parseInt(newMilestone.amount) > 0 && isFreelancer && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
