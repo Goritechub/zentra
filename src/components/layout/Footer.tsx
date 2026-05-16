@@ -77,7 +77,11 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-background/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-background/60">© {new Date().getFullYear()} ZentraGig. All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-sm text-background/60">
+            <span>© {new Date().getFullYear()} ZentraGig. All rights reserved.</span>
+            <span className="hidden sm:inline text-background/30">·</span>
+            <span>ZentraGig is a product of <span className="text-background/80">Nexlayer AM Limited</span></span>
+          </div>
           <div className="flex items-center gap-6 text-sm text-background/60">
             <Link to="/terms?doc=privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>

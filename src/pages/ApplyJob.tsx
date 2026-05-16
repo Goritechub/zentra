@@ -183,6 +183,19 @@ export default function ApplyJobPage() {
     if (id && user) fetchData();
   }, [id, user]);
 
+  // Auto-save draft so a reload doesn't wipe the form
+  useEffect(() => {
+    if (!id || existingProposal) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(`apply_draft_${id}`, JSON.stringify({
+          paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones,
+        }));
+      } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones, id, existingProposal]);
+
   const populateEditFields = (proposal: any) => {
     setEditBidAmount(String(proposal.bid_amount));
     setEditBidAmountFormatted(formatWithCommas(String(proposal.bid_amount)));
@@ -241,6 +254,23 @@ export default function ApplyJobPage() {
     if (existing) {
       setExistingProposal(existing);
       populateEditFields(existing);
+    } else {
+      // Restore saved draft if user reloaded before submitting
+      try {
+        const saved = localStorage.getItem(`apply_draft_${id}`);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft.coverLetter) setCoverLetter(draft.coverLetter);
+          if (draft.bidAmountFormatted) {
+            setBidAmountFormatted(draft.bidAmountFormatted);
+            setBidAmount(draft.bidAmountFormatted.replace(/,/g, ""));
+          }
+          if (draft.deliveryValue) setDeliveryValue(draft.deliveryValue);
+          if (draft.deliveryUnit) setDeliveryUnit(draft.deliveryUnit as DurationUnit);
+          if (draft.milestones?.length > 0) setMilestones(draft.milestones);
+          if (!pref && draft.paymentType) setPaymentType(draft.paymentType);
+        }
+      } catch {}
     }
 
     setLoading(false);
@@ -415,6 +445,7 @@ export default function ApplyJobPage() {
         setExistingProposal(proposal);
         populateEditFields(proposal);
       }
+      try { localStorage.removeItem(`apply_draft_${id}`); } catch {}
       setSubmittedConfirmation(true);
     } catch (error: any) {
       toast.error(error?.message || "Your proposal was blocked due to policy violations.");
