@@ -108,8 +108,8 @@ export default function JobDetailsPage() {
       setSimilarJobs(overview.similarJobs || []);
       setClientStats(overview.clientStats || null);
       setIsSaved(!!overview.isSaved);
-    } catch {
-      // silently fail — page shows empty state
+    } catch (err) {
+      console.error("[JobDetails] fetchJob failed:", err);
     } finally {
       setLoading(false);
     }
