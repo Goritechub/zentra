@@ -193,7 +193,7 @@ export default function PostJobPage() {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
       xhr.open("POST", `${baseUrl}/jobs/attachments`, true);
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      xhr.timeout = 30000;
+      xhr.timeout = 90000;
 
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable && e.total > 0) {

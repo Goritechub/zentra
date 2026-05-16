@@ -263,7 +263,7 @@ export default function ApplyJobPage() {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
       xhr.open("POST", `${baseUrl}/proposals/attachments`, true);
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      xhr.timeout = 30000;
+      xhr.timeout = 90000;
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable && e.total > 0) onProgress(Math.round((e.loaded / e.total) * 100));
       });
