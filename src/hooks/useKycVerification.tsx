@@ -24,7 +24,7 @@ export function useKycVerification(userId?: string) {
   const { user, profile, refreshProfile } = useAuth();
   const targetUserId = userId || user?.id;
   const [kycData, setKycData] = useState<KycVerification | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const didAutoCheck = useRef(false);
 
   // useSearchParams is only valid inside a Router context — wrap in try/catch
@@ -40,14 +40,18 @@ export function useKycVerification(userId?: string) {
   const kycComplete = searchParams?.get("kyc") === "complete";
 
   const fetchKyc = async () => {
-    if (!targetUserId) return; // keep loading=true until user is available
-    const { data } = await supabase
-      .from("kyc_verifications" as any)
-      .select("*")
-      .eq("user_id", targetUserId)
-      .maybeSingle();
-    setKycData(data as any);
-    setLoading(false);
+    if (!targetUserId) return;
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("kyc_verifications" as any)
+        .select("*")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      setKycData(data as any);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
