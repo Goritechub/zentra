@@ -57,6 +57,7 @@ export function getNotificationUrl(notification: {
     hired: "/dashboard/contracts",
     kyc_verified: "/my-profile",
     kyc_failed: "/my-profile",
+    referral_signup: "/dashboard",
   };
 
   return typeRoutes[type] || null;
