@@ -38,6 +38,7 @@ let pendingRefresh: Promise<string | null> | null = null;
 
 export const api = axios.create({
   baseURL: apiBaseUrl,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },

@@ -168,6 +168,7 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
       channel,
       email: userEmail,
       purpose: "wallet_funding",
+      callback_url: `${window.location.origin}/wallet/callback`,
     };
 
     if (channel === "ussd") {

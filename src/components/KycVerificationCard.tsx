@@ -17,15 +17,20 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
 
   const handleStart = async () => {
     setStarting(true);
+    // Open the window synchronously while still in the user-gesture context.
+    // Browsers block window.open() called after an await, so we open a blank
+    // tab first, then navigate it once we have the URL.
+    const diditWindow = window.open("", "_blank");
     try {
       const result = await startVerification();
-      if (result?.verification_url) {
-        const w = window.top || window;
-        w.open(result.verification_url, "_blank", "noopener,noreferrer");
+      if (result?.verification_url && diditWindow) {
+        diditWindow.location.href = result.verification_url;
       } else {
+        diditWindow?.close();
         toast.error("Failed to get verification URL");
       }
     } catch {
+      diditWindow?.close();
       toast.error("Failed to start verification");
     }
     setStarting(false);

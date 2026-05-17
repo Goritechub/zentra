@@ -12,14 +12,19 @@ export default function WalletCallbackPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<CallbackStatus>("loading");
 
-  const txRef = searchParams.get("tx_ref");
+  // Paystack sends: ?reference=xxx&trxref=xxx (no status param)
+  // Flutterwave sends: ?tx_ref=xxx&status=successful|cancelled|failed
+  const txRef = searchParams.get("reference") || searchParams.get("trxref") || searchParams.get("tx_ref");
   const rawStatus = searchParams.get("status");
 
   useEffect(() => {
-    if (rawStatus === "successful") setStatus("successful");
-    else if (rawStatus === "cancelled") setStatus("cancelled");
-    else setStatus("failed");
-  }, [rawStatus]);
+    if (rawStatus === "successful") { setStatus("successful"); return; }
+    if (rawStatus === "cancelled") { setStatus("cancelled"); return; }
+    if (rawStatus === "failed") { setStatus("failed"); return; }
+    // Paystack redirect — presence of reference means payment was attempted
+    if (txRef) { setStatus("successful"); return; }
+    setStatus("failed");
+  }, [rawStatus, txRef]);
 
   if (status === "loading") {
     return (
@@ -41,7 +46,7 @@ export default function WalletCallbackPage() {
               </div>
               <h1 className="text-2xl font-bold text-foreground">Payment Received</h1>
               <p className="text-muted-foreground">
-                Your payment was successful. Your wallet will be credited within a few minutes once the transaction is confirmed.
+                Your payment was successful. Your wallet will be credited shortly — you can close this tab and return to ZentraGig.
               </p>
               {txRef && (
                 <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-3 py-1.5 break-all">
