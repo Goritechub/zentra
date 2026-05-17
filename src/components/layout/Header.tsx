@@ -304,6 +304,18 @@ export function Header() {
               </>
             ) : isAuthenticated ? (
               <>
+                <Link
+                  to="/messages"
+                  className="relative p-2 rounded-full hover:bg-accent transition-colors"
+                  aria-label="Messages"
+                >
+                  <MessageSquare className="h-5 w-5 text-foreground/70" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-destructive-foreground">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <NotificationBell />
                 {/* Avatar → individual profile */}
                 <Link to={profileHref} className="rounded-full shrink-0 mx-1">

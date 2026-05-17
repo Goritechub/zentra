@@ -6,7 +6,6 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
@@ -26,11 +25,11 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { VerificationBadges } from "@/components/VerificationBadges";
-
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
-  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare, Wallet, ShieldCheck, Eye, DollarSign, Milestone as MilestoneIcon, Download, Briefcase, TrendingUp
+  FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare,
+  Wallet, ShieldCheck, Eye, DollarSign, Download, Briefcase, TrendingUp, ChevronLeft,
 } from "lucide-react";
 
 function formatDurationDisplay(days: number, unit?: string): string {
@@ -61,9 +60,14 @@ export default function ProposalsReceivedPage() {
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
   const { isVerified: kycVerified } = useKycVerification();
   const [showKycModal, setShowKycModal] = useState(false);
-
   const [jobContracts, setJobContracts] = useState<Map<string, any>>(new Map());
   const [jobsData, setJobsData] = useState<any[]>([]);
+
+  // Split-panel state
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  // On mobile: "jobs" shows the list, "proposals" shows the right panel
+  const [mobileView, setMobileView] = useState<"jobs" | "proposals">("jobs");
 
   const proposalsOverviewQuery = useQuery({
     queryKey: ["client-received-proposals", user?.id],
@@ -81,11 +85,9 @@ export default function ProposalsReceivedPage() {
   useEffect(() => {
     const data = proposalsOverviewQuery.data;
     if (!data) return;
-
     setWallet(data.wallet || null);
     setJobsData(data.jobs || []);
     setProposals(data.proposals || []);
-
     const contractMap = new Map<string, any>();
     (data.jobContracts || []).forEach((contract: any) => {
       if (!contractMap.has(contract.job_id) || contract.status === "active") {
@@ -104,14 +106,10 @@ export default function ProposalsReceivedPage() {
 
   const updateProposalStatus = async (proposalId: string, status: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
-
-    // If interviewing, create a draft contract with chat thread
     if (status === "interviewing" && proposal) {
       await handleStartInterview(proposal);
       return;
     }
-
-    // If rejecting from interviewing, close the associated contract
     if (status === "rejected" && proposal) {
       await handleRejectProposal(proposal);
       return;
@@ -119,9 +117,7 @@ export default function ProposalsReceivedPage() {
     try {
       await updateClientProposalStatus(proposalId, status);
       toast.success(`Proposal ${status}`);
-      setProposals((prev) =>
-        prev.map((p) => (p.id === proposalId ? { ...p, status } : p)),
-      );
+      setProposals((prev) => prev.map((p) => (p.id === proposalId ? { ...p, status } : p)));
     } catch {
       toast.error("Failed to update proposal");
     }
@@ -153,28 +149,21 @@ export default function ProposalsReceivedPage() {
 
   const getRequiredAmount = (proposal: any) => {
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
-      return proposal.milestones[0].amount; // First milestone only
+      return proposal.milestones[0].amount;
     }
-    return proposal.bid_amount; // Full project amount
+    return proposal.bid_amount;
   };
 
   const handleAcceptAndAssign = async () => {
     const proposal = assignDialog.proposal;
     if (!proposal || !user) return;
-
-
     const requiredAmount = getRequiredAmount(proposal);
     const fundNow = fundingChoice === "now";
-
-    if (fundNow) {
-      const isPaymentReady = wallet && wallet.balance >= requiredAmount;
-      if (!isPaymentReady) {
-        toast.error(`Insufficient wallet balance. You need at least ${format(requiredAmount)} to assign.`);
-        setAssignDialog({ open: false, proposal: null });
-        return;
-      }
+    if (fundNow && wallet && wallet.balance < requiredAmount) {
+      toast.error(`Insufficient wallet balance. You need at least ${format(requiredAmount)} to assign.`);
+      setAssignDialog({ open: false, proposal: null });
+      return;
     }
-
     setAssigning(true);
     try {
       const result = await acceptAndAssignClientProposal(proposal.id, fundNow);
@@ -205,23 +194,20 @@ export default function ProposalsReceivedPage() {
     const Icon = cfg.icon;
     return (
       <Badge variant={cfg.variant} className="gap-1">
-        <Icon className="h-3 w-3" /> {status}
+        <Icon className="h-3 w-3" /> {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  const filterByStatus = (status: string) =>
-    status === "all" ? proposals : proposals.filter((p) => p.status === status);
-
   const contractStatusLabel = (status: string) => {
     const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      active: { variant: "default", label: "Contract Active" },
-      completed: { variant: "secondary", label: "Contract Completed" },
+      active: { variant: "default", label: "Active" },
+      completed: { variant: "secondary", label: "Completed" },
       pending_funding: { variant: "outline", label: "Pending Funding" },
       disputed: { variant: "destructive", label: "Disputed" },
     };
     const cfg = map[status] || { variant: "outline" as const, label: status };
-    return <Badge variant={cfg.variant} className="gap-1 text-xs">{cfg.label}</Badge>;
+    return <Badge variant={cfg.variant} className="text-xs">{cfg.label}</Badge>;
   };
 
   const groupByJob = (proposalsList: any[]) => {
@@ -247,18 +233,30 @@ export default function ProposalsReceivedPage() {
     }));
   };
 
+  const allGroups = groupByJob(proposals);
+
+  // Auto-select first job once data loads
+  useEffect(() => {
+    if (allGroups.length > 0 && !selectedJobId) {
+      setSelectedJobId(allGroups[0].jobId);
+    }
+  }, [allGroups.length]);
+
+  const selectedGroup = allGroups.find(g => g.jobId === selectedJobId) || null;
+  const filteredProposals = selectedGroup
+    ? statusFilter === "all"
+      ? selectedGroup.proposals
+      : selectedGroup.proposals.filter(p => p.status === statusFilter)
+    : [];
+
   const actionableProposals = proposals.filter((p) => p.status === "pending" || p.status === "interviewing");
-  const minRequired =
-    actionableProposals.length > 0
-      ? Math.min(...actionableProposals.map((p) => getRequiredAmount(p)))
-      : 0;
-  const paymentReady =
-    wallet !== null &&
+  const minRequired = actionableProposals.length > 0
+    ? Math.min(...actionableProposals.map((p) => getRequiredAmount(p)))
+    : 0;
+  const paymentReady = wallet !== null &&
     (actionableProposals.length === 0 ? wallet.balance > 0 : wallet.balance >= minRequired);
 
-  const showInitialPageLoader = !user && bootstrapStatus === "loading";
-
-  if (showInitialPageLoader) {
+  if (!user && bootstrapStatus === "loading") {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -270,22 +268,24 @@ export default function ProposalsReceivedPage() {
     );
   }
 
+  const statusFilters = [
+    { value: "all", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "interviewing", label: "Interviewing" },
+    { value: "accepted", label: "Accepted" },
+    { value: "rejected", label: "Rejected" },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
 
-
-
-          {loading && (
-            <p className="mb-4 text-sm text-muted-foreground">Refreshing proposals...</p>
-          )}
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Proposals Received</h1>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={paymentReady ? "default" : "destructive"} className="gap-1">
@@ -299,165 +299,254 @@ export default function ProposalsReceivedPage() {
           </div>
 
           {!paymentReady && actionableProposals.length > 0 && (
-            <Alert className="mb-6 border-destructive/30 bg-destructive/5">
+            <Alert className="mb-4 border-destructive/30 bg-destructive/5">
               <Wallet className="h-4 w-4 text-destructive" />
               <AlertDescription className="text-sm">
-                Your wallet balance ({format(wallet?.balance || 0)}) is insufficient to assign any expert. You need at least {format(minRequired)} to fund the cheapest pending proposal.{" "}
+                Your wallet balance ({format(wallet?.balance || 0)}) is insufficient to assign any expert. You need at least {format(minRequired)}.{" "}
                 <Link to="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</Link>
               </AlertDescription>
             </Alert>
           )}
 
-          <Tabs defaultValue="all">
-            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1">
-              <TabsTrigger value="all" className="flex-1">All ({proposals.length})</TabsTrigger>
-              <TabsTrigger value="pending" className="flex-1">Pending ({filterByStatus("pending").length})</TabsTrigger>
-              <TabsTrigger value="interviewing" className="flex-1">Interviewing ({filterByStatus("interviewing").length})</TabsTrigger>
-              <TabsTrigger value="accepted" className="flex-1">Accepted ({filterByStatus("accepted").length})</TabsTrigger>
-              <TabsTrigger value="rejected" className="flex-1">Rejected ({filterByStatus("rejected").length})</TabsTrigger>
-            </TabsList>
-
-            {["all", "pending", "interviewing", "accepted", "rejected"].map((status) => (
-              <TabsContent key={status} value={status}>
-                {filterByStatus(status).length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No {status === "all" ? "" : status} proposals</p>
+          {loading && proposals.length === 0 ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : allGroups.length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No proposals yet</p>
+              <p className="text-sm mt-1">Proposals from experts will appear here once they apply to your jobs.</p>
+            </div>
+          ) : (
+            <>
+              {/* ── Desktop split panel ── */}
+              <div className="hidden md:flex rounded-xl border border-border overflow-hidden bg-card" style={{ minHeight: "600px" }}>
+                {/* Left: Job List (1/3) */}
+                <div className="w-1/3 border-r border-border flex flex-col">
+                  <div className="px-4 py-3 border-b border-border bg-muted/30">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {allGroups.length} Job{allGroups.length !== 1 ? "s" : ""}
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {groupByJob(filterByStatus(status)).map((group) => {
+                  <ScrollArea className="flex-1">
+                    {allGroups.map((group) => {
+                      const pendingCount = group.proposals.filter((p: any) => p.status === "pending").length;
+                      const isSelected = selectedJobId === group.jobId;
                       const isAssigned = !!group.contract;
                       return (
-                        <div key={group.jobId} className={`rounded-xl border ${isAssigned ? "border-border/50 bg-muted/30" : "border-border bg-card"}`}>
-                          {/* Job Group Header */}
-                          <div className={`flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b ${isAssigned ? "border-border/50" : "border-border"}`}>
-                            <div className="flex items-center gap-x-3 gap-y-1 flex-wrap min-w-0">
-                              <Briefcase className={`h-4 w-4 shrink-0 ${isAssigned ? "text-muted-foreground" : "text-primary"}`} />
-                              <Link to={`/job/${group.jobId}`} className={`font-semibold hover:underline min-w-0 break-words ${isAssigned ? "text-muted-foreground" : "text-foreground hover:text-primary"}`}>
-                                {group.jobTitle}
-                              </Link>
-                              <Badge variant="outline" className="text-xs whitespace-nowrap shrink-0">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {isAssigned && contractStatusLabel(group.contract.status)}
-                              {isAssigned && (
-                                <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/contract/${group.contract.id}`)}>
-                                  View Contract
-                                </Button>
-                              )}
-                            </div>
+                        <button
+                          key={group.jobId}
+                          onClick={() => { setSelectedJobId(group.jobId); setStatusFilter("all"); }}
+                          className={`w-full text-left px-4 py-3.5 border-b border-border/50 transition-colors hover:bg-muted/40 ${
+                            isSelected ? "bg-primary/10 border-l-[3px] border-l-primary" : "border-l-[3px] border-l-transparent"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-sm font-medium leading-snug line-clamp-2 ${isAssigned ? "text-muted-foreground" : "text-foreground"}`}>
+                              {group.jobTitle}
+                            </p>
+                            {pendingCount > 0 && !isAssigned && (
+                              <span className="shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1">
+                                {pendingCount}
+                              </span>
+                            )}
                           </div>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span className="text-xs text-muted-foreground">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</span>
+                            {group.contract && (
+                              <>{contractStatusLabel(group.contract.status)}</>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </ScrollArea>
+                </div>
 
-                          {/* Proposals within group */}
-                          <div className={`divide-y ${isAssigned ? "divide-border/50 opacity-60" : "divide-border"}`}>
-                            {group.proposals.map((proposal: any) => (
-                              <div key={proposal.id} className="px-4 py-4 sm:px-6 sm:py-5">
-                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-3">
-                                      <Avatar className="h-10 w-10">
-                                        <AvatarImage src={proposal.freelancer?.avatar_url || undefined} />
-                                        <AvatarFallback className="bg-primary/10 text-primary">
-                                          {(proposal.freelancer?.full_name || "U")[0]}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <div className="flex items-center gap-2">
-                                          <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-foreground hover:text-primary hover:underline transition-colors">
-                                            {proposal.freelancer?.full_name || "Expert"}
-                                          </Link>
-                                          {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
-                                            <VerificationBadges
-                                              isVerified={true}
-                                              isZentraVerified={proposal.kyc?.zentra_verified || false}
-                                              role="freelancer"
-                                              size="sm"
-                                            />
-                                          )}
-                                        </div>
-                                        {proposal.freelancer?.state && (
-                                          <p className="text-xs text-muted-foreground">
-                                            {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}
-                                            {proposal.freelancer.state}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
+                {/* Right: Proposals (2/3) */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  {selectedGroup ? (
+                    <>
+                      {/* Right header */}
+                      <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <Link to={`/job/${selectedGroup.jobId}`} className="font-semibold text-foreground hover:text-primary hover:underline truncate block">
+                            {selectedGroup.jobTitle}
+                          </Link>
+                          <p className="text-xs text-muted-foreground">{selectedGroup.proposals.length} proposal{selectedGroup.proposals.length !== 1 ? "s" : ""}</p>
+                        </div>
+                        {selectedGroup.contract && (
+                          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => navigate(`/contract/${selectedGroup.contract.id}`)}>
+                            View Contract
+                          </Button>
+                        )}
+                      </div>
 
-                                    <p className="text-muted-foreground text-sm mt-2 whitespace-pre-wrap">
-                                      {proposal.cover_letter}
-                                    </p>
+                      {/* Status filter chips */}
+                      <div className="px-5 py-2.5 border-b border-border/50 flex gap-1.5 flex-wrap">
+                        {statusFilters.map((f) => {
+                          const count = f.value === "all"
+                            ? selectedGroup.proposals.length
+                            : selectedGroup.proposals.filter((p: any) => p.status === f.value).length;
+                          if (f.value !== "all" && count === 0) return null;
+                          return (
+                            <button
+                              key={f.value}
+                              onClick={() => setStatusFilter(f.value)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                statusFilter === f.value
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                            >
+                              {f.label} {count > 0 && `(${count})`}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                                    {proposal.attachments && proposal.attachments.length > 0 && (
-                                      <div className="mt-3 space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Attachments:</p>
-                                        {proposal.attachments.map((url: string, idx: number) => {
-                                          const name = url.split("/").pop() || `Attachment ${idx + 1}`;
-                                          return (
-                                            <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm">
-                                              <FileText className="h-4 w-4 text-primary shrink-0" />
-                                              <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
-                                            </a>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                                      <span>Bid: <strong className="text-foreground">{format(proposal.bid_amount)}</strong></span>
-                                      <span>Delivery: <strong className="text-foreground">{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}</strong></span>
-                                      <span>{formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}</span>
-                                    </div>
-                                    <ProposalAnalyticsStrip proposal={proposal} job={group.job} />
-                                  </div>
-
-                                  <div className="flex flex-col items-start sm:items-end gap-3">
-                                    {statusBadge(proposal.status)}
-
-                                    {!isAssigned && proposal.status === "pending" && (
-                                      <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => setInterviewConfirm({ open: true, proposal })} disabled={interviewingId === proposal.id}>
-                                          {interviewingId === proposal.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserCheck className="h-4 w-4 mr-1" />} Interview
-                                        </Button>
-                                        <Button size="sm" onClick={() => openAssignDialog(proposal)}>
-                                          <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
-                                        </Button>
-                                        <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
-                                          <X className="h-4 w-4 mr-1" /> Reject
-                                        </Button>
-                                      </div>
-                                    )}
-
-                                    {!isAssigned && proposal.status === "interviewing" && (
-                                      <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" onClick={() => openAssignDialog(proposal)}>
-                                          <CheckCircle2 className="h-4 w-4 mr-1" /> Accept & Assign
-                                        </Button>
-                                        <Button size="sm" variant="destructive" onClick={() => updateProposalStatus(proposal.id, "rejected")}>
-                                          <X className="h-4 w-4 mr-1" /> Reject
-                                        </Button>
-                                      </div>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-2">
-                                      <Button size="sm" variant="outline" onClick={() => setDetailDialog({ open: true, proposal })}>
-                                        <Eye className="h-4 w-4 mr-1" /> View Details
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                      <ScrollArea className="flex-1">
+                        {filteredProposals.length === 0 ? (
+                          <div className="text-center py-16 text-muted-foreground">
+                            <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                            <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals for this job</p>
+                          </div>
+                        ) : (
+                          <div className={`p-3 space-y-2 ${!!selectedGroup.contract ? "opacity-60" : ""}`}>
+                            {filteredProposals.map((proposal: any) => (
+                              <ProposalCard
+                                key={proposal.id}
+                                proposal={proposal}
+                                job={selectedGroup.job}
+                                isAssigned={!!selectedGroup.contract}
+                                format={format}
+                                interviewingId={interviewingId}
+                                statusBadge={statusBadge}
+                                onInterview={(p) => setInterviewConfirm({ open: true, proposal: p })}
+                                onAssign={openAssignDialog}
+                                onReject={(p) => updateProposalStatus(p.id, "rejected")}
+                                onDetail={(p) => setDetailDialog({ open: true, proposal: p })}
+                              />
                             ))}
                           </div>
-                        </div>
+                        )}
+                      </ScrollArea>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">Select a job to view its proposals</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Mobile stacked view ── */}
+              <div className="md:hidden">
+                {mobileView === "jobs" ? (
+                  <div className="rounded-xl border border-border overflow-hidden bg-card">
+                    <div className="px-4 py-3 border-b border-border bg-muted/30">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {allGroups.length} Job{allGroups.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    {allGroups.map((group) => {
+                      const pendingCount = group.proposals.filter((p: any) => p.status === "pending").length;
+                      const isAssigned = !!group.contract;
+                      return (
+                        <button
+                          key={group.jobId}
+                          onClick={() => { setSelectedJobId(group.jobId); setStatusFilter("all"); setMobileView("proposals"); }}
+                          className="w-full text-left px-4 py-4 border-b border-border/50 hover:bg-muted/30 transition-colors flex items-center justify-between gap-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium leading-snug ${isAssigned ? "text-muted-foreground" : "text-foreground"}`}>
+                              {group.jobTitle}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{group.proposals.length} proposal{group.proposals.length !== 1 ? "s" : ""}</span>
+                              {group.contract && contractStatusLabel(group.contract.status)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {pendingCount > 0 && !isAssigned && (
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1">
+                                {pendingCount}
+                              </span>
+                            )}
+                            <ChevronLeft className="h-4 w-4 text-muted-foreground rotate-180" />
+                          </div>
+                        </button>
                       );
                     })}
                   </div>
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
+                ) : selectedGroup ? (
+                  <div className="rounded-xl border border-border overflow-hidden bg-card">
+                    <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center gap-3">
+                      <button onClick={() => setMobileView("jobs")} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm truncate">{selectedGroup.jobTitle}</p>
+                        <p className="text-xs text-muted-foreground">{selectedGroup.proposals.length} proposals</p>
+                      </div>
+                      {selectedGroup.contract && (
+                        <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => navigate(`/contract/${selectedGroup.contract.id}`)}>
+                          Contract
+                        </Button>
+                      )}
+                    </div>
+                    <div className="px-4 py-2.5 border-b border-border/50 flex gap-1.5 overflow-x-auto">
+                      {statusFilters.map((f) => {
+                        const count = f.value === "all"
+                          ? selectedGroup.proposals.length
+                          : selectedGroup.proposals.filter((p: any) => p.status === f.value).length;
+                        if (f.value !== "all" && count === 0) return null;
+                        return (
+                          <button
+                            key={f.value}
+                            onClick={() => setStatusFilter(f.value)}
+                            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                              statusFilter === f.value
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {f.label} {count > 0 && `(${count})`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className={`p-3 space-y-2 ${!!selectedGroup.contract ? "opacity-60" : ""}`}>
+                      {filteredProposals.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                          <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals</p>
+                        </div>
+                      ) : filteredProposals.map((proposal: any) => (
+                        <ProposalCard
+                          key={proposal.id}
+                          proposal={proposal}
+                          job={selectedGroup.job}
+                          isAssigned={!!selectedGroup.contract}
+                          format={format}
+                          interviewingId={interviewingId}
+                          statusBadge={statusBadge}
+                          onInterview={(p) => setInterviewConfirm({ open: true, proposal: p })}
+                          onAssign={openAssignDialog}
+                          onReject={(p) => updateProposalStatus(p.id, "rejected")}
+                          onDetail={(p) => setDetailDialog({ open: true, proposal: p })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </main>
       <Footer />
@@ -468,7 +557,7 @@ export default function ProposalsReceivedPage() {
           <DialogHeader>
             <DialogTitle>Assign Expert & Create Contract</DialogTitle>
             <DialogDescription>
-              You're about to assign this expert and create a contract. The bid amount will be paid to ZentraGig to secure the project.
+              You're about to assign this expert and create a contract.
             </DialogDescription>
           </DialogHeader>
           {assignDialog.proposal && (
@@ -485,8 +574,6 @@ export default function ProposalsReceivedPage() {
                 <span className="text-muted-foreground">Delivery</span>
                 <span>{formatDurationDisplay(assignDialog.proposal.delivery_days, assignDialog.proposal.delivery_unit)}</span>
               </div>
-
-              {/* Fund Now or Later */}
               <div className="space-y-2 pt-2 border-t border-border">
                 <p className="text-sm font-semibold text-foreground">When would you like to fund?</p>
                 <RadioGroup value={fundingChoice} onValueChange={(v) => setFundingChoice(v as "now" | "later")} className="space-y-2">
@@ -495,7 +582,7 @@ export default function ProposalsReceivedPage() {
                     <Label htmlFor="fund-now" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Now</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Pay {format(getRequiredAmount(assignDialog.proposal))} to ZentraGig now. Expert can start working right away.
+                        Pay {format(getRequiredAmount(assignDialog.proposal))} now. Expert can start right away.
                       </p>
                     </Label>
                   </div>
@@ -504,13 +591,12 @@ export default function ProposalsReceivedPage() {
                     <Label htmlFor="fund-later" className="cursor-pointer flex-1">
                       <span className="font-medium text-foreground">Fund Later</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Create the contract now but fund the milestone later. Expert cannot begin until funded.
+                        Create the contract now, fund milestones later. Expert cannot begin until funded.
                       </p>
                     </Label>
                   </div>
                 </RadioGroup>
               </div>
-
               {fundingChoice === "now" && (
                 <>
                   <div className="flex justify-between text-sm">
@@ -529,17 +615,16 @@ export default function ProposalsReceivedPage() {
                     <Alert className="border-destructive/30 bg-destructive/5">
                       <Wallet className="h-4 w-4 text-destructive" />
                       <AlertDescription className="text-sm">
-                        Insufficient balance. You need at least {format(getRequiredAmount(assignDialog.proposal))} to fund now.{" "}
+                        Insufficient balance. You need at least {format(getRequiredAmount(assignDialog.proposal))}.{" "}
                         <a href="/transactions" className="text-primary hover:underline font-medium">Fund Wallet →</a>
                       </AlertDescription>
                     </Alert>
                   )}
                 </>
               )}
-
               {fundingChoice === "later" && (
                 <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm text-muted-foreground">
-                  💡 The contract will be created with <strong className="text-foreground">Pending Funding</strong> status. You can fund milestones from the contract page.
+                  💡 Contract created with <strong className="text-foreground">Pending Funding</strong> status. Fund milestones from the contract page.
                 </div>
               )}
             </div>
@@ -562,14 +647,11 @@ export default function ProposalsReceivedPage() {
         <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Proposal Details</DialogTitle>
-            <DialogDescription>
-              Full proposal from {detailDialog.proposal?.freelancer?.full_name || "Expert"}
-            </DialogDescription>
+            <DialogDescription>Full proposal from {detailDialog.proposal?.freelancer?.full_name || "Expert"}</DialogDescription>
           </DialogHeader>
           {detailDialog.proposal && (
             <ScrollArea className="max-h-[60vh] pr-4">
               <div className="space-y-6">
-                {/* Expert Info */}
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={detailDialog.proposal.freelancer?.avatar_url || undefined} />
@@ -578,7 +660,9 @@ export default function ProposalsReceivedPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <Link to={`/expert/${detailDialog.proposal.freelancer_id}/profile`} className="font-semibold text-foreground text-lg hover:text-primary hover:underline transition-colors">{detailDialog.proposal.freelancer?.full_name || "Expert"}</Link>
+                    <Link to={`/expert/${detailDialog.proposal.freelancer_id}/profile`} className="font-semibold text-foreground text-lg hover:text-primary hover:underline">
+                      {detailDialog.proposal.freelancer?.full_name || "Expert"}
+                    </Link>
                     {detailDialog.proposal.freelancer?.state && (
                       <p className="text-sm text-muted-foreground">
                         {detailDialog.proposal.freelancer.city ? `${detailDialog.proposal.freelancer.city}, ` : ""}{detailDialog.proposal.freelancer.state}
@@ -586,29 +670,21 @@ export default function ProposalsReceivedPage() {
                     )}
                   </div>
                 </div>
-
-                {/* Job */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">For Job</p>
                   <Link to={`/job/${detailDialog.proposal.job_id}`} className="text-primary hover:underline font-medium">{detailDialog.proposal.job_title}</Link>
                 </div>
-
-                {/* Cover Letter */}
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-2">Cover Letter</p>
                   <div className="p-4 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap text-foreground">{detailDialog.proposal.cover_letter}</div>
                 </div>
-
-                {/* Payment Section */}
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    Payment Structure
+                    <DollarSign className="h-4 w-4 text-primary" />Payment Structure
                   </p>
                   <Badge variant="outline" className="mb-3">
                     {detailDialog.proposal.payment_type === "milestone" ? "Pay by Milestone" : "Pay by Project"}
                   </Badge>
-
                   {detailDialog.proposal.payment_type === "milestone" && detailDialog.proposal.milestones?.length > 0 ? (
                     <div className="space-y-3">
                       {detailDialog.proposal.milestones.map((ms: any, idx: number) => (
@@ -636,9 +712,7 @@ export default function ProposalsReceivedPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Attachments */}
-                {detailDialog.proposal.attachments && detailDialog.proposal.attachments.length > 0 && (
+                {detailDialog.proposal.attachments?.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-2">Attachments</p>
                     <div className="space-y-1">
@@ -654,7 +728,6 @@ export default function ProposalsReceivedPage() {
                     </div>
                   </div>
                 )}
-
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <span>Status: {statusBadge(detailDialog.proposal.status)}</span>
                   <span>Submitted: {formatDistanceToNow(new Date(detailDialog.proposal.created_at), { addSuffix: true })}</span>
@@ -674,7 +747,7 @@ export default function ProposalsReceivedPage() {
           <DialogHeader>
             <DialogTitle>Start Interview</DialogTitle>
             <DialogDescription>
-              Do you want to proceed to interview <strong>{interviewConfirm.proposal?.freelancer?.full_name || "this expert"}</strong>? This will create a chat thread for discussion.
+              Do you want to interview <strong>{interviewConfirm.proposal?.freelancer?.full_name || "this expert"}</strong>? This will create a chat thread.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -699,53 +772,152 @@ export default function ProposalsReceivedPage() {
   );
 }
 
+/* ── Proposal Card (extracted for reuse in both desktop/mobile) ── */
+function ProposalCard({
+  proposal, job, isAssigned, format, interviewingId, statusBadge,
+  onInterview, onAssign, onReject, onDetail,
+}: {
+  proposal: any;
+  job: any | null;
+  isAssigned: boolean;
+  format: (n: number) => string;
+  interviewingId: string | null;
+  statusBadge: (s: string) => React.ReactNode;
+  onInterview: (p: any) => void;
+  onAssign: (p: any) => void;
+  onReject: (p: any) => void;
+  onDetail: (p: any) => void;
+}) {
+  const coverLetter = proposal.cover_letter || "";
+  const isLong = coverLetter.length > 280;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      {/* Header: avatar + name/location + status */}
+      <div className="flex items-start gap-3 mb-3">
+        <Avatar className="h-9 w-9 shrink-0">
+          <AvatarImage src={proposal.freelancer?.avatar_url || undefined} />
+          <AvatarFallback className="bg-primary/10 text-primary text-sm">
+            {(proposal.freelancer?.full_name || "U")[0]}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to={`/expert/${proposal.freelancer_id}/profile`} className="font-semibold text-sm text-foreground hover:text-primary hover:underline transition-colors">
+              {proposal.freelancer?.full_name || "Expert"}
+            </Link>
+            {(proposal.kyc?.kyc_status === "verified" || proposal.freelancer?.is_verified) && (
+              <VerificationBadges isVerified={true} isZentraVerified={proposal.kyc?.zentra_verified || false} role="freelancer" size="sm" />
+            )}
+          </div>
+          {proposal.freelancer?.state && (
+            <p className="text-xs text-muted-foreground">
+              {proposal.freelancer.city ? `${proposal.freelancer.city}, ` : ""}{proposal.freelancer.state}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">{statusBadge(proposal.status)}</div>
+      </div>
+
+      {/* Cover letter */}
+      <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap leading-relaxed">
+        {coverLetter}
+      </p>
+      {isLong && (
+        <button onClick={() => onDetail(proposal)} className="text-xs text-primary hover:underline mt-1 block">
+          Read more →
+        </button>
+      )}
+
+      {/* Attachments */}
+      {proposal.attachments?.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {proposal.attachments.map((url: string, idx: number) => {
+            const name = url.split("/").pop() || `Attachment ${idx + 1}`;
+            return (
+              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-1.5 rounded-lg border border-border hover:bg-muted/50 transition-colors text-xs">
+                <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="truncate text-foreground">{decodeURIComponent(name.replace(/^\d+_/, ''))}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Stat chips */}
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-xs font-medium text-foreground">
+          <DollarSign className="h-3 w-3 text-muted-foreground" />{format(proposal.bid_amount)}
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-xs font-medium text-foreground">
+          <Clock className="h-3 w-3 text-muted-foreground" />{formatDurationDisplay(proposal.delivery_days, proposal.delivery_unit)}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true })}
+        </span>
+      </div>
+
+      <ProposalAnalyticsStrip proposal={proposal} job={job} />
+
+      {/* Actions */}
+      {!isAssigned && (proposal.status === "pending" || proposal.status === "interviewing") && (
+        <div className="flex items-center gap-2 mt-4">
+          <Button size="sm" onClick={() => onAssign(proposal)} className="h-8">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Accept
+          </Button>
+          {proposal.status === "pending" && (
+            <Button size="sm" variant="outline" onClick={() => onInterview(proposal)} disabled={interviewingId === proposal.id} className="h-8">
+              {interviewingId === proposal.id
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <UserCheck className="h-3.5 w-3.5 mr-1.5" />}
+              Interview
+            </Button>
+          )}
+          <button
+            onClick={() => onReject(proposal)}
+            className="ml-auto text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+          >
+            <X className="h-3.5 w-3.5" /> Decline
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProposalAnalyticsStrip({ proposal, job }: { proposal: any; job: any | null }) {
   if (!job) return null;
-
   const chips: { label: string; className: string }[] = [];
 
   if (job.budget_max && proposal.bid_amount) {
     const diff = proposal.bid_amount - job.budget_max;
     const pct = Math.round(Math.abs(diff / job.budget_max) * 100);
-    if (diff > 0) {
-      chips.push({ label: `${pct}% over budget`, className: "border-destructive/60 text-destructive bg-destructive/5" });
-    } else if (diff < 0) {
-      chips.push({ label: `${pct}% under budget`, className: "border-emerald-400/60 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" });
-    } else {
-      chips.push({ label: "Exact budget match", className: "border-primary/40 text-primary bg-primary/5" });
-    }
+    if (diff > 0) chips.push({ label: `${pct}% over budget`, className: "border-destructive/60 text-destructive bg-destructive/5" });
+    else if (diff < 0) chips.push({ label: `${pct}% under budget`, className: "border-emerald-400/60 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" });
+    else chips.push({ label: "Exact budget match", className: "border-primary/40 text-primary bg-primary/5" });
   }
 
   if (
     job.payment_type_preference === "milestone" &&
-    Array.isArray(job.suggested_milestones) &&
-    job.suggested_milestones.length > 0 &&
-    proposal.payment_type === "milestone" &&
-    Array.isArray(proposal.milestones)
+    Array.isArray(job.suggested_milestones) && job.suggested_milestones.length > 0 &&
+    proposal.payment_type === "milestone" && Array.isArray(proposal.milestones)
   ) {
     const suggested = job.suggested_milestones.length;
     const actual = proposal.milestones.length;
     const diff = actual - suggested;
-    if (diff === 0) {
-      chips.push({ label: `${actual} milestone${actual !== 1 ? "s" : ""} (as suggested)`, className: "border-primary/40 text-primary bg-primary/5" });
-    } else if (diff > 0) {
-      chips.push({ label: `+${diff} milestone${diff !== 1 ? "s" : ""} added`, className: "border-border text-muted-foreground" });
-    } else {
-      chips.push({ label: `${Math.abs(diff)} milestone${Math.abs(diff) !== 1 ? "s" : ""} fewer`, className: "border-amber-400/60 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30" });
-    }
+    if (diff === 0) chips.push({ label: `${actual} milestone${actual !== 1 ? "s" : ""} (as suggested)`, className: "border-primary/40 text-primary bg-primary/5" });
+    else if (diff > 0) chips.push({ label: `+${diff} milestone${diff !== 1 ? "s" : ""} added`, className: "border-border text-muted-foreground" });
+    else chips.push({ label: `${Math.abs(diff)} milestone${Math.abs(diff) !== 1 ? "s" : ""} fewer`, className: "border-amber-400/60 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30" });
   }
 
   if (chips.length === 0) return null;
-
   return (
     <div className="flex flex-wrap gap-1.5 mt-2">
       {chips.map((chip, i) => (
         <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${chip.className}`}>
-          <TrendingUp className="h-3 w-3 shrink-0" />
-          {chip.label}
+          <TrendingUp className="h-3 w-3 shrink-0" />{chip.label}
         </span>
       ))}
     </div>
   );
 }
-

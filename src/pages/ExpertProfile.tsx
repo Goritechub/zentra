@@ -549,11 +549,6 @@ export default function ExpertProfile() {
                         >
                           <Send className="h-3.5 w-3.5 mr-1.5" /> Hire
                         </Button>
-                        <Button variant="outline" size="sm" className="w-full rounded-xl"
-                          onClick={() => navigate(`/post-job?invite=${id}&name=${encodeURIComponent(profile.full_name || "Expert")}`)}
-                        >
-                          <Send className="h-3.5 w-3.5 mr-1.5" /> Send Offer
-                        </Button>
                       </>
                     )}
                     {!user && (
