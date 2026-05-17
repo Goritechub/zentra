@@ -16,6 +16,7 @@ export interface KycVerification {
   kyc_status: KycStatus;
   verification_level: VerificationLevel;
   zentra_verified: boolean;
+  kyc_provider_result?: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }

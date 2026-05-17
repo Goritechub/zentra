@@ -106,7 +106,10 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
               </div>
               <div>
                 <p className="text-sm font-medium text-destructive">Verification Failed</p>
-                <p className="text-xs text-muted-foreground">Please try again with valid documents</p>
+                <p className="text-xs text-muted-foreground">
+                  {kycData?.kyc_provider_result?.id_verifications?.[0]?.warnings?.[0]?.short_description
+                    || "Please try again with a clear, well-lit photo of your document"}
+                </p>
               </div>
             </>
           )}
@@ -148,6 +151,14 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
               {starting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />}
               {status === "failed" ? "Try Again" : "Verify Identity"}
             </Button>
+          )}
+          {status === "failed" && (
+            <p className="text-xs text-muted-foreground">
+              Still having trouble?{" "}
+              <a href="mailto:support@zentragig.com" className="underline text-foreground">
+                Contact support
+              </a>
+            </p>
           )}
           {status === "pending" && (
             <>
