@@ -204,6 +204,8 @@ export default function ExpertProfile() {
   const [workExperience, setWorkExperience] = useState<any[]>([]);
   const [completedContractCount, setCompletedContractCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<"not_found" | "network" | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -237,6 +239,7 @@ export default function ExpertProfile() {
   useEffect(() => {
     if (!id) { setLoading(false); return; }
     let cancelled = false;
+    setFetchError(null);
     (async () => {
       if (!cancelled) setLoading(true);
       try {
@@ -252,15 +255,22 @@ export default function ExpertProfile() {
         setPastContracts(response.data.pastContracts || []);
         setCompletedContractCount(response.data.completedContractCount || 0);
         setReviews(response.data.reviews || []);
-      } catch {
+      } catch (err: any) {
         if (cancelled) return;
+        const isNetwork = !err?.response && (
+          err?.message?.toLowerCase().includes("network") ||
+          err?.message?.toLowerCase().includes("fetch") ||
+          err?.code === "ERR_NETWORK" ||
+          err?.code === "ECONNABORTED"
+        );
+        setFetchError(isNetwork ? "network" : "not_found");
         setProfile(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, retryKey]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/expert/${id}/profile`);
@@ -353,11 +363,24 @@ export default function ExpertProfile() {
   }
 
   if (!profile) {
+    const isNetwork = fetchError === "network";
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center">
-          <p className="text-muted-foreground">Expert not found.</p>
+          <div className="text-center space-y-3">
+            <p className="text-lg font-semibold">
+              {isNetwork ? "Connection problem" : "Expert not found."}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {isNetwork
+                ? "Check your internet connection and try again."
+                : "This profile may no longer be available."}
+            </p>
+            {isNetwork && (
+              <Button onClick={() => setRetryKey(k => k + 1)}>Retry</Button>
+            )}
+          </div>
         </main>
         <Footer />
       </div>

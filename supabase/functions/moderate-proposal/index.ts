@@ -21,7 +21,7 @@ const PATTERNS = {
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet)\b/i,
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?)\b/i,
   obfuscatedEmail: /\bat\s+(?:gmail|yahoo|outlook|hotmail)\s+dot\s+com\b/i,
-  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|instagram|facebook|my\s+(?:phone|number|e[...]
+  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|instagram|facebook|my\s+(?:phone|number|email)))\b/i,
 };
 
 function regexModerate(content: string): { allowed: boolean; reason: string; confidence: number } {

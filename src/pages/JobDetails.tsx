@@ -76,6 +76,7 @@ export default function JobDetailsPage() {
   const [clientStats, setClientStats] = useState<{ totalJobs: number; hiredJobs: number; hireRate: number } | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
+  const [fetchError, setFetchError] = useState<"not_found" | "network" | null>(null);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
 
@@ -108,8 +109,15 @@ export default function JobDetailsPage() {
       setSimilarJobs(overview.similarJobs || []);
       setClientStats(overview.clientStats || null);
       setIsSaved(!!overview.isSaved);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[JobDetails] fetchJob failed:", err);
+      const isNetwork = !err?.response && (
+        err?.message?.toLowerCase().includes("network") ||
+        err?.message?.toLowerCase().includes("fetch") ||
+        err?.code === "ERR_NETWORK" ||
+        err?.code === "ECONNABORTED"
+      );
+      setFetchError(isNetwork ? "network" : "not_found");
     } finally {
       setLoading(false);
     }
@@ -285,13 +293,27 @@ export default function JobDetailsPage() {
   }
 
   if (!job) {
+    const isNetwork = fetchError === "network";
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">Job not found</h2>
-            <Button asChild><Link to="/jobs">Browse Jobs</Link></Button>
+          <div className="text-center space-y-3">
+            <h2 className="text-2xl font-bold mb-2">
+              {isNetwork ? "Connection problem" : "Job not found"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {isNetwork
+                ? "Check your internet connection and try again."
+                : "This job may have been removed or the link is incorrect."}
+            </p>
+            {isNetwork ? (
+              <Button onClick={() => { setFetchError(null); setLoading(true); fetchJob(); }}>
+                Retry
+              </Button>
+            ) : (
+              <Button asChild><Link to="/jobs">Browse Jobs</Link></Button>
+            )}
           </div>
         </div>
         <Footer />
