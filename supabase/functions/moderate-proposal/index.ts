@@ -21,7 +21,7 @@ const PATTERNS = {
   scam: /\b(?:send money|wire transfer|western union|moneygram|bitcoin wallet|crypto wallet)\b/i,
   profanity: /\b(?:fuck|shit|bitch|ass(?:hole)?|damn|bastard|dick|cunt|idiot|stupid|dumb(?:ass)?)\b/i,
   obfuscatedEmail: /\bat\s+(?:gmail|yahoo|outlook|hotmail)\s+dot\s+com\b/i,
-  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|signal|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|signal|instagram|facebook|my\s+(?:phone|number|e[...]
+  offPlatformIntent: /\b(?:message me on\s+(?:whatsapp|telegram|instagram|facebook)|dm me on\s+\w+|reach me (?:on|at)\s+(?:whatsapp|telegram|instagram|facebook|my\s+(?:phone|number|e[...]
 };
 
 function regexModerate(content: string): { allowed: boolean; reason: string; confidence: number } {
@@ -36,7 +36,7 @@ function regexModerate(content: string): { allowed: boolean; reason: string; con
     [PATTERNS.suspiciousDigits, "Long number sequences are not allowed"],
     [PATTERNS.whatsapp, "WhatsApp references are not allowed"],
     [PATTERNS.socialMedia, "Social media handles are not allowed"],
-    [PATTERNS.url, "External links are not allowed in proposals"],
+    // [PATTERNS.url, "External links are not allowed in proposals"],
     [PATTERNS.scam, "Potential scam content detected"],
     [PATTERNS.profanity, "Profanity is not allowed"],
     [PATTERNS.offPlatformIntent, "Off-platform contact intent detected"],
