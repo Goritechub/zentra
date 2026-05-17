@@ -40,16 +40,28 @@ export function useKycVerification(userId?: string) {
   const kycComplete = searchParams?.get("kyc") === "complete";
 
   const fetchKyc = async () => {
-    if (!targetUserId) return;
+    console.log("[KYC] fetchKyc called, targetUserId:", targetUserId);
+    if (!targetUserId) { console.log("[KYC] no targetUserId, returning early"); return; }
     setLoading(true);
+    console.log("[KYC] loading=true, starting Supabase query");
     try {
-      const { data } = await supabase
-        .from("kyc_verifications" as any)
-        .select("*")
-        .eq("user_id", targetUserId)
-        .maybeSingle();
-      setKycData(data as any);
+      const result = await Promise.race([
+        supabase
+          .from("kyc_verifications" as any)
+          .select("*")
+          .eq("user_id", targetUserId)
+          .maybeSingle(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("kyc fetch timeout")), 8000)
+        ),
+      ]);
+      console.log("[KYC] query resolved — data:", (result as any).data, "error:", (result as any).error);
+      setKycData((result as any).data as any);
+    } catch (err) {
+      console.error("[KYC] query threw:", err);
+      setKycData(null);
     } finally {
+      console.log("[KYC] finally — setting loading=false");
       setLoading(false);
     }
   };
