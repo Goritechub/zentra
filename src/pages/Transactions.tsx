@@ -215,7 +215,7 @@ export default function TransactionsPage() {
                       <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs text-xs">
-                      Funds are held for 48 hours after a milestone is approved as a fraud prevention measure. They will automatically move to your wallet balance once cleared.
+                      Funds are held for 24 hours after a milestone is approved as a fraud prevention measure. They will automatically move to your wallet balance once cleared.
                     </TooltipContent>
                   </Tooltip>
                 </div>
