@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { SEO } from "@/components/SEO";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -884,6 +885,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO title="Sign In or Create an Account" noIndex />
       <Header />
       <main className="flex-1 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md">

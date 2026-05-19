@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SEO } from "@/components/SEO";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -316,6 +317,10 @@ export default function FreelancersPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Find Verified Engineers & Technical Experts"
+        description="Browse and hire verified engineers, PCB designers, embedded systems developers, firmware writers, and technical makers on ZentraGig. Nigeria's top engineering talent marketplace."
+      />
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">

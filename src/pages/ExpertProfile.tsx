@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { SEO } from "@/components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -400,8 +401,20 @@ export default function ExpertProfile() {
     portfolio.length > 0 ||
     pastContracts.length > 0;
 
+  const occupation = freelancerProfile?.occupation || "Technical Expert";
+  const skills = (freelancerProfile?.skills as string[] | undefined)?.slice(0, 4).join(", ");
+  const seoDescription = freelancerProfile?.bio
+    ? freelancerProfile.bio.slice(0, 155) + "…"
+    : `${profile.full_name} is a verified ${occupation}${skills ? ` skilled in ${skills}` : ""} available for hire on ZentraGig.`;
+
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title={`${profile.full_name} | ${occupation}`}
+        description={seoDescription}
+        image={profile.avatar_url || undefined}
+        type="profile"
+      />
       <Header />
       <main className="flex-1">
         <div className="container-wide py-8" ref={profileRef}>

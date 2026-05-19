@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,10 @@ const benefits = [
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="How ZentraGig Works — Hire Engineers & Technical Experts"
+        description="Post a project, get proposals from verified engineers, review profiles and portfolios, then hire the best fit. ZentraGig makes it simple to build real things with real talent."
+      />
       <Header />
       <main className="flex-1">
         {/* Hero */}

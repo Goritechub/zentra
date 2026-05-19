@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from "@/components/SEO";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -309,6 +310,10 @@ export default function JobsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Browse Engineering & Technical Jobs"
+        description="Find engineering, electronics, embedded systems, PCB design, and technical projects to work on. Apply to jobs from verified clients on ZentraGig."
+      />
       <Header />
       <main className="flex-1 bg-muted/30">
         <div className="container-wide py-8">

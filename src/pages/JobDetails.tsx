@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -375,8 +376,17 @@ export default function JobDetailsPage() {
   const pendingProposals = proposals.filter(p => p.status === "pending");
   const interviewingProposals = proposals.filter(p => p.status === "interviewing");
 
+  const seoDescription = job.description
+    ? job.description.replace(/<[^>]*>/g, "").slice(0, 155) + "…"
+    : `${job.title} — Find and apply to this engineering project on ZentraGig.`;
+
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title={job.title}
+        description={seoDescription}
+        type="article"
+      />
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">
         <div className="container-wide">
