@@ -386,6 +386,28 @@ export default function JobDetailsPage() {
         title={job.title}
         description={seoDescription}
         type="article"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "JobPosting",
+          title: job.title,
+          description: job.description || seoDescription,
+          datePosted: job.created_at ? job.created_at.slice(0, 10) : undefined,
+          hiringOrganization: {
+            "@type": "Organization",
+            name: "ZentraGig",
+            sameAs: "https://zentragig.com",
+          },
+          jobLocation: {
+            "@type": "Place",
+            address: { "@type": "PostalAddress", addressCountry: "NG" },
+          },
+          employmentType: "CONTRACTOR",
+          baseSalary: job.budget_min ? {
+            "@type": "MonetaryAmount",
+            currency: "NGN",
+            value: { "@type": "QuantitativeValue", minValue: job.budget_min, maxValue: job.budget_max || job.budget_min, unitText: "PROJECT" },
+          } : undefined,
+        }}
       />
       <Header />
       <main className="flex-1 bg-muted/30 py-4 sm:py-8">

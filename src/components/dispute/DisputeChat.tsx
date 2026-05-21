@@ -11,6 +11,18 @@ import {
   Send, Loader2, ShieldAlert, MessageSquare, Bot, ArrowDown, Gavel,
 } from "lucide-react";
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+function linkifyText(text: string, isOwn: boolean) {
+  return text.split(URL_REGEX).map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+        className={`underline break-all ${isOwn ? "text-primary-foreground/80" : "text-primary"}`}>
+        {part}
+      </a>
+    ) : part
+  );
+}
+
 function getDateLabel(date: Date): string {
   if (isToday(date)) return "Today";
   if (isYesterday(date)) return "Yesterday";
@@ -133,7 +145,7 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
                         <div className="flex items-center gap-1.5 justify-center text-xs text-muted-foreground mb-1">
                           <Bot className="h-3 w-3" /> System
                         </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap break-words">{linkifyText(msg.content, false)}</p>
                         <p className="text-xs text-muted-foreground mt-1">{format(msgDate, "HH:mm")}</p>
                       </div>
                     </div>
@@ -172,7 +184,7 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
                               ? "bg-amber-500/10 border border-amber-500/20 rounded-bl-md"
                               : "bg-muted rounded-bl-md"
                         )}>
-                          <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(msg.content, isOwn)}</p>
                           <p className={cn("text-xs mt-1",
                             isOwn && sender?.role !== "adjudicator" ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}>

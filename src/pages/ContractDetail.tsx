@@ -69,6 +69,30 @@ function maskDescription(desc: string): string {
   return desc.replace(/\b(\d{6})(\d{4})\b/g, "••••••$2");
 }
 
+const URL_REGEX = /https?:\/\/[^\s]+/g;
+
+function linkifyText(text: string): React.ReactNode[] {
+  const parts = text.split(URL_REGEX);
+  const matches = text.match(URL_REGEX) || [];
+  return parts.reduce<React.ReactNode[]>((acc, part, i) => {
+    acc.push(part);
+    if (matches[i]) {
+      acc.push(
+        <a
+          key={i}
+          href={matches[i]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline break-all"
+        >
+          {matches[i]}
+        </a>,
+      );
+    }
+    return acc;
+  }, []);
+}
+
 export default function ContractDetail() {
   const { format } = useCurrency();
   const { id } = useParams<{ id: string }>();
@@ -562,16 +586,16 @@ export default function ContractDetail() {
                       </h3>
                       <div className="space-y-3">
                         {submittedMilestones.map(ms => (
-                          <div key={ms.id} className="bg-card rounded-lg border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
+                          <div key={ms.id} className="bg-card rounded-lg border border-border p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
                               <p className="font-medium text-foreground">{ms.title}</p>
                               <p className="text-sm text-primary font-semibold">{format(ms.amount)}</p>
                               {ms.submitted_at && <p className="text-xs text-muted-foreground">Submitted {formatDistanceToNow(new Date(ms.submitted_at), { addSuffix: true })}</p>}
                               {ms.submission_notes && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{ms.submission_notes}</p>}
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap sm:flex-col gap-2 shrink-0 sm:items-stretch">
                               <Button size="sm" variant="outline" onClick={() => setShowSubmissionDetail(ms)}>
-                                <Eye className="h-3 w-3 mr-1" /> View
+                                <Eye className="h-3 w-3 mr-1" /> View Submission
                               </Button>
                               {isClient && (
                                 <>
@@ -1063,30 +1087,100 @@ export default function ContractDetail() {
 
       {/* Submission Detail Dialog */}
       <Dialog open={!!showSubmissionDetail} onOpenChange={() => setShowSubmissionDetail(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Submission Details</DialogTitle><DialogDescription>Review for "{showSubmissionDetail?.title}"</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-4">
-            {showSubmissionDetail?.submission_notes && <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap">{showSubmissionDetail.submission_notes}</div>}
-            {showSubmissionDetail?.submission_attachments?.length > 0 && (
-              <div className="space-y-2">
-                {showSubmissionDetail.submission_attachments.map((url: string, idx: number) => (
-                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50"><Download className="h-4 w-4 text-primary" /><span className="text-sm truncate">{url.split("/").pop()}</span></a>
-                ))}
-              </div>
+        <DialogContent className="max-w-lg w-full">
+          <DialogHeader>
+            <DialogTitle>Submission Review</DialogTitle>
+            <DialogDescription className="sr-only">Review submission for {showSubmissionDetail?.title}</DialogDescription>
+          </DialogHeader>
+
+          {/* Milestone summary strip */}
+          <div className="flex items-center justify-between px-1 pb-1 border-b border-border">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{showSubmissionDetail?.title}</p>
+              {showSubmissionDetail?.updated_at && (
+                <p className="text-xs text-muted-foreground">
+                  Submitted {formatDistanceToNow(new Date(showSubmissionDetail.updated_at), { addSuffix: true })}
+                </p>
+              )}
+            </div>
+            {showSubmissionDetail?.amount && (
+              <span className="text-sm font-bold text-primary">{format(showSubmissionDetail.amount)}</span>
             )}
           </div>
-          <DialogFooter>
-            {isClient && showSubmissionDetail?.status === "submitted" && (
+
+          <div className="overflow-y-auto max-h-[55vh]">
+            <div className="space-y-4 py-2">
+              {showSubmissionDetail?.submission_notes ? (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Submission Notes</p>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border text-sm whitespace-pre-wrap leading-relaxed break-words">
+                    {linkifyText(showSubmissionDetail.submission_notes)}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No notes provided.</p>
+              )}
+
+              {showSubmissionDetail?.submission_attachments?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Attachments ({showSubmissionDetail.submission_attachments.length})
+                  </p>
+                  <div className="space-y-2">
+                    {showSubmissionDetail.submission_attachments.map((url: string, idx: number) => {
+                      const raw = url.split("/").pop()?.split("?")[0] || `File ${idx + 1}`;
+                      const filename = decodeURIComponent(raw.replace(/^\d+_/, ""));
+                      return (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-2.5 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                        >
+                          <Download className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm text-foreground truncate">{filename}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="pt-2 border-t border-border space-y-2">
+            {isClient && showSubmissionDetail?.status === "submitted" ? (
               <>
-                <Button variant="destructive" onClick={() => { setSelectedMilestoneId(showSubmissionDetail.id); setShowSubmissionDetail(null); setShowRejectDialog(true); }}><XCircle className="h-4 w-4 mr-1" /> Reject</Button>
-                <Button variant="outline" onClick={() => { setShowSubmissionDetail(null); setActiveTab("chat"); }}><MessageSquare className="h-4 w-4 mr-1" /> Feedback</Button>
-                <Button onClick={() => { handleMilestoneAction("approve_release", showSubmissionDetail.id); setShowSubmissionDetail(null); }} disabled={actionLoading}><CheckCircle2 className="h-4 w-4 mr-1" /> Approve & Release</Button>
+                <Button
+                  className="w-full"
+                  onClick={() => { handleMilestoneAction("approve_release", showSubmissionDetail.id); setShowSubmissionDetail(null); }}
+                  disabled={actionLoading}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve & Release Payment
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { setShowSubmissionDetail(null); setActiveTab("chat"); }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1.5" /> Request Changes
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => { setSelectedMilestoneId(showSubmissionDetail.id); setShowSubmissionDetail(null); setShowRejectDialog(true); }}
+                  >
+                    <XCircle className="h-4 w-4 mr-1.5" /> Reject
+                  </Button>
+                </div>
               </>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={() => setShowSubmissionDetail(null)}>Close</Button>
             )}
-            {(!isClient || showSubmissionDetail?.status !== "submitted") && (
-              <Button variant="outline" onClick={() => setShowSubmissionDetail(null)}>Close</Button>
-            )}
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

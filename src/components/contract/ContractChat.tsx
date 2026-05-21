@@ -38,6 +38,18 @@ interface UploadItem {
   errorMsg: string | null;
 }
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+function linkifyText(text: string, isOwn: boolean) {
+  return text.split(URL_REGEX).map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+        className={`underline break-all ${isOwn ? "text-primary-foreground/80" : "text-primary"}`}>
+        {part}
+      </a>
+    ) : part
+  );
+}
+
 function isImageUrl(url: string) {
   return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
 }
@@ -255,7 +267,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
                         <div className="flex items-center gap-1.5 justify-center text-xs text-muted-foreground mb-1">
                           <Bot className="h-3 w-3" /> System
                         </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap break-words">{linkifyText(msg.content, false)}</p>
                         <p className="text-xs text-muted-foreground mt-1">{format(msgDate, "HH:mm")}</p>
                       </div>
                     </div>
@@ -275,7 +287,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
                         "max-w-[70%] rounded-2xl px-4 py-2",
                         isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md"
                       )}>
-                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(msg.content, isOwn)}</p>
 
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="mt-2 space-y-1.5">

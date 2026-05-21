@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plus, Save, Settings, Pencil, X, Trash2 } from "lucide-react";
+import { Loader2, Plus, Save, Settings, Pencil, X, Trash2, Bell, BellOff, BellRing } from "lucide-react";
 import { useCurrency } from "@/hooks/useCurrency";
 import { CommissionTier, invalidateCommissionCache, preloadCommissionTiers } from "@/lib/service-charge";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangeAuthCodeCard } from "@/components/admin/ChangeAuthCodeCard";
 import { TotpSetupCard } from "@/components/admin/TotpSetupCard";
 import { BroadcastNotificationCard } from "@/components/admin/BroadcastNotificationCard";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { PlatformFreezeCard } from "@/components/admin/PlatformFreezeCard";
 import { broadcastNotification } from "@/lib/broadcast";
 import {
@@ -22,6 +23,7 @@ import {
 export default function AdminSettings() {
   const { format } = useCurrency();
   const { user } = useAuth();
+  const { isSupported: pushSupported, isSubscribed, subscribe, unsubscribe, loading: pushLoading } = usePushNotifications();
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState("");
@@ -302,6 +304,38 @@ export default function AdminSettings() {
         {/* Authentication Code */}
         <ChangeAuthCodeCard />
         <TotpSetupCard />
+
+        {/* Push Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><BellRing className="h-5 w-5" /> Push Notifications</CardTitle>
+            <CardDescription>Get instant browser alerts for withdrawal requests, even when the tab is closed.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!pushSupported ? (
+              <p className="text-sm text-muted-foreground">Your browser doesn't support push notifications.</p>
+            ) : isSubscribed ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <Bell className="h-4 w-4 text-primary" />
+                  <span>Push notifications are <strong>enabled</strong> on this browser.</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={unsubscribe} disabled={pushLoading}>
+                  {pushLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <BellOff className="h-4 w-4 mr-1.5" />}
+                  Disable
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Not enabled on this browser.</p>
+                <Button size="sm" onClick={subscribe} disabled={pushLoading}>
+                  {pushLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bell className="h-4 w-4 mr-1.5" />}
+                  Enable Notifications
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Broadcast Notifications */}
         <BroadcastNotificationCard />

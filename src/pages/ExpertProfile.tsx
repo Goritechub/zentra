@@ -414,6 +414,20 @@ export default function ExpertProfile() {
         description={seoDescription}
         image={profile.avatar_url || undefined}
         type="profile"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          mainEntity: {
+            "@type": "Person",
+            name: profile.full_name,
+            jobTitle: occupation,
+            description: freelancerProfile?.bio || seoDescription,
+            image: profile.avatar_url || undefined,
+            url: `https://zentragig.com/expert/${profile.id}/profile`,
+            knowsAbout: (freelancerProfile?.skills as string[] | undefined) || [],
+            worksFor: { "@type": "Organization", name: "ZentraGig", url: "https://zentragig.com" },
+          },
+        }}
       />
       <Header />
       <main className="flex-1">

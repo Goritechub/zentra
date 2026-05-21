@@ -11,6 +11,7 @@ interface SEOProps {
   image?: string;
   type?: "website" | "profile" | "article";
   noIndex?: boolean;
+  jsonLd?: object | object[];
 }
 
 export function SEO({
@@ -19,6 +20,7 @@ export function SEO({
   image = DEFAULT_IMAGE,
   type = "website",
   noIndex = false,
+  jsonLd,
 }: SEOProps) {
   const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — Hire Engineers. Build Things.`;
   const canonical = typeof window !== "undefined" ? window.location.href : "";
@@ -42,6 +44,11 @@ export function SEO({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+      {jsonLd && (
+        <script type="application/ld+json">
+          {JSON.stringify(Array.isArray(jsonLd) ? jsonLd : [jsonLd])}
+        </script>
+      )}
     </Helmet>
   );
 }
