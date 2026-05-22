@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DollarSign, ShieldCheck, AlertTriangle } from "lucide-react";
 import { getFundingStatus } from "@/api/wallet.api";
 
-export type FundingStatus = "escrow_funded" | "payment_ready" | "funding_needed" | "negotiable";
+export type FundingStatus = "escrow_funded" | "payment_ready" | "funding_needed" | "negotiable" | "payment_complete";
 
 
 interface FundingStatusBadgeProps {
@@ -35,6 +35,7 @@ const STATUS_MAP: Record<FundingStatus, { variant: "default" | "destructive" | "
   payment_ready: { variant: "default", icon: DollarSign, label: "Payment Ready", emoji: "💰" },
   funding_needed: { variant: "destructive", icon: AlertTriangle, label: "Payment Not Ready", emoji: "⚠" },
   negotiable: { variant: "outline", icon: DollarSign, label: "Budget Negotiable", emoji: "💬" },
+  payment_complete: { variant: "secondary", icon: ShieldCheck, label: "Payment Complete", emoji: "✅" },
 };
 
 export function FundingStatusBadge({ clientId, budgetMin, budgetMax, contractId, status: precomputed, className }: FundingStatusBadgeProps) {

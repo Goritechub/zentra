@@ -25,8 +25,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
-import html2canvas from "html2canvas";
-import * as XLSX from "xlsx";
+// html2canvas and xlsx are loaded on-demand (export only) to keep the initial bundle small
 
 const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
 
@@ -112,6 +111,7 @@ export default function TransactionsPage() {
     if (!exportRef.current) return;
     setExporting(true);
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(exportRef.current, { scale: 2, backgroundColor: "#ffffff" });
       const link = document.createElement("a");
       link.download = `ZentraGig_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.png`;
@@ -123,21 +123,26 @@ export default function TransactionsPage() {
     setExporting(false);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     setExporting(true);
-    const filtered = getFilteredTransactions();
-    const data = filtered.map(tx => ({
-      Date: new Date(tx.created_at).toLocaleDateString("en-NG"),
-      Type: tx.type,
-      Description: maskDescription(tx.description) || tx.type,
-      Amount: tx.amount,
-      "Balance After": tx.balance_after,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.sheet_add_aoa(ws, [["ZentraGig Transaction Report", "", "", "", ""], [`Generated: ${new Date().toLocaleDateString("en-NG")}`, "", "", "", ""]], { origin: -1 });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-    XLSX.writeFile(wb, `ZentraGig_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.xlsx`);
+    try {
+      const XLSX = await import("xlsx");
+      const filtered = getFilteredTransactions();
+      const data = filtered.map(tx => ({
+        Date: new Date(tx.created_at).toLocaleDateString("en-NG"),
+        Type: tx.type,
+        Description: maskDescription(tx.description) || tx.type,
+        Amount: tx.amount,
+        "Balance After": tx.balance_after,
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.sheet_add_aoa(ws, [["ZentraGig Transaction Report", "", "", "", ""], [`Generated: ${new Date().toLocaleDateString("en-NG")}`, "", "", "", ""]], { origin: -1 });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+      XLSX.writeFile(wb, `ZentraGig_Transactions_${exportFrom || "all"}_to_${exportTo || "all"}.xlsx`);
+    } catch (e) {
+      console.error(e);
+    }
     setExporting(false);
   };
 
@@ -369,6 +374,7 @@ export default function TransactionsPage() {
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ["transactions-page", user?.id] })}
           walletBalance={wallet?.balance || 0}
           userId={user.id}
+          userName={profile?.full_name}
         />
       )}
 

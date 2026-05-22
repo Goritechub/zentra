@@ -10,9 +10,9 @@ import { getPlatformReviewEligibility, submitPlatformReview } from "@/api/profil
 const FIRST_PROMPT_THRESHOLD = 3;
 const RE_PROMPT_INTERVAL = 2;
 
-export function PlatformReviewPrompt() {
+export function PlatformReviewPrompt({ forced = false, onForcedClose }: { forced?: boolean; onForcedClose?: () => void }) {
   const { user } = useAuth();
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(forced);
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -20,8 +20,9 @@ export function PlatformReviewPrompt() {
   const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
+    if (forced) { setShow(true); return; }
     if (user) checkEligibility();
-  }, [user]);
+  }, [user, forced]);
 
   const checkEligibility = async () => {
     if (!user) return;
@@ -48,8 +49,9 @@ export function PlatformReviewPrompt() {
   };
 
   const handleDismiss = () => {
-    if (user) sessionStorage.setItem(`platform_review_dismissed_${user.id}`, "1");
+    if (!forced && user) sessionStorage.setItem(`platform_review_dismissed_${user.id}`, "1");
     setShow(false);
+    onForcedClose?.();
   };
 
   const handleNeverAsk = async () => {
@@ -61,6 +63,7 @@ export function PlatformReviewPrompt() {
       // best-effort
     }
     setShow(false);
+    onForcedClose?.();
     setLoading(false);
   };
 
@@ -74,6 +77,7 @@ export function PlatformReviewPrompt() {
       await submitPlatformReview(rating, comment.trim() || null, completedCount);
       toast.success("Thank you for your feedback!");
       setShow(false);
+      onForcedClose?.();
     } catch {
       toast.error("Failed to submit review");
     }

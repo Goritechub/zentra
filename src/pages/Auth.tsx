@@ -43,24 +43,15 @@ import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
-const fullNameValidator = z
+const namePartValidator = z
   .string()
-  .min(4, "Full name is too short")
-  .max(100, "Full name is too long")
-  .refine((val) => {
-    const parts = val
-      .trim()
-      .split(/\s+/)
-      .filter((p) => p.length >= 2);
-    return parts.length >= 2;
-  }, "Please enter your first and last name (e.g. Adewale Okonkwo)")
-  .refine(
-    (val) => /^[a-zA-ZÀ-ÿ\s'-]+$/.test(val.trim()),
-    "Name should only contain letters, hyphens, and apostrophes",
-  );
+  .min(2, "Too short")
+  .max(50, "Too long")
+  .regex(/^[a-zA-ZÀ-ÿ'-]+$/, "Letters, hyphens, and apostrophes only");
 
 const signUpSchema = z.object({
-  fullName: fullNameValidator,
+  firstName: namePartValidator,
+  lastName: namePartValidator,
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
@@ -157,7 +148,8 @@ export default function AuthPage() {
   const recaptchaRendering = useRef(false);
 
   const [signUpData, setSignUpData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     username: "",
     email: "",
     password: "",
@@ -559,7 +551,7 @@ export default function AuthPage() {
       signUpData.email,
       signUpData.password,
       signUpData.role,
-      signUpData.fullName,
+      `${signUpData.firstName.trim()} ${signUpData.lastName.trim()}`,
       signUpData.username,
     );
 
@@ -1409,35 +1401,48 @@ export default function AuthPage() {
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-name">Full Name</Label>
-                        <Input
-                          id="signup-name"
-                          name="fullName"
-                          autoComplete="name"
-                          placeholder="Adewale Okonkwo"
-                          value={signUpData.fullName}
-                          onChange={(e) => {
-                            setSignUpData({
-                              ...signUpData,
-                              fullName: e.target.value,
-                            });
-                            if (signUpErrors.fullName)
-                              setSignUpErrors((prev) => {
-                                const { fullName, ...rest } = prev;
-                                return rest;
-                              });
-                          }}
-                          className={fieldClass("fullName", signUpErrors)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Enter your full legal name exactly as it appears on your ID — this will be used for identity verification.
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-firstname">First Name</Label>
+                          <Input
+                            id="signup-firstname"
+                            name="firstName"
+                            autoComplete="given-name"
+                            placeholder="Adewale"
+                            value={signUpData.firstName}
+                            onChange={(e) => {
+                              setSignUpData({ ...signUpData, firstName: e.target.value });
+                              if (signUpErrors.firstName)
+                                setSignUpErrors((prev) => { const { firstName, ...rest } = prev; return rest; });
+                            }}
+                            className={fieldClass("firstName", signUpErrors)}
+                          />
+                          {signUpErrors.firstName && (
+                            <p className="text-sm text-destructive">{signUpErrors.firstName}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-lastname">Last Name</Label>
+                          <Input
+                            id="signup-lastname"
+                            name="lastName"
+                            autoComplete="family-name"
+                            placeholder="Okonkwo"
+                            value={signUpData.lastName}
+                            onChange={(e) => {
+                              setSignUpData({ ...signUpData, lastName: e.target.value });
+                              if (signUpErrors.lastName)
+                                setSignUpErrors((prev) => { const { lastName, ...rest } = prev; return rest; });
+                            }}
+                            className={fieldClass("lastName", signUpErrors)}
+                          />
+                          {signUpErrors.lastName && (
+                            <p className="text-sm text-destructive">{signUpErrors.lastName}</p>
+                          )}
+                        </div>
+                        <p className="col-span-2 text-xs text-muted-foreground">
+                          Enter your legal name exactly as it appears on your ID — used for identity verification.
                         </p>
-                        {signUpErrors.fullName && (
-                          <p className="text-sm text-destructive">
-                            {signUpErrors.fullName}
-                          </p>
-                        )}
                       </div>
 
                       <div className="space-y-2">

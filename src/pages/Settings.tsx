@@ -20,6 +20,10 @@ import { KycVerificationCard } from "@/components/KycVerificationCard";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,6 +156,9 @@ export default function SettingsPage() {
   const [selectedBankName, setSelectedBankName] = useState("");
   const [resolving, setResolving] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
+  const [nameMismatch, setNameMismatch] = useState(false);
+  const [deleteBankId, setDeleteBankId] = useState<string | null>(null);
+  const [deletingBank, setDeletingBank] = useState(false);
 
   /* ── queries ── */
   const authCodeQuery = useQuery({
@@ -385,11 +392,34 @@ export default function SettingsPage() {
     setResolving(true);
     try {
       const res = await api.post("/wallet/paystack-transfer", { action: "resolve_account", account_number: accountNumber, bank_code: bankCode });
-      if (res.data?.success && res.data.data?.account_name) setResolvedName(res.data.data.account_name);
-      else { toast({ title: "Could not resolve account", description: "Check the details and try again.", variant: "destructive" }); setResolvedName(""); }
-    } catch { toast({ title: "Could not resolve account", variant: "destructive" }); setResolvedName(""); }
+      if (res.data?.success && res.data.data?.account_name) {
+        const resolved = res.data.data.account_name as string;
+        setResolvedName(resolved);
+        if (fullName) {
+          const norm = (s: string) => s.toLowerCase().trim().split(/\s+/).filter((p) => p.length >= 2);
+          const matches = norm(fullName).filter((p) => norm(resolved).includes(p)).length;
+          setNameMismatch(matches < 2);
+        }
+      } else {
+        toast({ title: "Could not resolve account", description: "Check the details and try again.", variant: "destructive" });
+        setResolvedName("");
+        setNameMismatch(false);
+      }
+    } catch {
+      toast({ title: "Could not resolve account", variant: "destructive" });
+      setResolvedName("");
+      setNameMismatch(false);
+    }
     setResolving(false);
   };
+
+  // Auto-resolve when account number reaches 10 digits and a bank is selected
+  useEffect(() => {
+    if (accountNumber.length === 10 && bankCode) {
+      resolveAccount();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountNumber, bankCode]);
 
   const saveBankDetails = async () => {
     if (!resolvedName || !bankCode || !accountNumber) { toast({ title: "Resolve your account first", variant: "destructive" }); return; }
@@ -399,11 +429,31 @@ export default function SettingsPage() {
       if (res.data?.success) {
         toast({ title: "Bank account saved" });
         const saved = res.data.bank_detail;
-        setBankDetails((prev) => [saved, ...prev.filter((b: any) => b.id !== saved.id)]);
+        setBankDetails((prev) => [saved, ...prev.filter((b: any) => b.id !== saved.id).map((b: any) => ({ ...b, is_default: false }))]);
         setShowAddBank(false); setBankCode(""); setAccountNumber(""); setResolvedName(""); setSelectedBankName("");
       } else { toast({ title: "Error", description: res.data?.error || "Failed to save bank details", variant: "destructive" }); }
     } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed to save", variant: "destructive" }); }
     setSavingBank(false);
+  };
+
+  const deleteBankAccount = async () => {
+    if (!deleteBankId) return;
+    setDeletingBank(true);
+    try {
+      await api.post("/wallet/paystack-transfer", { action: "delete_bank", bank_detail_id: deleteBankId });
+      setBankDetails((prev) => {
+        const remaining = prev.filter((b: any) => b.id !== deleteBankId);
+        // If the deleted one was default and there are others, mark the first as default
+        const deletedWasDefault = prev.find((b: any) => b.id === deleteBankId)?.is_default;
+        if (deletedWasDefault && remaining.length > 0) remaining[0].is_default = true;
+        return remaining;
+      });
+      toast({ title: "Bank account removed" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.response?.data?.message || "Failed to remove account", variant: "destructive" });
+    }
+    setDeletingBank(false);
+    setDeleteBankId(null);
   };
 
   /* ── helpers ── */
@@ -790,11 +840,21 @@ export default function SettingsPage() {
                       <p className="text-sm font-medium">{b.account_name}</p>
                       <p className="text-xs text-muted-foreground">{b.bank_name} · {b.account_number}</p>
                     </div>
-                    {b.is_default && (
-                      <Badge variant="secondary" className="text-xs gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-primary" /> Default
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {b.is_default && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-primary" /> Default
+                        </Badge>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteBankId(b.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
 
@@ -816,11 +876,17 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Account Number</Label>
-                      <div className="flex gap-2">
-                        <Input value={accountNumber} onChange={(e) => { setAccountNumber(e.target.value); setResolvedName(""); }} maxLength={10} placeholder="10-digit account number" className="flex-1" />
-                        <Button size="sm" variant="outline" onClick={resolveAccount} disabled={resolving || accountNumber.length !== 10 || !bankCode}>
-                          {resolving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
-                        </Button>
+                      <div className="relative">
+                        <Input
+                          value={accountNumber}
+                          onChange={(e) => { setAccountNumber(e.target.value); setResolvedName(""); setNameMismatch(false); }}
+                          maxLength={10}
+                          placeholder="10-digit account number"
+                          className={resolving ? "pr-9" : ""}
+                        />
+                        {resolving && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
+                        )}
                       </div>
                     </div>
                     {resolvedName && (
@@ -828,18 +894,48 @@ export default function SettingsPage() {
                         <CheckCircle2 className="h-4 w-4" /> {resolvedName}
                       </div>
                     )}
+                    {nameMismatch && resolvedName && (
+                      <div className="flex gap-2 rounded-lg border border-yellow-400/50 bg-yellow-50/70 dark:bg-yellow-900/20 p-3 text-sm text-yellow-800 dark:text-yellow-300">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <span>
+                          The account name <strong>{resolvedName}</strong> doesn't closely match your profile name <strong>{fullName}</strong>. Make sure this account belongs to you.
+                        </span>
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button size="sm" onClick={saveBankDetails} disabled={savingBank || !resolvedName}>
                         {savingBank ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Save Account
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setShowAddBank(false); setBankCode(""); setAccountNumber(""); setResolvedName(""); }}>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowAddBank(false); setBankCode(""); setAccountNumber(""); setResolvedName(""); setNameMismatch(false); }}>
                         Cancel
                       </Button>
                     </div>
                   </div>
                 )}
               </section>
+
+              <AlertDialog open={!!deleteBankId} onOpenChange={(open) => { if (!open) setDeleteBankId(null); }}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove bank account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This account will be removed from your saved accounts. Any pending withdrawals using it won't be affected.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deletingBank}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={deleteBankAccount}
+                      disabled={deletingBank}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deletingBank ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Remove
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </TabsContent>
             {/* ══════════════ EMAILS TAB ══════════════ */}
             <TabsContent value="emails" className="space-y-4 sm:space-y-6 mt-0">

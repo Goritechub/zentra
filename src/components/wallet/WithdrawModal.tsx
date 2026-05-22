@@ -17,6 +17,7 @@ interface WithdrawModalProps {
   onSuccess: () => void;
   walletBalance: number;
   userId: string;
+  userName?: string;
 }
 
 const MIN_WITHDRAWAL = 5000;
@@ -48,7 +49,7 @@ type Step =
 
 type PayoutMethod = "paystack" | "flutterwave";
 
-export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, userId }: WithdrawModalProps) {
+export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, userId, userName }: WithdrawModalProps) {
   const { format, rates } = useCurrency();
   const [step, setStep] = useState<Step>("method_select");
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("paystack");
@@ -63,6 +64,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
   const [resolving, setResolving] = useState(false);
+  const [nameMismatch, setNameMismatch] = useState(false);
   const [selectedBankName, setSelectedBankName] = useState("");
 
   // Flutterwave state
@@ -121,14 +123,26 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     try {
       const res = await api.post("/wallet/paystack-transfer", { action: "resolve_account", account_number: accountNumber, bank_code: bankCode });
       if (res.data?.success && res.data.data?.account_name) {
-        setResolvedName(res.data.data.account_name);
+        const resolved = res.data.data.account_name as string;
+        setResolvedName(resolved);
+        if (userName) {
+          const norm = (s: string) => s.toLowerCase().trim().split(/\s+/).filter(p => p.length >= 2);
+          const profileParts = norm(userName);
+          const bankParts = norm(resolved);
+          const matches = profileParts.filter(p => bankParts.includes(p)).length;
+          setNameMismatch(matches < 2);
+        } else {
+          setNameMismatch(false);
+        }
       } else {
         toast.error("Could not resolve account. Check details.");
         setResolvedName("");
+        setNameMismatch(false);
       }
     } catch {
       toast.error("Could not resolve account.");
       setResolvedName("");
+      setNameMismatch(false);
     }
     setResolving(false);
   };
@@ -402,6 +416,14 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-sm font-medium text-foreground">{resolvedName}</p>
                 <p className="text-xs text-muted-foreground">{selectedBankName} · {accountNumber}</p>
+              </div>
+            )}
+            {nameMismatch && resolvedName && (
+              <div className="flex gap-2 rounded-lg border border-yellow-400/50 bg-yellow-50/70 dark:bg-yellow-900/20 p-3 text-sm text-yellow-800 dark:text-yellow-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  The account name <strong>{resolvedName}</strong> doesn't closely match your profile name <strong>{userName}</strong>. Make sure this account belongs to you before continuing.
+                </span>
               </div>
             )}
             <div className="flex gap-2">

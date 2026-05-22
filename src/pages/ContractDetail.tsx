@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 
 type UploadStatus = "uploading" | "done" | "error";
 type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null };
@@ -130,6 +131,10 @@ export default function ContractDetail() {
   const [submissionUploads, setSubmissionUploads] = useState<UploadItem[]>([]);
   const submissionFileRef = useRef<HTMLInputElement>(null);
   const disputeFileRef = useRef<HTMLInputElement>(null);
+
+  // Platform review prompt after completion
+  const [showPlatformReview, setShowPlatformReview] = useState(false);
+  const [platformReviewDismissed, setPlatformReviewDismissed] = useState(false);
 
   // Rating state
   const [showRateDialog, setShowRateDialog] = useState(false);
@@ -502,6 +507,7 @@ export default function ContractDetail() {
                   budgetMin={contract.job_budget_min}
                   budgetMax={contract.job_budget_max}
                   contractId={contract.id}
+                  status={contract.status === "completed" ? "payment_complete" : undefined}
                 />
               </div>
             </div>
@@ -573,6 +579,15 @@ export default function ContractDetail() {
                     <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
                     <p className="text-sm text-muted-foreground">You've already reviewed this contract. Thank you!</p>
                   </div>
+                )}
+                {contract.status === "completed" && !showPlatformReview && !platformReviewDismissed && (
+                  <div className="rounded-xl border border-border bg-muted/20 p-4 flex items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Enjoyed working through ZentraGig? We'd love to hear from you.</p>
+                    <Button size="sm" variant="outline" onClick={() => setShowPlatformReview(true)}>Leave a Review</Button>
+                  </div>
+                )}
+                {showPlatformReview && (
+                  <PlatformReviewPrompt forced onForcedClose={() => { setShowPlatformReview(false); setPlatformReviewDismissed(true); }} />
                 )}
                 {/* Submission Review Banner */}
                 {(() => {

@@ -254,7 +254,7 @@ export default function ProposalsReceivedPage() {
     ? Math.min(...actionableProposals.map((p) => getRequiredAmount(p)))
     : 0;
   const paymentReady = wallet !== null &&
-    (actionableProposals.length === 0 ? wallet.balance > 0 : wallet.balance >= minRequired);
+    (actionableProposals.length === 0 || wallet.balance >= minRequired);
 
   if (!user && bootstrapStatus === "loading") {
     return (
