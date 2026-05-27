@@ -102,6 +102,7 @@ export default function ContractDetail() {
   const { user, profile } = useAuth();
   const [contract, setContract] = useState<any>(null);
   const [milestones, setMilestones] = useState<any[]>([]);
+  const [referralDiscount, setReferralDiscount] = useState(false);
   const [disputes, setDisputes] = useState<any[]>([]);
   const [escrowLedger, setEscrowLedger] = useState<any[]>([]);
   const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
@@ -162,6 +163,7 @@ export default function ContractDetail() {
     const ms = data.milestones || [];
     setContract(contractData);
     setMilestones(ms);
+    setReferralDiscount(!!data.referralDiscount);
     setDisputes(data.disputes || []);
     setEscrowLedger(data.escrowLedger || []);
     setWalletTransactions(data.walletTransactions || []);
@@ -676,10 +678,10 @@ export default function ContractDetail() {
                     {/* Fee preview - expert only */}
                     {isFreelancer && (() => {
                       const amt = contract.accepted_bid_amount || contract.amount;
-                      const { rateLabel, charge, takeHome } = calculateServiceCharge(amt);
+                      const { rateLabel, charge, takeHome } = calculateServiceCharge(amt, referralDiscount ? 0.5 : 1.0);
                       return (
                         <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({format(charge)})</p>
+                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({format(charge)}){referralDiscount && <span className="ml-1 text-primary font-medium">· Referral discount applied</span>}</p>
                           <p className="text-muted-foreground">You receive: <strong className="text-primary">{format(takeHome)}</strong></p>
                         </div>
                       );
@@ -741,7 +743,7 @@ export default function ContractDetail() {
                           .map((m, i) => [m.id, i + 1])
                       );
                       return milestones.map((ms, msIdx) => {
-                      const feeInfo = calculateServiceCharge(ms.amount);
+                      const feeInfo = calculateServiceCharge(ms.amount, referralDiscount ? 0.5 : 1.0);
                       const isCancelled = ms.status === "cancelled";
                       const isCompleted = ms.status === "approved" || ms.status === "paid";
                       const firstPendingIdx = milestones.findIndex(m => m.status === "pending");
@@ -1222,7 +1224,7 @@ export default function ContractDetail() {
             </div>
             {newMilestone.amount && parseInt(newMilestone.amount) > 0 && isFreelancer && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount)); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({format(info.charge)}) → You receive <strong className="text-primary">{format(info.takeHome)}</strong></p>; })()}
+                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount), referralDiscount ? 0.5 : 1.0); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({format(info.charge)}) → You receive <strong className="text-primary">{format(info.takeHome)}</strong></p>; })()}
               </div>
             )}
           </div>

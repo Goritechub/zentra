@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { getDashboardOverview } from "@/api/dashboard.api";
 import { getReferralInfo } from "@/api/auth.api";
+import { getExpertPendingCounts } from "@/api/proposals.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -66,6 +67,14 @@ export default function DashboardPage() {
     staleTime: 5 * 60 * 1000,
     queryFn: getReferralInfo,
   });
+
+  const pendingCountsQuery = useQuery({
+    queryKey: ["expert-pending-counts", user?.id],
+    enabled: !!user && role === "freelancer" && bootstrapStatus === "ready",
+    staleTime: 2 * 60 * 1000,
+    queryFn: getExpertPendingCounts,
+  });
+  const totalPendingCount = (pendingCountsQuery.data?.pendingOffers ?? 0) + (pendingCountsQuery.data?.pendingInvites ?? 0);
 
   const [copied, setCopied] = useState(false);
   const handleCopyReferral = () => {
@@ -158,10 +167,9 @@ export default function DashboardPage() {
     { icon: Settings, label: "Account Settings", to: "/settings", desc: "Update your information" },
     { icon: ImageIcon, label: "Manage Portfolio", to: "/manage-portfolio", desc: "Showcase your work" },
     { icon: Briefcase, label: "My Services", to: "/dashboard/my-services", desc: "Post & manage services" },
-    { icon: Inbox, label: "Received Offers", to: "/dashboard/received-offers", desc: "Private job & direct offers" },
     { icon: MessageSquare, label: "View Messages", to: "/messages", desc: "Chat with clients" },
     { icon: BarChart3, label: "View Contracts", to: "/dashboard/contracts", desc: "Track active projects" },
-    { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions" },
+    { icon: FileText, label: "My Proposals & Offers", to: "/dashboard/expert-proposals", desc: "Track submissions", count: totalPendingCount },
     { icon: Award, label: "Contest Entries", to: "/dashboard/contest-entries", desc: "View your entries" },
     { icon: Wallet, label: "Wallet & Earnings", to: "/transactions", desc: "Track payments" },
   ];
@@ -287,6 +295,7 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {freelancerMenuItems.map((item) => {
                       const active = location.pathname === item.to;
+                      const count = (item as any).count ?? 0;
                       return (
                         <Link
                           key={item.to}
@@ -304,6 +313,9 @@ export default function DashboardPage() {
                             <p className="font-medium text-foreground text-sm">{item.label}</p>
                             <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
                           </div>
+                          {count > 0 && (
+                            <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0">{count}</Badge>
+                          )}
                           <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </Link>
                       );

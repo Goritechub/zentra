@@ -20,6 +20,11 @@ export async function acceptDirectOffer(offerId: string) {
   return response.data.data;
 }
 
+export async function sendDirectOffer(payload: { freelancerId: string; title: string }) {
+  const response = await api.post("/offers", payload);
+  return response.data.data as { id: string };
+}
+
 export async function declineReceivedOffer(payload: {
   offerType: "direct_offer" | "job_offer";
   offerId: string | null;

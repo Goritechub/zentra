@@ -84,12 +84,16 @@ export function getServiceChargeLabel(amount: number): string {
   return `${tiers[tiers.length - 1].rate}%`;
 }
 
-export function calculateServiceCharge(amount: number) {
-  const rate = getServiceChargeRate(amount);
+export function calculateServiceCharge(amount: number, feeMultiplier = 1.0) {
+  const baseRate = getServiceChargeRate(amount);
+  const rate = baseRate * feeMultiplier;
   const charge = Math.round(amount * rate);
+  const rateLabel = feeMultiplier === 1.0
+    ? getServiceChargeLabel(amount)
+    : `${Math.round(rate * 100)}%`;
   return {
     rate,
-    rateLabel: getServiceChargeLabel(amount),
+    rateLabel,
     charge,
     takeHome: amount - charge,
   };

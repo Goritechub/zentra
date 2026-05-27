@@ -33,6 +33,7 @@ export async function getContractDetail(contractId: string) {
     walletTransactions: any[];
     activityLog: any[];
     hasReviewed: boolean;
+    referralDiscount: boolean;
   };
 }
 

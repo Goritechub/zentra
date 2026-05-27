@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { CurrencyProvider } from "@/hooks/useCurrency";
@@ -173,7 +173,7 @@ const AppShell = () => {
               <Route path="/manage-portfolio" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ManagePortfolio /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard/expert-proposals" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ExpertProposals /></RoleGuard></AuthGuard>} />
               <Route path="/dashboard/contest-entries" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ContestEntries /></RoleGuard></AuthGuard>} />
-              <Route path="/dashboard/received-offers" element={<AuthGuard><RoleGuard allowedRoles={["freelancer"]}><ReceivedOffers /></RoleGuard></AuthGuard>} />
+              <Route path="/dashboard/received-offers" element={<Navigate to="/dashboard/expert-proposals" replace />} />
               <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/blog" element={<Blog />} />

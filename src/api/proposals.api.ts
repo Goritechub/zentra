@@ -1,5 +1,10 @@
 import { api } from "./axios";
 
+export async function getExpertPendingCounts() {
+  const response = await api.get("/proposals/expert-pending-counts");
+  return response.data.data as { pendingOffers: number; pendingInvites: number };
+}
+
 export async function getExpertProposalsOverview() {
   const response = await api.get("/proposals/expert-overview");
   return response.data.data;
@@ -10,6 +15,7 @@ export async function getMyJobApplyContext(jobId: string) {
   return response.data.data as {
     job: any | null;
     existingProposal: any | null;
+    referralDiscount: boolean;
   };
 }
 

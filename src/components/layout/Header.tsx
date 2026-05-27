@@ -176,7 +176,7 @@ export function Header() {
 
   const myWorkItems = isFreelancer
     ? [
-        { to: "/dashboard/received-offers", icon: Mail, label: "Offers" },
+        { to: "/dashboard/expert-proposals", icon: Mail, label: "Offers & Invites" },
         { to: "/dashboard/contracts", icon: FolderOpen, label: "Contracts" },
         { to: "/dashboard/contest-entries", icon: Trophy, label: "Contest Entries" },
         { to: "/dashboard/expert-proposals", icon: FileText, label: "My Proposals" },
@@ -257,7 +257,7 @@ export function Header() {
                     <NavDropdown
                       label="My Work"
                       items={myWorkItems}
-                      active={isActive(["/dashboard/contracts", "/dashboard/received-offers", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
+                      active={isActive(["/dashboard/contracts", "/dashboard/offers", "/dashboard/contest-entries", "/dashboard/my-contests", "/dashboard/expert-proposals", "/dashboard/proposals"])}
                     />
                     <Link
                       to="/transactions"

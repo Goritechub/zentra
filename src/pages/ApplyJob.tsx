@@ -82,12 +82,13 @@ function fromDays(days: number, unit: string): number {
 
 type DurationUnit = "days" | "weeks" | "months";
 
-function DurationInput({ value, unit, onValueChange, onUnitChange, placeholder }: {
+function DurationInput({ value, unit, onValueChange, onUnitChange, placeholder, error }: {
   value: string;
   unit: DurationUnit;
   onValueChange: (v: string) => void;
   onUnitChange: (u: DurationUnit) => void;
   placeholder?: string;
+  error?: boolean;
 }) {
   return (
     <div className="flex gap-2">
@@ -100,7 +101,7 @@ function DurationInput({ value, unit, onValueChange, onUnitChange, placeholder }
           const val = e.target.value;
           if (val === "" || parseInt(val) >= 1) onValueChange(val);
         }}
-        className="flex-1"
+        className={`flex-1${error ? " border-destructive focus-visible:ring-destructive" : ""}`}
       />
       <Select value={unit} onValueChange={(v) => onUnitChange(v as DurationUnit)}>
         <SelectTrigger className="w-[120px]">
@@ -116,10 +117,11 @@ function DurationInput({ value, unit, onValueChange, onUnitChange, placeholder }
   );
 }
 
-function MoneyInput({ value, onChange, placeholder }: {
+function MoneyInput({ value, onChange, placeholder, error }: {
   value: string;
   onChange: (raw: string, formatted: string) => void;
   placeholder?: string;
+  error?: boolean;
 }) {
   return (
     <Input
@@ -127,6 +129,7 @@ function MoneyInput({ value, onChange, placeholder }: {
       inputMode="numeric"
       placeholder={placeholder || "e.g. 250,000"}
       value={value}
+      className={error ? "border-destructive focus-visible:ring-destructive" : undefined}
       onChange={(e) => {
         const raw = e.target.value.replace(/[^0-9]/g, "");
         const formatted = formatWithCommas(raw);
@@ -145,6 +148,7 @@ export default function ApplyJobPage() {
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [existingProposal, setExistingProposal] = useState<any>(null);
+  const [referralDiscount, setReferralDiscount] = useState(false);
   const [editingProposal, setEditingProposal] = useState(false);
 
   // New proposal form
@@ -175,6 +179,8 @@ export default function ApplyJobPage() {
   const [editMilestones, setEditMilestones] = useState<{ title: string; duration: string; durationUnit: DurationUnit; amount: string; amountFormatted: string }[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [submittedConfirmation, setSubmittedConfirmation] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const [editAttempted, setEditAttempted] = useState(false);
   const [editAttachmentUrls, setEditAttachmentUrls] = useState<string[]>([]);
   const [editProposalUploads, setEditProposalUploads] = useState<UploadItem[]>([]);
   const editProposalFileRef = useRef<HTMLInputElement>(null);
@@ -226,7 +232,8 @@ export default function ApplyJobPage() {
 
   const fetchData = async () => {
     if (!id) return;
-    const { job: jobData, existingProposal: existing } = await getMyJobApplyContext(id);
+    const { job: jobData, existingProposal: existing, referralDiscount: discount } = await getMyJobApplyContext(id);
+    setReferralDiscount(!!discount);
 
     if (!jobData) {
       setLoading(false);
@@ -360,6 +367,7 @@ export default function ApplyJobPage() {
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
+    setAttempted(true);
 
     // KYC gating for experts
     if (!isVerified) {
@@ -458,6 +466,7 @@ export default function ApplyJobPage() {
 
   const handleEditProposal = async () => {
     if (!existingProposal || !user) return;
+    setEditAttempted(true);
 
     if (editPaymentType === "project") {
       const amount = parseCommaNumber(editBidAmountFormatted);
@@ -580,6 +589,26 @@ export default function ApplyJobPage() {
     );
   }
 
+  // New-form field errors (only surface after first submit attempt)
+  const bidError = attempted && paymentType === "project" && parseCommaNumber(bidAmountFormatted) === 0;
+  const deliveryError = attempted && paymentType === "project" && !parseInt(deliveryValue);
+  const coverError = attempted && !coverLetter.trim();
+  const milestoneErrors = milestones.map(m => ({
+    title:    attempted && paymentType === "milestone" && !m.title.trim(),
+    duration: attempted && paymentType === "milestone" && !m.duration,
+    amount:   attempted && paymentType === "milestone" && !m.amount,
+  }));
+
+  // Edit-form field errors
+  const editBidError    = editAttempted && editPaymentType === "project" && parseCommaNumber(editBidAmountFormatted) === 0;
+  const editDeliveryError = editAttempted && editPaymentType === "project" && !parseInt(editDeliveryValue);
+  const editCoverError  = editAttempted && !editCoverLetter.trim();
+  const editMilestoneErrors = editMilestones.map(m => ({
+    title:    editAttempted && editPaymentType === "milestone" && !m.title.trim(),
+    duration: editAttempted && editPaymentType === "milestone" && !m.duration,
+    amount:   editAttempted && editPaymentType === "milestone" && !m.amount,
+  }));
+
   const renderExistingProposalView = () => {
     const p = existingProposal;
     const pType = p.payment_type || "project";
@@ -612,6 +641,7 @@ export default function ApplyJobPage() {
                     toast.error("The 3-hour edit window has passed. You can no longer edit this proposal.");
                     return;
                   }
+                  setEditAttempted(false);
                   setEditingProposal(true);
                 }}
               >
@@ -675,6 +705,7 @@ export default function ApplyJobPage() {
                     <MoneyInput
                       value={editBidAmountFormatted}
                       onChange={(raw, formatted) => { setEditBidAmount(raw); setEditBidAmountFormatted(formatted); }}
+                      error={editBidError}
                     />
                   </div>
                   <div className="space-y-2">
@@ -684,11 +715,12 @@ export default function ApplyJobPage() {
                       unit={editDeliveryUnit}
                       onValueChange={setEditDeliveryValue}
                       onUnitChange={setEditDeliveryUnit}
+                      error={editDeliveryError}
                     />
                   </div>
                 </div>
                 {parseCommaNumber(editBidAmountFormatted) > 0 && (
-                  <ServiceChargeSummary amount={parseCommaNumber(editBidAmountFormatted)} />
+                  <ServiceChargeSummary amount={parseCommaNumber(editBidAmountFormatted)} referralDiscount={referralDiscount} />
                 )}
               </div>
             )}
@@ -710,17 +742,23 @@ export default function ApplyJobPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Task Name</Label>
-                          <Input placeholder="e.g. Foundation drawings" value={ms.title} onChange={(e) => {
-                            const updated = [...editMilestones];
-                            updated[idx].title = e.target.value;
-                            setEditMilestones(updated);
-                          }} />
+                          <Input
+                            placeholder="e.g. Foundation drawings"
+                            value={ms.title}
+                            className={editMilestoneErrors[idx]?.title ? "border-destructive focus-visible:ring-destructive" : undefined}
+                            onChange={(e) => {
+                              const updated = [...editMilestones];
+                              updated[idx].title = e.target.value;
+                              setEditMilestones(updated);
+                            }}
+                          />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Duration</Label>
                           <DurationInput
                             value={ms.duration}
                             unit={ms.durationUnit}
+                            error={editMilestoneErrors[idx]?.duration}
                             onValueChange={(v) => {
                               const updated = [...editMilestones];
                               updated[idx].duration = v;
@@ -738,6 +776,7 @@ export default function ApplyJobPage() {
                           <Label className="text-xs">Price (₦)</Label>
                           <MoneyInput
                             value={ms.amountFormatted}
+                            error={editMilestoneErrors[idx]?.amount}
                             onChange={(raw, formatted) => {
                               const updated = [...editMilestones];
                               updated[idx].amount = raw;
@@ -756,14 +795,19 @@ export default function ApplyJobPage() {
                 </Button>
                 {(() => {
                   const total = editMilestones.reduce((sum, m) => sum + parseCommaNumber(m.amountFormatted), 0);
-                  return total > 0 ? <ServiceChargeSummary amount={total} /> : null;
+                  return total > 0 ? <ServiceChargeSummary amount={total} referralDiscount={referralDiscount} /> : null;
                 })()}
               </div>
             )}
 
             <div className="space-y-2">
               <Label>Cover Letter</Label>
-              <Textarea rows={6} value={editCoverLetter} onChange={(e) => setEditCoverLetter(e.target.value)} />
+              <Textarea
+                rows={6}
+                value={editCoverLetter}
+                onChange={(e) => setEditCoverLetter(e.target.value)}
+                className={editCoverError ? "border-destructive focus-visible:ring-destructive" : undefined}
+              />
             </div>
 
             <div className="space-y-2">
@@ -1020,12 +1064,13 @@ export default function ApplyJobPage() {
                               value={bidAmountFormatted}
                               onChange={(raw, formatted) => { setBidAmount(raw); setBidAmountFormatted(formatted); }}
                               placeholder={job.budget_max ? `Up to ${format(job.budget_max)}` : "e.g. 250,000"}
+                              error={bidError}
                             />
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Info className="h-3 w-3 shrink-0" />
                               {parseCommaNumber(bidAmountFormatted) > 0
-                                ? `Service fee: ${getServiceChargeLabel(parseCommaNumber(bidAmountFormatted))} on this bid.`
-                                : "Service fee: 7–20% depending on bid amount."}
+                                ? `Service fee: ${calculateServiceCharge(parseCommaNumber(bidAmountFormatted), referralDiscount ? 0.5 : 1.0).rateLabel} on this bid.${referralDiscount ? " (Referral discount applied)" : ""}`
+                                : `Service fee: ${referralDiscount ? "3.5–10%" : "7–20%"} depending on bid amount.`}
                             </p>
                           </div>
                           <div className="space-y-2">
@@ -1036,11 +1081,12 @@ export default function ApplyJobPage() {
                               onValueChange={setDeliveryValue}
                               onUnitChange={setDeliveryUnit}
                               placeholder={job.delivery_days ? `${job.delivery_days}` : "e.g. 14"}
+                              error={deliveryError}
                             />
                           </div>
                         </div>
                         {parseCommaNumber(bidAmountFormatted) > 0 && (
-                          <ServiceChargeSummary amount={parseCommaNumber(bidAmountFormatted)} />
+                          <ServiceChargeSummary amount={parseCommaNumber(bidAmountFormatted)} referralDiscount={referralDiscount} />
                         )}
                       </div>
                     )}
@@ -1063,17 +1109,23 @@ export default function ApplyJobPage() {
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="space-y-1">
                                   <Label className="text-xs">Task Name</Label>
-                                  <Input placeholder="e.g. Foundation drawings" value={ms.title} onChange={(e) => {
-                                    const updated = [...milestones];
-                                    updated[idx].title = e.target.value;
-                                    setMilestones(updated);
-                                  }} />
+                                  <Input
+                                    placeholder="e.g. Foundation drawings"
+                                    value={ms.title}
+                                    className={milestoneErrors[idx]?.title ? "border-destructive focus-visible:ring-destructive" : undefined}
+                                    onChange={(e) => {
+                                      const updated = [...milestones];
+                                      updated[idx].title = e.target.value;
+                                      setMilestones(updated);
+                                    }}
+                                  />
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-xs">Duration</Label>
                                   <DurationInput
                                     value={ms.duration}
                                     unit={ms.durationUnit}
+                                    error={milestoneErrors[idx]?.duration}
                                     onValueChange={(v) => {
                                       const updated = [...milestones];
                                       updated[idx].duration = v;
@@ -1091,6 +1143,7 @@ export default function ApplyJobPage() {
                                   <Label className="text-xs">Price (₦)</Label>
                                   <MoneyInput
                                     value={ms.amountFormatted}
+                                    error={milestoneErrors[idx]?.amount}
                                     onChange={(raw, formatted) => {
                                       const updated = [...milestones];
                                       updated[idx].amount = raw;
@@ -1110,14 +1163,20 @@ export default function ApplyJobPage() {
 
                         {(() => {
                           const totalMilestoneAmount = milestones.reduce((sum, m) => sum + parseCommaNumber(m.amountFormatted), 0);
-                          return totalMilestoneAmount > 0 ? <ServiceChargeSummary amount={totalMilestoneAmount} /> : null;
+                          return totalMilestoneAmount > 0 ? <ServiceChargeSummary amount={totalMilestoneAmount} referralDiscount={referralDiscount} /> : null;
                         })()}
                       </div>
                     )}
 
                     <div className="space-y-2">
                       <Label>Cover Letter</Label>
-                      <Textarea placeholder="Explain why you're the best fit... (No contact details allowed)" rows={6} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
+                      <Textarea
+                        placeholder="Explain why you're the best fit... (No contact details allowed)"
+                        rows={6}
+                        value={coverLetter}
+                        onChange={(e) => setCoverLetter(e.target.value)}
+                        className={coverError ? "border-destructive focus-visible:ring-destructive" : undefined}
+                      />
                       <p className="text-xs text-muted-foreground">
                         ⚠️ Sharing private contact information is prohibited and will be blocked.
                       </p>
@@ -1296,9 +1355,9 @@ export default function ApplyJobPage() {
   );
 }
 
-function ServiceChargeSummary({ amount }: { amount: number }) {
+function ServiceChargeSummary({ amount, referralDiscount = false }: { amount: number; referralDiscount?: boolean }) {
   const { format } = useCurrency();
-  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount);
+  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount, referralDiscount ? 0.5 : 1.0);
   return (
     <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
       <div className="flex justify-between text-sm">
@@ -1306,7 +1365,10 @@ function ServiceChargeSummary({ amount }: { amount: number }) {
         <span className="font-semibold text-foreground">{format(amount)}</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">Service Charge ({rateLabel})</span>
+        <span className="text-muted-foreground">
+          Service Charge ({rateLabel})
+          {referralDiscount && <span className="ml-1 text-primary font-medium">· Referral discount applied</span>}
+        </span>
         <span className="text-destructive">-{format(charge)}</span>
       </div>
       <div className="border-t border-border pt-2 flex justify-between text-sm">
