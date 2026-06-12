@@ -88,7 +88,7 @@ export function PlatformReviewPrompt({ forced = false, onForcedClose }: { forced
 
   return (
     <Dialog open={show} onOpenChange={(open) => { if (!open) handleDismiss(); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>How's your ZentraGig experience?</DialogTitle>
           <DialogDescription>

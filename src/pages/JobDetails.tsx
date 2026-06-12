@@ -30,7 +30,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
 import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
-  UserCheck, Users, FileText, Download, Info, DollarSign, Tag, Layers, Wrench, Eye,
+  UserCheck, Users, FileText, Download, Info, Coins, Tag, Layers, Wrench, Eye,
   CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle,
   Shield, Bookmark, BookmarkCheck, TrendingUp
 } from "lucide-react";
@@ -460,7 +460,7 @@ export default function JobDetailsPage() {
               )}
               <div className="flex items-center gap-1"><Calendar className="h-4 w-4" />Posted {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}</div>
               <div className="flex items-center gap-1 font-semibold text-primary">
-                <DollarSign className="h-4 w-4" />
+                <Coins className="h-4 w-4" />
                 {job.budget_min && job.budget_max
                   ? `${format(job.budget_min)} - ${format(job.budget_max)}`
                   : job.budget_min ? format(job.budget_min) : "Negotiable"}
@@ -996,7 +996,7 @@ export default function JobDetailsPage() {
 
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" /> Payment Structure
+                    <Coins className="h-4 w-4 text-primary" /> Payment Structure
                   </p>
                   <Badge variant="outline" className="mb-3">
                     {detailDialog.proposal.payment_type === "milestone" ? "Pay by Milestone" : "Pay by Project"}
@@ -1132,7 +1132,7 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           <InfoTile icon={MapPin} label="Work Location" value={job.is_remote ? "Remote" : (job.city && job.state ? `${job.city}, ${job.state}` : job.state || "Physical Location")} />
           <InfoTile icon={Wrench} label="Skill Level" value={job.skill_level || "Intermediate"} />
-          <InfoTile icon={DollarSign} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
+          <InfoTile icon={Coins} label="Payment Type" value={job.is_hourly ? "Hourly Rate" : "Fixed Price"} />
           <InfoTile icon={Tag} label="Price Tag" value={
             job.budget_min && job.budget_max
               ? `${format(job.budget_min)} - ${format(job.budget_max)}`
