@@ -8,21 +8,30 @@ interface TermsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAgree: () => void;
+  slug?: string;
+  title?: string;
 }
 
-export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
+export function TermsModal({
+  open,
+  onOpenChange,
+  onAgree,
+  slug = "terms-and-conditions",
+  title = "Terms and Conditions",
+}: TermsModalProps) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (open && !content) {
+    if (open) {
       setLoading(true);
+      setContent(null);
       supabase
         .from("legal_documents" as any)
         .select("content")
-        .eq("slug", "terms-and-conditions")
+        .eq("slug", slug)
         .eq("is_published", true)
         .maybeSingle()
         .then(({ data }) => {
@@ -31,7 +40,7 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
         });
     }
     if (open) setScrolledToBottom(false);
-  }, [open]);
+  }, [open, slug]);
 
   const handleScroll = useCallback(() => {
     const el = viewportRef.current;
@@ -49,7 +58,7 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
-          <DialogTitle className="text-xl font-bold">Terms and Conditions</DialogTitle>
+          <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
         </DialogHeader>
         <div
           ref={viewportRef}

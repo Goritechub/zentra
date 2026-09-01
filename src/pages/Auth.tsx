@@ -161,6 +161,8 @@ export default function AuthPage() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [ipPolicyAccepted, setIpPolicyAccepted] = useState(false);
+  const [ipPolicyModalOpen, setIpPolicyModalOpen] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   const [signInData, setSignInData] = useState({
@@ -470,12 +472,17 @@ export default function AuthPage() {
       });
       if (!termsAccepted)
         errors.terms = "You must agree to the Terms and Conditions";
+      if (!ipPolicyAccepted)
+        errors.ipPolicy = "You must agree to the IP Policy";
       setSignUpErrors(errors);
       return;
     }
 
-    if (!termsAccepted) {
-      setSignUpErrors({ terms: "You must agree to the Terms and Conditions" });
+    if (!termsAccepted || !ipPolicyAccepted) {
+      setSignUpErrors({
+        ...(!termsAccepted ? { terms: "You must agree to the Terms and Conditions" } : {}),
+        ...(!ipPolicyAccepted ? { ipPolicy: "You must agree to the IP Policy" } : {}),
+      });
       return;
     }
 
@@ -1686,6 +1693,44 @@ export default function AuthPage() {
                         )}
                       </div>
 
+                      {/* IP Policy checkbox */}
+                      <div className="space-y-1">
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!ipPolicyAccepted) {
+                                setIpPolicyModalOpen(true);
+                              }
+                            }}
+                            className={cn(
+                              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                              ipPolicyAccepted
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/40 bg-muted/50",
+                            )}
+                            aria-label="Agree to IP Policy"
+                          >
+                            {ipPolicyAccepted && <Check className="h-3 w-3" />}
+                          </button>
+                          <p className="text-sm text-muted-foreground leading-tight">
+                            I agree to the{" "}
+                            <button
+                              type="button"
+                              onClick={() => setIpPolicyModalOpen(true)}
+                              className="text-primary hover:underline font-medium"
+                            >
+                              IP Policy
+                            </button>
+                          </p>
+                        </div>
+                        {signUpErrors.ipPolicy && (
+                          <p className="text-sm text-destructive ml-7">
+                            {signUpErrors.ipPolicy}
+                          </p>
+                        )}
+                      </div>
+
                       <Button
                         type="submit"
                         className="w-full"
@@ -1711,6 +1756,21 @@ export default function AuthPage() {
                           if (signUpErrors.terms) {
                             setSignUpErrors((prev) => {
                               const { terms, ...rest } = prev;
+                              return rest;
+                            });
+                          }
+                        }}
+                      />
+                      <TermsModal
+                        slug="ip-policy"
+                        title="IP Policy"
+                        open={ipPolicyModalOpen}
+                        onOpenChange={setIpPolicyModalOpen}
+                        onAgree={() => {
+                          setIpPolicyAccepted(true);
+                          if (signUpErrors.ipPolicy) {
+                            setSignUpErrors((prev) => {
+                              const { ipPolicy, ...rest } = prev;
                               return rest;
                             });
                           }
