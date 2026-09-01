@@ -130,6 +130,7 @@ export default function ContractDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [submissionNotes, setSubmissionNotes] = useState("");
   const [submissionUploads, setSubmissionUploads] = useState<UploadItem[]>([]);
+  const [submissionAttempted, setSubmissionAttempted] = useState(false);
   const submissionFileRef = useRef<HTMLInputElement>(null);
   const disputeFileRef = useRef<HTMLInputElement>(null);
 
@@ -265,6 +266,7 @@ export default function ContractDetail() {
   };
 
   const handleSubmitDelivery = async () => {
+    setSubmissionAttempted(true);
     if (!submissionNotes.trim()) { toast.error("Please add submission notes"); return; }
     if (submissionUploads.some(u => u.status === "uploading")) { toast.error("Please wait for uploads to finish"); return; }
     if (submissionUploads.some(u => u.status === "error")) { toast.error("Some files failed to upload. Remove them or retry before submitting."); return; }
@@ -651,7 +653,13 @@ export default function ContractDetail() {
                     <p className="text-sm text-foreground whitespace-pre-wrap">{contract.job_description}</p>
                     <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                       {contract.job_category && <span>Category: <strong className="text-foreground">{contract.job_category}</strong></span>}
-                      {(contract.job_budget_min || contract.job_budget_max) && <span>Budget: <strong className="text-foreground">{format(contract.job_budget_min || 0)} – {format(contract.job_budget_max || 0)}</strong></span>}
+                      {(contract.job_budget_min || contract.job_budget_max) && (
+                        <span>Budget: <strong className="text-foreground">
+                          {contract.job_budget_min && contract.job_budget_max
+                            ? `${format(contract.job_budget_min)} – ${format(contract.job_budget_max)}`
+                            : format(contract.job_budget_max || contract.job_budget_min)}
+                        </strong></span>
+                      )}
                       {contract.job_delivery_days && <span>Timeline: <strong className="text-foreground">{contract.job_delivery_days} {contract.job_delivery_unit || "days"}</strong></span>}
                     </div>
                     {contract.job_attachments?.length > 0 && (
@@ -1055,11 +1063,20 @@ export default function ContractDetail() {
       <Footer />
 
       {/* Submit Delivery Dialog */}
-      <Dialog open={showSubmitDelivery} onOpenChange={(open) => { if (!open) { setSubmissionUploads([]); setSubmissionNotes(""); } setShowSubmitDelivery(open); }}>
+      <Dialog open={showSubmitDelivery} onOpenChange={(open) => { if (!open) { setSubmissionUploads([]); setSubmissionNotes(""); setSubmissionAttempted(false); } setShowSubmitDelivery(open); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Submit Delivery</DialogTitle><DialogDescription>Describe work completed and attach deliverables.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label>Notes *</Label><Textarea placeholder="Describe what you've completed..." rows={5} value={submissionNotes} onChange={(e) => setSubmissionNotes(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Notes *</Label>
+              <Textarea
+                placeholder="Describe what you've completed..."
+                rows={5}
+                value={submissionNotes}
+                onChange={(e) => setSubmissionNotes(e.target.value)}
+                className={submissionAttempted && !submissionNotes.trim() ? "border-destructive focus-visible:ring-destructive" : undefined}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Attachments <span className="text-muted-foreground text-xs">(up to 5 files)</span></Label>
               <input ref={submissionFileRef} type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.dwg,.dxf,.zip" className="hidden" onChange={handleSubmissionFileChange} />
