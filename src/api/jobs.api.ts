@@ -55,6 +55,11 @@ export async function getSavedJobIds(): Promise<string[]> {
   return response.data.data.jobIds || [];
 }
 
+export async function agreeToJobIpPolicy(jobId: string) {
+  const response = await api.post(`/jobs/${jobId}/ip-policy/agree`);
+  return response.data.data;
+}
+
 export async function saveJob(jobId: string) {
   const response = await api.put(`/jobs/${jobId}/save`);
   return response.data;

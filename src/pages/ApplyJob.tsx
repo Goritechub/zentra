@@ -17,6 +17,7 @@ import {
   submitMyJobProposal,
   updateMyJobProposal,
 } from "@/api/proposals.api";
+import { agreeToJobIpPolicy } from "@/api/jobs.api";
 import { toast } from "sonner";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
@@ -164,6 +165,8 @@ export default function ApplyJobPage() {
   const [proposalUploads, setProposalUploads] = useState<UploadItem[]>([]);
   const proposalFileRef = useRef<HTMLInputElement>(null);
   const [ndaAcknowledged, setNdaAcknowledged] = useState(false);
+  const [ipPolicyAcknowledged, setIpPolicyAcknowledged] = useState(false);
+  const [agreeingToIpPolicy, setAgreeingToIpPolicy] = useState(false);
   const [paymentType, setPaymentType] = useState<"project" | "milestone">("project");
   const [milestones, setMilestones] = useState<{ title: string; duration: string; durationUnit: DurationUnit; amount: string; amountFormatted: string }[]>([
     { title: "", duration: "", durationUnit: "days", amount: "", amountFormatted: "" },
@@ -380,6 +383,11 @@ export default function ApplyJobPage() {
       return;
     }
 
+    if (job?.is_ip_policy && !ipPolicyAcknowledged) {
+      toast.error("You must agree to the IP Policy before submitting");
+      return;
+    }
+
     if (paymentType === "project") {
       const amount = parseCommaNumber(bidAmountFormatted);
       const durVal = parseInt(deliveryValue);
@@ -393,8 +401,16 @@ export default function ApplyJobPage() {
       }
     } else {
       const validMilestones = milestones.filter(m => m.title.trim() && m.amount && m.duration);
+      const partialMilestones = milestones.filter(m => {
+        const anyFilled = m.title.trim() || m.amount || m.duration;
+        return anyFilled && !(m.title.trim() && m.amount && m.duration);
+      });
       if (validMilestones.length === 0) {
-        toast.error("Please add at least one milestone with name, duration, and price");
+        toast.error("Please add at least one complete milestone");
+        return;
+      }
+      if (partialMilestones.length > 0) {
+        toast.error("Some milestones are incomplete — fill in all fields or remove them");
         return;
       }
       if (!coverLetter.trim()) {
@@ -477,8 +493,16 @@ export default function ApplyJobPage() {
       }
     } else {
       const validMs = editMilestones.filter(m => m.title.trim() && m.amount && m.duration);
+      const partialMs = editMilestones.filter(m => {
+        const anyFilled = m.title.trim() || m.amount || m.duration;
+        return anyFilled && !(m.title.trim() && m.amount && m.duration);
+      });
       if (validMs.length === 0) {
-        toast.error("Please add at least one milestone with name, duration, and price");
+        toast.error("Please add at least one complete milestone");
+        return;
+      }
+      if (partialMs.length > 0) {
+        toast.error("Some milestones are incomplete — fill in all fields or remove them");
         return;
       }
       if (!editCoverLetter.trim()) {
@@ -593,21 +617,31 @@ export default function ApplyJobPage() {
   const bidError = attempted && paymentType === "project" && parseCommaNumber(bidAmountFormatted) === 0;
   const deliveryError = attempted && paymentType === "project" && !parseInt(deliveryValue);
   const coverError = attempted && !coverLetter.trim();
-  const milestoneErrors = milestones.map(m => ({
-    title:    attempted && paymentType === "milestone" && !m.title.trim(),
-    duration: attempted && paymentType === "milestone" && !m.duration,
-    amount:   attempted && paymentType === "milestone" && !m.amount,
-  }));
+  const milestoneErrors = milestones.map(m => {
+    const anyFilled = m.title.trim() || m.amount || m.duration;
+    const noValid   = milestones.filter(x => x.title.trim() && x.amount && x.duration).length === 0;
+    const flag = attempted && paymentType === "milestone" && (anyFilled || noValid);
+    return {
+      title:    flag && !m.title.trim(),
+      duration: flag && !m.duration,
+      amount:   flag && !m.amount,
+    };
+  });
 
   // Edit-form field errors
   const editBidError    = editAttempted && editPaymentType === "project" && parseCommaNumber(editBidAmountFormatted) === 0;
   const editDeliveryError = editAttempted && editPaymentType === "project" && !parseInt(editDeliveryValue);
   const editCoverError  = editAttempted && !editCoverLetter.trim();
-  const editMilestoneErrors = editMilestones.map(m => ({
-    title:    editAttempted && editPaymentType === "milestone" && !m.title.trim(),
-    duration: editAttempted && editPaymentType === "milestone" && !m.duration,
-    amount:   editAttempted && editPaymentType === "milestone" && !m.amount,
-  }));
+  const editMilestoneErrors = editMilestones.map(m => {
+    const anyFilled = m.title.trim() || m.amount || m.duration;
+    const noValid   = editMilestones.filter(x => x.title.trim() && x.amount && x.duration).length === 0;
+    const flag = editAttempted && editPaymentType === "milestone" && (anyFilled || noValid);
+    return {
+      title:    flag && !m.title.trim(),
+      duration: flag && !m.duration,
+      amount:   flag && !m.amount,
+    };
+  });
 
   const renderExistingProposalView = () => {
     const p = existingProposal;
@@ -1271,8 +1305,72 @@ export default function ApplyJobPage() {
                       </div>
                     )}
 
+                    {job?.is_ip_policy && (
+                      <div className={`rounded-lg border p-4 space-y-3 ${ipPolicyAcknowledged ? "border-primary/40 bg-primary/5" : "border-amber-400/60 bg-amber-50 dark:bg-amber-950/20"}`}>
+                        <div className="flex items-start gap-2">
+                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="space-y-2 flex-1">
+                            <p className="text-sm font-medium text-foreground">IP Policy Required</p>
+                            {job.ip_policy_type === "custom" && job.ip_policy_url ? (
+                              <a
+                                href={job.ip_policy_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-primary underline"
+                              >
+                                <Download className="h-3.5 w-3.5" /> Download IP Policy Document
+                              </a>
+                            ) : (
+                              <a
+                                href="/terms?doc=ip-policy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-primary underline"
+                              >
+                                <Download className="h-3.5 w-3.5" /> Review ZentraGig's Standard IP Policy
+                              </a>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              Full job details are protected. Agreeing confirms you'll treat this job's description and
+                              attachments as confidential.
+                            </p>
+                          </div>
+                        </div>
+                        {ipPolicyAcknowledged ? (
+                          <div className="flex items-center gap-2 text-sm text-primary">
+                            <CheckCircle2 className="h-4 w-4" /> You have agreed to the IP Policy for this job
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={agreeingToIpPolicy}
+                            onClick={async () => {
+                              if (!id) return;
+                              setAgreeingToIpPolicy(true);
+                              try {
+                                await agreeToJobIpPolicy(id);
+                                setIpPolicyAcknowledged(true);
+                                toast.success("IP Policy agreement recorded");
+                                await fetchData();
+                              } catch {
+                                toast.error("Could not record IP Policy agreement. Please try again.");
+                              } finally {
+                                setAgreeingToIpPolicy(false);
+                              }
+                            }}
+                          >
+                            {agreeingToIpPolicy
+                              ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />Recording agreement...</>
+                              : "I Agree to the IP Policy"}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button type="submit" disabled={submitting || proposalUploads.some(u => u.status === "uploading") || (job?.is_nda && !ndaAcknowledged)} className="w-full sm:w-auto">
+                      <Button type="submit" disabled={submitting || proposalUploads.some(u => u.status === "uploading") || (job?.is_nda && !ndaAcknowledged) || (job?.is_ip_policy && !ipPolicyAcknowledged)} className="w-full sm:w-auto">
                         {submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</>
                           : proposalUploads.some(u => u.status === "uploading") ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Uploading files...</>
                           : <><Send className="h-4 w-4 mr-2" />Submit Proposal</>}

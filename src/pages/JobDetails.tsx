@@ -32,7 +32,7 @@ import {
   MapPin, Clock, Briefcase, Calendar, ArrowLeft, Send, Loader2, Globe,
   UserCheck, Users, FileText, Download, Info, Coins, Tag, Layers, Wrench, Eye,
   CheckCircle2, X, Wallet, ShieldCheck, MessageSquare, Pencil, AlertTriangle,
-  Shield, Bookmark, BookmarkCheck, TrendingUp
+  Shield, Bookmark, BookmarkCheck, TrendingUp, Lock, Share2
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -76,6 +76,7 @@ export default function JobDetailsPage() {
   const [changesBannerDismissed, setChangesBannerDismissed] = useState(false);
   const [clientStats, setClientStats] = useState<{ totalJobs: number; hiredJobs: number; hireRate: number } | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [ipPolicyGated, setIpPolicyGated] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
   const [fetchError, setFetchError] = useState<"not_found" | "network" | null>(null);
 
@@ -110,6 +111,7 @@ export default function JobDetailsPage() {
       setSimilarJobs(overview.similarJobs || []);
       setClientStats(overview.clientStats || null);
       setIsSaved(!!overview.isSaved);
+      setIpPolicyGated(!!overview.ipPolicyGated);
     } catch (err: any) {
       console.error("[JobDetails] fetchJob failed:", err);
       const isNetwork = !err?.response && (
@@ -323,6 +325,7 @@ export default function JobDetailsPage() {
   }
 
   const isAssigned = job.status === "in_progress" || job.status === "completed" || job.status === "cancelled";
+  const isAssignedToMe = profile?.role === "freelancer" && myProposal?.status === "accepted";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
   const isJobEditable = isClient && !isAssigned;
   const showChangesBanner = profile?.role === "freelancer" && hasApplied && job.has_material_changes && !changesBannerDismissed;
@@ -360,6 +363,24 @@ export default function JobDetailsPage() {
       toast.error("Could not update saved status.");
     } finally {
       setSavingJob(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/job/${id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: job.title, url: shareUrl });
+      } catch {
+        // user cancelled the native share sheet — no-op
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard!");
+    } catch {
+      toast.error("Could not copy link.");
     }
   };
 
@@ -434,7 +455,7 @@ export default function JobDetailsPage() {
               )}
               {isAssigned && (
                 <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/30">
-                  Assigned — No longer accepting proposals
+                  {isAssignedToMe ? "Job assigned to you" : "Assigned — No longer accepting proposals"}
                 </Badge>
               )}
               {!isAssigned && (
@@ -445,7 +466,16 @@ export default function JobDetailsPage() {
                 />
               )}
             </div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-3 sm:mb-4">{job.title}</h1>
+            <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">{job.title}</h1>
+              <button
+                onClick={handleShare}
+                className="shrink-0 mt-1 flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground hover:text-primary transition-colors"
+                title="Share this job"
+              >
+                <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Share</span>
+              </button>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
               {job.state && (
@@ -512,6 +542,8 @@ export default function JobDetailsPage() {
                       similarJobs={similarJobs}
                       profileRole={profile?.role}
                       format={format}
+                      ipPolicyGated={ipPolicyGated}
+                      jobId={id}
                     />
                   </TabsContent>
 
@@ -753,6 +785,8 @@ export default function JobDetailsPage() {
                   similarJobs={similarJobs}
                   profileRole={profile?.role}
                   format={format}
+                  ipPolicyGated={ipPolicyGated}
+                  jobId={id}
                 />
               </div>
 
@@ -802,7 +836,9 @@ export default function JobDetailsPage() {
                     </div>
                   )}
                   {isAssigned && (
-                    <p className="text-sm text-muted-foreground mt-4 text-center">This job is no longer accepting proposals.</p>
+                    <p className="text-sm text-muted-foreground mt-4 text-center">
+                      {isAssignedToMe ? "You are the assigned expert for this job." : "This job is no longer accepting proposals."}
+                    </p>
                   )}
                 </div>
 
@@ -1093,12 +1129,14 @@ export default function JobDetailsPage() {
 
 // ===== Overview Content Component =====
 
-function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format }: {
+function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format, ipPolicyGated, jobId }: {
   job: any;
   deliveryLabel: () => string;
   similarJobs: any[];
   profileRole?: string;
   format: (n: number) => string;
+  ipPolicyGated?: boolean;
+  jobId?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -1106,6 +1144,22 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format 
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
         <h3 className="text-lg font-semibold mb-2">Description</h3>
         <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
+        {ipPolicyGated && (
+          <div className="mt-4 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
+            <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm text-foreground">
+                Full details are protected by an IP Policy. Apply and agree to the policy to view the complete description
+                and attachments.
+              </p>
+              {profileRole === "freelancer" && jobId && (
+                <Button asChild size="sm" variant="outline">
+                  <Link to={`/job/${jobId}/apply`}>Apply to view full details</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Attachments */}

@@ -13,6 +13,7 @@ export type JobOverview = {
   similarJobs: any[];
   clientStats: { totalJobs: number; hiredJobs: number; hireRate: number } | null;
   isSaved: boolean;
+  ipPolicyGated: boolean;
 };
 
 export async function getJobDetailsOverview(jobId: string): Promise<JobOverview> {

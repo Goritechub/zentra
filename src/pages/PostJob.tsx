@@ -22,7 +22,8 @@ import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, cadSkills, cadSoftwareList } from "@/lib/nigerian-data";
-import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info, Check, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, X, Plus, Paperclip, FileText, Search, UserPlus, Lock, Info, Check, AlertCircle, RefreshCw, ShieldAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
@@ -63,6 +64,7 @@ export default function PostJobPage() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState("");
+  const [customSoftware, setCustomSoftware] = useState("");
   const [overallSkillLevel, setOverallSkillLevel] = useState<SkillLevel>("Intermediate");
   const [attachmentUploads, setAttachmentUploads] = useState<UploadItem[]>([]);
   // Visibility & invitations
@@ -78,20 +80,29 @@ export default function PostJobPage() {
   const [existingNdaUrl, setExistingNdaUrl] = useState<string | null>(null);
   const ndaFileRef = useRef<HTMLInputElement>(null);
 
+  const [isIpPolicy, setIsIpPolicy] = useState(false);
+  const [ipPolicyType, setIpPolicyType] = useState<"standard" | "custom">("standard");
+  const [ipPolicyUpload, setIpPolicyUpload] = useState<UploadItem | null>(null);
+  const [existingIpPolicyUrl, setExistingIpPolicyUrl] = useState<string | null>(null);
+  const ipPolicyFileRef = useRef<HTMLInputElement>(null);
+
   // Payment type preference
   const [paymentTypePreference, setPaymentTypePreference] = useState<PaymentTypePreference>("negotiable");
   const [suggestedMilestones, setSuggestedMilestones] = useState<string[]>([""]);
 
   // Negotiable budget confirmation
   const [showNegotiableConfirm, setShowNegotiableConfirm] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   // Computed upload state
   const anyUploading =
     attachmentUploads.some((u) => u.status === "uploading") ||
-    ndaUpload?.status === "uploading";
+    ndaUpload?.status === "uploading" ||
+    ipPolicyUpload?.status === "uploading";
   const anyError =
     attachmentUploads.some((u) => u.status === "error") ||
-    ndaUpload?.status === "error";
+    ndaUpload?.status === "error" ||
+    ipPolicyUpload?.status === "error";
 
   // Pre-select invited expert from URL params
   useEffect(() => {
@@ -138,6 +149,9 @@ export default function PostJobPage() {
         setVisibility(j.visibility || "public");
         setIsNda(j.is_nda || false);
         setExistingNdaUrl(j.nda_url || null);
+        setIsIpPolicy(j.is_ip_policy || false);
+        setIpPolicyType((j.ip_policy_type as "standard" | "custom") || "standard");
+        setExistingIpPolicyUrl(j.ip_policy_url || null);
         setPaymentTypePreference((j.payment_type_preference as PaymentTypePreference) || "negotiable");
         setSuggestedMilestones(
           Array.isArray(j.suggested_milestones) && j.suggested_milestones.length > 0
@@ -257,6 +271,18 @@ export default function PostJobPage() {
       });
   };
 
+  const startIpPolicyUpload = (item: UploadItem) => {
+    uploadOneFile(item.file, (pct) => {
+      setIpPolicyUpload((prev) => (prev ? { ...prev, progress: pct } : prev));
+    })
+      .then((url) => {
+        setIpPolicyUpload((prev) => (prev ? { ...prev, status: "done", progress: 100, url } : prev));
+      })
+      .catch((err) => {
+        setIpPolicyUpload((prev) => (prev ? { ...prev, status: "error", errorMsg: err?.message ?? "Upload failed" } : prev));
+      });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -300,6 +326,13 @@ export default function PostJobPage() {
     startNdaUpload(reset);
   };
 
+  const retryIpPolicyUpload = () => {
+    if (!ipPolicyUpload) return;
+    const reset: UploadItem = { ...ipPolicyUpload, status: "uploading", progress: 0, errorMsg: null };
+    setIpPolicyUpload(reset);
+    startIpPolicyUpload(reset);
+  };
+
   const toDays = (value: number, unit: DurationUnit): number => {
     if (unit === "weeks") return value * 7;
     if (unit === "months") return value * 30;
@@ -309,6 +342,7 @@ export default function PostJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {navigate("/auth");return;}
+    setAttempted(true);
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required");
       return;
@@ -351,6 +385,10 @@ export default function PostJobPage() {
       ? ndaUpload.url
       : existingNdaUrl;
 
+    const ipPolicyUrl = ipPolicyUpload?.status === "done" && ipPolicyUpload.url
+      ? ipPolicyUpload.url
+      : existingIpPolicyUrl;
+
     const deliveryDays = deliveryValue ? toDays(parseInt(deliveryValue), deliveryUnit) : null;
 
     const payload = {
@@ -372,6 +410,9 @@ export default function PostJobPage() {
       invited_expert_ids: invitedExperts.map((invited) => invited.id),
       is_nda: isNda,
       nda_url: isNda ? ndaUrl : null,
+      is_ip_policy: isIpPolicy,
+      ip_policy_type: isIpPolicy ? ipPolicyType : null,
+      ip_policy_url: isIpPolicy && ipPolicyType === "custom" ? ipPolicyUrl : null,
       payment_type_preference: paymentTypePreference === "negotiable" ? null : paymentTypePreference,
       suggested_milestones:
         paymentTypePreference === "milestone"
@@ -447,6 +488,14 @@ export default function PostJobPage() {
   const levels: SkillLevel[] = ["Beginner", "Intermediate", "Advanced"];
   const totalAttachmentCount = existingAttachmentUrls.length + attachmentUploads.length;
 
+  // Field-level errors (only shown after first submit attempt)
+  const titleError       = attempted && !title.trim();
+  const descriptionError = attempted && !description.trim();
+  const budgetMinError   = attempted && !!budgetMin && parseInt(budgetMin) < 30000;
+  const budgetMaxError   = attempted && !!budgetMax && parseInt(budgetMax) < 30000;
+  const budgetRangeError = attempted && !!budgetMin && !!budgetMax && parseInt(budgetMin) > parseInt(budgetMax);
+  const inviteError      = attempted && visibility === "private" && invitedExperts.length === 0;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -460,11 +509,22 @@ export default function PostJobPage() {
               <h2 className="text-lg font-semibold">Project Details</h2>
               <div className="space-y-2">
                 <Label>Job Title *</Label>
-                <Input placeholder="e.g. Architectural Drawings for 5-Bedroom Duplex" value={title} onChange={(e) => setTitle(e.target.value)} />
+                <Input
+                  placeholder="e.g. Architectural Drawings for 5-Bedroom Duplex"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={titleError ? "border-destructive focus-visible:ring-destructive" : undefined}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Description *</Label>
-                <Textarea placeholder="Describe your project requirements in detail..." rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
+                <Textarea
+                  placeholder="Describe your project requirements in detail..."
+                  rows={6}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={descriptionError ? "border-destructive focus-visible:ring-destructive" : undefined}
+                />
               </div>
             </div>
 
@@ -510,6 +570,9 @@ export default function PostJobPage() {
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowInviteDialog(true)}>
                   <UserPlus className="h-4 w-4 mr-2" /> Invite Experts
                 </Button>
+                {inviteError && (
+                  <p className="text-xs text-destructive mt-1">Private jobs require at least one invited expert.</p>
+                )}
               </div>
             </div>
 
@@ -568,6 +631,24 @@ export default function PostJobPage() {
                     )}
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Don't see it? Type it and press Enter"
+                    maxLength={25}
+                    value={customSoftware}
+                    onChange={(e) => setCustomSoftware(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const trimmed = customSoftware.trim();
+                        if (trimmed && !selectedSoftware.includes(trimmed)) {
+                          addSoftware(trimmed);
+                          setCustomSoftware("");
+                        }
+                      }
+                    }}
+                  />
+                </div>
                 {selectedSoftware.length > 0 &&
                 <div className="flex flex-wrap gap-2 mt-2">
                     {selectedSoftware.map((s) =>
@@ -599,11 +680,23 @@ export default function PostJobPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Budget Min (₦)</Label>
-                  <Input type="number" placeholder="e.g. 100000" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} />
+                  <Input
+                    type="number"
+                    placeholder="e.g. 100000"
+                    value={budgetMin}
+                    onChange={(e) => setBudgetMin(e.target.value)}
+                    className={budgetMinError || budgetRangeError ? "border-destructive focus-visible:ring-destructive" : undefined}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Budget Max (₦)</Label>
-                  <Input type="number" placeholder="e.g. 500000" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} />
+                  <Input
+                    type="number"
+                    placeholder="e.g. 500000"
+                    value={budgetMax}
+                    onChange={(e) => setBudgetMax(e.target.value)}
+                    className={budgetMaxError || budgetRangeError ? "border-destructive focus-visible:ring-destructive" : undefined}
+                  />
                 </div>
               </div>
               {!budgetMin && !budgetMax &&
@@ -991,6 +1084,183 @@ export default function PostJobPage() {
                             startNdaUpload(item);
                           }}
                         />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="is-ip-policy"
+                    checked={isIpPolicy}
+                    onCheckedChange={(checked) => {
+                      const val = checked === true;
+                      setIsIpPolicy(val);
+                      if (!val) {
+                        setIpPolicyType("standard");
+                        setIpPolicyUpload(null);
+                        setExistingIpPolicyUrl(null);
+                      }
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <Label htmlFor="is-ip-policy" className="cursor-pointer font-medium">IP Policy Required</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Expert must agree to an Intellectual Property policy before viewing full job details.
+                      </p>
+                    </div>
+                    {isIpPolicy && (
+                      <div className="space-y-3">
+                        <RadioGroup
+                          value={ipPolicyType}
+                          onValueChange={(v) => {
+                            setIpPolicyType(v as "standard" | "custom");
+                            if (v === "standard") {
+                              setIpPolicyUpload(null);
+                              setExistingIpPolicyUrl(null);
+                            }
+                          }}
+                          className="space-y-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="standard" id="ip-policy-standard" />
+                            <Label htmlFor="ip-policy-standard" className="cursor-pointer text-sm font-normal">
+                              Use ZentraGig's{" "}
+                              <a
+                                href="/terms?doc=ip-policy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline text-primary"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Standard IP Policy
+                              </a>
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="custom" id="ip-policy-custom" />
+                            <Label htmlFor="ip-policy-custom" className="cursor-pointer text-sm font-normal">
+                              Upload my own IP Policy document
+                            </Label>
+                          </div>
+                        </RadioGroup>
+
+                        {ipPolicyType === "custom" && (
+                          <div className="space-y-2">
+                            {/* Existing IP Policy doc (edit mode, not replaced yet) */}
+                            {existingIpPolicyUrl && !ipPolicyUpload && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+                                <FileText className="h-4 w-4 shrink-0 text-primary" />
+                                <a href={existingIpPolicyUrl} target="_blank" rel="noopener noreferrer" className="underline truncate flex-1">
+                                  Current IP Policy document
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setExistingIpPolicyUrl(null)}
+                                  className="hover:text-destructive ml-1"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* New IP Policy upload item */}
+                            {ipPolicyUpload && (
+                              <div className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                                  <span className="truncate flex-1">{ipPolicyUpload.file.name}</span>
+                                  {ipPolicyUpload.status === "uploading" && (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                                  )}
+                                  {ipPolicyUpload.status === "done" && (
+                                    <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                                  )}
+                                  {ipPolicyUpload.status === "error" && (
+                                    <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                                  )}
+                                  {ipPolicyUpload.status !== "uploading" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setIpPolicyUpload(null); if (ipPolicyFileRef.current) ipPolicyFileRef.current.value = ""; }}
+                                      className="hover:text-destructive ml-1"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                {ipPolicyUpload.status === "uploading" && (
+                                  <div className="h-1 bg-muted rounded-full overflow-hidden ml-5">
+                                    {ipPolicyUpload.progress > 0 ? (
+                                      <div
+                                        className="h-full bg-primary transition-all duration-150"
+                                        style={{ width: `${ipPolicyUpload.progress}%` }}
+                                      />
+                                    ) : (
+                                      <div className="h-full w-full bg-primary/50 animate-pulse" />
+                                    )}
+                                  </div>
+                                )}
+                                {ipPolicyUpload.status === "error" && (
+                                  <div className="flex items-center gap-2 ml-5">
+                                    <p className="text-xs text-destructive flex-1">{ipPolicyUpload.errorMsg}</p>
+                                    <button
+                                      type="button"
+                                      onClick={retryIpPolicyUpload}
+                                      className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                                    >
+                                      <RefreshCw className="h-3 w-3" /> Retry
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {!ipPolicyUpload && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => ipPolicyFileRef.current?.click()}
+                              >
+                                <Paperclip className="h-4 w-4 mr-2" />
+                                {existingIpPolicyUrl ? "Replace IP Policy Document" : "Upload IP Policy Document"}
+                              </Button>
+                            )}
+                            <input
+                              ref={ipPolicyFileRef}
+                              type="file"
+                              accept=".pdf,.doc,.docx"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (ipPolicyFileRef.current) ipPolicyFileRef.current.value = "";
+                                if (!file) return;
+                                setExistingIpPolicyUrl(null);
+                                const item: UploadItem = {
+                                  id: `ip-policy-${Date.now()}`,
+                                  file,
+                                  progress: 0,
+                                  status: "uploading",
+                                  url: null,
+                                  errorMsg: null,
+                                };
+                                setIpPolicyUpload(item);
+                                startIpPolicyUpload(item);
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900">
+                          <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                          <AlertDescription className="text-xs text-amber-800 dark:text-amber-400">
+                            An IP Policy is a legal agreement, not encryption — avoid pasting highly sensitive proprietary
+                            details directly into the description. Consider sharing specifics after hiring.
+                          </AlertDescription>
+                        </Alert>
                       </div>
                     )}
                   </div>
