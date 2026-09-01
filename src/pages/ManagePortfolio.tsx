@@ -321,7 +321,17 @@ export default function ManagePortfolioPage() {
                     <Input
                       value={swSearch}
                       onChange={(e) => setSwSearch(e.target.value)}
-                      placeholder="Search software..."
+                      placeholder="Search software, or type your own and press Enter"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && swSuggestions.length === 0) {
+                          e.preventDefault();
+                          const trimmed = swSearch.trim();
+                          if (trimmed && !softwareUsed.includes(trimmed)) {
+                            setSoftwareUsed([...softwareUsed, trimmed]);
+                            setSwSearch("");
+                          }
+                        }
+                      }}
                     />
                     {swSearch && swSuggestions.length > 0 && (
                       <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
