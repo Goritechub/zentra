@@ -60,6 +60,7 @@ const BlogPost = lazy(() => import("./pages/BlogPost"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const WalletCallback = lazy(() => import("./pages/WalletCallback"));
 const Settings = lazy(() => import("./pages/Settings"));
+const GetAQuote = lazy(() => import("./pages/GetAQuote"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -83,6 +84,7 @@ const AdminEmergencyControls = lazy(() => import("./pages/admin/AdminEmergencyCo
 const AdminWaitlist = lazy(() => import("./pages/admin/AdminWaitlist"));
 const AdminBlog = lazy(() => import("./pages/admin/AdminBlog"));
 const AdminPayoutTransfers = lazy(() => import("./pages/admin/AdminPayoutTransfers"));
+const AdminQuoteRequests = lazy(() => import("./pages/admin/AdminQuoteRequests"));
 
 import { FloatingSupport } from "./components/support/FloatingSupport";
 import { preloadCommissionTiers } from "./lib/service-charge";
@@ -176,6 +178,7 @@ const AppShell = () => {
               <Route path="/dashboard/received-offers" element={<Navigate to="/dashboard/expert-proposals" replace />} />
               <Route path="/notifications" element={<AuthGuard><Notifications /></AuthGuard>} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/get-a-quote" element={<GetAQuote />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogPost />} />
               <Route path="/unsubscribe" element={<Unsubscribe />} />
@@ -212,6 +215,7 @@ const AppShell = () => {
                 <Route path="legal-documents" element={<AdminLegalDocuments />} />
                 <Route path="emergency" element={<AdminEmergencyControls />} />
                 <Route path="waitlist" element={<AdminWaitlist />} />
+                <Route path="quotes" element={<AdminQuoteRequests />} />
                 <Route path="blog" element={<AdminBlog />} />
                 <Route path="payouts" element={<AdminPayoutTransfers />} />
               </Route>

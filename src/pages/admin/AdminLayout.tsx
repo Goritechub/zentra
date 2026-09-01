@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   Loader2, ShieldAlert, LayoutDashboard, Users, Briefcase, FileText,
   Wallet, Gavel, Star, Settings, Activity, ChevronLeft, ChevronRight,
-  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen, ArrowUpRight } from
+  LogOut, Trophy, UserCog, ShieldCheck, Headphones, ThumbsUp, Scale, Palette, Lock, Megaphone, ClipboardList, BookOpen, ArrowUpRight, FileQuestion } from
 "lucide-react";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ const allNavItems = [
 { label: "Legal Documents", icon: Scale, path: "/admin/legal-documents", permission: "platform_settings" },
 { label: "Emergency Controls", icon: ShieldAlert, path: "/admin/emergency", permission: "platform_settings" },
 { label: "Waitlist", icon: ClipboardList, path: "/admin/waitlist", permission: "platform_settings" },
+{ label: "Quote Requests", icon: FileQuestion, path: "/admin/quotes", permission: "platform_settings" },
 { label: "Blog", icon: BookOpen, path: "/admin/blog", permission: "platform_settings" }];
 
 
@@ -72,6 +73,7 @@ export default function AdminLayout() {
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
   const [pendingBlogCount, setPendingBlogCount] = useState(0);
   const [pendingWithdrawalCount, setPendingWithdrawalCount] = useState(0);
+  const [newQuoteCount, setNewQuoteCount] = useState(0);
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [useRecovery, setUseRecovery] = useState(false);
   const [recoveryInput, setRecoveryInput] = useState("");
@@ -83,6 +85,9 @@ export default function AdminLayout() {
       .catch(() => {});
     api.get("/admin/payments/pending-count")
       .then((res) => setPendingWithdrawalCount(res.data?.data?.count || 0))
+      .catch(() => {});
+    api.get("/admin/quotes", { params: { status: "new" } })
+      .then((res) => setNewQuoteCount(res.data?.data?.quotes?.length || 0))
       .catch(() => {});
   }, [codeVerified]);
 
@@ -376,8 +381,9 @@ export default function AdminLayout() {
             {navItems.map((item) => {
               const isBlog = item.path === "/admin/blog";
               const isPayments = item.path === "/admin/payments";
-              const showBadge = (isBlog && pendingBlogCount > 0) || (isPayments && pendingWithdrawalCount > 0);
-              const badgeCount = isBlog ? pendingBlogCount : pendingWithdrawalCount;
+              const isQuotes = item.path === "/admin/quotes";
+              const showBadge = (isBlog && pendingBlogCount > 0) || (isPayments && pendingWithdrawalCount > 0) || (isQuotes && newQuoteCount > 0);
+              const badgeCount = isBlog ? pendingBlogCount : isQuotes ? newQuoteCount : pendingWithdrawalCount;
               return (
                 <button
                   key={item.path}

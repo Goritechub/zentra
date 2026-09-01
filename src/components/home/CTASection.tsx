@@ -29,6 +29,12 @@ export function CTASection() {
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>
+              <p className="text-sm text-white/70 mt-3">
+                Not ready to sign up?{" "}
+                <Link to="/get-a-quote" className="underline hover:text-white">
+                  Get a free quote instead
+                </Link>
+              </p>
             </div>
 
             {/* For Freelancers */}
