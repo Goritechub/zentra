@@ -1,16 +1,29 @@
 import { api } from "./axios";
+import type {
+  MyServiceItem,
+  ServicePayload,
+  PortfolioItem,
+  MyContestEntry,
+  ContestCommentLike,
+  ContestDetailData,
+  ContestEntry,
+  ContestParticipant,
+  ContestComment,
+  ContestCommentRow,
+  UpdateContestEntryPayload,
+} from "@/types/marketplace";
 
 export interface MyServicesResponse {
   success: boolean;
   data: {
-    services: any[];
+    services: MyServiceItem[];
   };
 }
 
 export interface MyContestEntriesResponse {
   success: boolean;
   data: {
-    entries: any[];
+    entries: MyContestEntry[];
   };
 }
 
@@ -18,7 +31,7 @@ export interface MyPortfolioResponse {
   success: boolean;
   data: {
     profileId: string | null;
-    items: any[];
+    items: PortfolioItem[];
   };
 }
 
@@ -53,12 +66,12 @@ export async function deleteMyPortfolioItem(itemId: string) {
   return response.data.data;
 }
 
-export async function createMyService(payload: Record<string, any>) {
+export async function createMyService(payload: ServicePayload) {
   const response = await api.post("/services/mine", payload);
   return response.data.data;
 }
 
-export async function updateMyService(serviceId: string, payload: Record<string, any>) {
+export async function updateMyService(serviceId: string, payload: ServicePayload) {
   const response = await api.patch(`/services/mine/${serviceId}`, payload);
   return response.data.data;
 }
@@ -95,29 +108,29 @@ export async function getContestFollowers(contestId: string) {
 
 export async function getContestCommentLikes(contestId: string) {
   const response = await api.get(`/contests/${contestId}/comment-likes`);
-  return response.data.data as { likes: any[] };
+  return response.data.data as { likes: ContestCommentLike[] };
 }
 
 export async function toggleContestCommentLike(commentId: string, contestId: string) {
   const response = await api.post(`/contests/comments/${commentId}/likes/toggle`, { contestId });
-  return response.data.data as { likes: any[] };
+  return response.data.data as { likes: ContestCommentLike[] };
 }
 
 export async function getContestDetailOverview(contestId: string) {
   const response = await api.get(`/contests/${contestId}/detail`);
   return response.data.data as {
-    contest: any;
+    contest: ContestDetailData;
     trueEntryCount: number;
-    entries: any[];
-    nominees: any[];
-    winners: any[];
-    participants: any[];
+    entries: ContestEntry[];
+    nominees: ContestEntry[];
+    winners: ContestEntry[];
+    participants: ContestParticipant[];
   };
 }
 
 export async function getContestComments(contestId: string) {
   const response = await api.get(`/contests/${contestId}/comments`);
-  return response.data.data as { comments: any[] };
+  return response.data.data as { comments: ContestComment[] };
 }
 
 export async function createContestComment(
@@ -125,7 +138,7 @@ export async function createContestComment(
   payload: { content: string; parent_id?: string | null },
 ) {
   const response = await api.post(`/contests/${contestId}/comments`, payload);
-  return response.data.data as { comment: any };
+  return response.data.data as { comment: ContestCommentRow };
 }
 
 export async function uploadEntryAttachments(files: File[]): Promise<string[]> {
@@ -147,9 +160,9 @@ export async function deleteContestEntry(entryId: string) {
   return response.data.data;
 }
 
-export async function updateContestEntry(entryId: string, payload: Record<string, any>) {
+export async function updateContestEntry(entryId: string, payload: UpdateContestEntryPayload) {
   const response = await api.patch(`/contests/entries/${entryId}`, payload);
-  return response.data.data as { entry: any };
+  return response.data.data as { entry: ContestEntry };
 }
 
 export async function setContestEntryNominee(entryId: string, isNominee: boolean) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -31,6 +31,14 @@ import {
   FileText, Loader2, ArrowLeft, Clock, CheckCircle2, X, UserCheck, MessageSquare,
   Wallet, ShieldCheck, Eye, DollarSign, Download, Briefcase, TrendingUp, ChevronLeft,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type {
+  ClientReceivedProposal,
+  ClientReceivedWallet,
+  ClientReceivedJob,
+  ClientReceivedContract,
+  ProposalMilestone,
+} from "@/types/proposals";
 
 function formatDurationDisplay(days: number, unit?: string): string {
   const u = unit || "days";
@@ -49,19 +57,19 @@ export default function ProposalsReceivedPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<ClientReceivedProposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wallet, setWallet] = useState<any>(null);
-  const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
-  const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
-  const [interviewConfirm, setInterviewConfirm] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
+  const [wallet, setWallet] = useState<ClientReceivedWallet | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: ClientReceivedProposal | null }>({ open: false, proposal: null });
+  const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: ClientReceivedProposal | null }>({ open: false, proposal: null });
+  const [interviewConfirm, setInterviewConfirm] = useState<{ open: boolean; proposal: ClientReceivedProposal | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
   const { isVerified: kycVerified } = useKycVerification();
   const [showKycModal, setShowKycModal] = useState(false);
-  const [jobContracts, setJobContracts] = useState<Map<string, any>>(new Map());
-  const [jobsData, setJobsData] = useState<any[]>([]);
+  const [jobContracts, setJobContracts] = useState<Map<string, ClientReceivedContract>>(new Map());
+  const [jobsData, setJobsData] = useState<ClientReceivedJob[]>([]);
 
   // Split-panel state
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -88,8 +96,8 @@ export default function ProposalsReceivedPage() {
     setWallet(data.wallet || null);
     setJobsData(data.jobs || []);
     setProposals(data.proposals || []);
-    const contractMap = new Map<string, any>();
-    (data.jobContracts || []).forEach((contract: any) => {
+    const contractMap = new Map<string, ClientReceivedContract>();
+    (data.jobContracts || []).forEach((contract) => {
       if (!contractMap.has(contract.job_id) || contract.status === "active") {
         contractMap.set(contract.job_id, contract);
       }
@@ -123,7 +131,7 @@ export default function ProposalsReceivedPage() {
     }
   };
 
-  const handleStartInterview = async (proposal: any) => {
+  const handleStartInterview = async (proposal: ClientReceivedProposal) => {
     setInterviewingId(proposal.id);
     try {
       const data = await startClientProposalInterview(proposal.id);
@@ -137,7 +145,7 @@ export default function ProposalsReceivedPage() {
     }
   };
 
-  const handleRejectProposal = async (proposal: any) => {
+  const handleRejectProposal = async (proposal: ClientReceivedProposal) => {
     try {
       await rejectClientProposal(proposal.id);
       toast.success("Proposal rejected");
@@ -147,7 +155,7 @@ export default function ProposalsReceivedPage() {
     }
   };
 
-  const getRequiredAmount = (proposal: any) => {
+  const getRequiredAmount = (proposal: ClientReceivedProposal) => {
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
       return proposal.milestones[0].amount;
     }
@@ -170,20 +178,20 @@ export default function ProposalsReceivedPage() {
       toast.success("Expert assigned and contract created!");
       setAssignDialog({ open: false, proposal: null });
       navigate(`/contract/${result.contractId}`);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to assign expert");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to assign expert");
     } finally {
       setAssigning(false);
     }
   };
 
-  const openAssignDialog = (proposal: any) => {
+  const openAssignDialog = (proposal: ClientReceivedProposal) => {
     setFundingChoice("now");
     setAssignDialog({ open: true, proposal });
   };
 
   const statusBadge = (status: string) => {
-    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: LucideIcon }> = {
       pending: { variant: "secondary", icon: Clock },
       interviewing: { variant: "outline", icon: UserCheck },
       accepted: { variant: "default", icon: CheckCircle2 },
@@ -210,9 +218,9 @@ export default function ProposalsReceivedPage() {
     return <Badge variant={cfg.variant} className="text-xs">{cfg.label}</Badge>;
   };
 
-  const groupByJob = (proposalsList: any[]) => {
-    const jobMap = new Map<string, any[]>();
-    proposalsList.forEach((p) => {
+  const allGroups = useMemo(() => {
+    const jobMap = new Map<string, ClientReceivedProposal[]>();
+    proposals.forEach((p) => {
       if (!jobMap.has(p.job_id)) jobMap.set(p.job_id, []);
       jobMap.get(p.job_id)!.push(p);
     });
@@ -227,20 +235,18 @@ export default function ProposalsReceivedPage() {
     return jobIds.map((jobId) => ({
       jobId,
       jobTitle: jobMap.get(jobId)![0]?.job_title || "Unknown Job",
-      job: jobsData.find((j: any) => j.id === jobId) || null,
+      job: jobsData.find((j) => j.id === jobId) || null,
       contract: jobContracts.get(jobId) || null,
       proposals: jobMap.get(jobId)!,
     }));
-  };
-
-  const allGroups = groupByJob(proposals);
+  }, [proposals, jobContracts, jobsData]);
 
   // Auto-select first job once data loads
   useEffect(() => {
     if (allGroups.length > 0 && !selectedJobId) {
       setSelectedJobId(allGroups[0].jobId);
     }
-  }, [allGroups.length]);
+  }, [allGroups, selectedJobId]);
 
   const selectedGroup = allGroups.find(g => g.jobId === selectedJobId) || null;
   const filteredProposals = selectedGroup
@@ -331,7 +337,7 @@ export default function ProposalsReceivedPage() {
                   </div>
                   <ScrollArea className="flex-1">
                     {allGroups.map((group) => {
-                      const pendingCount = group.proposals.filter((p: any) => p.status === "pending").length;
+                      const pendingCount = group.proposals.filter((p) => p.status === "pending").length;
                       const isSelected = selectedJobId === group.jobId;
                       const isAssigned = !!group.contract;
                       return (
@@ -388,7 +394,7 @@ export default function ProposalsReceivedPage() {
                         {statusFilters.map((f) => {
                           const count = f.value === "all"
                             ? selectedGroup.proposals.length
-                            : selectedGroup.proposals.filter((p: any) => p.status === f.value).length;
+                            : selectedGroup.proposals.filter((p) => p.status === f.value).length;
                           if (f.value !== "all" && count === 0) return null;
                           return (
                             <button
@@ -413,8 +419,8 @@ export default function ProposalsReceivedPage() {
                             <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals for this job</p>
                           </div>
                         ) : (
-                          <div className={`p-3 space-y-2 ${!!selectedGroup.contract ? "opacity-60" : ""}`}>
-                            {filteredProposals.map((proposal: any) => (
+                          <div className={`p-3 space-y-2 ${selectedGroup.contract ? "opacity-60" : ""}`}>
+                            {filteredProposals.map((proposal) => (
                               <ProposalCard
                                 key={proposal.id}
                                 proposal={proposal}
@@ -454,7 +460,7 @@ export default function ProposalsReceivedPage() {
                       </p>
                     </div>
                     {allGroups.map((group) => {
-                      const pendingCount = group.proposals.filter((p: any) => p.status === "pending").length;
+                      const pendingCount = group.proposals.filter((p) => p.status === "pending").length;
                       const isAssigned = !!group.contract;
                       return (
                         <button
@@ -503,7 +509,7 @@ export default function ProposalsReceivedPage() {
                       {statusFilters.map((f) => {
                         const count = f.value === "all"
                           ? selectedGroup.proposals.length
-                          : selectedGroup.proposals.filter((p: any) => p.status === f.value).length;
+                          : selectedGroup.proposals.filter((p) => p.status === f.value).length;
                         if (f.value !== "all" && count === 0) return null;
                         return (
                           <button
@@ -520,13 +526,13 @@ export default function ProposalsReceivedPage() {
                         );
                       })}
                     </div>
-                    <div className={`p-3 space-y-2 ${!!selectedGroup.contract ? "opacity-60" : ""}`}>
+                    <div className={`p-3 space-y-2 ${selectedGroup.contract ? "opacity-60" : ""}`}>
                       {filteredProposals.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                           <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
                           <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals</p>
                         </div>
-                      ) : filteredProposals.map((proposal: any) => (
+                      ) : filteredProposals.map((proposal) => (
                         <ProposalCard
                           key={proposal.id}
                           proposal={proposal}
@@ -687,7 +693,7 @@ export default function ProposalsReceivedPage() {
                   </Badge>
                   {detailDialog.proposal.payment_type === "milestone" && detailDialog.proposal.milestones?.length > 0 ? (
                     <div className="space-y-3">
-                      {detailDialog.proposal.milestones.map((ms: any, idx: number) => (
+                      {detailDialog.proposal.milestones.map((ms: ProposalMilestone, idx: number) => (
                         <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium text-foreground">{ms.title}</p>
@@ -777,16 +783,16 @@ function ProposalCard({
   proposal, job, isAssigned, format, interviewingId, statusBadge,
   onInterview, onAssign, onReject, onDetail,
 }: {
-  proposal: any;
-  job: any | null;
+  proposal: ClientReceivedProposal;
+  job: ClientReceivedJob | null;
   isAssigned: boolean;
   format: (n: number) => string;
   interviewingId: string | null;
   statusBadge: (s: string) => React.ReactNode;
-  onInterview: (p: any) => void;
-  onAssign: (p: any) => void;
-  onReject: (p: any) => void;
-  onDetail: (p: any) => void;
+  onInterview: (p: ClientReceivedProposal) => void;
+  onAssign: (p: ClientReceivedProposal) => void;
+  onReject: (p: ClientReceivedProposal) => void;
+  onDetail: (p: ClientReceivedProposal) => void;
 }) {
   const coverLetter = proposal.cover_letter || "";
   const isLong = coverLetter.length > 280;
@@ -885,7 +891,7 @@ function ProposalCard({
   );
 }
 
-function ProposalAnalyticsStrip({ proposal, job }: { proposal: any; job: any | null }) {
+function ProposalAnalyticsStrip({ proposal, job }: { proposal: ClientReceivedProposal; job: ClientReceivedJob | null }) {
   if (!job) return null;
   const chips: { label: string; className: string }[] = [];
 

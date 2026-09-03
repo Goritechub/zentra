@@ -1,8 +1,9 @@
 import { api } from "./axios";
+import type { UpdateProfilePayload, MyProfileOverview } from "@/types/profile";
 
 export async function getMyProfileOverview() {
   const response = await api.get("/profile/me");
-  return response.data.data;
+  return response.data.data as MyProfileOverview;
 }
 
 export async function getMyProfileDeleteChecks() {
@@ -20,7 +21,7 @@ export async function updateMyAvatarUrl(avatarUrl: string) {
   return response.data.data;
 }
 
-export async function updateMyProfileData(payload: Record<string, any>) {
+export async function updateMyProfileData(payload: UpdateProfilePayload) {
   const response = await api.patch("/profile/me", payload);
   return response.data.data;
 }

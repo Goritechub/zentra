@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
@@ -15,6 +15,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getJobDetailsOverview } from "@/api/job-details.api";
+import { NetworkError } from "@/components/NetworkError";
+import { classifyError, logError } from "@/lib/error-utils";
 import { trackJobView, saveJob, unsaveJob } from "@/api/jobs.api";
 import {
   acceptAndAssignClientProposal,
@@ -37,6 +39,16 @@ import {
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import type {
+  JobDetailsJob,
+  JobDetailsClient,
+  JobDetailsWallet,
+  JobDetailsProposal,
+  JobProposalMilestone,
+  JobInterviewContract,
+  JobDetailsSimilarJob,
+} from "@/types/job-details";
+import type { LucideIcon } from "lucide-react";
 
 function formatDurationDisplay(days: number, unit?: string): string {
   const u = unit || "days";
@@ -50,21 +62,21 @@ export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [job, setJob] = useState<any>(null);
-  const [client, setClient] = useState<any>(null);
-  const [wallet, setWallet] = useState<any>(null);
+  const [job, setJob] = useState<JobDetailsJob | null>(null);
+  const [client, setClient] = useState<JobDetailsClient | null>(null);
+  const [wallet, setWallet] = useState<JobDetailsWallet | null>(null);
   const [loading, setLoading] = useState(true);
   const [proposalCount, setProposalCount] = useState(0);
   const [interviewingCount, setInterviewingCount] = useState(0);
-  const [similarJobs, setSimilarJobs] = useState<any[]>([]);
+  const [similarJobs, setSimilarJobs] = useState<JobDetailsSimilarJob[]>([]);
   const [hasApplied, setHasApplied] = useState(false);
 
   // Client proposal management state
-  const [proposals, setProposals] = useState<any[]>([]);
-  const [interviewContracts, setInterviewContracts] = useState<any[]>([]);
-  const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
-  const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
-  const [interviewConfirm, setInterviewConfirm] = useState<{ open: boolean; proposal: any | null }>({ open: false, proposal: null });
+  const [proposals, setProposals] = useState<JobDetailsProposal[]>([]);
+  const [interviewContracts, setInterviewContracts] = useState<JobInterviewContract[]>([]);
+  const [assignDialog, setAssignDialog] = useState<{ open: boolean; proposal: JobDetailsProposal | null }>({ open: false, proposal: null });
+  const [detailDialog, setDetailDialog] = useState<{ open: boolean; proposal: JobDetailsProposal | null }>({ open: false, proposal: null });
+  const [interviewConfirm, setInterviewConfirm] = useState<{ open: boolean; proposal: JobDetailsProposal | null }>({ open: false, proposal: null });
   const [assigning, setAssigning] = useState(false);
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
@@ -78,21 +90,11 @@ export default function JobDetailsPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [ipPolicyGated, setIpPolicyGated] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
-  const [fetchError, setFetchError] = useState<"not_found" | "network" | null>(null);
+  const [fetchError, setFetchError] = useState<Error | null>(null);
 
   const isClient = profile?.role === "client" && job?.client_id === user?.id;
 
-  useEffect(() => {
-    if (id) fetchJob();
-  }, [id]);
-
-  useEffect(() => {
-    if (id && user && profile?.role === "freelancer") {
-      trackJobView(id).catch(() => {});
-    }
-  }, [id, user, profile]);
-
-  const fetchJob = async () => {
+  const fetchJob = useCallback(async () => {
     try {
       const overview = await getJobDetailsOverview(id!);
       const jobData = overview.job;
@@ -112,19 +114,23 @@ export default function JobDetailsPage() {
       setClientStats(overview.clientStats || null);
       setIsSaved(!!overview.isSaved);
       setIpPolicyGated(!!overview.ipPolicyGated);
-    } catch (err: any) {
-      console.error("[JobDetails] fetchJob failed:", err);
-      const isNetwork = !err?.response && (
-        err?.message?.toLowerCase().includes("network") ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.code === "ERR_NETWORK" ||
-        err?.code === "ECONNABORTED"
-      );
-      setFetchError(isNetwork ? "network" : "not_found");
+    } catch (err) {
+      logError("JobDetails", err);
+      setFetchError(err instanceof Error ? err : new Error("Failed to load job"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) fetchJob();
+  }, [id, fetchJob]);
+
+  useEffect(() => {
+    if (id && user && profile?.role === "freelancer") {
+      trackJobView(id).catch(() => {});
+    }
+  }, [id, user, profile]);
 
   const fetchInterviewContracts = async (jobId: string) => {
     const overview = await getJobDetailsOverview(jobId);
@@ -133,7 +139,7 @@ export default function JobDetailsPage() {
 
   // ===== Proposal action handlers (from ProposalsReceived logic) =====
 
-  const handleStartInterview = async (proposal: any) => {
+  const handleStartInterview = async (proposal: JobDetailsProposal) => {
     setInterviewingId(proposal.id);
     try {
       await startClientProposalInterview(proposal.id);
@@ -148,7 +154,7 @@ export default function JobDetailsPage() {
     }
   };
 
-  const handleRejectProposal = async (proposal: any) => {
+  const handleRejectProposal = async (proposal: JobDetailsProposal) => {
     try {
       await rejectClientProposal(proposal.id);
       toast.success("Proposal rejected");
@@ -170,7 +176,7 @@ export default function JobDetailsPage() {
     }
   };
 
-  const getRequiredAmount = (proposal: any) => {
+  const getRequiredAmount = (proposal: JobDetailsProposal) => {
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
       return proposal.milestones[0].amount;
     }
@@ -200,19 +206,19 @@ export default function JobDetailsPage() {
       setAssignDialog({ open: false, proposal: null });
       setJobAssigned(true);
       navigate(`/contract/${result.contractId}`);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to assign expert");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to assign expert");
     } finally {
       setAssigning(false);
     }
   };
-  const openAssignDialog = (proposal: any) => {
+  const openAssignDialog = (proposal: JobDetailsProposal) => {
     setFundingChoice("now");
     setAssignDialog({ open: true, proposal });
   };
 
   const statusBadge = (status: string) => {
-    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: LucideIcon }> = {
       pending: { variant: "secondary", icon: Clock },
       interviewing: { variant: "outline", icon: UserCheck },
       accepted: { variant: "default", icon: CheckCircle2 },
@@ -296,26 +302,23 @@ export default function JobDetailsPage() {
   }
 
   if (!job) {
-    const isNetwork = fetchError === "network";
+    const isNetwork = fetchError ? classifyError(fetchError) === "network" : false;
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <h2 className="text-2xl font-bold mb-2">
-              {isNetwork ? "Connection problem" : "Job not found"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {isNetwork
-                ? "Check your internet connection and try again."
-                : "This job may have been removed or the link is incorrect."}
-            </p>
-            {isNetwork ? (
-              <Button onClick={() => { setFetchError(null); setLoading(true); fetchJob(); }}>
-                Retry
-              </Button>
-            ) : (
-              <Button asChild><Link to="/jobs">Browse Jobs</Link></Button>
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="max-w-md w-full space-y-3">
+            <NetworkError
+              error={fetchError}
+              title={isNetwork ? undefined : "Job not found"}
+              message={isNetwork ? undefined : "This job may have been removed or the link is incorrect."}
+              onRetry={isNetwork ? () => { setFetchError(null); setLoading(true); fetchJob(); } : undefined}
+              className="border-0 bg-transparent"
+            />
+            {!isNetwork && (
+              <div className="flex justify-center">
+                <Button asChild><Link to="/jobs">Browse Jobs</Link></Button>
+              </div>
             )}
           </div>
         </div>
@@ -328,7 +331,7 @@ export default function JobDetailsPage() {
   const isAssignedToMe = profile?.role === "freelancer" && myProposal?.status === "accepted";
   const canApply = profile?.role === "freelancer" && job.status === "open" && !hasApplied;
   const isJobEditable = isClient && !isAssigned;
-  const showChangesBanner = profile?.role === "freelancer" && hasApplied && job.has_material_changes && !changesBannerDismissed;
+  const showChangesBanner = profile?.role === "freelancer" && hasApplied && myProposal?.notified_of_change && !changesBannerDismissed;
 
   const handleWithdrawProposal = async () => {
     if (!myProposal) return;
@@ -566,7 +569,7 @@ export default function JobDetailsPage() {
                           <p>No proposals received yet</p>
                         </div>
                       ) : (
-                        activeProposals.map((proposal: any) => (
+                        activeProposals.map((proposal) => (
                           <div key={proposal.id} className="bg-card rounded-xl border border-border p-4 sm:p-6">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                               <div className="flex-1">
@@ -660,7 +663,7 @@ export default function JobDetailsPage() {
                           <p>No experts being interviewed yet</p>
                         </div>
                       ) : (
-                        interviewContracts.map((contract: any) => (
+                        interviewContracts.map((contract) => (
                           <div
                             key={contract.id}
                             className="bg-card rounded-xl border border-border p-4 sm:p-6 hover:border-primary/30 transition-colors cursor-pointer"
@@ -1040,7 +1043,7 @@ export default function JobDetailsPage() {
 
                   {detailDialog.proposal.payment_type === "milestone" && detailDialog.proposal.milestones?.length > 0 ? (
                     <div className="space-y-3">
-                      {detailDialog.proposal.milestones.map((ms: any, idx: number) => (
+                      {detailDialog.proposal.milestones.map((ms: JobProposalMilestone, idx: number) => (
                         <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium text-foreground">{ms.title}</p>
@@ -1130,9 +1133,9 @@ export default function JobDetailsPage() {
 // ===== Overview Content Component =====
 
 function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format, ipPolicyGated, jobId }: {
-  job: any;
+  job: JobDetailsJob;
   deliveryLabel: () => string;
-  similarJobs: any[];
+  similarJobs: JobDetailsSimilarJob[];
   profileRole?: string;
   format: (n: number) => string;
   ipPolicyGated?: boolean;
@@ -1237,7 +1240,7 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format,
   );
 }
 
-function InfoTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function InfoTile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="p-4 rounded-lg bg-muted/50 border border-border">
       <div className="flex items-center gap-2 mb-1">

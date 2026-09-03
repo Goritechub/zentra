@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -46,7 +46,7 @@ const Blog = () => {
   const [coverImage, setCoverImage] = useState("");
   const [publishing, setPublishing] = useState(false);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
       const { posts: data, total } = await getBlogPosts(page, search || undefined, selectedTag || undefined);
@@ -57,11 +57,11 @@ const Blog = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, selectedTag]);
 
   useEffect(() => {
     fetchPosts();
-  }, [page, search, selectedTag]);
+  }, [fetchPosts]);
 
   const handleLike = async (postId: string) => {
     if (!user) {
@@ -124,8 +124,8 @@ const Blog = () => {
       setCoverImage("");
       setShowCreate(false);
       fetchPosts();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to publish");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish");
     } finally {
       setPublishing(false);
     }

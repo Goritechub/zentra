@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -37,6 +37,14 @@ import {
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
+import type {
+  ContractDetailData,
+  ContractMilestone,
+  ContractDispute,
+  EscrowLedgerEntry,
+  WalletTransactionEntry,
+  ContractActivityLogEntry,
+} from "@/types/contracts";
 
 type UploadStatus = "uploading" | "done" | "error";
 type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null };
@@ -54,7 +62,7 @@ const STATUS_CONFIG: Record<string, { variant: "default" | "secondary" | "destru
   rejected: { variant: "destructive", label: "Rejected" },
 };
 
-const MILESTONE_STATUS: Record<string, { variant: string; label: string }> = {
+const MILESTONE_STATUS: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   pending:    { variant: "secondary", label: "Not Funded" },
   funded:     { variant: "default",   label: "Funded" },
   in_progress:{ variant: "default",   label: "In Progress" },
@@ -100,13 +108,13 @@ export default function ContractDetail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [contract, setContract] = useState<any>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
+  const [contract, setContract] = useState<ContractDetailData | null>(null);
+  const [milestones, setMilestones] = useState<ContractMilestone[]>([]);
   const [referralDiscount, setReferralDiscount] = useState(false);
-  const [disputes, setDisputes] = useState<any[]>([]);
-  const [escrowLedger, setEscrowLedger] = useState<any[]>([]);
-  const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
-  const [activityLog, setActivityLog] = useState<any[]>([]);
+  const [disputes, setDisputes] = useState<ContractDispute[]>([]);
+  const [escrowLedger, setEscrowLedger] = useState<EscrowLedgerEntry[]>([]);
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransactionEntry[]>([]);
+  const [activityLog, setActivityLog] = useState<ContractActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
 
@@ -114,13 +122,13 @@ export default function ContractDetail() {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
   const [showSubmitDelivery, setShowSubmitDelivery] = useState(false);
-  const [showSubmissionDetail, setShowSubmissionDetail] = useState<any>(null);
+  const [showSubmissionDetail, setShowSubmissionDetail] = useState<ContractMilestone | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showCancelUnfundedDialog, setShowCancelUnfundedDialog] = useState(false);
-  const [fundConfirmMilestone, setFundConfirmMilestone] = useState<any>(null);
-  const [extendMilestone, setExtendMilestone] = useState<any>(null);
+  const [fundConfirmMilestone, setFundConfirmMilestone] = useState<ContractMilestone | null>(null);
+  const [extendMilestone, setExtendMilestone] = useState<ContractMilestone | null>(null);
   const [extendNewDate, setExtendNewDate] = useState("");
-  const [requestExtensionMs, setRequestExtensionMs] = useState<any>(null);
+  const [requestExtensionMs, setRequestExtensionMs] = useState<ContractMilestone | null>(null);
   const [requestExtensionDate, setRequestExtensionDate] = useState("");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "", duration_value: "", duration_unit: "days" });
@@ -156,9 +164,7 @@ export default function ContractDetail() {
     { key: "rating_cooperation", label: "Cooperation" },
   ] as const;
 
-  useEffect(() => { if (id) fetchData(); }, [id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const data = await getContractDetail(id!);
     const contractData = data.contract;
     const ms = data.milestones || [];
@@ -173,11 +179,13 @@ export default function ContractDetail() {
 
     // Check if user can rate (completed contract, all milestones paid/approved, no existing review)
     if (contractData && contractData.status === "completed" && user) {
-      const allMilestonesDone = (ms || []).length > 0 && (ms || []).every((m: any) => m.status === "approved" || m.status === "paid");
+      const allMilestonesDone = (ms || []).length > 0 && (ms || []).every((m) => m.status === "approved" || m.status === "paid");
       setHasReviewed(!!data.hasReviewed);
       setCanRate(!data.hasReviewed && allMilestonesDone);
     }
-  };
+  }, [id, user]);
+
+  useEffect(() => { if (id) fetchData(); }, [id, fetchData]);
 
   const isClient = contract?.client_id === user?.id;
   const isFreelancer = contract?.freelancer_id === user?.id;
@@ -231,7 +239,7 @@ export default function ContractDetail() {
         setter((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
       } else {
         let msg = "Upload failed";
-        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { /* ignore — fall back to default message */ }
         setter((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
       }
     });
@@ -276,7 +284,7 @@ export default function ContractDetail() {
       const response = await api.post("/contracts/escrow", { action: "submit_delivery", milestone_id: selectedMilestoneId, contract_id: id, submission_notes: submissionNotes.trim(), submission_attachments: urls });
       if (response.data?.error) toast.error(response.data.error);
       else { toast.success("Delivery submitted!"); setShowSubmitDelivery(false); setSubmissionNotes(""); setSubmissionUploads([]); setSelectedMilestoneId(null); fetchData(); }
-    } catch (err: any) { toast.error(err?.message || "Submission failed"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Submission failed"); }
     setActionLoading(false);
   };
 
@@ -291,11 +299,11 @@ export default function ContractDetail() {
         else if (action === "reject_milestone") toast.success("Milestone rejected. Expert can resubmit.");
         fetchData();
       }
-    } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Action failed"); }
     setActionLoading(false);
   };
 
-  const handleRequestExtension = (ms: any) => {
+  const handleRequestExtension = (ms: ContractMilestone) => {
     setRequestExtensionMs(ms);
     setRequestExtensionDate("");
   };
@@ -308,11 +316,11 @@ export default function ContractDetail() {
       toast.success("Extension requested. The client has been notified.");
       setRequestExtensionMs(null);
       fetchData();
-    } catch (err: any) { toast.error(err?.message || "Failed to request extension"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to request extension"); }
     setActionLoading(false);
   };
 
-  const handleRespondExpiry = async (ms: any, action: "extend" | "cancel" | "accept_extension" | "reject_extension") => {
+  const handleRespondExpiry = async (ms: ContractMilestone, action: "extend" | "cancel" | "accept_extension" | "reject_extension") => {
     if (action === "extend") { setExtendMilestone(ms); setExtendNewDate(""); return; }
     setActionLoading(true);
     try {
@@ -324,7 +332,7 @@ export default function ContractDetail() {
       };
       toast.success(messages[action] || "Done.");
       fetchData();
-    } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Action failed"); }
     setActionLoading(false);
   };
 
@@ -336,7 +344,7 @@ export default function ContractDetail() {
       toast.success("Deadline extended.");
       setExtendMilestone(null);
       fetchData();
-    } catch (err: any) { toast.error(err?.message || "Failed to extend deadline"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to extend deadline"); }
     setActionLoading(false);
   };
 
@@ -346,7 +354,7 @@ export default function ContractDetail() {
       await respondMilestoneCancellation(msId, action);
       toast.success(action === "accept" ? "Cancellation accepted. Funds refunded to client." : "Cancellation rejected. A dispute has been opened.");
       fetchData();
-    } catch (err: any) { toast.error(err?.message || "Action failed"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Action failed"); }
     setActionLoading(false);
   };
 
@@ -359,7 +367,7 @@ export default function ContractDetail() {
       setShowCancelUnfundedDialog(false);
       setSelectedMilestoneId(null);
       fetchData();
-    } catch (err: any) { toast.error(err?.response?.data?.message || err?.message || "Action failed"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Action failed"); }
     setActionLoading(false);
   };
 
@@ -381,7 +389,7 @@ export default function ContractDetail() {
       const response = await api.post("/contracts/escrow", { action: "raise_dispute", contract_id: id, reason: disputeReason, evidence_urls: evidenceUrls });
       if (response.data?.error) toast.error(response.data.error);
       else { toast.success("Dispute raised"); setShowDispute(false); setDisputeReason(""); setDisputeUploads([]); fetchData(); }
-    } catch (err: any) { toast.error(err?.message || "Failed to raise dispute"); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to raise dispute"); }
     setActionLoading(false);
   };
 
@@ -745,7 +753,7 @@ export default function ContractDetail() {
                       const milestoneNumberMap = new Map(
                         [...milestones]
                           .sort((a, b) => {
-                          const d = (m: any) => m.due_date || m.created_at;
+                          const d = (m: ContractMilestone) => m.due_date || m.created_at;
                           return new Date(d(a)).getTime() - new Date(d(b)).getTime();
                         })
                           .map((m, i) => [m.id, i + 1])
@@ -778,7 +786,7 @@ export default function ContractDetail() {
                                   : "bg-primary/10 text-primary"
                                 }`}>{milestoneNumberMap.get(ms.id)}</span>
                                 <h3 className={`font-medium ${isCancelled ? "line-through text-muted-foreground" : "text-foreground"}`}>{ms.title}</h3>
-                                <Badge variant={msCfg.variant as any}>{msCfg.label}</Badge>
+                                <Badge variant={msCfg.variant}>{msCfg.label}</Badge>
                               </div>
                               {ms.description && <p className="text-sm text-muted-foreground">{ms.description}</p>}
                               <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -1028,7 +1036,7 @@ export default function ContractDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {disputes.map((d: any) => {
+                    {disputes.map((d) => {
                       const dStatus = d.dispute_status || (d.status === "open" ? "awaiting_response" : "resolved");
                       const statusLabel = dStatus === "awaiting_response" ? "Awaiting Response" :
                         dStatus === "under_review" ? "Under Review" : "Resolved";
@@ -1131,9 +1139,9 @@ export default function ContractDetail() {
           <div className="flex items-center justify-between px-1 pb-1 border-b border-border">
             <div>
               <p className="text-sm font-semibold text-foreground">{showSubmissionDetail?.title}</p>
-              {showSubmissionDetail?.updated_at && (
+              {showSubmissionDetail?.submitted_at && (
                 <p className="text-xs text-muted-foreground">
-                  Submitted {formatDistanceToNow(new Date(showSubmissionDetail.updated_at), { addSuffix: true })}
+                  Submitted {formatDistanceToNow(new Date(showSubmissionDetail.submitted_at), { addSuffix: true })}
                 </p>
               )}
             </div>

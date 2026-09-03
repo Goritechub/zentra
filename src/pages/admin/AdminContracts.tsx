@@ -7,6 +7,7 @@ import {
   getAdminContractDetail,
   getAdminContractsData,
 } from "@/api/admin.api";
+import type { AdminContract, AdminMilestone, AdminEscrowEntry } from "@/types/admin";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,17 +19,19 @@ import { toast } from "sonner";
 
 const DELETABLE_STATUSES = ["interviewing", "draft", "pending_funding"];
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+
 export default function AdminContracts() {
   const { format } = useCurrency();
   const { user } = useAuth();
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [escrow, setEscrow] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<AdminContract[]>([]);
+  const [milestones, setMilestones] = useState<AdminMilestone[]>([]);
+  const [escrow, setEscrow] = useState<AdminEscrowEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedContract, setSelectedContract] = useState<any>(null);
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; contract: any | null }>({ open: false, contract: null });
+  const [selectedContract, setSelectedContract] = useState<AdminContract | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; contract: AdminContract | null }>({ open: false, contract: null });
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchContracts(); }, []);
@@ -39,14 +42,14 @@ export default function AdminContracts() {
     setLoading(false);
   };
 
-  const viewContract = async (c: any) => {
+  const viewContract = async (c: AdminContract) => {
     const data = await getAdminContractDetail(c.id);
     setSelectedContract(data.contract || c);
     setMilestones(data.milestones || []);
     setEscrow(data.escrow || []);
   };
 
-  const deleteContract = async (contract: any) => {
+  const deleteContract = async (contract: AdminContract) => {
     if (!user) return;
     setDeleting(true);
     try {
@@ -55,8 +58,8 @@ export default function AdminContracts() {
       setContracts(prev => prev.filter(c => c.id !== contract.id));
       setDeleteDialog({ open: false, contract: null });
       toast.success("Contract deleted and parties notified.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete contract.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete contract.");
     } finally {
       setDeleting(false);
     }
@@ -64,16 +67,16 @@ export default function AdminContracts() {
 
   const isDeletable = (status: string) => DELETABLE_STATUSES.includes(status);
 
-  const getStaleLabel = (c: any) => {
+  const getStaleLabel = (c: AdminContract) => {
     if (c.status !== "interviewing") return null;
     const days = differenceInBusinessDays(new Date(), new Date(c.created_at));
     if (days >= 20) return `${days} business days old`;
     return null;
   };
 
-  const statusColor = (s: string) => {
-    const map: Record<string, string> = { active: "default", completed: "secondary", disputed: "destructive", cancelled: "outline", draft: "outline", pending_funding: "secondary", interviewing: "default" };
-    return (map[s] || "outline") as any;
+  const statusColor = (s: string): BadgeVariant => {
+    const map: Record<string, BadgeVariant> = { active: "default", completed: "secondary", disputed: "destructive", cancelled: "outline", draft: "outline", pending_funding: "secondary", interviewing: "default" };
+    return map[s] || "outline";
   };
 
   const filtered = contracts.filter(c => {

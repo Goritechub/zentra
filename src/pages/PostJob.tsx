@@ -38,6 +38,12 @@ type UploadItem = {
   url: string | null;
   errorMsg: string | null;
 };
+interface InviteExpert {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  username: string | null;
+}
 
 export default function PostJobPage() {
   const navigate = useNavigate();
@@ -72,7 +78,7 @@ export default function PostJobPage() {
   const [invitedExperts, setInvitedExperts] = useState<{id: string;full_name: string;}[]>([]);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [expertSearch, setExpertSearch] = useState("");
-  const [expertResults, setExpertResults] = useState<any[]>([]);
+  const [expertResults, setExpertResults] = useState<InviteExpert[]>([]);
   const [searchingExperts, setSearchingExperts] = useState(false);
 
   const [isNda, setIsNda] = useState(false);
@@ -145,8 +151,8 @@ export default function PostJobPage() {
         setCity(j.city || "");
         setSelectedSkills(j.required_skills || []);
         setSelectedSoftware(j.required_software || []);
-        setOverallSkillLevel(j.skill_level || "Intermediate");
-        setVisibility(j.visibility || "public");
+        setOverallSkillLevel((j.skill_level as SkillLevel) || "Intermediate");
+        setVisibility((j.visibility as JobVisibility) || "public");
         setIsNda(j.is_nda || false);
         setExistingNdaUrl(j.nda_url || null);
         setIsIpPolicy(j.is_ip_policy || false);
@@ -165,13 +171,13 @@ export default function PostJobPage() {
             .select("id, full_name")
             .in("id", j.invited_expert_ids)
             .then(({ data }) => {
-              setInvitedExperts((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name })));
+              setInvitedExperts((data || []).map((p: { id: string; full_name: string | null }) => ({ id: p.id, full_name: p.full_name || "" })));
             });
         }
         setLoadingJob(false);
       })
       .catch(() => { setLoadingJob(false); navigate("/dashboard"); });
-  }, [isEditMode, jobId]);
+  }, [isEditMode, jobId, navigate]);
 
   const states = getAllStates();
   const cities = state ? getCitiesByState(state) : [];
@@ -191,8 +197,8 @@ export default function PostJobPage() {
     setExpertSearch(query);
     if (query.length < 2) {setExpertResults([]);return;}
     setSearchingExperts(true);
-    const data = await searchInviteExperts(query);
-    setExpertResults((data || []).filter((e: any) => !invitedExperts.find((ie) => ie.id === e.id)));
+    const data = (await searchInviteExperts(query)) as InviteExpert[];
+    setExpertResults((data || []).filter((e) => !invitedExperts.find((ie) => ie.id === e.id)));
     setSearchingExperts(false);
   };
 
@@ -220,7 +226,8 @@ export default function PostJobPage() {
           try {
             const json = JSON.parse(xhr.responseText);
             const urls: string[] = json.data?.urls ?? [];
-            urls.length ? resolve(urls[0]) : reject(new Error("No URL returned from server"));
+            if (urls.length) resolve(urls[0]);
+            else reject(new Error("No URL returned from server"));
           } catch {
             reject(new Error("Invalid server response"));
           }
@@ -431,8 +438,11 @@ export default function PostJobPage() {
         toast.success("Job posted successfully!");
         navigate("/dashboard");
       }
-    } catch (error: any) {
-      const isTimeout = error?.message?.toLowerCase().includes("timeout") || error?.code === "ECONNABORTED";
+    } catch (error) {
+      const isTimeout = error instanceof Error && (
+        error.message.toLowerCase().includes("timeout") ||
+        (error as Error & { code?: string }).code === "ECONNABORTED"
+      );
       toast.error(isTimeout
         ? "Request timed out — please check your connection and try again"
         : isEditMode ? "Failed to update job" : "Failed to post job"

@@ -67,9 +67,9 @@ export function AuthCodeVerifyModal({
     }
 
     setVerifying(true);
-    let data: any = null;
+    let data: { valid: boolean; error: string | null } | null = null;
     try {
-      const result = await Promise.race([
+      data = await Promise.race([
         verifyAuthCode(submittedCode),
         new Promise<never>((_, reject) =>
           window.setTimeout(
@@ -78,10 +78,9 @@ export function AuthCodeVerifyModal({
           ),
         ),
       ]);
-      data = result as any;
-    } catch (err: any) {
+    } catch (err) {
       setVerifying(false);
-      toast.error(err?.message || "Authentication code verification failed. Please try again.");
+      toast.error(err instanceof Error ? err.message : "Authentication code verification failed. Please try again.");
       return;
     }
     setVerifying(false);

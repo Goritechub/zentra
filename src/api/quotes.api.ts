@@ -1,4 +1,5 @@
 import { api } from "./axios";
+import type { QuoteRequest } from "@/types/quotes";
 
 export interface QuoteRequestPayload {
   contact_name: string;
@@ -34,7 +35,7 @@ export async function createQuoteRequest(payload: QuoteRequestPayload) {
 
 export async function getAdminQuotes(status?: string) {
   const response = await api.get("/admin/quotes", { params: status ? { status } : undefined });
-  return response.data.data as { quotes: any[] };
+  return response.data.data as { quotes: QuoteRequest[] };
 }
 
 export async function updateAdminQuoteStatus(id: string, body: { status?: string; admin_notes?: string }) {

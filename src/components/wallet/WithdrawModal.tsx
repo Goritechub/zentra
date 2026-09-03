@@ -10,6 +10,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import { Loader2, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { initiatePayout } from "@/api/flutterwave.api";
+import type { BankDetail, PaystackBank } from "@/types/wallet";
 
 interface WithdrawModalProps {
   open: boolean;
@@ -56,10 +57,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
   const [loading, setLoading] = useState(false);
 
   // Paystack state
-  const [bankDetails, setBankDetails] = useState<any[]>([]);
-  const [selectedBank, setSelectedBank] = useState<any>(null);
+  const [bankDetails, setBankDetails] = useState<BankDetail[]>([]);
+  const [selectedBank, setSelectedBank] = useState<BankDetail | null>(null);
   const [amount, setAmount] = useState("");
-  const [banks, setBanks] = useState<any[]>([]);
+  const [banks, setBanks] = useState<PaystackBank[]>([]);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
@@ -88,7 +89,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     try {
       const res = await api.post("/wallet/paystack-transfer", { action: "list_bank_details" });
       if (res.data?.success) {
-        const details = res.data.bank_details as any[];
+        const details = res.data.bank_details as BankDetail[];
         setBankDetails(details);
         if (details.length > 0) setSelectedBank(details[0]);
       }
@@ -104,7 +105,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       const res = await api.post("/wallet/paystack-transfer", { action: "list_banks" });
       if (res.data?.banks) {
         const seen = new Set<string>();
-        const unique = (res.data.banks as any[]).filter((b) => {
+        const unique = (res.data.banks as PaystackBank[]).filter((b) => {
           if (seen.has(b.code)) return false;
           seen.add(b.code);
           return true;
@@ -156,9 +157,9 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       });
       if (res.data?.success) {
         toast.success("Bank account saved");
-        const saved = res.data.bank_detail;
+        const saved = res.data.bank_detail as BankDetail;
         setBankDetails((prev) => {
-          const without = prev.filter((b: any) => b.id !== saved.id);
+          const without = prev.filter((b) => b.id !== saved.id);
           return [saved, ...without];
         });
         setSelectedBank(saved);
@@ -167,8 +168,8 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       } else {
         toast.error(res.data?.error || "Failed to save bank details");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save bank details");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save bank details");
     }
     setLoading(false);
   };
@@ -184,12 +185,12 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
     setStep("processing");
     setLoading(true);
     try {
-      const res = await api.post("/wallet/paystack-transfer", { action: "withdraw", amount: parseFloat(amount), bank_detail_id: selectedBank.id });
+      const res = await api.post("/wallet/paystack-transfer", { action: "withdraw", amount: parseFloat(amount), bank_detail_id: selectedBank?.id });
       setLoading(false);
       if (res.data?.success) { setStep("success"); toast.success("Withdrawal initiated!"); onSuccess(); }
       else { setStep("failed"); toast.error(res.data?.error || "Withdrawal failed"); }
-    } catch (err: any) {
-      setLoading(false); setStep("failed"); toast.error(err?.message || "Withdrawal failed");
+    } catch (err) {
+      setLoading(false); setStep("failed"); toast.error(err instanceof Error ? err.message : "Withdrawal failed");
     }
   };
 
@@ -269,8 +270,8 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
       setStep("success");
       toast.success("Payout initiated! Funds will be sent to your account.");
       onSuccess();
-    } catch (err: any) {
-      setLoading(false); setStep("failed"); toast.error(err?.message || "Payout failed");
+    } catch (err) {
+      setLoading(false); setStep("failed"); toast.error(err instanceof Error ? err.message : "Payout failed");
     }
   };
 
@@ -365,7 +366,7 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
             {bankDetails.length > 0 ? (
               <div className="space-y-2">
                 <Label>Select Bank Account</Label>
-                {bankDetails.map((bd: any) => (
+                {bankDetails.map((bd) => (
                   <button key={bd.id} onClick={() => { setSelectedBank(bd); setStep("amount"); }}
                     className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBank?.id === bd.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
                   >
@@ -396,10 +397,10 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
               <Label>Bank</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={bankCode}
-                onChange={(e) => { setBankCode(e.target.value); setSelectedBankName(banks.find((b: any) => b.code === e.target.value)?.name || ""); setResolvedName(""); }}
+                onChange={(e) => { setBankCode(e.target.value); setSelectedBankName(banks.find((b) => b.code === e.target.value)?.name || ""); setResolvedName(""); }}
               >
                 <option value="">Select bank...</option>
-                {banks.map((b: any) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -514,12 +515,12 @@ export function WithdrawModal({ open, onOpenChange, onSuccess, walletBalance, us
                     value={flwBankCode}
                     onChange={(e) => {
                       setFlwBankCode(e.target.value);
-                      setFlwSelectedBankName(banks.find((b: any) => b.code === e.target.value)?.name || "");
+                      setFlwSelectedBankName(banks.find((b) => b.code === e.target.value)?.name || "");
                       setFlwAccountName("");
                     }}
                   >
                     <option value="">Select bank...</option>
-                    {banks.map((b: any) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                    {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">

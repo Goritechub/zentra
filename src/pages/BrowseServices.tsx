@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { getBrowseServicesList } from "@/api/client-read.api";
+import type { BrowseService } from "@/types/client";
 import { cadSoftwareList } from "@/lib/nigerian-data";
 import { useCurrency } from "@/hooks/useCurrency";
 import { categoryNames } from "@/lib/categories";
@@ -39,6 +40,10 @@ const EXP_LEVELS = [
   { label: "Intermediate", min: 3, max: 5 },
   { label: "Expert", min: 6, max: Infinity },
 ];
+
+// The browse-services backend response doesn't currently populate this field, but the
+// filter below guards on it being present, so keep it typed as an optional extra.
+type BrowseServiceRow = BrowseService & { freelancer_years_experience?: number | null };
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +135,7 @@ export default function BrowseServicesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<BrowseServiceRow | null>(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
 
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -154,9 +159,9 @@ export default function BrowseServicesPage() {
     queryKey: ["browse-services"],
     staleTime: 2 * 60 * 1000,
     placeholderData: (prev) => prev,
-    queryFn: async () => {
+    queryFn: async (): Promise<BrowseServiceRow[]> => {
       const response = await getBrowseServicesList();
-      return (response.data.services as any[]) || [];
+      return response.data.services || [];
     },
   });
 
@@ -167,7 +172,7 @@ export default function BrowseServicesPage() {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const freelancer = svc.freelancer as any;
+      const freelancer = svc.freelancer;
       if (
         !freelancer?.full_name?.toLowerCase().includes(q) &&
         !freelancer?.username?.toLowerCase().includes(q) &&
@@ -309,8 +314,8 @@ export default function BrowseServicesPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {paginated.map((svc: any) => {
-                    const freelancer = svc.freelancer as any;
+                  {paginated.map((svc) => {
+                    const freelancer = svc.freelancer;
                     return (
                       <div
                         key={svc.id}
@@ -448,15 +453,15 @@ export default function BrowseServicesPage() {
             {selectedService?.freelancer && (
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={(selectedService.freelancer as any).avatar_url || undefined} />
+                  <AvatarImage src={selectedService.freelancer.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {((selectedService.freelancer as any).full_name || "U")[0]}
+                    {(selectedService.freelancer.full_name || "U")[0]}
                   </AvatarFallback>
                 </Avatar>
                 <Link to={`/expert/${selectedService.freelancer_id}/profile`}
                   className="text-sm font-medium hover:text-primary"
                   onClick={() => setSelectedService(null)}>
-                  {(selectedService.freelancer as any).full_name}
+                  {selectedService.freelancer.full_name}
                 </Link>
               </div>
             )}

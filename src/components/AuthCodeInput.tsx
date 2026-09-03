@@ -78,8 +78,8 @@ export function AuthCodeInput({ value, onChange, disabled, locked, onUnlocked }:
       setResetToken("");
       setNewCode("");
       onUnlocked?.();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Reset failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Reset failed");
     } finally {
       setResetLoading(false);
     }

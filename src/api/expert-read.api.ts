@@ -1,4 +1,5 @@
 import { api } from "./axios";
+import type { ExpertProfileOverviewData } from "@/types/expert";
 
 export interface ExpertSkillsResponse {
   success: boolean;
@@ -10,17 +11,7 @@ export interface ExpertSkillsResponse {
 
 export interface ExpertProfileOverviewResponse {
   success: boolean;
-  data: {
-    profile: any;
-    freelancerProfile: any;
-    certifications: any[];
-    workExperience: any[];
-    services: any[];
-    portfolio: any[];
-    pastContracts: any[];
-    completedContractCount: number;
-    reviews: any[];
-  };
+  data: ExpertProfileOverviewData;
 }
 
 export async function getMyExpertSkills() {

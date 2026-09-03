@@ -78,12 +78,7 @@ export default function EditContestPage() {
 
   const categories = categoryNames;
 
-  useEffect(() => {
-    if (!id || !user) return;
-    void loadContest();
-  }, [id, user]);
-
-  const loadContest = async () => {
+  const loadContest = useCallback(async () => {
     setPageLoading(true);
     try {
       const res = await api.get(`/contests/${id}/edit-data`);
@@ -113,13 +108,18 @@ export default function EditContestPage() {
         setExistingBannerUrl(c.banner_image);
         setBannerPreview(c.banner_image);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to load contest");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load contest");
       navigate("/dashboard/my-contests");
     } finally {
       setPageLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    void loadContest();
+  }, [id, user, loadContest]);
 
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,8 +236,8 @@ export default function EditContestPage() {
           : "Contest updated. Admin has been notified of your changes.",
       );
       navigate("/dashboard/my-contests");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save changes");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save changes");
     } finally {
       setSaving(false);
     }

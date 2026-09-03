@@ -26,6 +26,7 @@ import {
   updateAdminSupportComplaintStatus,
   updateAdminSupportSettings,
 } from "@/api/support.api";
+import type { Complaint, SupportChat, SupportChatMessage } from "@/types/support";
 
 const COMPLAINT_STATUSES = ["new", "in_review", "resolved", "closed"] as const;
 const COMPLAINT_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -121,9 +122,9 @@ function SupportSettingsTab() {
 
 /* ─── Complaints Tab ─── */
 function ComplaintsTab() {
-  const [complaints, setComplaints] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<Complaint | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -266,10 +267,10 @@ function ComplaintsTab() {
 /* ─── Support Chats Tab ─── */
 function SupportChatsTab() {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<SupportChat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedChat, setSelectedChat] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [selectedChat, setSelectedChat] = useState<SupportChat | null>(null);
+  const [messages, setMessages] = useState<SupportChatMessage[]>([]);
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -282,7 +283,7 @@ function SupportChatsTab() {
 
   useEffect(() => { fetchChats(); }, [fetchChats]);
 
-  const openChat = async (chat: any) => {
+  const openChat = async (chat: SupportChat) => {
     setSelectedChat(chat);
     const data = await getAdminSupportChatMessages(chat.id);
     setMessages(data.messages || []);
@@ -301,7 +302,7 @@ function SupportChatsTab() {
         table: "support_chat_messages",
         filter: `chat_id=eq.${selectedChat.id}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as any]);
+        setMessages(prev => [...prev, payload.new as SupportChatMessage]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       })
       .subscribe();

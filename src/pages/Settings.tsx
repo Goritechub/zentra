@@ -32,6 +32,8 @@ import {
   getMyProfileDeleteChecks, getMyProfileOverview,
   updateMyAvatarUrl, updateMyProfileData,
 } from "@/api/profile.api";
+import type { ProfileEmailPreferences, UpdateProfilePayload } from "@/types/profile";
+import type { BankDetail, PaystackBank } from "@/types/wallet";
 import { useToast } from "@/hooks/use-toast";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import {
@@ -42,16 +44,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── email prefs ────────────────────────────────────────────────────── */
 
-interface EmailPrefs {
-  transactional: boolean;
-  messages: boolean;
-  proposals: boolean;
-  job_alerts: boolean;
-  job_alert_mode: "instant" | "digest";
-  contest_alerts: boolean;
-  blog: boolean;
-  platform_updates: boolean;
-}
+type EmailPrefs = ProfileEmailPreferences;
 
 const DEFAULT_EMAIL_PREFS: EmailPrefs = {
   transactional: true,
@@ -146,8 +139,8 @@ export default function SettingsPage() {
   const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
 
   /* ── bank details state ── */
-  const [bankDetails, setBankDetails] = useState<any[]>([]);
-  const [banks, setBanks] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<BankDetail[]>([]);
+  const [banks, setBanks] = useState<PaystackBank[]>([]);
   const [loadingBanks, setLoadingBanks] = useState(false);
   const [showAddBank, setShowAddBank] = useState(false);
   const [bankCode, setBankCode] = useState("");
@@ -172,7 +165,7 @@ export default function SettingsPage() {
     queryKey: ["my-profile-general", user?.id],
     enabled: bootstrapStatus === "ready" && !!user,
     staleTime: 2 * 60 * 1000,
-    placeholderData: (p: any) => p,
+    placeholderData: (p) => p,
     queryFn: async () => { const data = await getMyProfileOverview(); return data.generalProfile; },
   });
 
@@ -180,17 +173,17 @@ export default function SettingsPage() {
     queryKey: ["my-profile-freelancer-bundle", user?.id],
     enabled: bootstrapStatus === "ready" && !!user && profile?.role === "freelancer",
     staleTime: 2 * 60 * 1000,
-    placeholderData: (p: any) => p,
+    placeholderData: (p) => p,
     queryFn: async () => {
       const data = await getMyProfileOverview();
       return {
-        freelancerProfile: (data.freelancerProfile as FreelancerProfile | null) ?? null,
-        certifications: (data.certifications || []).map((c: any) => ({
+        freelancerProfile: data.freelancerProfile ?? null,
+        certifications: (data.certifications || []).map((c) => ({
           id: c.id, name: c.name, issuer: c.issuer || "", year_obtained: c.year_obtained?.toString() || "", credential_url: c.credential_url || "",
-        })) as Certification[],
-        workExperience: (data.workExperience || []).map((e: any) => ({
+        })),
+        workExperience: (data.workExperience || []).map((e) => ({
           id: e.id, company: e.company, role: e.role, start_year: e.start_year?.toString() || "", end_year: e.end_year?.toString() || "", is_current: e.is_current, description: e.description || "",
-        })) as WorkExp[],
+        })),
       };
     },
   });
@@ -201,7 +194,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     getMyProfileOverview().then((data) => {
-      if (data.editFlags) setFullNameEdited((data.editFlags as any).full_name_edited || false);
+      if (data.editFlags) setFullNameEdited(data.editFlags.full_name_edited || false);
     });
   }, [user]);
 
@@ -210,14 +203,14 @@ export default function SettingsPage() {
     const gp = generalProfileQuery.data;
     if (gp || profile) {
       setFullName(gp?.full_name || profile?.full_name || "");
-      setPhone((gp as any)?.phone || "");
-      setWhatsapp((gp as any)?.whatsapp || "");
-      setState((gp as any)?.state || "");
-      setCity((gp as any)?.city || "");
+      setPhone(gp?.phone || "");
+      setWhatsapp(gp?.whatsapp || "");
+      setState(gp?.state || "");
+      setCity(gp?.city || "");
       setAvatarUrl(gp?.avatar_url || profile?.avatar_url || null);
-      setOccupation((gp as any)?.occupation || "");
-      const ep = (gp as any)?.email_preferences;
-      if (ep && typeof ep === "object") setEmailPrefs({ ...DEFAULT_EMAIL_PREFS, ...ep });
+      setOccupation(gp?.occupation || "");
+      const ep = gp?.email_preferences;
+      if (ep) setEmailPrefs({ ...DEFAULT_EMAIL_PREFS, ...ep });
     }
   }, [generalProfileQuery.data, profile]);
 
@@ -257,8 +250,8 @@ export default function SettingsPage() {
       await updateMyAvatarUrl(newUrl);
       setAvatarUrl(newUrl);
       toast({ title: "Photo updated!" });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Failed to upload avatar.", variant: "destructive" });
     } finally { setUploadingAvatar(false); }
   };
 
@@ -271,10 +264,10 @@ export default function SettingsPage() {
 
   /* ── certs / work exp ── */
   const addCertification = () => setCertifications([...certifications, { name: "", issuer: "", year_obtained: "", credential_url: "" }]);
-  const updateCert = (idx: number, field: keyof Certification, value: string) => { const u = [...certifications]; (u[idx] as any)[field] = value; setCertifications(u); };
+  const updateCert = (idx: number, field: keyof Certification, value: string) => { const u = [...certifications]; u[idx] = { ...u[idx], [field]: value }; setCertifications(u); };
   const removeCert = (idx: number) => { const c = certifications[idx]; if (c.id) setDeletedCertIds((p) => [...p, c.id!]); setCertifications(certifications.filter((_, i) => i !== idx)); };
   const addWorkExp = () => setWorkExperience([...workExperience, { company: "", role: "", start_year: "", end_year: "", is_current: false, description: "" }]);
-  const updateExp = (idx: number, field: keyof WorkExp, value: any) => { const u = [...workExperience]; (u[idx] as any)[field] = value; if (field === "is_current" && value) u[idx].end_year = ""; setWorkExperience(u); };
+  const updateExp = (idx: number, field: keyof WorkExp, value: string | boolean) => { const u = [...workExperience]; u[idx] = { ...u[idx], [field]: value }; if (field === "is_current" && value) u[idx].end_year = ""; setWorkExperience(u); };
   const removeExp = (idx: number) => { const e = workExperience[idx]; if (e.id) setDeletedExpIds((p) => [...p, e.id!]); setWorkExperience(workExperience.filter((_, i) => i !== idx)); };
 
   /* ── save profile ── */
@@ -285,10 +278,10 @@ export default function SettingsPage() {
       const wordCount = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
       if (occupation.trim() && wordCount(occupation) > 5) { setOccupationError("Maximum 5 words allowed"); setSaving(false); return; }
       setOccupationError("");
-      const payload: Record<string, any> = {
+      const payload: UpdateProfilePayload = {
         phone: phone.trim() || null, whatsapp: whatsapp.trim() || null,
         state: state || null, city: city || null, occupation: occupation.trim() || null,
-        fullName: (!fullNameEdited && fullName.trim()) ? fullName.trim() : null,
+        fullName: (!fullNameEdited && fullName.trim()) ? fullName.trim() : undefined,
         fullNameEdited, role: profile.role,
       };
       if (profile.role === "freelancer") {
@@ -304,8 +297,8 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["my-profile-general", user.id] });
       await queryClient.invalidateQueries({ queryKey: ["my-profile-freelancer-bundle", user.id] });
       toast({ title: "Profile saved" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to save profile.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save profile.", variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -316,8 +309,8 @@ export default function SettingsPage() {
       await updateMyProfileData({ emailPreferences: emailPrefs });
       await queryClient.invalidateQueries({ queryKey: ["my-profile-general", user?.id] });
       toast({ title: "Email preferences saved" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to save preferences.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save preferences.", variant: "destructive" });
     } finally {
       setSavingEmailPrefs(false);
     }
@@ -333,8 +326,8 @@ export default function SettingsPage() {
       if (error) throw error;
       setNewPassword(""); setConfirmPassword("");
       toast({ title: "Password updated successfully" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update password", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to update password", variant: "destructive" });
     } finally { setSavingPassword(false); }
   };
 
@@ -356,12 +349,12 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase.rpc("delete_user_account", { _user_id: user!.id });
       if (error) throw error;
-      const result = data as any;
+      const result = data as { success: boolean; error?: string };
       if (!result.success) { toast({ title: "Cannot delete account", description: result.error, variant: "destructive" }); setDeleting(false); return; }
       toast({ title: "Account deleted" });
       signOut();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to delete account", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete account", variant: "destructive" });
       setDeleting(false);
     }
   };
@@ -381,7 +374,7 @@ export default function SettingsPage() {
       const res = await api.post("/wallet/paystack-transfer", { action: "list_banks" });
       if (res.data?.banks) {
         const seen = new Set<string>();
-        setBanks((res.data.banks as any[]).filter((b) => { if (seen.has(b.code)) return false; seen.add(b.code); return true; }));
+        setBanks((res.data.banks as PaystackBank[]).filter((b) => { if (seen.has(b.code)) return false; seen.add(b.code); return true; }));
       }
     } catch { /* silent */ }
     setLoadingBanks(false);
@@ -428,11 +421,11 @@ export default function SettingsPage() {
       const res = await api.post("/wallet/paystack-transfer", { action: "save_bank", account_number: accountNumber, bank_code: bankCode, bank_name: selectedBankName, account_name: resolvedName });
       if (res.data?.success) {
         toast({ title: "Bank account saved" });
-        const saved = res.data.bank_detail;
-        setBankDetails((prev) => [saved, ...prev.filter((b: any) => b.id !== saved.id).map((b: any) => ({ ...b, is_default: false }))]);
+        const saved = res.data.bank_detail as BankDetail;
+        setBankDetails((prev) => [saved, ...prev.filter((b) => b.id !== saved.id).map((b) => ({ ...b, is_default: false }))]);
         setShowAddBank(false); setBankCode(""); setAccountNumber(""); setResolvedName(""); setSelectedBankName("");
       } else { toast({ title: "Error", description: res.data?.error || "Failed to save bank details", variant: "destructive" }); }
-    } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed to save", variant: "destructive" }); }
+    } catch (err) { toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save", variant: "destructive" }); }
     setSavingBank(false);
   };
 
@@ -442,15 +435,15 @@ export default function SettingsPage() {
     try {
       await api.post("/wallet/paystack-transfer", { action: "delete_bank", bank_detail_id: deleteBankId });
       setBankDetails((prev) => {
-        const remaining = prev.filter((b: any) => b.id !== deleteBankId);
+        const remaining = prev.filter((b) => b.id !== deleteBankId);
         // If the deleted one was default and there are others, mark the first as default
-        const deletedWasDefault = prev.find((b: any) => b.id === deleteBankId)?.is_default;
+        const deletedWasDefault = prev.find((b) => b.id === deleteBankId)?.is_default;
         if (deletedWasDefault && remaining.length > 0) remaining[0].is_default = true;
         return remaining;
       });
       toast({ title: "Bank account removed" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err?.response?.data?.message || "Failed to remove account", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to remove account", variant: "destructive" });
     }
     setDeletingBank(false);
     setDeleteBankId(null);
@@ -761,7 +754,7 @@ export default function SettingsPage() {
                         const res = await api.post("/auth/auth-code", { action: "reset", code: current });
                         if (res.data?.success) { setHasAuthCode(false); toast({ title: "Auth code cleared. Set a new one below." }); }
                         else toast({ title: "Error", description: res.data?.error || "Invalid code", variant: "destructive" });
-                      } catch (err: any) { toast({ title: "Error", description: err?.message || "Invalid code", variant: "destructive" }); }
+                      } catch (err) { toast({ title: "Error", description: err instanceof Error ? err.message : "Invalid code", variant: "destructive" }); }
                     }}>Reset Auth Code</Button>
                   </div>
                 ) : (
@@ -775,7 +768,7 @@ export default function SettingsPage() {
                         const res = await api.post("/auth/auth-code", { action: "set", code: authCode });
                         if (res.data?.success) { setHasAuthCode(true); setAuthCode(""); toast({ title: "Auth code saved!" }); }
                         else toast({ title: "Error", description: res.data?.error || "Failed to set code", variant: "destructive" });
-                      } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed to set code", variant: "destructive" }); }
+                      } catch (err) { toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to set code", variant: "destructive" }); }
                       setSavingAuthCode(false);
                     }} disabled={savingAuthCode || authCode.length !== 6}>
                       {savingAuthCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
@@ -834,7 +827,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">No bank accounts saved yet. Add one to enable withdrawals.</p>
                 )}
 
-                {bankDetails.map((b: any) => (
+                {bankDetails.map((b) => (
                   <div key={b.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
                     <div>
                       <p className="text-sm font-medium">{b.account_name}</p>

@@ -19,12 +19,13 @@ import {
   getAdminSettingsData,
   updateAdminCommissionTiers,
 } from "@/api/admin.api";
+import type { AdminCategory } from "@/types/admin";
 
 export default function AdminSettings() {
   const { format } = useCurrency();
   const { user } = useAuth();
   const { isSupported: pushSupported, isSubscribed, subscribe, unsubscribe, loading: pushLoading } = usePushNotifications();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState("");
   const [newCatSlug, setNewCatSlug] = useState("");

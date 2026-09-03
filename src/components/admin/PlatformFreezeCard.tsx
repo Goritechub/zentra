@@ -79,7 +79,7 @@ export function PlatformFreezeCard() {
     setPendingAction(null);
   };
 
-  const upsertSetting = async (key: string, value: any) => {
+  const upsertSetting = async (key: string, value: { enabled: boolean; message?: string }) => {
     // Try update first, then insert
     const { data: existing } = await supabase
       .from("platform_settings")

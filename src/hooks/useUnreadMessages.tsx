@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +8,7 @@ export function useUnreadMessages() {
   const { user, bootstrapStatus, onboardingComplete } = useAuth();
   const queryClient = useQueryClient();
 
-  const queryKey = ["unread-messages", user?.id];
+  const queryKey = useMemo(() => ["unread-messages", user?.id], [user?.id]);
   const enabled = !!user && bootstrapStatus === "ready" && onboardingComplete;
 
   const { data: count = 0 } = useQuery({

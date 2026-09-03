@@ -21,17 +21,18 @@ import {
   setAdminUserVerification,
   setAdminUserWithdrawalFreeze,
 } from "@/api/admin.api";
+import type { AdminUserListItem, AdminUserWallet, AdminUserViolations } from "@/types/admin";
 
 export default function AdminUsers() {
   const { format } = useCurrency();
   const { user } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [userWallet, setUserWallet] = useState<any>(null);
-  const [userViolations, setUserViolations] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(null);
+  const [userWallet, setUserWallet] = useState<AdminUserWallet | null>(null);
+  const [userViolations, setUserViolations] = useState<AdminUserViolations | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [closingAccount, setClosingAccount] = useState(false);
   const [notifyingUser, setNotifyingUser] = useState(false);
@@ -64,7 +65,7 @@ export default function AdminUsers() {
     setTogglingWithdrawal(false);
   };
 
-  const viewUser = async (u: any) => {
+  const viewUser = async (u: AdminUserListItem) => {
     setSelectedUser(u);
     const data = await getAdminUserDetail(u.id);
     setUserWallet(data.wallet);
@@ -74,17 +75,17 @@ export default function AdminUsers() {
   const toggleVerification = async (userId: string, current: boolean) => {
     await setAdminUserVerification(userId, !current);
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !current } : u));
-    setSelectedUser((prev: any) => prev ? { ...prev, is_verified: !current } : prev);
+    setSelectedUser(prev => prev ? { ...prev, is_verified: !current } : prev);
     toast.success(current ? "User unverified" : "User verified");
   };
 
   const toggleSuspension = async (userId: string, isSuspended: boolean) => {
     await setAdminUserSuspensionUpsert(userId, !isSuspended);
-    setUserViolations((prev: any) => prev ? { ...prev, is_suspended: !isSuspended } : { user_id: userId, is_suspended: !isSuspended, total_violations: 0 });
+    setUserViolations(prev => prev ? { ...prev, is_suspended: !isSuspended } : { user_id: userId, is_suspended: !isSuspended, total_violations: 0 });
     toast.success(isSuspended ? "User unsuspended" : "User suspended");
   };
 
-  const closeAccount = async (targetUser: any) => {
+  const closeAccount = async (targetUser: AdminUserListItem) => {
     setClosingAccount(true);
     try {
       const result = await closeAdminUserAccount(targetUser.id);
@@ -104,22 +105,22 @@ export default function AdminUsers() {
       setSelectedUser(null);
       setShowCloseConfirm(false);
       toast.success("Account permanently closed and deleted");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to close account");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to close account");
     } finally {
       setClosingAccount(false);
     }
   };
 
-  const sendWithdrawReminder = async (targetUser: any) => {
+  const sendWithdrawReminder = async (targetUser: AdminUserListItem) => {
     setNotifyingUser(true);
     try {
       const walletBalance = userWallet?.balance || 0;
       const escrowBalance = userWallet?.escrow_balance || 0;
       await sendAdminUserWithdrawReminder(targetUser.id, walletBalance, escrowBalance);
       toast.success("Withdrawal reminder notification sent to user");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send reminder");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send reminder");
     } finally {
       setNotifyingUser(false);
     }

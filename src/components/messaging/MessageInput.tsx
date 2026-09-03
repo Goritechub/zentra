@@ -72,7 +72,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
     setFilterError(null);
 
     // Upload attachments if any
-    let uploadedUrls: string[] = [];
+    const uploadedUrls: string[] = [];
     if (attachments.length > 0) {
       setUploading(true);
       try {

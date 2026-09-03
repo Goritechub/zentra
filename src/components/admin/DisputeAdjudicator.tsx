@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,23 +16,25 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
+import type { ContractDispute, MilestoneRecord, EscrowLedgerEntry, DisputeAdjudicatorContract } from "@/types/contracts";
+import type { ContractMessage } from "@/hooks/useContractMessages";
 import {
   Loader2, AlertTriangle, Download, Gavel, Scale, MessageSquare, FileText,
   ShieldCheck, User, Clock, CheckCircle2, ArrowRight
 } from "lucide-react";
 
 interface DisputeAdjudicatorProps {
-  dispute: any;
+  dispute: ContractDispute;
   onResolved: () => void;
 }
 
 export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorProps) {
   const { format } = useCurrency();
   const { user } = useAuth();
-  const [contract, setContract] = useState<any>(null);
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [escrowLedger, setEscrowLedger] = useState<any[]>([]);
+  const [contract, setContract] = useState<DisputeAdjudicatorContract | null>(null);
+  const [chatHistory, setChatHistory] = useState<ContractMessage[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
+  const [escrowLedger, setEscrowLedger] = useState<EscrowLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showResolve, setShowResolve] = useState(false);
   const [resolutionType, setResolutionType] = useState<string>("");
@@ -41,9 +43,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
   const [splitFreelancer, setSplitFreelancer] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => { fetchDetails(); }, [dispute.id]);
-
-  const fetchDetails = async () => {
+  const fetchDetails = useCallback(async () => {
     const [contractRes, chatRes, msRes, escrowRes] = await Promise.all([
       supabase.from("contracts")
         .select("*, client:profiles!contracts_client_id_fkey(full_name, avatar_url, id, email), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url, id, email)")
@@ -52,12 +52,14 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       supabase.from("milestones").select("*").eq("contract_id", dispute.contract_id).order("created_at", { ascending: true }),
       supabase.from("escrow_ledger").select("*").eq("contract_id", dispute.contract_id),
     ]);
-    setContract(contractRes.data);
+    setContract(contractRes.data as DisputeAdjudicatorContract | null);
     setChatHistory(chatRes.data || []);
     setMilestones(msRes.data || []);
     setEscrowLedger(escrowRes.data || []);
     setLoading(false);
-  };
+  }, [dispute.contract_id]);
+
+  useEffect(() => { fetchDetails(); }, [fetchDetails]);
 
   const totalHeld = escrowLedger.filter(e => e.status === "held").reduce((s, e) => s + e.held_amount, 0);
 
@@ -81,8 +83,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
           setShowResolve(false);
           onResolved();
         }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to close dispute");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to close dispute");
       }
       setActionLoading(false);
       return;
@@ -117,8 +119,8 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       setShowResolve(false);
       onResolved();
     }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to resolve dispute");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resolve dispute");
     }
     setActionLoading(false);
   };

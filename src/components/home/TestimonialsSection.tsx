@@ -3,33 +3,6 @@ import { Star, Quote } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 
-const fallbackTestimonials = [
-  {
-    name: "Olumide Akintola",
-    role: "Real Estate Developer",
-    location: "Lagos",
-    avatar: null as string | null,
-    rating: 5,
-    content: "ZentraGig connected me with an amazing engineer who delivered detailed floor plans for my 12-unit apartment project in just 5 days. The quality was outstanding and saved us weeks of work.",
-  },
-  {
-    name: "Ngozi Okafor",
-    role: "Manufacturing Director",
-    location: "Ogun",
-    avatar: null as string | null,
-    rating: 5,
-    content: "Finding skilled engineering professionals in Nigeria was challenging until I discovered ZentraGig. The expert we hired produced production-ready technical drawings that our factory could use immediately.",
-  },
-  {
-    name: "Ibrahim Yusuf",
-    role: "Civil Engineer",
-    location: "Kaduna",
-    avatar: null as string | null,
-    rating: 5,
-    content: "As a freelancer on ZentraGig, I've been able to work with clients across Nigeria without leaving my home. The platform makes it easy to showcase my portfolio and get paid securely.",
-  },
-];
-
 interface PlatformReview {
   name: string;
   role: string;
@@ -39,8 +12,22 @@ interface PlatformReview {
   content: string;
 }
 
+interface PlatformReviewRow {
+  rating: number;
+  comment: string | null;
+  user_id: string;
+  is_featured: boolean;
+  profiles: {
+    full_name: string | null;
+    avatar_url: string | null;
+    city: string | null;
+    state: string | null;
+  } | null;
+}
+
 export function TestimonialsSection() {
-  const [testimonials, setTestimonials] = useState<PlatformReview[]>(fallbackTestimonials);
+  const [testimonials, setTestimonials] = useState<PlatformReview[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchApprovedReviews();
@@ -55,21 +42,25 @@ export function TestimonialsSection() {
       .order("created_at", { ascending: false })
       .limit(6);
 
-    if (data && data.length >= 3) {
-      const mapped: PlatformReview[] = data
-        .filter((r: any) => r.comment)
+    const rows = data as PlatformReviewRow[] | null;
+    if (rows && rows.length >= 3) {
+      const mapped: PlatformReview[] = rows
+        .filter((r) => r.comment)
         .slice(0, 3)
-        .map((r: any) => ({
-          name: (r.profiles as any)?.full_name || "ZentraGig User",
+        .map((r) => ({
+          name: r.profiles?.full_name || "ZentraGig User",
           role: "Verified User",
-          location: (r.profiles as any)?.state || (r.profiles as any)?.city || "Nigeria",
-          avatar: (r.profiles as any)?.avatar_url || null,
+          location: r.profiles?.state || r.profiles?.city || "Nigeria",
+          avatar: r.profiles?.avatar_url || null,
           rating: r.rating,
-          content: r.comment,
+          content: r.comment as string,
         }));
       if (mapped.length >= 3) setTestimonials(mapped);
     }
+    setLoading(false);
   };
+
+  if (loading) return null;
 
   return (
     <section className="section-padding">
@@ -83,6 +74,11 @@ export function TestimonialsSection() {
           </p>
         </div>
 
+        {testimonials.length === 0 ? (
+          <p className="text-center text-muted-foreground">
+            Be one of our first reviewers — complete a project on ZentraGig and share your experience.
+          </p>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
             <div
@@ -118,6 +114,7 @@ export function TestimonialsSection() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

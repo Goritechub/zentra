@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedExpertsList, removeSavedExpert } from "@/api/client-read.api";
+import type { SavedExpert } from "@/types/client";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, Loader2, MapPin, Star, Trash2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 export default function SavedExpertsPage() {
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [saved, setSaved] = useState<any[]>([]);
+  const [saved, setSaved] = useState<SavedExpert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function SavedExpertsPage() {
     e.stopPropagation();
     try {
       await removeSavedExpert(id);
-      setSaved(saved.filter((s: any) => s.id !== id));
+      setSaved(saved.filter((s) => s.id !== id));
       toast.success("Expert removed from saved list");
     } catch {
       toast.error("Failed to remove saved expert");
@@ -84,7 +85,7 @@ export default function SavedExpertsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {saved.map((item: any) => {
+              {saved.map((item) => {
                 const f = item.freelancer;
                 const fp = item.freelancerProfile;
                 if (!f) return null;

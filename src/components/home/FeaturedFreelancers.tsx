@@ -30,12 +30,20 @@ export function FeaturedFreelancers() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchExperts = async () => {
-      const { data: fpData } = await supabase
+      const { data: fpData, error: fpError } = await supabase
         .from("freelancer_profiles")
         .select("user_id, title, rating, total_jobs_completed, hourly_rate, skills")
         .order("rating", { ascending: false, nullsFirst: false })
         .limit(4);
+
+      if (cancelled) return;
+
+      if (fpError) {
+        console.error("[FeaturedFreelancers] failed to load freelancer_profiles:", fpError);
+      }
 
       if (!fpData || fpData.length === 0) {
         setLoading(false);
@@ -43,10 +51,16 @@ export function FeaturedFreelancers() {
       }
 
       const userIds = fpData.map((fp) => fp.user_id);
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url, state, city, is_verified")
         .in("id", userIds);
+
+      if (cancelled) return;
+
+      if (profilesError) {
+        console.error("[FeaturedFreelancers] failed to load profiles:", profilesError);
+      }
 
       const merged: FeaturedExpert[] = fpData.map((fp) => {
         const p = profiles?.find((pr) => pr.id === fp.user_id);
@@ -69,6 +83,9 @@ export function FeaturedFreelancers() {
       setLoading(false);
     };
     fetchExperts();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleCardClick = (expertId: string) => {

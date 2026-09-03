@@ -22,12 +22,13 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2, Eye } from "lucide-react";
+import type { DashboardJob } from "@/types/dashboard";
 
-interface JobWithCounts {
-  [key: string]: any;
+interface JobWithCounts extends DashboardJob {
   _proposalCount?: number;
   _invitedCount?: number;
   _interviewingCount?: number;
+  _viewCount?: number;
 }
 
 export default function ClientJobsPage() {
@@ -35,10 +36,10 @@ export default function ClientJobsPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: any | null; hasAssignment: boolean }>({
+  const [cancelDialog, setCancelDialog] = useState<{ open: boolean; job: JobWithCounts | null; hasAssignment: boolean }>({
     open: false, job: null, hasAssignment: false,
   });
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; job: any | null }>({
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; job: JobWithCounts | null }>({
     open: false, job: null,
   });
   const [disputeReason, setDisputeReason] = useState("");
@@ -60,7 +61,7 @@ export default function ClientJobsPage() {
     return jobs.filter(j => j.status === status);
   };
 
-  const handleCancelClick = async (job: any) => {
+  const handleCancelClick = async (job: JobWithCounts) => {
     try {
       const data = await getClientJobCancelState(job.id);
       setCancelDialog({ open: true, job, hasAssignment: !!data.hasAssignment });
@@ -70,7 +71,7 @@ export default function ClientJobsPage() {
     }
   };
 
-  const handleDeleteClick = (job: any) => {
+  const handleDeleteClick = (job: JobWithCounts) => {
     setDeleteDialog({ open: true, job });
   };
 
@@ -82,8 +83,8 @@ export default function ClientJobsPage() {
       const data = await deleteClientJob(deleteDialog.job.id);
       toast.success(`Job deleted. ${data.notified} applicant(s) notified.`);
       queryClient.invalidateQueries({ queryKey: ["client-jobs", user?.id] });
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to delete job. Please try again.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete job. Please try again.");
     }
 
     setDeleting(false);
@@ -119,7 +120,7 @@ export default function ClientJobsPage() {
     setCancelDialog({ open: false, job: null, hasAssignment: false });
   };
 
-  const canDeleteJob = (job: any) => {
+  const canDeleteJob = (job: JobWithCounts) => {
     return job.status === "open" || job.status === "cancelled";
   };
 

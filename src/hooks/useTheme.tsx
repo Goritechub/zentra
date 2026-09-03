@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type ColorTheme = "green" | "purple" | "black" | "silverblue" | "rose";
@@ -120,6 +120,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return theme;
   });
 
+  // Latest colorTheme for the auth-subscription effect below, which intentionally
+  // subscribes only once — reading via ref avoids both a stale closure and
+  // tearing down/recreating the Supabase auth listener on every theme change.
+  const colorThemeRef = useRef(colorTheme);
+  useEffect(() => {
+    colorThemeRef.current = colorTheme;
+  }, [colorTheme]);
+
   // On auth state change (login), load theme from DB
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -131,7 +139,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         const dbTheme = data?.theme_preference;
-        if (isValidTheme(dbTheme) && dbTheme !== colorTheme) {
+        if (isValidTheme(dbTheme) && dbTheme !== colorThemeRef.current) {
           localStorage.setItem(THEME_STORAGE_KEY, dbTheme);
           setColorThemeState(dbTheme);
           applyTheme(dbTheme);
@@ -140,7 +148,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []); // intentionally no colorTheme dep to avoid re-subscribing
+  }, []);
 
   const setColorTheme = useCallback(async (theme: ColorTheme) => {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -152,7 +160,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (session?.user) {
       await supabase
         .from("profiles")
-        .update({ theme_preference: theme } as any)
+        .update({ theme_preference: theme })
         .eq("id", session.user.id);
     }
   }, []);

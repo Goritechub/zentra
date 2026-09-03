@@ -37,14 +37,68 @@ import { RevenueWithdrawCard } from "@/components/admin/RevenueWithdrawCard";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+interface AdminWalletRow {
+  id: string;
+  user_id: string;
+  balance: number;
+  pending_clearance: number;
+  escrow_balance: number;
+  total_earned: number;
+  total_spent: number;
+  updated_at: string | null;
+  profile: { full_name: string; email: string; role: string } | null;
+}
+
+interface AdminWalletTransactionRow {
+  id: string;
+  user_id: string;
+  type: string;
+  amount: number;
+  balance_after: number;
+  description: string | null;
+  status: string;
+  created_at: string;
+  profile: { full_name: string } | null;
+}
+
+interface AdminWithdrawalRequestRow {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  transfer_code: string | null;
+  created_at: string;
+  profile: { full_name: string } | null;
+  bank: { bank_name: string; account_number: string } | null;
+}
+
+interface AdminPlatformRevenueRow {
+  id: string;
+  gross_amount: number;
+  commission_rate: number;
+  commission_amount: number;
+  net_to_freelancer: number;
+  created_at: string;
+}
+
+interface AdminPaymentsOverview {
+  wallets: AdminWalletRow[];
+  transactions: AdminWalletTransactionRow[];
+  withdrawals: AdminWithdrawalRequestRow[];
+  revenue: AdminPlatformRevenueRow[];
+  totalGatewayFees: number;
+  withdrawalsFrozen: boolean;
+  pendingClearance: AdminWalletRow[];
+}
+
 export default function AdminPayments() {
   const { format } = useCurrency();
   useAuth();
-  const [wallets, setWallets] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
-  const [revenue, setRevenue] = useState<any[]>([]);
-  const [pendingClearance, setPendingClearance] = useState<any[]>([]);
+  const [wallets, setWallets] = useState<AdminWalletRow[]>([]);
+  const [transactions, setTransactions] = useState<AdminWalletTransactionRow[]>([]);
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawalRequestRow[]>([]);
+  const [revenue, setRevenue] = useState<AdminPlatformRevenueRow[]>([]);
+  const [pendingClearance, setPendingClearance] = useState<AdminWalletRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [totalGatewayFees, setTotalGatewayFees] = useState(0);
@@ -58,7 +112,7 @@ export default function AdminPayments() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const data = await getAdminPaymentsOverview();
+      const data = (await getAdminPaymentsOverview()) as AdminPaymentsOverview;
       setWallets(data.wallets || []);
       setTransactions(data.transactions || []);
       setWithdrawals(data.withdrawals || []);
@@ -85,7 +139,7 @@ export default function AdminPayments() {
     }
   };
 
-  const cancelWithdrawal = async (withdrawal: any) => {
+  const cancelWithdrawal = async (withdrawal: AdminWithdrawalRequestRow) => {
     if (
       !confirm(
         `Cancel withdrawal of ${format(withdrawal.amount)} for ${withdrawal.profile?.full_name}? This will refund the amount to their wallet.`,
@@ -104,7 +158,7 @@ export default function AdminPayments() {
     }
   };
 
-  const markWithdrawalPaid = async (withdrawal: any) => {
+  const markWithdrawalPaid = async (withdrawal: AdminWithdrawalRequestRow) => {
     if (
       !confirm(
         `Mark ${format(withdrawal.amount)} withdrawal for ${withdrawal.profile?.full_name} as paid? Only do this after manually sending the funds.`,

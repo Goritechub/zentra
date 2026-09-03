@@ -54,8 +54,8 @@ export function useContractMessages(contractId?: string) {
     try {
       await sendContractMessage(contractId, content, attachments);
       return true;
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || "Failed to send message");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
       return false;
     } finally {
       setSending(false);

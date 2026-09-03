@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -13,25 +13,20 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase, UserPlus, Globe, XCircle } from "lucide-react";
+import type { SentOffer, PrivateJob } from "@/types/offers";
 
 export default function SentOffersPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [offers, setOffers] = useState<any[]>([]);
-  const [privateJobs, setPrivateJobs] = useState<any[]>([]);
+  const [offers, setOffers] = useState<SentOffer[]>([]);
+  const [privateJobs, setPrivateJobs] = useState<PrivateJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedJob, setSelectedJob] = useState<PrivateJob | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    if (bootstrapStatus === "ready" && user) {
-      void fetchOffers();
-    }
-  }, [bootstrapStatus, user]);
-
-  const fetchOffers = async () => {
+  const fetchOffers = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -44,7 +39,13 @@ export default function SentOffersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (bootstrapStatus === "ready" && user) {
+      void fetchOffers();
+    }
+  }, [bootstrapStatus, user, fetchOffers]);
 
   const statusIcon = (status: string) => {
     switch (status) {
@@ -56,11 +57,11 @@ export default function SentOffersPage() {
   };
 
   // Check if all invited experts have rejected (no more invited_expert_ids or all bowed out)
-  const isAllRejected = (job: any) => {
+  const isAllRejected = (job: PrivateJob) => {
     return job.status === "open" && (!job.invited_expert_ids || job.invited_expert_ids.length === 0);
   };
 
-  const handleInviteAnother = (job: any) => {
+  const handleInviteAnother = (job: PrivateJob) => {
     // Navigate to post-job with job details prepopulated, private selected, search open
     const params = new URLSearchParams({
       prefill: job.id,
@@ -69,7 +70,7 @@ export default function SentOffersPage() {
     navigate(`/post-job?${params.toString()}`);
   };
 
-  const handleMakePublic = (job: any) => {
+  const handleMakePublic = (job: PrivateJob) => {
     const params = new URLSearchParams({
       prefill: job.id,
       visibility: "public",
@@ -134,7 +135,7 @@ export default function SentOffersPage() {
                     <Lock className="h-4 w-4" /> Private Jobs ({privateJobs.length})
                   </h2>
                   <div className="space-y-4">
-                    {privateJobs.map((job: any) => {
+                    {privateJobs.map((job) => {
                       const allRejected = isAllRejected(job);
                       return (
                         <div key={job.id} className="bg-card rounded-xl border border-border p-4 sm:p-5">
@@ -199,7 +200,7 @@ export default function SentOffersPage() {
                     <Send className="h-4 w-4" /> Direct Offers ({offers.length})
                   </h2>
                   <div className="space-y-4">
-                    {offers.map((offer: any) => (
+                    {offers.map((offer) => (
                       <div key={offer.id} className="bg-card rounded-xl border border-border p-4 sm:p-5">
                         <h3 className="font-semibold text-foreground">{offer.title}</h3>
                         {offer.freelancer?.full_name && (

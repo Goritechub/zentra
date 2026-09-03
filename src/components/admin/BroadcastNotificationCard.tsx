@@ -59,8 +59,8 @@ export function BroadcastNotificationCard() {
       setMessage("");
       setLinkUrl("");
       setType("platform_announcement");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to send broadcast");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send broadcast");
     } finally {
       setSending(false);
     }

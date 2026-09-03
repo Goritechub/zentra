@@ -52,8 +52,8 @@ export function AuthCodeSetupModal({ open, onOpenChange, onComplete }: AuthCodeS
     setConfirmCode("");
     setStep("enter");
     onComplete();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to set authentication code");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to set authentication code");
       setStep("confirm");
     }
   };

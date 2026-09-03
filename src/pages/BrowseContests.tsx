@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getBrowseContestsList } from "@/api/client-read.api";
+import type { ContestSummary } from "@/types/client";
 import { useCurrency } from "@/hooks/useCurrency";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
 import { ContestCardSkeleton } from "@/components/skeletons/ContestCardSkeleton";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
-function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+function deriveContestStatus(contest: ContestSummary, winnersCount: number): "active" | "selecting_winners" | "completed" {
   if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
   if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
   return "active";
@@ -34,14 +35,14 @@ export default function BrowseContestsPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [contests, setContests] = useState<any[]>([]);
+  const [contests, setContests] = useState<ContestSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (bootstrapStatus === "ready" && user) {
       void fetchContests();
     }
-  }, [bootstrapStatus, user?.id]);
+  }, [bootstrapStatus, user]);
 
   const fetchContests = async () => {
     setLoading(true);
@@ -56,7 +57,7 @@ export default function BrowseContestsPage() {
   };
 
   // All five prize tiers
-  const totalPrize = (c: any) =>
+  const totalPrize = (c: ContestSummary) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
   if (!user || bootstrapStatus !== "ready") {
@@ -85,7 +86,7 @@ export default function BrowseContestsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {contests.map((contest: any) => {
+              {contests.map((contest) => {
                 const derived = deriveContestStatus(contest, contest._winnersCount || 0);
                 const dimmed = derived === "completed";
 

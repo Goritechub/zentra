@@ -86,11 +86,13 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
     prevMessageCount.current = messages.length;
   }, [messages.length, isAtBottom]);
 
-  // Initial scroll to bottom
+  // Initial scroll to bottom — intentionally mount-only; the effect above
+  // already handles reactive auto-scroll as new messages arrive.
   useEffect(() => {
     if (messages.length > 0) {
       bottomRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRecipientClick = () => {

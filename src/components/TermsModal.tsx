@@ -29,13 +29,13 @@ export function TermsModal({
       setLoading(true);
       setContent(null);
       supabase
-        .from("legal_documents" as any)
+        .from("legal_documents")
         .select("content")
         .eq("slug", slug)
         .eq("is_published", true)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setContent((data as any).content);
+          if (data) setContent(data.content);
           setLoading(false);
         });
     }

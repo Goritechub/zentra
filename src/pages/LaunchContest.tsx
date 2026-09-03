@@ -267,12 +267,13 @@ export default function LaunchContestPage() {
         toast.success("Contest submitted for review. You'll be notified once it's approved and goes live.");
         navigate("/dashboard/my-contests");
       }
-    } catch (err: any) {
+    } catch (err) {
       setLoading(false);
+      const message = err instanceof Error ? err.message : undefined;
       console.error("[LaunchContest] launch error:", err);
-      console.error("[LaunchContest] error message:", err?.message);
+      console.error("[LaunchContest] error message:", message);
       try {
-        const parsed = JSON.parse(err?.message || "{}");
+        const parsed = JSON.parse(message || "{}");
         console.log("[LaunchContest] parsed error:", parsed);
         if (parsed.error === "insufficient_funds") {
           setInsufficientData({
@@ -287,7 +288,7 @@ export default function LaunchContestPage() {
       } catch {
         /* not JSON */
       }
-      toast.error(err?.message || "Failed to launch contest");
+      toast.error(message || "Failed to launch contest");
     }
   };
 

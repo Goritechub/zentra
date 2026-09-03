@@ -13,6 +13,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useCurrency } from "@/hooks/useCurrency";
 import { getCategoryByName } from "@/lib/categories";
+import type { ClientProfileOverview, ClientProfileContest } from "@/types/client";
 
 function getInitials(name: string | null) {
   if (!name) return "U";
@@ -53,7 +54,7 @@ function SectionHeader({ label, right }: { label: string; right?: React.ReactNod
   );
 }
 
-function ContestVisual({ contest }: { contest: any }) {
+function ContestVisual({ contest }: { contest: ClientProfileContest }) {
   if (contest.banner_image) {
     return (
       <div className="aspect-video w-full overflow-hidden">
@@ -84,7 +85,7 @@ export default function ClientProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ClientProfileOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -111,13 +112,13 @@ export default function ClientProfile() {
 
   const profile = data?.profile;
   const kyc = data?.kyc;
-  const jobs: any[] = data?.jobs || [];
-  const contests: any[] = data?.contests || [];
-  const reviews: any[] = data?.reviews || [];
+  const jobs = data?.jobs || [];
+  const contests = data?.contests || [];
+  const reviews = data?.reviews || [];
   const stats = data?.stats || { totalJobs: 0, completedJobs: 0, totalContests: 0 };
 
   const avgRating = reviews.length
-    ? reviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0) / reviews.length
+    ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
     : 0;
 
   if (loading) {
@@ -285,7 +286,7 @@ export default function ClientProfile() {
                 </p>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {jobs.map((job: any) => (
+                  {jobs.map((job) => (
                     <Link
                       key={job.id}
                       to={`/jobs/${job.id}`}
@@ -336,7 +337,7 @@ export default function ClientProfile() {
                 />
                 <div className="p-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {contests.map((contest: any) => {
+                    {contests.map((contest) => {
                       const total =
                         (contest.prize_first || 0) +
                         (contest.prize_second || 0) +
@@ -381,8 +382,8 @@ export default function ClientProfile() {
                 <p className="text-sm text-muted-foreground text-center py-10">No reviews yet.</p>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {reviews.map((review: any) => {
-                    const reviewer = review.reviewer as any;
+                  {reviews.map((review) => {
+                    const reviewer = review.reviewer;
                     const reviewerHref =
                       reviewer?.role === "client"
                         ? `/client/${reviewer?.id}/profile`
@@ -430,9 +431,9 @@ export default function ClientProfile() {
                         {review.comment && (
                           <p className="text-sm text-muted-foreground">{review.comment}</p>
                         )}
-                        {(review.contract as any)?.job_title && (
+                        {review.contract?.job_title && (
                           <p className="text-xs text-muted-foreground/60 mt-1">
-                            Re: {(review.contract as any).job_title}
+                            Re: {review.contract.job_title}
                           </p>
                         )}
                       </div>

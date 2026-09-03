@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Activity } from "lucide-react";
 import { getAdminActivityLogs } from "@/api/admin.api";
+import type { AdminActivityLog } from "@/types/admin";
 
 export default function AdminActivity() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { fetchLogs(); }, []);

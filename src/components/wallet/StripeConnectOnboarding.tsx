@@ -33,8 +33,8 @@ export function StripeConnectOnboarding({ show = true }: StripeConnectOnboarding
       const refreshUrl = `${window.location.origin}/wallet?stripe_onboard=refresh`;
       const result = await createOnboardingLink(returnUrl, refreshUrl);
       window.location.href = result.url;
-    } catch (err: any) {
-      toast.error(err?.message || "Could not start Stripe onboarding");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not start Stripe onboarding");
       setOnboarding(false);
     }
   };

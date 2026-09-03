@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -9,11 +9,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { getMyContestEntriesList } from "@/api/marketplace.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { format as fnsFormat, isPast } from "date-fns";
-import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award, type LucideIcon } from "lucide-react";
+import type { MyContestEntry, MyContestEntryContest } from "@/types/marketplace";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
 function deriveContestStatus(
-  contest: any,
+  contest: MyContestEntryContest,
   isWinner: boolean,
 ): "active" | "selecting_winners" | "completed" | "pending_review" | "rejected" | "cancelled" | "cancellation_requested" {
   // Non-live statuses short-circuit before any date logic
@@ -32,16 +33,10 @@ export default function ContestEntriesPage() {
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<MyContestEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (bootstrapStatus === "ready" && user) {
-      void fetchEntries();
-    }
-  }, [bootstrapStatus, user]);
-
-  const fetchEntries = async () => {
+  const fetchEntries = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setLoadError(null);
@@ -54,7 +49,13 @@ export default function ContestEntriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (bootstrapStatus === "ready" && user) {
+      void fetchEntries();
+    }
+  }, [bootstrapStatus, user, fetchEntries]);
 
   if (!user || bootstrapStatus !== "ready") {
     return null;
@@ -97,10 +98,10 @@ export default function ContestEntriesPage() {
   const won = entries.filter((e) => e.is_winner);
 
   // All five prize tiers
-  const totalPrize = (c: any) =>
+  const totalPrize = (c: MyContestEntryContest) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
-  const EmptyState = ({ icon: Icon, text, sub }: { icon: any; text: string; sub?: string }) => (
+  const EmptyState = ({ icon: Icon, text, sub }: { icon: LucideIcon; text: string; sub?: string }) => (
     <div className="text-center py-16 text-muted-foreground">
       <Icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
       <p className="font-medium">{text}</p>
@@ -108,7 +109,7 @@ export default function ContestEntriesPage() {
     </div>
   );
 
-  const EntryCard = ({ entry }: { entry: any }) => {
+  const EntryCard = ({ entry }: { entry: MyContestEntry }) => {
     const contest = entry.contest;
     if (!contest) return null;
 

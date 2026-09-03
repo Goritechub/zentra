@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,7 @@ export function PlatformReviewPrompt({ forced = false, onForcedClose }: { forced
   const [loading, setLoading] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
 
-  useEffect(() => {
-    if (forced) { setShow(true); return; }
-    if (user) checkEligibility();
-  }, [user, forced]);
-
-  const checkEligibility = async () => {
+  const checkEligibility = useCallback(async () => {
     if (!user) return;
 
     const dismissed = sessionStorage.getItem(`platform_review_dismissed_${user.id}`);
@@ -46,7 +41,12 @@ export function PlatformReviewPrompt({ forced = false, onForcedClose }: { forced
     } catch {
       // silently skip — non-critical
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (forced) { setShow(true); return; }
+    if (user) checkEligibility();
+  }, [user, forced, checkEligibility]);
 
   const handleDismiss = () => {
     if (!forced && user) sessionStorage.setItem(`platform_review_dismissed_${user.id}`, "1");

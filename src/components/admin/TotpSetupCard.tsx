@@ -56,8 +56,8 @@ export function TotpSetupCard() {
       setCode("");
       setStep("enabled");
       setShowRecovery(true);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid code — check your Authenticator app");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid code — check your Authenticator app");
     } finally {
       setWorking(false);
     }
@@ -72,8 +72,8 @@ export function TotpSetupCard() {
       setShowDisableDialog(false);
       setStep("idle");
       toast.success("Google Authenticator disabled");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid code");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid code");
     } finally {
       setWorking(false);
     }

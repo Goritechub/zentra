@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ export interface KycVerification {
   kyc_status: KycStatus;
   verification_level: VerificationLevel;
   zentra_verified: boolean;
-  kyc_provider_result?: Record<string, any> | null;
+  kyc_provider_result?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +32,6 @@ export function useKycVerification(userId?: string) {
   // so the hook stays usable outside Router (e.g. tests, Storybook).
   let searchParams: URLSearchParams | null = null;
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     [searchParams] = useSearchParams();
   } catch {
     searchParams = null;
@@ -40,7 +39,7 @@ export function useKycVerification(userId?: string) {
 
   const kycComplete = searchParams?.get("kyc") === "complete";
 
-  const fetchKyc = async () => {
+  const fetchKyc = useCallback(async () => {
     console.log("[KYC] fetchKyc called, targetUserId:", targetUserId);
     if (!targetUserId) { console.log("[KYC] no targetUserId, returning early"); return; }
     setLoading(true);
@@ -48,7 +47,7 @@ export function useKycVerification(userId?: string) {
     try {
       const result = await Promise.race([
         supabase
-          .from("kyc_verifications" as any)
+          .from("kyc_verifications")
           .select("*")
           .eq("user_id", targetUserId)
           .maybeSingle(),
@@ -56,8 +55,8 @@ export function useKycVerification(userId?: string) {
           setTimeout(() => reject(new Error("kyc fetch timeout")), 8000)
         ),
       ]);
-      console.log("[KYC] query resolved — data:", (result as any).data, "error:", (result as any).error);
-      setKycData((result as any).data as any);
+      console.log("[KYC] query resolved — data:", result.data, "error:", result.error);
+      setKycData(result.data as KycVerification | null);
     } catch (err) {
       console.error("[KYC] query threw:", err);
       setKycData(null);
@@ -65,11 +64,11 @@ export function useKycVerification(userId?: string) {
       console.log("[KYC] finally — setting loading=false");
       setLoading(false);
     }
-  };
+  }, [targetUserId]);
 
   useEffect(() => {
     fetchKyc();
-  }, [targetUserId]);
+  }, [fetchKyc]);
 
   // Auto-poll when user returns from Didit (?kyc=complete in URL).
   // Only runs once per mount to avoid infinite loops.
@@ -100,7 +99,7 @@ export function useKycVerification(userId?: string) {
     };
 
     void run();
-  }, [kycComplete, user]);
+  }, [kycComplete, user, userId, fetchKyc, refreshProfile]);
 
   const startVerification = async () => {
     if (!user) return null;

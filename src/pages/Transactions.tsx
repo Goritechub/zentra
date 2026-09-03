@@ -25,7 +25,16 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
+import type { Tables } from "@/integrations/supabase/types";
 // html2canvas and xlsx are loaded on-demand (export only) to keep the initial bundle small
+
+type WalletTransaction = Tables<"wallet_transactions">;
+type Wallet = Tables<"wallets">;
+interface WalletOverview {
+  wallet: Wallet | null;
+  transactions: WalletTransaction[];
+  pendingClearanceTxs: WalletTransaction[];
+}
 
 const creditTypes = ["credit", "escrow_release", "refund", "deposit"];
 
@@ -86,13 +95,14 @@ export default function TransactionsPage() {
     queryFn: getWalletOverview,
   });
 
+  const overview = transactionsQuery.data as WalletOverview | undefined;
   const isFreelancer = role === "freelancer";
-  const wallet = transactionsQuery.data?.wallet ?? null;
-  const transactions = transactionsQuery.data?.transactions ?? [];
-  const pendingClearanceTxs = transactionsQuery.data?.pendingClearanceTxs ?? [];
+  const wallet = overview?.wallet ?? null;
+  const transactions = overview?.transactions ?? [];
+  const pendingClearanceTxs = overview?.pendingClearanceTxs ?? [];
   // escrow_release is a credit for freelancers but neutral for clients (escrow_balance only, wallet balance unchanged)
-  const isNeutral = (tx: any) => !isFreelancer && tx.type === "escrow_release";
-  const isCredit = (tx: any) => !isNeutral(tx) && creditTypes.includes(tx.type);
+  const isNeutral = (tx: WalletTransaction) => !isFreelancer && tx.type === "escrow_release";
+  const isCredit = (tx: WalletTransaction) => !isNeutral(tx) && creditTypes.includes(tx.type);
 
   const filteredTransactions = transactions.filter(tx => {
     if (txFilter === "credits") return isCredit(tx);
@@ -267,7 +277,7 @@ export default function TransactionsPage() {
                 </h3>
               </div>
               <div className="divide-y divide-border">
-                {pendingClearanceTxs.map((tx: any) => (
+                {pendingClearanceTxs.map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between p-4">
                     <div>
                       <p className="text-sm font-medium text-foreground">{maskDescription(tx.description)}</p>
@@ -315,7 +325,7 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {filteredTransactions.map((tx: any) => {
+                {filteredTransactions.map((tx) => {
                   const credit = isCredit(tx);
                   const neutral = isNeutral(tx);
                   const isPendingClearance = tx.clearance_at && new Date(tx.clearance_at) > new Date();
@@ -418,7 +428,7 @@ export default function TransactionsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredForExport.map((tx: any) => (
+                    {filteredForExport.map((tx) => (
                       <tr key={tx.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                         <td style={{ padding: "8px 4px" }}>{new Date(tx.created_at).toLocaleDateString("en-NG")}</td>
                         <td style={{ padding: "8px 4px" }}>{maskDescription(tx.description) || tx.type}</td>

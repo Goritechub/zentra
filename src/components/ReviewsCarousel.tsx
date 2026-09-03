@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Review {
@@ -60,18 +60,18 @@ export function ReviewsCarousel({ reviews }: { reviews: Review[] }) {
   const perPage = 3;
   const totalPages = Math.ceil(reviews.length / perPage);
 
-  const startAutoScroll = () => {
+  const startAutoScroll = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (totalPages <= 1) return;
     timerRef.current = setInterval(() => {
       setPage((p) => (p + 1) % totalPages);
     }, 6000);
-  };
+  }, [totalPages]);
 
   useEffect(() => {
     startAutoScroll();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [totalPages]);
+  }, [startAutoScroll]);
 
   const goTo = (p: number) => {
     setPage(p);
@@ -84,9 +84,9 @@ export function ReviewsCarousel({ reviews }: { reviews: Review[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {currentReviews.map((review) => {
-          const reviewerName = (review.reviewer as any)?.full_name || "Client";
-          const jobTitle = (review as any).contract?.job_title || "Project";
-          const amount = (review as any).contract?.amount;
+          const reviewerName = review.reviewer?.full_name || "Client";
+          const jobTitle = review.contract?.job_title || "Project";
+          const amount = review.contract?.amount;
           const threshold = getPriceThreshold(amount);
 
           return (
@@ -107,7 +107,7 @@ export function ReviewsCarousel({ reviews }: { reviews: Review[] }) {
               {/* Category bars */}
               <div className="space-y-1.5 pt-2 border-t border-border">
                 {CATEGORY_LABELS.map((cat) => {
-                  const val = (review as any)[cat.key];
+                  const val = review[cat.key];
                   if (!val) return null;
                   return <RatingBar key={cat.key} label={cat.label} value={val} />;
                 })}

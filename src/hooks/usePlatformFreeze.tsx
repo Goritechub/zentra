@@ -31,12 +31,11 @@ export function PlatformFreezeProvider({ children }: { children: ReactNode }) {
 
     if (data) {
       for (const row of data) {
+        const val = row.value as { enabled?: boolean; message?: string } | null;
         if (row.key === "signups_paused") {
-          const val = row.value as any;
           setSignupsPaused(val?.enabled === true);
         }
         if (row.key === "platform_frozen") {
-          const val = row.value as any;
           setPlatformFrozen(val?.enabled === true);
           setFreezeMessage(val?.message || "The platform is temporarily under maintenance.");
         }

@@ -20,7 +20,8 @@ export function useNotifications() {
   const { user, bootstrapStatus } = useAuth();
   const queryClient = useQueryClient();
 
-  const queryKey = useMemo(() => ["notifications", user?.id], [user?.id]);
+  const userId = user?.id;
+  const queryKey = useMemo(() => ["notifications", userId], [userId]);
   const enabled = !!user && bootstrapStatus === "ready";
 
   const {
@@ -41,17 +42,17 @@ export function useNotifications() {
 
   // Realtime subscription
   useEffect(() => {
-    if (!enabled || !user) return;
+    if (!enabled || !userId) return;
     const channel = supabase
-      .channel(`user-notifications-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`user-notifications-${userId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => queryClient.invalidateQueries({ queryKey })
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [enabled, queryClient, queryKey, user?.id]);
+  }, [enabled, queryClient, queryKey, userId]);
 
   const markAsRead = async (id: string) => {
     await markNotificationRead(id);

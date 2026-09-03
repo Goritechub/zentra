@@ -11,6 +11,7 @@ import {
   approveAdminCancellationRequest,
   rejectAdminCancellationRequest,
 } from "@/api/admin.api";
+import type { AdminContestCancellationRequest } from "@/types/admin";
 import { useCurrency } from "@/hooks/useCurrency";
 import { format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
@@ -89,7 +90,7 @@ export default function AdminContests() {
   const { format } = useCurrency();
   const [contests, setContests] = useState<Contest[]>([]);
   const [pendingContests, setPendingContests] = useState<Contest[]>([]);
-  const [cancellationRequests, setCancellationRequests] = useState<any[]>([]);
+  const [cancellationRequests, setCancellationRequests] = useState<AdminContestCancellationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -101,7 +102,7 @@ export default function AdminContests() {
   const [rejecting, setRejecting] = useState(false);
 
   // Reject cancellation dialog
-  const [rejectCancelTarget, setRejectCancelTarget] = useState<any>(null);
+  const [rejectCancelTarget, setRejectCancelTarget] = useState<AdminContestCancellationRequest | null>(null);
   const [rejectCancelMessage, setRejectCancelMessage] = useState("");
   const [rejectingCancel, setRejectingCancel] = useState(false);
 
@@ -453,8 +454,8 @@ export default function AdminContests() {
             </div>
           ) : (
             <div className="space-y-6">
-              {cancellationRequests.map((req: any) => {
-                const contest = req.contest as any;
+              {cancellationRequests.map((req) => {
+                const contest = req.contest;
                 const pool = (contest?.prize_first || 0) + (contest?.prize_second || 0) +
                   (contest?.prize_third || 0) + (contest?.prize_fourth || 0) +
                   (contest?.prize_fifth || 0);
@@ -508,7 +509,7 @@ export default function AdminContests() {
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1.5">Client's recent transactions</p>
                         <div className="space-y-1">
-                          {req.client_recent_transactions.map((tx: any, i: number) => (
+                          {req.client_recent_transactions.map((tx, i) => (
                             <div key={i} className="flex items-center justify-between text-xs rounded bg-muted/30 px-2 py-1">
                               <span className="text-muted-foreground truncate max-w-[200px]">{tx.description}</span>
                               <span className={tx.type === "credit" ? "text-emerald-600 font-medium" : "text-foreground font-medium"}>

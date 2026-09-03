@@ -25,6 +25,25 @@ import { JobCardSkeleton } from "@/components/skeletons/JobCardSkeleton";
 
 const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
+interface OpenJob {
+  id: string;
+  title: string;
+  description: string;
+  required_skills: string[] | null;
+  required_software: string[] | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  is_hourly: boolean | null;
+  delivery_days: number | null;
+  delivery_unit: string;
+  state: string | null;
+  city: string | null;
+  is_remote: boolean | null;
+  created_at: string | null;
+  is_nda: boolean;
+  payment_type_preference: string | null;
+}
+
 function computeMatch(jobSkills: string[], userSkills: string[]): number | null {
   if (!jobSkills?.length || !userSkills?.length) return null;
   const required = jobSkills.map((s) => s.toLowerCase());
@@ -62,7 +81,7 @@ export default function JobsPage() {
     placeholderData: (prev) => prev,
     queryFn: getOpenJobs,
   });
-  const jobs: any[] = jobsQuery.data || [];
+  const jobs: OpenJob[] = jobsQuery.data || [];
 
   // Saved job IDs (persisted if logged in, local otherwise)
   const [localSaved, setLocalSaved] = useState<Set<string>>(new Set());
@@ -92,7 +111,7 @@ export default function JobsPage() {
           if (data?.skills) setUserSkills(data.skills);
         });
     });
-  }, [user?.id]);
+  }, [user]);
 
   // Save / unsave mutations
   const saveMutation = useMutation({
@@ -140,7 +159,7 @@ export default function JobsPage() {
   };
 
   // Filters
-  const applyFilters = (jobList: any[]) =>
+  const applyFilters = (jobList: OpenJob[]) =>
     jobList
       .filter((job) => {
         const matchSearch =
@@ -195,7 +214,7 @@ export default function JobsPage() {
   const hasFilters = searchTerm || selectedState || remoteOnly || jobType || jobLength || sortBy !== "newest" || selectedSkills.length > 0;
 
   // Job card
-  const JobCard = ({ job, showRemove = false }: { job: any; showRemove?: boolean }) => {
+  const JobCard = ({ job, showRemove = false }: { job: OpenJob; showRemove?: boolean }) => {
     const match = computeMatch(
       [...(job.required_skills || []), ...(job.required_software || [])],
       userSkills,

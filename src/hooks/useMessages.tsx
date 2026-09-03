@@ -151,10 +151,11 @@ export function useMessages(selectedUserId?: string) {
         attachments: attachments || [],
       });
       return true;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
       toast({
-        title: error?.message?.includes("allowed") ? "Message blocked" : "Error",
-        description: error?.message || "Failed to send message. Please try again.",
+        title: message.includes("allowed") ? "Message blocked" : "Error",
+        description: message || "Failed to send message. Please try again.",
         variant: "destructive",
       });
       return false;

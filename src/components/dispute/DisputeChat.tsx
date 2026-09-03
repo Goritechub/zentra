@@ -79,10 +79,13 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
     prevMessageCount.current = messages.length;
   }, [messages.length, isAtBottom]);
 
+  // Initial scroll — intentionally keyed on the loading transition only; the
+  // effect above already handles reactive auto-scroll as new messages arrive.
   useEffect(() => {
     if (messages.length > 0 && !loading) {
       bottomRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   const handleSend = async () => {

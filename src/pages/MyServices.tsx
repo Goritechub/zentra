@@ -30,6 +30,7 @@ import {
 type UploadStatus = "uploading" | "done" | "error";
 type UploadItem = { id: string; file: File; progress: number; status: UploadStatus; url: string | null; errorMsg: string | null; localPreview: string };
 import { categoryNames } from "@/lib/categories";
+import type { MyServiceItem, ServicePayload } from "@/types/marketplace";
 
 const CATEGORIES = categoryNames;
 const FORM_SECTIONS = ["Basics", "Media", "Pricing"] as const;
@@ -49,9 +50,9 @@ export default function MyServicesPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<MyServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<any>(null);
+  const [editing, setEditing] = useState<MyServiceItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -101,7 +102,7 @@ export default function MyServicesPage() {
     setImageUploads(prev => { prev.forEach(u => URL.revokeObjectURL(u.localPreview)); return []; });
   };
 
-  const openEditForm = (svc: any) => {
+  const openEditForm = (svc: MyServiceItem) => {
     setEditing(svc);
     setTitle(svc.title);
     setDescription(svc.description);
@@ -136,7 +137,7 @@ export default function MyServicesPage() {
         setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
       } else {
         let msg = "Upload failed";
-        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { /* ignore — fall back to default message */ }
         setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
       }
     });
@@ -172,8 +173,7 @@ export default function MyServicesPage() {
     if (imageUploads.some(u => u.status === "error")) { toast.error("Some images failed. Remove or retry them first."); return; }
     setSaving(true);
     const allImages = [...images, ...imageUploads.filter(u => u.status === "done" && u.url).map(u => u.url!)];
-    const data: any = {
-      freelancer_id: user!.id,
+    const data: ServicePayload = {
       title: title.trim(),
       description: description.trim(),
       category: category || null,
@@ -204,7 +204,7 @@ export default function MyServicesPage() {
     }
   };
 
-  const toggleActive = async (svc: any) => {
+  const toggleActive = async (svc: MyServiceItem) => {
     try {
       await setMyServiceActive(svc.id, !svc.is_active);
       toast.success(svc.is_active ? "Service paused" : "Service activated");
@@ -226,18 +226,6 @@ export default function MyServicesPage() {
     }
   };
 
-  if (!user || bootstrapStatus !== "ready") {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -252,6 +240,18 @@ export default function MyServicesPage() {
     });
     setActiveSection(closestIdx);
   }, []);
+
+  if (!user || bootstrapStatus !== "ready") {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   const scrollToSection = (idx: number) => {
     const refs = [basicsRef, mediaRef, pricingRef];
@@ -638,7 +638,7 @@ export default function MyServicesPage() {
                   )}
 
                   {/* Existing service cards */}
-                  {services.map((svc: any) => (
+                  {services.map((svc) => (
                     <div
                       key={svc.id}
                       className={`relative rounded-2xl border overflow-hidden bg-card transition-all hover:shadow-sm hover:-translate-y-0.5

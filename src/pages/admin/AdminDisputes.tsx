@@ -6,11 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisputeAdjudicator } from "@/components/admin/DisputeAdjudicator";
 import { Loader2, ArrowLeft, Gavel, Eye, AlertTriangle, History } from "lucide-react";
 import { getAdminDisputesList } from "@/api/admin.api";
+import type { AdminDispute } from "@/types/admin";
 
 export default function AdminDisputes() {
-  const [disputes, setDisputes] = useState<any[]>([]);
+  const [disputes, setDisputes] = useState<AdminDispute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDispute, setSelectedDispute] = useState<any>(null);
+  const [selectedDispute, setSelectedDispute] = useState<AdminDispute | null>(null);
 
   useEffect(() => { fetchDisputes(); }, []);
 
@@ -36,16 +37,17 @@ export default function AdminDisputes() {
     );
   }
 
-  const renderDisputeCard = (d: any) => {
+  const renderDisputeCard = (d: AdminDispute) => {
     const dStatus = d.dispute_status || "awaiting_response";
-    const statusVariant = dStatus === "awaiting_response" ? "destructive" : dStatus === "under_review" ? "secondary" : "default";
+    const statusVariant: "destructive" | "secondary" | "default" =
+      dStatus === "awaiting_response" ? "destructive" : dStatus === "under_review" ? "secondary" : "default";
     const statusLabel = dStatus === "awaiting_response" ? "Awaiting Response" : dStatus === "under_review" ? "Under Review" : "Resolved";
     return (
       <div key={d.id} className="bg-card rounded-xl border border-border p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <Badge variant={statusVariant as any}>{statusLabel}</Badge>
+              <Badge variant={statusVariant}>{statusLabel}</Badge>
               <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</span>
             </div>
             <p className="text-sm font-medium truncate">{d.reason}</p>

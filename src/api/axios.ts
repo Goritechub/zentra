@@ -20,8 +20,8 @@ export const getLocalStorageToken = (): string | null => {
     for (const key of keys) {
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
-      const parsed = JSON.parse(raw) as SupabaseStoredSession | { currentSession?: SupabaseStoredSession };
-      const session = (parsed as any)?.currentSession ?? parsed;
+      const parsed = JSON.parse(raw) as SupabaseStoredSession & { currentSession?: SupabaseStoredSession };
+      const session = parsed.currentSession ?? parsed;
       const token = session?.access_token;
       // Use the token even if close to expiry — the 401 retry path handles refresh.
       if (token) return token;
@@ -95,6 +95,15 @@ api.interceptors.response.use(
       error?.message ||
       "Request failed";
 
-    return Promise.reject(new Error(message));
+    // Preserve status/code so callers can classify the failure (network vs.
+    // 401 vs. 5xx) instead of re-deriving it from the message string.
+    const wrapped = new Error(message) as Error & {
+      response?: { status?: number };
+      code?: string;
+    };
+    if (error?.response?.status) wrapped.response = { status: error.response.status };
+    if (error?.code) wrapped.code = error.code;
+
+    return Promise.reject(wrapped);
   },
 );

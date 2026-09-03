@@ -1,30 +1,37 @@
 import { api } from "./axios";
+import type {
+  ContestSummary,
+  SavedExpert,
+  BrowseService,
+  BrowseFreelancer,
+  ClientProfileOverview,
+} from "@/types/client";
 
 export interface BrowseContestsResponse {
   success: boolean;
   data: {
-    contests: any[];
+    contests: ContestSummary[];
   };
 }
 
 export interface MyContestsResponse {
   success: boolean;
   data: {
-    contests: any[];
+    contests: ContestSummary[];
   };
 }
 
 export interface SavedExpertsResponse {
   success: boolean;
   data: {
-    savedExperts: any[];
+    savedExperts: SavedExpert[];
   };
 }
 
 export interface BrowseServicesResponse {
   success: boolean;
   data: {
-    services: any[];
+    services: BrowseService[];
   };
 }
 
@@ -63,9 +70,9 @@ export async function removeSavedExpert(savedExpertId: string) {
 export async function getBrowseExpertsList() {
   const response = await api.get("/experts/browse");
   return response.data.data as {
-    freelancers: any[];
+    freelancers: BrowseFreelancer[];
     savedIds: string[];
-    savedExperts: any[];
+    savedExperts: SavedExpert[];
   };
 }
 
@@ -93,13 +100,6 @@ export async function getClientProfileOverview(clientId: string) {
   const response = await api.get(`/clients/${clientId}/profile-overview`);
   return response.data as {
     success: boolean;
-    data: {
-      profile: any;
-      kyc: any;
-      jobs: any[];
-      contests: any[];
-      reviews: any[];
-      stats: { totalJobs: number; completedJobs: number; totalContests: number };
-    };
+    data: ClientProfileOverview;
   };
 }

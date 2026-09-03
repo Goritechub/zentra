@@ -65,8 +65,8 @@ export default function AdminManagement() {
     try {
       const admins = await listAdmins();
       setAdmins(admins);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -96,8 +96,8 @@ export default function AdminManagement() {
       setNewPermissions([]);
       setNewAuthCode("");
       fetchAdmins();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -111,8 +111,8 @@ export default function AdminManagement() {
       toast({ title: "Permissions Updated", description: `Permissions for ${editingAdmin.full_name || editingAdmin.email} updated.` });
       setEditingAdmin(null);
       fetchAdmins();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -125,8 +125,8 @@ export default function AdminManagement() {
       await removeAdmin(admin.id);
       toast({ title: "Admin Removed", description: "Admin access has been revoked." });
       fetchAdmins();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -140,8 +140,8 @@ export default function AdminManagement() {
       await suspendAdmin(admin.id, willSuspend);
       toast({ title: willSuspend ? "Admin Suspended" : "Admin Unsuspended", description: `${admin.full_name || admin.email} has been ${willSuspend ? "suspended" : "restored"}.` });
       fetchAdmins();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -159,8 +159,8 @@ export default function AdminManagement() {
       toast({ title: "Auth Code Reset", description: `Auth code for ${resetCodeAdmin.full_name || resetCodeAdmin.email} has been reset. Share the new code securely.` });
       setResetCodeAdmin(null);
       setResetCode("");
-    } catch (err: any) {
-      toast({ title: "Error", description: err.response?.data?.message || err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
     } finally {
       setActionLoading(false);
     }

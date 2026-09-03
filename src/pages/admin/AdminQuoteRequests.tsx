@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, Search, ChevronRight, FileQuestion } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { getAdminQuotes, updateAdminQuoteStatus } from "@/api/quotes.api";
+import type { QuoteRequest } from "@/types/quotes";
 import { toast } from "sonner";
 
 const STATUSES = ["new", "in_review", "quoted", "closed"];
@@ -20,11 +21,11 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 };
 
 export default function AdminQuoteRequests() {
-  const [quotes, setQuotes] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<QuoteRequest | null>(null);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
@@ -42,8 +43,8 @@ export default function AdminQuoteRequests() {
       toast.success(`Status updated to ${STATUS_CONFIG[newStatus]?.label}`);
       fetchQuotes();
       if (selected?.id === id) setSelected({ ...selected, status: newStatus });
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to update status.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update status.");
     }
   };
 
@@ -55,14 +56,14 @@ export default function AdminQuoteRequests() {
       toast.success("Notes saved.");
       setSelected({ ...selected, admin_notes: notesDraft });
       fetchQuotes();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save notes.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save notes.");
     } finally {
       setSavingNotes(false);
     }
   };
 
-  const openDetail = (q: any) => {
+  const openDetail = (q: QuoteRequest) => {
     setSelected(q);
     setNotesDraft(q.admin_notes || "");
   };

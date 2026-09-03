@@ -11,6 +11,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, CreditCard, Building2, Smartphone, Globe } from "lucide-react";
 import { api } from "@/api/axios";
+import type { PaystackChargeData, PaystackChargeResponse, FlutterwaveCheckoutOptions } from "@/types/wallet";
+
+declare global {
+  interface Window {
+    FlutterwaveCheckout?: (options: FlutterwaveCheckoutOptions) => void;
+  }
+}
 
 const SUPPORTED_CURRENCIES = ["USD", "GBP", "EUR"] as const;
 type ForeignCurrency = (typeof SUPPORTED_CURRENCIES)[number];
@@ -45,10 +52,10 @@ type ChargeStep =
 
 // Load Flutterwave inline script once
 function useFlutterwaveScript() {
-  const [ready, setReady] = useState(!!(window as any).FlutterwaveCheckout);
+  const [ready, setReady] = useState(!!window.FlutterwaveCheckout);
 
   useEffect(() => {
-    if ((window as any).FlutterwaveCheckout) { setReady(true); return; }
+    if (window.FlutterwaveCheckout) { setReady(true); return; }
     const existing = document.getElementById("flw-inline-script");
     if (existing) {
       existing.addEventListener("load", () => setReady(true));
@@ -79,7 +86,7 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
   const [step, setStep] = useState<ChargeStep>("currency_select");
   const [loading, setLoading] = useState(false);
   const [reference, setReference] = useState("");
-  const [paystackData, setPaystackData] = useState<any>(null);
+  const [paystackData, setPaystackData] = useState<PaystackChargeData | null>(null);
   const [ussdType, setUssdType] = useState("737");
   const [pin, setPin] = useState("");
   const [otp, setOtp] = useState("");
@@ -116,7 +123,7 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
 
     const txRef = `flw_deposit_${user?.id ?? "guest"}_${Date.now()}`;
 
-    (window as any).FlutterwaveCheckout({
+    window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
       tx_ref: txRef,
       amount: numAmount,
@@ -131,7 +138,7 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
         title: "ZentraGig Wallet Top-up",
         description: `Fund wallet with ${CURRENCY_SYMBOLS[paymentCurrency as ForeignCurrency]}${numAmount}`,
       },
-      callback: (data: any) => {
+      callback: (data) => {
         if (data.status === "successful" || data.status === "completed") {
           toast.success("Payment successful! Your wallet will be credited within a few minutes.");
           onSuccess();
@@ -162,7 +169,15 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
     setLoading(true);
     const amountKobo = Math.round(numAmount * 100);
 
-    const chargeBody: any = {
+    const chargeBody: {
+      action: string;
+      amount: number;
+      channel: string;
+      email?: string;
+      purpose: string;
+      callback_url: string;
+      ussd?: { type: string };
+    } = {
       action: "initiate",
       amount: amountKobo,
       channel,
@@ -175,13 +190,13 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
       chargeBody.ussd = { type: ussdType };
     }
 
-    let data: any;
+    let data: PaystackChargeResponse;
     try {
       const res = await api.post("/wallet/paystack-charge", chargeBody);
       data = res.data;
-    } catch (err: any) {
+    } catch (err) {
       setLoading(false);
-      toast.error(err?.message || "Failed to initiate payment");
+      toast.error(err instanceof Error ? err.message : "Failed to initiate payment");
       return;
     }
 
@@ -196,7 +211,7 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
     handleStepTransition(data.status, data.data);
   };
 
-  const handleStepTransition = (status: string, data?: any) => {
+  const handleStepTransition = (status: string, data?: PaystackChargeData) => {
     switch (status) {
       case "success":
         setStep("success");
@@ -227,12 +242,12 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
     setLoading(true);
     try {
       const res = await api.post("/wallet/paystack-charge", { action, reference, ...payload });
-      const data = res.data;
+      const data: PaystackChargeResponse = res.data;
       if (!data?.success) { toast.error(data?.error || "Verification failed"); return; }
       setPaystackData(data.data);
       handleStepTransition(data.status, data.data);
-    } catch (err: any) {
-      toast.error(err?.message || "Verification failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -242,11 +257,11 @@ export function FundWalletModal({ open, onOpenChange, onSuccess, userEmail }: Fu
     setLoading(true);
     try {
       const res = await api.post("/wallet/paystack-charge", { action: "check_pending", reference });
-      const data = res.data;
+      const data: PaystackChargeResponse | null = res.data;
       if (!data) { toast.error("Could not verify payment status. Please try again."); return; }
       handleStepTransition(data.status, data.data);
-    } catch (err: any) {
-      toast.error(err?.message || "Could not verify payment. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not verify payment. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,33 +39,34 @@ export default function AdminLegalDocuments() {
   const [saving, setSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
-
-  const fetchDocuments = async () => {
-    try {
-      const data = await getAdminLegalDocuments();
-      const docs = (data.documents || []) as any[];
-      setDocuments(docs);
-      if (!selectedId && docs.length > 0) {
-        selectDocument(docs[0] as any);
-      }
-    } catch {
-      toast.error("Failed to load legal documents");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectDocument = (doc: LegalDocument) => {
+  const selectDocument = useCallback((doc: LegalDocument) => {
     setSelectedId(doc.id);
     setEditTitle(doc.title);
     setEditSlug(doc.slug);
     setEditContent(doc.content);
     setEditPublished(doc.is_published);
     setIsNew(false);
-  };
+  }, []);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const data = await getAdminLegalDocuments();
+      const docs = data.documents || [];
+      setDocuments(docs);
+      setSelectedId((prev) => {
+        if (!prev && docs.length > 0) selectDocument(docs[0]);
+        return prev;
+      });
+    } catch {
+      toast.error("Failed to load legal documents");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectDocument]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleNew = () => {
     setSelectedId(null);
@@ -110,7 +111,6 @@ export default function AdminLegalDocuments() {
           slug,
           content: editContent,
           is_published: editPublished,
-          updated_at: new Date().toISOString(),
         });
         toast.success("Document saved");
         // Auto-notify all users about policy update

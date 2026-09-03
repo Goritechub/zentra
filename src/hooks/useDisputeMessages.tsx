@@ -35,7 +35,7 @@ export function useDisputeMessages(disputeId?: string) {
     // Mark unread as read
     await supabase
       .from("dispute_messages")
-      .update({ is_read: true } as any)
+      .update({ is_read: true })
       .eq("dispute_id", disputeId)
       .neq("sender_id", user.id)
       .eq("is_read", false);
@@ -59,12 +59,12 @@ export function useDisputeMessages(disputeId?: string) {
           dispute_id: disputeId,
           sender_id: user.id,
           content: content.trim(),
-        } as any);
+        });
 
       if (error) throw error;
       return true;
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to send message");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
       return false;
     } finally {
       setSending(false);

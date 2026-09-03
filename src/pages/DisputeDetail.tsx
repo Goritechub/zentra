@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getLocalStorageToken } from "@/api/axios";
 import { getDisputeDetail, submitDisputeResponse } from "@/api/contracts.api";
+import type { ContractDispute, ContractDetailData } from "@/types/contracts";
 import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
 import { formatDistanceToNow, format as fnsFormat, isPast } from "date-fns";
@@ -57,8 +58,8 @@ export default function DisputeDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [dispute, setDispute] = useState<any>(null);
-  const [contract, setContract] = useState<any>(null);
+  const [dispute, setDispute] = useState<ContractDispute | null>(null);
+  const [contract, setContract] = useState<ContractDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRespond, setShowRespond] = useState(false);
   const [responseText, setResponseText] = useState("");
@@ -66,13 +67,7 @@ export default function DisputeDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (disputeId) {
-      void fetchData();
-    }
-  }, [disputeId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getDisputeDetail(disputeId!);
@@ -84,7 +79,13 @@ export default function DisputeDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [disputeId]);
+
+  useEffect(() => {
+    if (disputeId) {
+      void fetchData();
+    }
+  }, [disputeId, fetchData]);
 
   const isRespondent = dispute?.respondent_id === user?.id;
   const isParticipant =
@@ -121,7 +122,7 @@ export default function DisputeDetail() {
         setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
       } else {
         let msg = "Upload failed";
-        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { /* ignore — fall back to default message */ }
         setResponseUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
       }
     });
@@ -400,7 +401,30 @@ export default function DisputeDetail() {
               <MessageSquare className="h-5 w-5 text-primary" />
               <h2 className="font-semibold">Dispute Chat</h2>
             </div>
-            <DisputeChat disputeId={dispute.id} currentUserId={user?.id || ""} />
+            <DisputeChat
+              disputeId={dispute.id}
+              parties={[
+                {
+                  id: contract.client?.id,
+                  name: contract.client?.full_name || "Client",
+                  avatar: contract.client?.avatar_url,
+                  role: "complainant" as const,
+                },
+                {
+                  id: contract.freelancer?.id,
+                  name: contract.freelancer?.full_name || "Expert",
+                  avatar: contract.freelancer?.avatar_url,
+                  role: "respondent" as const,
+                },
+                ...(dispute.adjudicator_id ? [{
+                  id: dispute.adjudicator_id,
+                  name: "Adjudicator",
+                  avatar: null,
+                  role: "adjudicator" as const,
+                }] : []),
+              ]}
+              isActive={["awaiting_response", "under_review"].includes(dispute.dispute_status)}
+            />
           </div>
         </div>
       </main>

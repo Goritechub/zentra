@@ -77,8 +77,8 @@ export default function ResetPassword() {
       await resetPasswordWithToken(token!, password);
       setSuccess(true);
       setTimeout(() => navigate("/auth"), 3000);
-    } catch (err: any) {
-      const message = err?.response?.data?.message || "An unexpected error occurred. Please try again.";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
       if (message.toLowerCase().includes("same")) {
         setErrors({ password: "New password must be different from your current password" });
       } else {

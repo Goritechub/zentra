@@ -1,5 +1,11 @@
 import { api } from "./axios";
 import type { ContractMessage } from "@/hooks/useContractMessages";
+import type {
+  DisputeDetailResponse,
+  ContractDetailResponse,
+  AddMilestonePayload,
+  SubmitReviewPayload,
+} from "@/types/contracts";
 
 export async function getContracts() {
   const response = await api.get("/contracts");
@@ -8,7 +14,7 @@ export async function getContracts() {
 
 export async function getDisputeDetail(disputeId: string) {
   const response = await api.get(`/contracts/disputes/${disputeId}/detail`);
-  return response.data.data as { dispute: any; contract: any };
+  return response.data.data as DisputeDetailResponse;
 }
 
 export async function submitDisputeResponse(
@@ -25,24 +31,15 @@ export async function submitDisputeResponse(
 
 export async function getContractDetail(contractId: string) {
   const response = await api.get(`/contracts/${contractId}/detail`);
-  return response.data.data as {
-    contract: any;
-    milestones: any[];
-    disputes: any[];
-    escrowLedger: any[];
-    walletTransactions: any[];
-    activityLog: any[];
-    hasReviewed: boolean;
-    referralDiscount: boolean;
-  };
+  return response.data.data as ContractDetailResponse;
 }
 
-export async function addContractMilestone(contractId: string, payload: Record<string, any>) {
+export async function addContractMilestone(contractId: string, payload: AddMilestonePayload) {
   const response = await api.patch(`/contracts/${contractId}/milestones`, payload);
   return response.data.data;
 }
 
-export async function submitContractReview(contractId: string, payload: Record<string, any>) {
+export async function submitContractReview(contractId: string, payload: SubmitReviewPayload) {
   const response = await api.patch(`/contracts/${contractId}/reviews`, payload);
   return response.data.data;
 }

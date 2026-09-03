@@ -29,10 +29,13 @@ import {
   updateMyProfileData,
 } from "@/api/profile.api";
 import { useToast } from "@/hooks/use-toast";
+import { NetworkError } from "@/components/NetworkError";
+import { logError } from "@/lib/error-utils";
 import { cadSkills, cadSoftwareList, getAllStates, getCitiesByState } from "@/lib/nigerian-data";
 import { Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck, ArrowLeft, AlertTriangle, Camera } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
+import type { UpdateProfilePayload } from "@/types/profile";
 
 interface FreelancerProfile {
   id: string;
@@ -74,7 +77,7 @@ export default function MyProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfile | null>(null);
-  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [loadingError, setLoadingError] = useState<Error | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -163,13 +166,13 @@ export default function MyProfilePage() {
     queryFn: async () => {
       const data = await getMyProfileOverview();
       return {
-        freelancerProfile: (data.freelancerProfile as FreelancerProfile | null) ?? null,
-        certifications: (data.certifications || []).map((c: any) => ({
+        freelancerProfile: data.freelancerProfile ?? null,
+        certifications: (data.certifications || []).map((c) => ({
           id: c.id, name: c.name, issuer: c.issuer || "", year_obtained: c.year_obtained?.toString() || "", credential_url: c.credential_url || "",
-        })) as Certification[],
-        workExperience: (data.workExperience || []).map((e: any) => ({
+        })),
+        workExperience: (data.workExperience || []).map((e) => ({
           id: e.id, company: e.company, role: e.role, start_year: e.start_year?.toString() || "", end_year: e.end_year?.toString() || "", is_current: e.is_current, description: e.description || "",
-        })) as WorkExp[],
+        })),
       };
     },
   });
@@ -179,8 +182,8 @@ export default function MyProfilePage() {
     if (!user) return;
     getMyProfileOverview().then((data) => {
       if (data.editFlags) {
-        setFullNameEdited((data.editFlags as any).full_name_edited || false);
-        setUsernameEdited((data.editFlags as any).username_edited || false);
+        setFullNameEdited(data.editFlags.full_name_edited || false);
+        setUsernameEdited(data.editFlags.username_edited || false);
       }
     });
   }, [user]);
@@ -190,12 +193,12 @@ export default function MyProfilePage() {
     const generalProfile = generalProfileQuery.data;
     if (generalProfile || profile) {
       setFullName(generalProfile?.full_name || profile?.full_name || "");
-      setPhone((generalProfile as any)?.phone || "");
-      setWhatsapp((generalProfile as any)?.whatsapp || "");
-      setState((generalProfile as any)?.state || "");
-      setCity((generalProfile as any)?.city || "");
+      setPhone(generalProfile?.phone || "");
+      setWhatsapp(generalProfile?.whatsapp || "");
+      setState(generalProfile?.state || "");
+      setCity(generalProfile?.city || "");
       setAvatarUrl(generalProfile?.avatar_url || profile?.avatar_url || null);
-      setOccupation((generalProfile as any)?.occupation || "");
+      setOccupation(generalProfile?.occupation || "");
     }
   }, [generalProfileQuery.data, profile]);
 
@@ -208,11 +211,11 @@ export default function MyProfilePage() {
     }
 
     if (freelancerBundleQuery.error) {
-      console.error("Error fetching freelancer profile:", freelancerBundleQuery.error);
+      logError("MyProfile", freelancerBundleQuery.error);
       setLoadingError(
         freelancerBundleQuery.error instanceof Error
-          ? freelancerBundleQuery.error.message
-          : "We could not load your profile details.",
+          ? freelancerBundleQuery.error
+          : new Error("We could not load your profile details."),
       );
       return;
     }
@@ -258,8 +261,8 @@ export default function MyProfilePage() {
       await updateMyAvatarUrl(newUrl);
       setAvatarUrl(newUrl);
       toast({ title: "Avatar updated!" });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Failed to upload avatar.", variant: "destructive" });
     } finally {
       setUploadingAvatar(false);
     }
@@ -277,7 +280,7 @@ export default function MyProfilePage() {
 
   const updateCert = (idx: number, field: keyof Certification, value: string) => {
     const updated = [...certifications];
-    (updated[idx] as any)[field] = value;
+    updated[idx] = { ...updated[idx], [field]: value };
     setCertifications(updated);
   };
 
@@ -289,9 +292,9 @@ export default function MyProfilePage() {
 
   const addWorkExp = () => setWorkExperience([...workExperience, { company: "", role: "", start_year: "", end_year: "", is_current: false, description: "" }]);
 
-  const updateExp = (idx: number, field: keyof WorkExp, value: any) => {
+  const updateExp = (idx: number, field: keyof WorkExp, value: string | boolean) => {
     const updated = [...workExperience];
-    (updated[idx] as any)[field] = value;
+    updated[idx] = { ...updated[idx], [field]: value };
     if (field === "is_current" && value) updated[idx].end_year = "";
     setWorkExperience(updated);
   };
@@ -316,7 +319,7 @@ export default function MyProfilePage() {
       }
       setOccupationError("");
 
-      const profileUpdate: any = {
+      const profileUpdate: { phone: string | null; whatsapp: string | null; state: string | null; city: string | null; occupation: string | null; full_name?: string; full_name_edited?: boolean } = {
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || null,
         state: state || null,
@@ -330,13 +333,13 @@ export default function MyProfilePage() {
         profileUpdate.full_name_edited = true;
       }
 
-      const payload: Record<string, any> = {
+      const payload: UpdateProfilePayload = {
         phone: profileUpdate.phone,
         whatsapp: profileUpdate.whatsapp,
         state: profileUpdate.state,
         city: profileUpdate.city,
         occupation: profileUpdate.occupation,
-        fullName: profileUpdate.full_name || null,
+        fullName: profileUpdate.full_name,
         fullNameEdited,
         role: profile.role,
       };
@@ -388,9 +391,9 @@ export default function MyProfilePage() {
       } else {
         navigate("/dashboard");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error saving profile:", err);
-      toast({ title: "Error", description: err.message || "Failed to save profile.", variant: "destructive" });
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save profile.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -447,7 +450,7 @@ export default function MyProfilePage() {
       const { data, error } = await supabase.rpc("delete_user_account", { _user_id: user!.id });
       if (error) throw error;
 
-      const result = data as any;
+      const result = data as { success: boolean; error?: string };
       if (!result.success) {
         toast({ title: "Cannot delete account", description: result.error, variant: "destructive" });
         setDeleting(false);
@@ -456,8 +459,8 @@ export default function MyProfilePage() {
 
       toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
       signOut();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to delete account", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete account", variant: "destructive" });
       setDeleting(false);
     }
   };
@@ -548,13 +551,9 @@ export default function MyProfilePage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center bg-muted/30 px-4">
-          <div className="max-w-md text-center space-y-4">
-            <h1 className="text-2xl font-bold text-foreground">Profile took too long to load</h1>
-            <p className="text-muted-foreground">{loadingError}</p>
+          <div className="max-w-md w-full space-y-4">
+            <NetworkError error={loadingError} onRetry={() => window.location.reload()} />
             <div className="flex justify-center gap-3">
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Refresh
-              </Button>
               <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
               <Button variant="ghost" onClick={() => signOut()}>Sign Out</Button>
             </div>
@@ -841,7 +840,7 @@ export default function MyProfilePage() {
                       const res = await api.post("/auth/auth-code", { action: "reset", code: current });
                       if (res.data?.success) { setHasAuthCode(false); toast({ title: "Auth code cleared", description: "You can now set a new code." }); }
                       else { toast({ title: "Error", description: res.data?.error || "Invalid code", variant: "destructive" }); }
-                    } catch (err: any) { toast({ title: "Error", description: err?.message || "Invalid code", variant: "destructive" }); }
+                    } catch (err) { toast({ title: "Error", description: err instanceof Error ? err.message : "Invalid code", variant: "destructive" }); }
                   }}>Reset Auth Code</Button>
                 </div>
               ) : (
@@ -855,7 +854,7 @@ export default function MyProfilePage() {
                       const res = await api.post("/auth/auth-code", { action: "set", code: authCode });
                       if (res.data?.success) { setHasAuthCode(true); setAuthCode(""); toast({ title: "Auth code set!", description: "Your authentication code has been saved securely." }); }
                       else { toast({ title: "Error", description: res.data?.error || "Failed to set code", variant: "destructive" }); }
-                    } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed to set code", variant: "destructive" }); }
+                    } catch (err) { toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to set code", variant: "destructive" }); }
                     setSavingAuthCode(false);
                   }} disabled={savingAuthCode || authCode.length !== 6} className="w-full">
                     {savingAuthCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}

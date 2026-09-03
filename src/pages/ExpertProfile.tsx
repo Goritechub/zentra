@@ -26,7 +26,20 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { getReferralInfo } from "@/api/auth.api";
+import { NetworkError } from "@/components/NetworkError";
+import { logError } from "@/lib/error-utils";
 import html2canvas from "html2canvas";
+import type {
+  ExpertProfileInfo,
+  ExpertKycInfo,
+  ExpertFreelancerProfile,
+  ExpertPortfolioItem,
+  ExpertReview,
+  ExpertPastContract,
+  ExpertCertification,
+  ExpertWorkExperience,
+  ExpertServiceOffer,
+} from "@/types/expert";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +120,7 @@ function PortfolioCarousel({ images }: { images: string[] }) {
   );
 }
 
-function ContractsCarousel({ contracts }: { contracts: any[] }) {
+function ContractsCarousel({ contracts }: { contracts: ExpertPastContract[] }) {
   const [idx, setIdx] = useState(0);
   if (!contracts || contracts.length === 0) return null;
   const c = contracts[idx];
@@ -195,20 +208,20 @@ export default function ExpertProfile() {
   const navigate = useNavigate();
   const { user, profile: authProfile } = useAuth();
 
-  const [profile, setProfile] = useState<any>(null);
-  const [responseKyc, setResponseKyc] = useState<any>(null);
-  const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
-  const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [pastContracts, setPastContracts] = useState<any[]>([]);
-  const [certifications, setCertifications] = useState<any[]>([]);
-  const [workExperience, setWorkExperience] = useState<any[]>([]);
+  const [profile, setProfile] = useState<ExpertProfileInfo | null>(null);
+  const [responseKyc, setResponseKyc] = useState<ExpertKycInfo | null>(null);
+  const [freelancerProfile, setFreelancerProfile] = useState<ExpertFreelancerProfile | null>(null);
+  const [portfolio, setPortfolio] = useState<ExpertPortfolioItem[]>([]);
+  const [reviews, setReviews] = useState<ExpertReview[]>([]);
+  const [pastContracts, setPastContracts] = useState<ExpertPastContract[]>([]);
+  const [certifications, setCertifications] = useState<ExpertCertification[]>([]);
+  const [workExperience, setWorkExperience] = useState<ExpertWorkExperience[]>([]);
   const [completedContractCount, setCompletedContractCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<"not_found" | "network" | null>(null);
+  const [fetchError, setFetchError] = useState<Error | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [selectedPortfolio, setSelectedPortfolio] = useState<any>(null);
-  const [services, setServices] = useState<any[]>([]);
+  const [selectedPortfolio, setSelectedPortfolio] = useState<ExpertPortfolioItem | null>(null);
+  const [services, setServices] = useState<ExpertServiceOffer[]>([]);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -256,15 +269,10 @@ export default function ExpertProfile() {
         setPastContracts(response.data.pastContracts || []);
         setCompletedContractCount(response.data.completedContractCount || 0);
         setReviews(response.data.reviews || []);
-      } catch (err: any) {
+      } catch (err) {
         if (cancelled) return;
-        const isNetwork = !err?.response && (
-          err?.message?.toLowerCase().includes("network") ||
-          err?.message?.toLowerCase().includes("fetch") ||
-          err?.code === "ERR_NETWORK" ||
-          err?.code === "ECONNABORTED"
-        );
-        setFetchError(isNetwork ? "network" : "not_found");
+        logError("ExpertProfile", err);
+        setFetchError(err instanceof Error ? err : new Error("Failed to load profile"));
         setProfile(null);
       } finally {
         if (!cancelled) setLoading(false);
@@ -364,24 +372,17 @@ export default function ExpertProfile() {
   }
 
   if (!profile) {
-    const isNetwork = fetchError === "network";
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <p className="text-lg font-semibold">
-              {isNetwork ? "Connection problem" : "Expert not found."}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {isNetwork
-                ? "Check your internet connection and try again."
-                : "This profile may no longer be available."}
-            </p>
-            {isNetwork && (
-              <Button onClick={() => setRetryKey(k => k + 1)}>Retry</Button>
-            )}
-          </div>
+        <main className="flex-1 flex items-center justify-center px-4">
+          <NetworkError
+            error={fetchError}
+            title={fetchError ? undefined : "Expert not found."}
+            message={fetchError ? undefined : "This profile may no longer be available."}
+            onRetry={() => setRetryKey((k) => k + 1)}
+            className="max-w-md w-full border-0 bg-transparent"
+          />
         </main>
         <Footer />
       </div>
@@ -401,7 +402,7 @@ export default function ExpertProfile() {
     portfolio.length > 0 ||
     pastContracts.length > 0;
 
-  const occupation = freelancerProfile?.occupation || "Technical Expert";
+  const occupation = profile.occupation || freelancerProfile?.title || "Technical Expert";
   const skills = (freelancerProfile?.skills as string[] | undefined)?.slice(0, 4).join(", ");
   const seoDescription = freelancerProfile?.bio
     ? freelancerProfile.bio.slice(0, 155) + "…"
@@ -539,7 +540,7 @@ export default function ExpertProfile() {
                     <VerificationBadges
                       isVerified={kycVerified || profile.is_verified}
                       isZentraVerified={isZentraVerified}
-                      role={profile.role}
+                      role={profile.role === "client" || profile.role === "freelancer" ? profile.role : undefined}
                       className="justify-center"
                     />
                   </div>
@@ -734,7 +735,7 @@ export default function ExpertProfile() {
                     right={<span className="text-xs text-muted-foreground">{services.length}</span>}
                   />
                   <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {services.map((s: any) => (
+                    {services.map((s) => (
                       <div
                         key={s.id}
                         className="rounded-xl border border-border/60 p-4 hover:border-primary/40 hover:shadow-sm transition-all"
@@ -808,7 +809,7 @@ export default function ExpertProfile() {
                     }
                   />
                   <div className="divide-y divide-border/60">
-                    {workExperience.map((exp: any) => (
+                    {workExperience.map((exp) => (
                       <div key={exp.id} className="px-6 py-4">
                         <div className="flex items-start justify-between gap-3 mb-0.5">
                           <p className="font-semibold text-sm text-foreground">{exp.role}</p>
@@ -836,7 +837,7 @@ export default function ExpertProfile() {
                     }
                   />
                   <div className="divide-y divide-border/60">
-                    {certifications.map((cert: any) => (
+                    {certifications.map((cert) => (
                       <div key={cert.id} className="flex items-start gap-3 px-6 py-4">
                         <Award className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -891,10 +892,10 @@ export default function ExpertProfile() {
                   <p className="text-sm text-muted-foreground text-center py-10">No reviews yet.</p>
                 ) : (
                   <div className="divide-y divide-border/60">
-                    {reviews.map((review: any, i: number) => {
-                      const reviewerName = (review.reviewer as any)?.full_name || "Client";
-                      const reviewerAvatar = (review.reviewer as any)?.avatar_url || null;
-                      const contractTitle = (review.contract as any)?.job_title || null;
+                    {reviews.map((review, i: number) => {
+                      const reviewerName = review.reviewer?.full_name || "Client";
+                      const reviewerAvatar = review.reviewer?.avatar_url || null;
+                      const contractTitle = review.contract?.job_title || null;
                       return (
                         <div key={review.id || i} className="px-6 py-4">
                           <div className="flex items-start gap-3 mb-2">

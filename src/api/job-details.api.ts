@@ -1,16 +1,24 @@
 import { api } from "./axios";
+import type {
+  JobDetailsJob,
+  JobDetailsClient,
+  JobDetailsWallet,
+  JobDetailsProposal,
+  JobInterviewContract,
+  JobDetailsSimilarJob,
+} from "@/types/job-details";
 
 export type JobOverview = {
-  job: any;
-  client: any | null;
-  wallet: any | null;
+  job: JobDetailsJob;
+  client: JobDetailsClient | null;
+  wallet: JobDetailsWallet | null;
   proposalCount: number;
   interviewingCount: number;
   hasApplied: boolean;
   myProposal: { id: string; status: string; notified_of_change: boolean } | null;
-  proposals: any[];
-  interviewContracts: any[];
-  similarJobs: any[];
+  proposals: JobDetailsProposal[];
+  interviewContracts: JobInterviewContract[];
+  similarJobs: JobDetailsSimilarJob[];
   clientStats: { totalJobs: number; hiredJobs: number; hireRate: number } | null;
   isSaved: boolean;
   ipPolicyGated: boolean;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -20,30 +20,31 @@ import {
   Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle, LogOut, Mail
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
+import type {
+  ExpertOverviewProposal,
+  ExpertOverviewOffer,
+  ExpertOverviewInvite,
+} from "@/types/proposals";
+import type { LucideIcon } from "lucide-react";
 
 export default function ExpertProposalsPage() {
   const { format } = useCurrency();
   const { user, profile, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [proposals, setProposals] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<ExpertOverviewProposal[]>([]);
+  const [offers, setOffers] = useState<ExpertOverviewOffer[]>([]);
+  const [invites, setInvites] = useState<ExpertOverviewInvite[]>([]);
   const [interviewContracts, setInterviewContracts] = useState<Record<string, string>>({});
-  const [withdrawConfirm, setWithdrawConfirm] = useState<any | null>(null);
+  const [withdrawConfirm, setWithdrawConfirm] = useState<ExpertOverviewProposal | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [decliningInviteId, setDecliningInviteId] = useState<string | null>(null);
-  const [inviteDeclineConfirm, setInviteDeclineConfirm] = useState<any | null>(null);
+  const [inviteDeclineConfirm, setInviteDeclineConfirm] = useState<ExpertOverviewInvite | null>(null);
   const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
-  const [offerDeclineConfirm, setOfferDeclineConfirm] = useState<any | null>(null);
+  const [offerDeclineConfirm, setOfferDeclineConfirm] = useState<ExpertOverviewOffer | null>(null);
   const [offerDeclining, setOfferDeclining] = useState(false);
 
-  useEffect(() => {
-    if (!user) navigate("/auth");
-    if (user) fetchData();
-  }, [user]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     const data = await getExpertProposalsOverview();
     setProposals(data.proposals || []);
@@ -51,7 +52,12 @@ export default function ExpertProposalsPage() {
     setInvites(data.invites || []);
     setInterviewContracts(data.interviewContracts || {});
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) navigate("/auth");
+    if (user) fetchData();
+  }, [user, navigate, fetchData]);
 
   if (!user || bootstrapStatus !== "ready") return null;
 
@@ -60,7 +66,7 @@ export default function ExpertProposalsPage() {
   const applicationProposals = proposals.filter(p => ["pending", "accepted", "rejected", "withdrawn"].includes(p.status));
 
   const statusBadge = (status: string) => {
-    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+    const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: LucideIcon }> = {
       pending: { variant: "outline", icon: Clock },
       interviewing: { variant: "default", icon: UserCheck },
       accepted: { variant: "default", icon: CheckCircle2 },
@@ -79,8 +85,8 @@ export default function ExpertProposalsPage() {
       await withdrawMyJobProposal(withdrawConfirm.id);
       toast.success("Proposal withdrawn.");
       setProposals((prev) => prev.map((p) => p.id === withdrawConfirm.id ? { ...p, status: "withdrawn" } : p));
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to withdraw proposal.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to withdraw proposal.");
     } finally {
       setWithdrawingId(null);
       setWithdrawConfirm(null);
@@ -108,7 +114,7 @@ export default function ExpertProposalsPage() {
     }
   };
 
-  const handleAcceptOffer = async (offer: any) => {
+  const handleAcceptOffer = async (offer: ExpertOverviewOffer) => {
     setAcceptingOfferId(offer.id);
     try {
       await acceptDirectOffer(offer.id);
@@ -146,14 +152,14 @@ export default function ExpertProposalsPage() {
     }
   };
 
-  const EmptyState = ({ icon: Icon, text }: { icon: any; text: string }) => (
+  const EmptyState = ({ icon: Icon, text }: { icon: LucideIcon; text: string }) => (
     <div className="text-center py-16 text-muted-foreground">
       <Icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
       <p>{text}</p>
     </div>
   );
 
-  const ProposalCard = ({ p }: { p: any }) => (
+  const ProposalCard = ({ p }: { p: ExpertOverviewProposal }) => (
     <div className="bg-card rounded-xl border border-border p-6 card-hover">
       <div className="flex items-start justify-between gap-4">
         <Link to={`/job/${p.job?.id}`} className="flex-1">
@@ -220,7 +226,7 @@ export default function ExpertProposalsPage() {
     </div>
   );
 
-  const OfferCard = ({ o }: { o: any }) => (
+  const OfferCard = ({ o }: { o: ExpertOverviewOffer }) => (
     <div className="bg-card rounded-xl border border-border p-6 card-hover">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -277,7 +283,7 @@ export default function ExpertProposalsPage() {
     </div>
   );
 
-  const InviteCard = ({ invite }: { invite: any }) => (
+  const InviteCard = ({ invite }: { invite: ExpertOverviewInvite }) => (
     <div className="bg-card rounded-xl border border-border p-6 card-hover">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 flex-1 min-w-0">

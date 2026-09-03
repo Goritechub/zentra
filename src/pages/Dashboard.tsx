@@ -16,22 +16,16 @@ import {
   Briefcase, MessageSquare, FileText, Settings, Users, PlusCircle,
   Eye, ArrowRight, Trophy, Send, Heart, Wallet, BarChart3,
   ShieldAlert, ImageIcon, Award, Inbox, CheckCircle2, ChevronRight,
-  CircleDot, ArrowUpRight, Gift, Copy, Check,
+  CircleDot, ArrowUpRight, Gift, Copy, Check, type LucideIcon,
 } from "lucide-react";
 import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
 import { NetworkError } from "@/components/NetworkError";
+import type { DashboardOverview } from "@/types/dashboard";
 
-interface DashboardData {
-  stats: { jobs: number; proposals: number; messages: number; contracts: number };
-  recentJobs: any[];
-  freelancerProfile: any;
-  walletBalance: number;
-  completedContracts: number;
-  recentActivity: any[];
-}
+type DashboardData = Omit<DashboardOverview, "isAdmin">;
 
 const emptyDashboardData: DashboardData = {
   stats: { jobs: 0, proposals: 0, messages: 0, contracts: 0 },
@@ -40,6 +34,7 @@ const emptyDashboardData: DashboardData = {
   walletBalance: 0,
   completedContracts: 0,
   recentActivity: [],
+  kyc: null,
 };
 
 export default function DashboardPage() {
@@ -161,7 +156,7 @@ export default function DashboardPage() {
     { icon: Wallet, label: "Wallet & Transactions", to: "/transactions", desc: "Payments and balance" },
   ];
 
-  const freelancerMenuItems = [
+  const freelancerMenuItems: { icon: LucideIcon; label: string; to: string; desc: string; count?: number }[] = [
     { icon: Eye, label: "Browse Available Jobs", to: "/jobs", desc: "Find new opportunities" },
     { icon: Trophy, label: "Browse Contests", to: "/contests", desc: "Compete for prizes" },
     { icon: Settings, label: "Account Settings", to: "/settings", desc: "Update your information" },
@@ -295,7 +290,7 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {freelancerMenuItems.map((item) => {
                       const active = location.pathname === item.to;
-                      const count = (item as any).count ?? 0;
+                      const count = item.count ?? 0;
                       return (
                         <Link
                           key={item.to}
@@ -393,7 +388,7 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   <div className="p-5 space-y-1">
-                    {recentActivity.map((notif: any) => (
+                    {recentActivity.map((notif) => (
                       <div key={notif.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors">
                         <div className="mt-1.5">
                           <CircleDot className={`h-3 w-3 ${notif.is_read ? "text-muted-foreground/40" : "text-primary"}`} />

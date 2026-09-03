@@ -11,9 +11,20 @@ import { getContracts } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
-  FileText, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle
+  FileText, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle, type LucideIcon
 } from "lucide-react";
 import { ContractRowSkeleton } from "@/components/skeletons/ContractRowSkeleton";
+
+interface ContractsPageContract {
+  id: string;
+  status: string;
+  amount: number;
+  started_at: string | null;
+  created_at: string;
+  job: { title: string | null; status: string | null } | null;
+  client: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  freelancer: { id: string; full_name: string | null; avatar_url: string | null } | null;
+}
 
 export default function ContractsPage() {
   const { format } = useCurrency();
@@ -27,7 +38,7 @@ export default function ContractsPage() {
     queryFn: getContracts,
   });
 
-  const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any; label: string }> = {
+  const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: LucideIcon; label: string }> = {
     interviewing: { variant: "outline", icon: Clock, label: "Interviewing" },
     active: { variant: "default", icon: Clock, label: "Active" },
     completed: { variant: "secondary", icon: CheckCircle2, label: "Completed" },
@@ -44,7 +55,7 @@ export default function ContractsPage() {
   }
 
   const isClient = role === "client";
-  const contracts = contractsQuery.data || [];
+  const contracts = (contractsQuery.data || []) as ContractsPageContract[];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -83,7 +94,7 @@ export default function ContractsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filterByStatus(status).map((contract: any) => {
+                    {filterByStatus(status).map((contract) => {
                       // Show "Job Assigned" instead of "Cancelled" when the job was assigned to someone else
                       const isJobAssigned = contract.status === "cancelled" && 
                         contract.job?.status && ["in_progress", "completed"].includes(contract.job.status);

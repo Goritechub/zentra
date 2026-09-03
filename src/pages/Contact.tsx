@@ -18,11 +18,12 @@ import {
   getSupportChat,
   sendSupportChatMessage,
 } from "@/api/support.api";
+import type { Complaint, SupportChatMessage } from "@/types/support";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Mail, Phone, MessageCircle, Send, AlertTriangle, MessageSquare, Loader2,
-  Headphones, Clock, CheckCircle2, XCircle, ArrowLeft
+  Headphones, Clock, CheckCircle2, XCircle, ArrowLeft, type LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -36,7 +37,7 @@ const COMPLAINT_CATEGORIES = [
   "Other",
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; color: string }> = {
   new: { label: "New", icon: Clock, color: "text-amber-500" },
   in_review: { label: "In Review", icon: Clock, color: "text-primary" },
   resolved: { label: "Resolved", icon: CheckCircle2, color: "text-green-500" },
@@ -182,7 +183,7 @@ function ComplaintForm({ userId }: { userId: string }) {
 
 /* ─── Complaint History ─── */
 function ComplaintHistory({ userId }: { userId: string }) {
-  const [complaints, setComplaints] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -237,7 +238,7 @@ function ComplaintHistory({ userId }: { userId: string }) {
 /* ─── Support Chat ─── */
 function SupportChatPanel({ userId }: { userId: string }) {
   const [chatId, setChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<SupportChatMessage[]>([]);
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -255,7 +256,7 @@ function SupportChatPanel({ userId }: { userId: string }) {
     setLoading(false);
 
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-  }, [userId]);
+  }, []);
 
   useEffect(() => { initChat(); }, [initChat]);
 
@@ -270,7 +271,7 @@ function SupportChatPanel({ userId }: { userId: string }) {
         table: "support_chat_messages",
         filter: `chat_id=eq.${chatId}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as any]);
+        setMessages(prev => [...prev, payload.new as SupportChatMessage]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       })
       .subscribe();

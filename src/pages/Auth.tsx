@@ -27,6 +27,7 @@ import {
   updateAuthRole,
 } from "@/api/auth.api";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
+import { classifyError, logError } from "@/lib/error-utils";
 import {
   Briefcase,
   Users,
@@ -42,6 +43,22 @@ import { cn } from "@/lib/utils";
 import { TermsModal } from "@/components/TermsModal";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+declare global {
+  interface Window {
+    grecaptcha?: {
+      render: (
+        container: HTMLElement,
+        params: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback": () => void;
+        }
+      ) => number;
+      reset: (widgetId: number) => void;
+    };
+  }
+}
 
 const namePartValidator = z
   .string()
@@ -225,7 +242,7 @@ export default function AuthPage() {
     if (activeTab !== "signup") return;
 
     const tryRender = () => {
-      const grecaptcha = (window as any).grecaptcha;
+      const grecaptcha = window.grecaptcha;
       if (!grecaptcha?.render) return false;
       if (!recaptchaContainerRef.current) return false;
       if (recaptchaWidgetIdRef.current !== null) return true;
@@ -261,11 +278,11 @@ export default function AuthPage() {
   // Reset when switching away from an auth flow that uses reCAPTCHA.
   useEffect(() => {
     if (activeTab !== "signup" && recaptchaWidgetIdRef.current !== null) {
-      const grecaptcha = (window as any).grecaptcha;
+      const grecaptcha = window.grecaptcha;
       if (grecaptcha) {
         try {
           grecaptcha.reset(recaptchaWidgetIdRef.current);
-        } catch {}
+        } catch { /* ignore */ }
       }
       setRecaptchaToken(null);
       recaptchaWidgetIdRef.current = null;
@@ -345,7 +362,7 @@ export default function AuthPage() {
       const oauthStartUrl = buildGoogleOauthStartUrl(`${appOrigin}/auth`);
       window.location.assign(oauthStartUrl);
       return;
-    } catch (err: any) {
+    } catch {
       const message = "Google sign-in failed. Please try again.";
       if (activeTab === "signup") {
         setSignUpErrors({ general: message });
@@ -529,7 +546,7 @@ export default function AuthPage() {
             verifyData?.error ||
             "reCAPTCHA verification failed. Please try again.",
         });
-        const grecaptcha = (window as any).grecaptcha;
+        const grecaptcha = window.grecaptcha;
         if (grecaptcha && recaptchaWidgetIdRef.current !== null)
           grecaptcha.reset(recaptchaWidgetIdRef.current);
         setRecaptchaToken(null);
@@ -590,7 +607,7 @@ export default function AuthPage() {
     }
 
     setSignUpSuccess(true);
-    const grecaptcha = (window as any).grecaptcha;
+    const grecaptcha = window.grecaptcha;
     if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
       grecaptcha.reset(recaptchaWidgetIdRef.current);
     }
@@ -628,11 +645,7 @@ export default function AuthPage() {
         field: "identifier",
         message: "No account found with this email.",
       };
-    if (
-      msg.includes("failed to fetch") ||
-      msg.includes("networkerror") ||
-      msg.includes("network")
-    )
+    if (classifyError(error) === "network")
       return {
         message:
           "Network connection lost. Please check your internet and try again.",
@@ -742,17 +755,14 @@ export default function AuthPage() {
       // Sign-in succeeded — navigate immediately using redirect param or default route
       // Don't wait for profile to load; it will populate in the background
       setLoading(false);
-    } catch (err: any) {
-      console.error("Sign-in error:", err);
-      if (err?.message === "TIMEOUT") {
+    } catch (err) {
+      logError("Auth/signIn", err);
+      if (err instanceof Error && err.message === "TIMEOUT") {
         setSignInErrors({
           general:
             "Connection timed out. Please check your internet connection and try again.",
         });
-      } else if (
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
-      ) {
+      } else if (classifyError(err) === "network") {
         setSignInErrors({
           general:
             "Network connection lost. Please check your internet and try again.",
@@ -803,9 +813,9 @@ export default function AuthPage() {
 
       await requestPasswordReset(email);
       setForgotSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       setForgotErrors({
-        general: err?.response?.data?.message || "Failed to send reset email. Please try again.",
+        general: err instanceof Error ? err.message : "Failed to send reset email. Please try again.",
       });
     } finally {
       setForgotLoading(false);

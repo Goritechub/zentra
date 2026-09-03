@@ -14,6 +14,7 @@ import {
   deleteMyPortfolioItem,
   getMyPortfolioOverview,
 } from "@/api/marketplace.api";
+import type { PortfolioItem } from "@/types/marketplace";
 import { toast } from "sonner";
 import { cadSoftwareList } from "@/lib/nigerian-data";
 import {
@@ -74,7 +75,7 @@ export default function ManagePortfolioPage() {
   const { user, role, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,7 +131,7 @@ export default function ManagePortfolioPage() {
         setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "done", progress: 100, url } : u));
       } else {
         let msg = "Upload failed";
-        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+        try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { /* ignore — fall back to default message */ }
         setImageUploads((prev) => prev.map((u) => u.id === item.id ? { ...u, status: "error", errorMsg: msg } : u));
       }
     });

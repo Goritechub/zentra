@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAdminPayoutTransfers, retryAdminPayoutTransfer } from "@/api/admin.api";
+import type { AdminPayoutTransfer } from "@/types/admin";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { toast } from "sonner";
 export default function AdminPayoutTransfers() {
   const { format } = useCurrency();
   useAuth();
-  const [transfers, setTransfers] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<AdminPayoutTransfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [retrying, setRetrying] = useState<string | null>(null);
@@ -35,14 +36,14 @@ export default function AdminPayoutTransfers() {
     }
   };
 
-  const handleRetry = async (transfer: any) => {
+  const handleRetry = async (transfer: AdminPayoutTransfer) => {
     setRetrying(transfer.id);
     try {
       await retryAdminPayoutTransfer(transfer.id);
       toast.success("Retry initiated — transfer is now pending");
       await fetchAll();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Retry failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setRetrying(null);
     }
@@ -74,7 +75,7 @@ export default function AdminPayoutTransfers() {
     return <Badge variant={cfg.variant} className="capitalize text-xs">{cfg.label}</Badge>;
   };
 
-  const TransferTable = ({ rows }: { rows: any[] }) => (
+  const TransferTable = ({ rows }: { rows: AdminPayoutTransfer[] }) => (
     rows.length === 0 ? (
       <div className="p-12 text-center text-muted-foreground">
         <ArrowUpRight className="h-12 w-12 mx-auto mb-4 opacity-50" />

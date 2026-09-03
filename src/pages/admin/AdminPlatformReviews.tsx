@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Star, Trash2, CheckCircle2, Eye, Award } from "lucide-react";
+import type { AdminPlatformReview } from "@/types/admin";
 
 export default function AdminPlatformReviews() {
   useAuth();
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<AdminPlatformReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { void fetchReviews(); }, []);
@@ -83,7 +84,7 @@ export default function AdminPlatformReviews() {
           <TableBody>
             {reviews.map(r => (
               <TableRow key={r.id}>
-                <TableCell className="text-sm font-medium">{(r.profiles as any)?.full_name || "—"}</TableCell>
+                <TableCell className="text-sm font-medium">{r.profiles?.full_name || "—"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

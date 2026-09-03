@@ -21,6 +21,7 @@ import {
   Loader2, Trophy, ArrowLeft, PlusCircle, Users, Calendar, XCircle,
   Clock, AlertCircle, Edit2,
 } from "lucide-react";
+import type { ContestSummary } from "@/types/client";
 
 const CANCELLATION_REASONS = [
   { value: "insufficient_entries", label: "Not enough entries received" },
@@ -33,7 +34,7 @@ const CANCELLATION_REASONS = [
 
 type SpecialStatus = "pending_review" | "rejected" | "cancelled" | "cancellation_requested";
 
-function getSpecialStatus(contest: any): SpecialStatus | null {
+function getSpecialStatus(contest: ContestSummary): SpecialStatus | null {
   if (contest.status === "pending_review") return "pending_review";
   if (contest.status === "rejected") return "rejected";
   if (contest.status === "cancelled") return "cancelled";
@@ -41,13 +42,13 @@ function getSpecialStatus(contest: any): SpecialStatus | null {
   return null;
 }
 
-function deriveContestStatus(contest: any, winnersCount: number): "active" | "selecting_winners" | "completed" {
+function deriveContestStatus(contest: ContestSummary, winnersCount: number): "active" | "selecting_winners" | "completed" {
   if (winnersCount > 0 || contest.status === "ended" || contest.status === "completed") return "completed";
   if (contest.status === "selecting_winners" || isPast(new Date(contest.deadline))) return "selecting_winners";
   return "active";
 }
 
-function StatusBadge({ contest }: { contest: any }) {
+function StatusBadge({ contest }: { contest: ContestSummary }) {
   const special = getSpecialStatus(contest);
   if (special === "pending_review") return <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3 mr-1" />Under Review</Badge>;
   if (special === "rejected") return <Badge variant="destructive">Rejected</Badge>;
@@ -64,9 +65,9 @@ export default function MyContestsPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [contests, setContests] = useState<any[]>([]);
+  const [contests, setContests] = useState<ContestSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [cancelTarget, setCancelTarget] = useState<ContestSummary | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNote, setCancelNote] = useState("");
@@ -110,14 +111,14 @@ export default function MyContestsPage() {
       setCancelReason("");
       setCancelNote("");
       void fetchContests();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to cancel contest");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel contest");
     } finally {
       setCancelling(false);
     }
   };
 
-  const totalPrize = (c: any) =>
+  const totalPrize = (c: ContestSummary) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
 
   if (!user || bootstrapStatus !== "ready") {
@@ -164,7 +165,7 @@ export default function MyContestsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {contests.map((contest: any) => {
+              {contests.map((contest) => {
                 const special = getSpecialStatus(contest);
                 const isActive = !special && !isPast(new Date(contest.deadline));
                 // Cancellable: active contests or pending_review contests

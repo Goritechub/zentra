@@ -505,7 +505,7 @@ export default function FreelancersPage() {
                                   variant="outline"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(user ? `/post-job?invite=${f.user_id}&name=${encodeURIComponent(f.full_name || "Expert")}` : "/auth");
+                                    navigate(user ? `/post-job?invite=${f.user_id}&name=${encodeURIComponent(p?.full_name || "Expert")}` : "/auth");
                                   }}
                                 >
                                   Hire
@@ -570,7 +570,7 @@ export default function FreelancersPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {savedExperts.map((item: any) => {
+                  {savedExperts.map((item) => {
                     const f = item.freelancer;
                     const fp = item.freelancerProfile;
                     if (!f) return null;

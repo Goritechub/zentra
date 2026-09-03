@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/api/axios";
@@ -101,21 +101,7 @@ export default function AdminLayout() {
   // bootstrapStatus transitions to "ready".
   const permsFetchedForUser = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (bootstrapStatus !== "ready") return;
-    if (user && isAdmin) {
-      if (permsFetchedForUser.current !== user.id) {
-        permsFetchedForUser.current = user.id;
-        void fetchPermissions();
-      }
-      return;
-    }
-    if (user && !isAdmin) {
-      setLoading(false);
-    }
-  }, [bootstrapStatus, user, isAdmin]);
-
-  const fetchPermissions = async () => {
+  const fetchPermissions = useCallback(async () => {
     // Check sessionStorage first — avoid re-fetching on every navigation
     if (sessionPermsKey) {
       const cached = sessionStorage.getItem(sessionPermsKey);
@@ -140,7 +126,21 @@ export default function AdminLayout() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionPermsKey]);
+
+  useEffect(() => {
+    if (bootstrapStatus !== "ready") return;
+    if (user && isAdmin) {
+      if (permsFetchedForUser.current !== user.id) {
+        permsFetchedForUser.current = user.id;
+        void fetchPermissions();
+      }
+      return;
+    }
+    if (user && !isAdmin) {
+      setLoading(false);
+    }
+  }, [bootstrapStatus, user, isAdmin, fetchPermissions]);
 
   const handleVerifyCode = async () => {
     const submittedCode = useRecovery ? recoveryInput.trim() : authCode;

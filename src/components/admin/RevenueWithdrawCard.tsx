@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
+import type { BankDetail, PaystackBank } from "@/types/wallet";
 import { Loader2, Banknote, AlertTriangle, Plus } from "lucide-react";
 
 export function RevenueWithdrawCard() {
@@ -20,7 +21,7 @@ export function RevenueWithdrawCard() {
   const [availableRevenue, setAvailableRevenue] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
-  const [bankDetails, setBankDetails] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<BankDetail[]>([]);
   const [selectedBank, setSelectedBank] = useState("");
   const [amount, setAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
@@ -28,28 +29,14 @@ export function RevenueWithdrawCard() {
   const [needsBankSetup, setNeedsBankSetup] = useState(false);
 
   // Bank setup state
-  const [banks, setBanks] = useState<any[]>([]);
+  const [banks, setBanks] = useState<PaystackBank[]>([]);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
   const [resolving, setResolving] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
 
-  useEffect(() => {
-    if (user) checkAccess();
-  }, [user]);
-
-  const checkAccess = async () => {
-    if (!user) return;
-    const { data } = await supabase.rpc("is_super_admin", { _user_id: user.id });
-    setIsSuperAdmin(!!data);
-    if (data) {
-      await fetchData();
-    }
-    setLoading(false);
-  };
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     const [revRes, settingsRes, bankRes] = await Promise.all([
       supabase.from("platform_revenue").select("commission_amount"),
@@ -66,7 +53,21 @@ export function RevenueWithdrawCard() {
     if (bankRes.data?.length) {
       setSelectedBank(bankRes.data[0].id);
     }
-  };
+  }, [user]);
+
+  const checkAccess = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.rpc("is_super_admin", { _user_id: user.id });
+    setIsSuperAdmin(!!data);
+    if (data) {
+      await fetchData();
+    }
+    setLoading(false);
+  }, [user, fetchData]);
+
+  useEffect(() => {
+    if (user) checkAccess();
+  }, [user, checkAccess]);
 
   const handleWithdrawClick = () => {
     const amt = parseInt(amount);
@@ -97,8 +98,8 @@ export function RevenueWithdrawCard() {
         setAmount("");
         await fetchData();
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Withdrawal failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Withdrawal failed");
     }
     setWithdrawing(false);
   };
@@ -147,8 +148,8 @@ export function RevenueWithdrawCard() {
         setResolvedName("");
         await fetchData();
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save bank");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save bank");
     }
     setSavingBank(false);
   };

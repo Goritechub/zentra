@@ -11,10 +11,11 @@ import {
   getAdminWaitlistEntries,
   deleteAdminWaitlistEntry,
 } from "@/api/waitlist.api";
+import type { WaitlistEntry } from "@/types/waitlist";
 import { toast } from "sonner";
 
 export default function AdminWaitlist() {
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -26,8 +27,8 @@ export default function AdminWaitlist() {
     try {
       const data = await getAdminWaitlistEntries();
       setEntries(data.entries);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to load waitlist entries.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load waitlist entries.");
     } finally {
       setLoading(false);
     }
@@ -38,12 +39,12 @@ export default function AdminWaitlist() {
       await deleteAdminWaitlistEntry(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
       toast.success("Entry removed.");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete entry.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete entry.");
     }
   };
 
-  const filtered = entries.filter((e: any) => {
+  const filtered = entries.filter((e) => {
     const q = search.toLowerCase();
     return (
       e.email?.toLowerCase().includes(q) ||
@@ -56,7 +57,7 @@ export default function AdminWaitlist() {
 
   const exportCSV = () => {
     const headers = ["Email", "Role", "Country", "Profession/Skills", "Project Description", "Referral Source", "Joined"];
-    const rows = entries.map((e: any) => [
+    const rows = entries.map((e) => [
       e.email,
       e.role,
       e.country || "",
@@ -75,8 +76,8 @@ export default function AdminWaitlist() {
     URL.revokeObjectURL(url);
   };
 
-  const clientCount = entries.filter((e: any) => e.role === "client").length;
-  const expertCount = entries.filter((e: any) => e.role === "expert").length;
+  const clientCount = entries.filter((e) => e.role === "client").length;
+  const expertCount = entries.filter((e) => e.role === "expert").length;
 
   if (loading) {
     return (
@@ -151,7 +152,7 @@ export default function AdminWaitlist() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((entry: any) => (
+                filtered.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium text-sm">{entry.email}</TableCell>
                     <TableCell>

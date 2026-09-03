@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,7 +46,7 @@ const Messages = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const queryKey = ["messages-page", user?.id, role];
+  const queryKey = useMemo(() => ["messages-page", user?.id, role], [user?.id, role]);
 
   const { data, isPending, isFetching } = useQuery({
     queryKey,

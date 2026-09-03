@@ -71,9 +71,9 @@ export function ChangeAuthCodeCard() {
         return;
       }
       toast.success("Authentication code changed successfully!");
-    } catch (err: any) {
+    } catch (err) {
       setSaving(false);
-      toast.error(err?.message || "Failed to change code");
+      toast.error(err instanceof Error ? err.message : "Failed to change code");
       return;
     }
     setStep("idle");

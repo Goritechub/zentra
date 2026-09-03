@@ -1,4 +1,5 @@
 import { api } from "./axios";
+import type { JobPostPayload } from "@/types/jobs";
 
 export async function getOpenJobs() {
   const response = await api.get("/jobs");
@@ -30,7 +31,7 @@ export async function searchInviteExperts(query: string) {
   return response.data.data.experts || [];
 }
 
-export async function createJobPost(payload: Record<string, any>) {
+export async function createJobPost(payload: JobPostPayload) {
   const response = await api.post("/jobs", payload, { timeout: 15000 });
   return response.data.data;
 }
@@ -45,7 +46,7 @@ export async function deleteClientJob(jobId: string): Promise<{ notified: number
   return response.data.data;
 }
 
-export async function updateJobPost(jobId: string, payload: Record<string, any>) {
+export async function updateJobPost(jobId: string, payload: JobPostPayload) {
   const response = await api.patch(`/jobs/${jobId}`, payload, { timeout: 15000 });
   return response.data.data;
 }

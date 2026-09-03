@@ -33,7 +33,7 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
       }
 
       // Check if user dismissed recently (within 24h)
-      const dismissedAt = (profile as any)?.auth_code_dismissed_at;
+      const dismissedAt = profile?.auth_code_dismissed_at;
       if (dismissedAt) {
         const dismissed = new Date(dismissedAt).getTime();
         if (Date.now() - dismissed < DISMISS_COOLDOWN_MS) {
@@ -52,7 +52,7 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
     if (user) {
       await supabase
         .from("profiles")
-        .update({ auth_code_dismissed_at: new Date().toISOString() } as any)
+        .update({ auth_code_dismissed_at: new Date().toISOString() })
         .eq("id", user.id);
     }
     setStep("idle");
@@ -82,8 +82,8 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
       }
       toast.success("Authentication code set successfully!");
       setStep("idle");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to set authentication code");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to set authentication code");
       setStep("confirm");
     }
   };

@@ -10,15 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Eye, Trash2, FileText } from "lucide-react";
+import type { AdminJob, AdminProposal } from "@/types/admin";
+
+type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
 
 export default function AdminJobs() {
   const { format } = useCurrency();
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [proposals, setProposals] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<AdminJob[]>([]);
+  const [proposals, setProposals] = useState<AdminProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedJob, setSelectedJob] = useState<AdminJob | null>(null);
 
   useEffect(() => { void fetchJobs(); }, []);
 
@@ -32,7 +35,7 @@ export default function AdminJobs() {
     }
   };
 
-  const viewJob = async (job: any) => {
+  const viewJob = async (job: AdminJob) => {
     setSelectedJob(job);
     const data = await getAdminJobProposals(job.id);
     setProposals(data.proposals || []);
@@ -50,13 +53,13 @@ export default function AdminJobs() {
     }
   };
 
-  const statusColor = (s: string) => {
+  const statusColor = (s: string): BadgeVariant => {
     switch (s) {
       case "open": return "default";
       case "in_progress": return "secondary";
       case "completed": return "outline";
       case "cancelled": return "destructive";
-      default: return "outline" as const;
+      default: return "outline";
     }
   };
 
@@ -115,7 +118,7 @@ export default function AdminJobs() {
                     : j.budget_max ? format(j.budget_max) : "Negotiable"}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusColor(j.status) as any} className="capitalize">{j.status}</Badge>
+                  <Badge variant={statusColor(j.status)} className="capitalize">{j.status}</Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {formatDistanceToNow(new Date(j.created_at), { addSuffix: true })}
@@ -143,7 +146,7 @@ export default function AdminJobs() {
               <div className="text-sm whitespace-pre-wrap text-muted-foreground">{selectedJob.description}</div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>Client: <span className="font-medium">{selectedJob.client?.full_name}</span></div>
-                <div>Status: <Badge variant={statusColor(selectedJob.status) as any} className="capitalize">{selectedJob.status}</Badge></div>
+                <div>Status: <Badge variant={statusColor(selectedJob.status)} className="capitalize">{selectedJob.status}</Badge></div>
                 <div>Visibility: <span className="font-medium capitalize">{selectedJob.visibility}</span></div>
                 <div>Duration: <span className="font-medium">{selectedJob.delivery_days} {selectedJob.delivery_unit}</span></div>
               </div>

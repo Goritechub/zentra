@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -29,8 +29,10 @@ import {
   ArrowLeft, Send, Loader2, FileText, Download, Info, DollarSign,
   Clock, MapPin, Briefcase, Tag, Wrench, Layers, Paperclip, X, Globe, Eye, Plus, Trash2,
   CheckCircle2, ArrowRight, AlertCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { getLocalStorageToken } from "@/api/axios";
+import type { ApplyContextJob, ProposalRecord } from "@/types/proposals";
 
 type UploadStatus = "uploading" | "done" | "error";
 type UploadItem = {
@@ -146,9 +148,9 @@ export default function ApplyJobPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
 
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<ApplyContextJob | null>(null);
   const [loading, setLoading] = useState(true);
-  const [existingProposal, setExistingProposal] = useState<any>(null);
+  const [existingProposal, setExistingProposal] = useState<ProposalRecord | null>(null);
   const [referralDiscount, setReferralDiscount] = useState(false);
   const [editingProposal, setEditingProposal] = useState(false);
 
@@ -188,36 +190,19 @@ export default function ApplyJobPage() {
   const [editProposalUploads, setEditProposalUploads] = useState<UploadItem[]>([]);
   const editProposalFileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (id && user) fetchData();
-  }, [id, user]);
-
-  // Auto-save draft so a reload doesn't wipe the form
-  useEffect(() => {
-    if (!id || existingProposal) return;
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(`apply_draft_${id}`, JSON.stringify({
-          paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones,
-        }));
-      } catch {}
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones, id, existingProposal]);
-
-  const populateEditFields = (proposal: any) => {
+  const populateEditFields = useCallback((proposal: ProposalRecord) => {
     setEditBidAmount(String(proposal.bid_amount));
     setEditBidAmountFormatted(formatWithCommas(String(proposal.bid_amount)));
-    const unit = proposal.delivery_unit || "days";
+    const unit = (proposal.delivery_unit || "days") as DurationUnit;
     setEditDeliveryUnit(unit);
     setEditDeliveryValue(String(fromDays(proposal.delivery_days, unit)));
     setEditCoverLetter(proposal.cover_letter);
-    setEditPaymentType(proposal.payment_type || "project");
+    setEditPaymentType((proposal.payment_type as "project" | "milestone") || "project");
     setEditAttachmentUrls(proposal.attachments ?? []);
     setEditProposalUploads([]);
 
     if (proposal.payment_type === "milestone" && proposal.milestones?.length > 0) {
-      setEditMilestones(proposal.milestones.map((ms: any) => {
+      setEditMilestones(proposal.milestones.map((ms) => {
         const msUnit = ms.duration_unit || ms.durationUnit || "days";
         const msDuration = ms.duration ? String(ms.duration) : (ms.date ? "" : "");
         return {
@@ -231,9 +216,9 @@ export default function ApplyJobPage() {
     } else {
       setEditMilestones([{ title: "", duration: "", durationUnit: "days", amount: "", amountFormatted: "" }]);
     }
-  };
+  }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
     const { job: jobData, existingProposal: existing, referralDiscount: discount } = await getMyJobApplyContext(id);
     setReferralDiscount(!!discount);
@@ -280,11 +265,28 @@ export default function ApplyJobPage() {
           if (draft.milestones?.length > 0) setMilestones(draft.milestones);
           if (!pref && draft.paymentType) setPaymentType(draft.paymentType);
         }
-      } catch {}
+      } catch { /* ignore — malformed draft, safe to skip */ }
     }
 
     setLoading(false);
-  };
+  }, [id, populateEditFields]);
+
+  useEffect(() => {
+    if (id && user) fetchData();
+  }, [id, user, fetchData]);
+
+  // Auto-save draft so a reload doesn't wipe the form
+  useEffect(() => {
+    if (!id || existingProposal) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(`apply_draft_${id}`, JSON.stringify({
+          paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones,
+        }));
+      } catch { /* ignore — draft persistence is best-effort */ }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [paymentType, bidAmountFormatted, deliveryValue, deliveryUnit, coverLetter, milestones, id, existingProposal]);
 
   const canEditProposal = () => {
     if (!existingProposal) return false;
@@ -312,7 +314,8 @@ export default function ApplyJobPage() {
           try {
             const json = JSON.parse(xhr.responseText);
             const urls: string[] = json.data?.urls ?? [];
-            urls.length ? resolve(urls[0]) : reject(new Error("No URL returned from server"));
+            if (urls.length) resolve(urls[0]);
+            else reject(new Error("No URL returned from server"));
           } catch { reject(new Error("Invalid server response")); }
         } else {
           try {
@@ -469,10 +472,10 @@ export default function ApplyJobPage() {
         setExistingProposal(proposal);
         populateEditFields(proposal);
       }
-      try { localStorage.removeItem(`apply_draft_${id}`); } catch {}
+      try { localStorage.removeItem(`apply_draft_${id}`); } catch { /* ignore */ }
       setSubmittedConfirmation(true);
-    } catch (error: any) {
-      toast.error(error?.message || "Your proposal was blocked due to policy violations.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Your proposal was blocked due to policy violations.");
       setSubmitting(false);
       return;
     }
@@ -548,7 +551,7 @@ export default function ApplyJobPage() {
         }))
       : [];
 
-    let updatedProposal: any = null;
+    let updatedProposal: ProposalRecord | null = null;
     try {
       const response = await updateMyJobProposal(existingProposal.id, {
         bid_amount: totalBid,
@@ -645,6 +648,7 @@ export default function ApplyJobPage() {
 
   const renderExistingProposalView = () => {
     const p = existingProposal;
+    if (!p) return null;
     const pType = p.payment_type || "project";
     const pUnit = p.delivery_unit || "days";
 
@@ -932,7 +936,7 @@ export default function ApplyJobPage() {
 
             {pType === "milestone" && p.milestones?.length > 0 ? (
               <div className="space-y-3">
-                {p.milestones.map((ms: any, idx: number) => (
+                {p.milestones.map((ms, idx: number) => (
                   <div key={idx} className="p-3 rounded-lg border border-border bg-muted/30 flex items-start sm:items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium text-foreground">{ms.title}</p>
@@ -1407,7 +1411,7 @@ export default function ApplyJobPage() {
                         : job.budget_min ? format(job.budget_min) : "Negotiable"
                     } />
                     <MiniTile icon={Clock} label="Duration" value={deliveryLabel()} />
-                    <MiniTile icon={Wrench} label="Skill Level" value={(job as any).skill_level || "Intermediate"} />
+                    <MiniTile icon={Wrench} label="Skill Level" value={job.skill_level || "Intermediate"} />
                     {job.state && <MiniTile icon={MapPin} label="Location" value={job.is_remote ? "Remote" : `${job.city || ""} ${job.state}`} />}
                   </div>
 
@@ -1477,7 +1481,7 @@ function ServiceChargeSummary({ amount, referralDiscount = false }: { amount: nu
   );
 }
 
-function MiniTile({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function MiniTile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="p-3 rounded-lg bg-muted/50 border border-border">
       <div className="flex items-center gap-1.5 mb-0.5">

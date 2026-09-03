@@ -1,4 +1,27 @@
 import { api } from "./axios";
+import type {
+  AdminReview,
+  AdminPlatformReview,
+  AdminJob,
+  AdminContract,
+  AdminMilestone,
+  AdminEscrowEntry,
+  AdminProposal,
+  AdminContest,
+  AdminContestCancellationRequest,
+  AdminDispute,
+  AdminActivityLog,
+  AdminLegalDocument,
+  AdminLegalDocumentInput,
+  AdminVerification,
+  AdminUserListItem,
+  AdminUserWallet,
+  AdminUserViolations,
+  AdminCategory,
+  AdminAccount,
+  AdminPayoutTransfer,
+  CommissionTier,
+} from "@/types/admin";
 
 export async function getAdminOverview() {
   const response = await api.get("/admin/overview");
@@ -12,7 +35,7 @@ export async function getAdminPaymentsOverview() {
 
 export async function getAdminReviews() {
   const response = await api.get("/admin/reviews");
-  return response.data.data as { reviews: any[] };
+  return response.data.data as { reviews: AdminReview[] };
 }
 
 export async function deleteAdminReview(reviewId: string) {
@@ -22,7 +45,7 @@ export async function deleteAdminReview(reviewId: string) {
 
 export async function getAdminPlatformReviews() {
   const response = await api.get("/admin/platform-reviews");
-  return response.data.data as { reviews: any[] };
+  return response.data.data as { reviews: AdminPlatformReview[] };
 }
 
 export async function setAdminPlatformReviewApproval(reviewId: string, isApproved: boolean) {
@@ -42,17 +65,17 @@ export async function deleteAdminPlatformReview(reviewId: string) {
 
 export async function getAdminJobs() {
   const response = await api.get("/admin/jobs");
-  return response.data.data as { jobs: any[] };
+  return response.data.data as { jobs: AdminJob[] };
 }
 
 export async function getAdminContractsData() {
   const response = await api.get("/admin/contracts");
-  return response.data.data as { contracts: any[] };
+  return response.data.data as { contracts: AdminContract[] };
 }
 
 export async function getAdminContractDetail(contractId: string) {
   const response = await api.get(`/admin/contracts/${contractId}`);
-  return response.data.data as { contract: any; milestones: any[]; escrow: any[] };
+  return response.data.data as { contract: AdminContract; milestones: AdminMilestone[]; escrow: AdminEscrowEntry[] };
 }
 
 export async function deleteAdminContract(contractId: string) {
@@ -62,7 +85,7 @@ export async function deleteAdminContract(contractId: string) {
 
 export async function getAdminJobProposals(jobId: string) {
   const response = await api.get(`/admin/jobs/${jobId}/proposals`);
-  return response.data.data as { proposals: any[] };
+  return response.data.data as { proposals: AdminProposal[] };
 }
 
 export async function deleteAdminJob(jobId: string) {
@@ -72,12 +95,12 @@ export async function deleteAdminJob(jobId: string) {
 
 export async function getAdminContests() {
   const response = await api.get("/admin/contests");
-  return response.data.data as { contests: any[] };
+  return response.data.data as { contests: AdminContest[] };
 }
 
 export async function getAdminPendingContests() {
   const response = await api.get("/admin/contests/pending-review");
-  return response.data.data as { contests: any[] };
+  return response.data.data as { contests: AdminContest[] };
 }
 
 export async function approveAdminContest(contestId: string) {
@@ -92,7 +115,7 @@ export async function rejectAdminContest(contestId: string, message: string) {
 
 export async function getAdminCancellationRequests() {
   const response = await api.get("/admin/contests/cancellation-requests");
-  return response.data.data as { requests: any[] };
+  return response.data.data as { requests: AdminContestCancellationRequest[] };
 }
 
 export async function approveAdminCancellationRequest(requestId: string) {
@@ -133,35 +156,35 @@ export async function completeAdminWithdrawal(withdrawalId: string) {
 export async function getAdminDashboardData() {
   const response = await api.get("/admin/dashboard");
   return response.data.data as {
-    moderationLogs: any[];
-    violators: any[];
-    disputes: any[];
+    moderationLogs: Record<string, unknown>[];
+    violators: Record<string, unknown>[];
+    disputes: AdminDispute[];
   };
 }
 
 export async function getAdminActivityLogs() {
   const response = await api.get("/admin/activity");
-  return response.data.data as { logs: any[] };
+  return response.data.data as { logs: AdminActivityLog[] };
 }
 
 export async function getAdminDisputesList() {
   const response = await api.get("/admin/disputes");
-  return response.data.data as { disputes: any[] };
+  return response.data.data as { disputes: AdminDispute[] };
 }
 
 export async function getAdminLegalDocuments() {
   const response = await api.get("/admin/legal-documents");
-  return response.data.data as { documents: any[] };
+  return response.data.data as { documents: AdminLegalDocument[] };
 }
 
-export async function createAdminLegalDocument(payload: Record<string, any>) {
+export async function createAdminLegalDocument(payload: AdminLegalDocumentInput) {
   const response = await api.post("/admin/legal-documents", payload);
-  return response.data.data as { document: any };
+  return response.data.data as { document: AdminLegalDocument };
 }
 
-export async function updateAdminLegalDocument(documentId: string, payload: Record<string, any>) {
+export async function updateAdminLegalDocument(documentId: string, payload: Partial<AdminLegalDocumentInput>) {
   const response = await api.patch(`/admin/legal-documents/${documentId}`, payload);
-  return response.data.data as { document: any };
+  return response.data.data as { document: AdminLegalDocument };
 }
 
 export async function deleteAdminLegalDocument(documentId: string) {
@@ -181,7 +204,7 @@ export async function resolveAdminDispute(disputeId: string, status: string) {
 
 export async function getAdminVerifications() {
   const response = await api.get("/admin/verifications");
-  return response.data.data as { verifications: any[] };
+  return response.data.data as { verifications: AdminVerification[] };
 }
 
 export async function approveAdminVerification(kycId: string) {
@@ -212,14 +235,14 @@ export async function revokeAdminIdentityVerification(kycId: string, adminNotes:
 export async function getAdminUsersData() {
   const response = await api.get("/admin/users");
   return response.data.data as {
-    users: any[];
+    users: AdminUserListItem[];
     frozenWithdrawalUsers: Record<string, boolean>;
   };
 }
 
 export async function getAdminUserDetail(userId: string) {
   const response = await api.get(`/admin/users/${userId}`);
-  return response.data.data as { wallet: any; violations: any };
+  return response.data.data as { wallet: AdminUserWallet | null; violations: AdminUserViolations | null };
 }
 
 export async function setAdminUserVerification(userId: string, verified: boolean) {
@@ -249,7 +272,7 @@ export async function closeAdminUserAccount(userId: string) {
 
 export async function getAdminSettingsData() {
   const response = await api.get("/admin/settings");
-  return response.data.data as { categories: any[]; commissionTiers: any[] };
+  return response.data.data as { categories: AdminCategory[]; commissionTiers: CommissionTier[] };
 }
 
 export async function addAdminCategory(name: string, slug: string) {
@@ -257,14 +280,14 @@ export async function addAdminCategory(name: string, slug: string) {
   return response.data.data;
 }
 
-export async function updateAdminCommissionTiers(tiers: any[]) {
+export async function updateAdminCommissionTiers(tiers: CommissionTier[]) {
   const response = await api.patch("/admin/settings/commission-tiers", { tiers });
   return response.data.data;
 }
 
 export async function listAdmins() {
   const response = await api.get("/admin/admins");
-  return response.data.data.admins as any[];
+  return response.data.data.admins as AdminAccount[];
 }
 
 export async function createAdmin(payload: {
@@ -305,7 +328,7 @@ export async function getAdminPendingWithdrawalCount() {
 
 export async function getAdminPayoutTransfers() {
   const response = await api.get("/admin/payouts");
-  return response.data.data as { transfers: any[] };
+  return response.data.data as { transfers: AdminPayoutTransfer[] };
 }
 
 export async function retryAdminPayoutTransfer(transferId: string) {

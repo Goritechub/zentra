@@ -26,10 +26,12 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
+  type LucideIcon,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import type { AdminVerification as AdminVerificationRecord } from "@/types/admin";
 
-const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; color: string }> = {
   not_started: { label: "Not Started", icon: ShieldCheck, color: "text-muted-foreground" },
   pending: { label: "Pending", icon: Clock, color: "text-accent" },
   verified: { label: "Verified", icon: CheckCircle2, color: "text-primary" },
@@ -38,11 +40,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }>
 };
 
 export default function AdminVerification() {
-  const [verifications, setVerifications] = useState<any[]>([]);
+  const [verifications, setVerifications] = useState<AdminVerificationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedKyc, setSelectedKyc] = useState<any>(null);
+  const [selectedKyc, setSelectedKyc] = useState<AdminVerificationRecord | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -200,7 +202,7 @@ export default function AdminVerification() {
                 </TableCell>
               </TableRow>
             )}
-            {filtered.map((v: any) => {
+            {filtered.map((v) => {
               const statusConf = STATUS_CONFIG[v.kyc_status] || STATUS_CONFIG.not_started;
               const StatusIcon = statusConf.icon;
               return (

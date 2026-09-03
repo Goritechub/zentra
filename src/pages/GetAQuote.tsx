@@ -19,6 +19,20 @@ const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 type SkillLevel = "Beginner" | "Intermediate" | "Advanced";
 type DurationUnit = "days" | "weeks" | "months";
 
+interface GrecaptchaApi {
+  render: (
+    container: HTMLElement,
+    params: { sitekey: string; callback: (token: string) => void; "expired-callback": () => void },
+  ) => number;
+  reset: (widgetId: number) => void;
+}
+
+declare global {
+  interface Window {
+    grecaptcha?: GrecaptchaApi;
+  }
+}
+
 export default function GetAQuote() {
   const navigate = useNavigate();
 
@@ -76,7 +90,7 @@ export default function GetAQuote() {
 
   useEffect(() => {
     const tryRender = () => {
-      const grecaptcha = (window as any).grecaptcha;
+      const grecaptcha = window.grecaptcha;
       if (!grecaptcha?.render) return false;
       if (!recaptchaContainerRef.current) return false;
       if (recaptchaWidgetIdRef.current !== null) return true;
@@ -180,9 +194,9 @@ export default function GetAQuote() {
         recaptchaToken,
       });
       setSubmitted(true);
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to submit your quote request. Please try again.");
-      const grecaptcha = (window as any).grecaptcha;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to submit your quote request. Please try again.");
+      const grecaptcha = window.grecaptcha;
       if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
         grecaptcha.reset(recaptchaWidgetIdRef.current);
       }

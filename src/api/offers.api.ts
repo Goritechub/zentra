@@ -1,4 +1,5 @@
 import { api } from "./axios";
+import type { SentOffer, PrivateJob } from "@/types/offers";
 
 export async function getReceivedOffers() {
   const response = await api.get("/offers/received");
@@ -7,7 +8,7 @@ export async function getReceivedOffers() {
 
 export async function getSentOffers() {
   const response = await api.get("/offers/sent");
-  return response.data.data as { offers: any[]; privateJobs: any[] };
+  return response.data.data as { offers: SentOffer[]; privateJobs: PrivateJob[] };
 }
 
 export async function cancelSentOfferJob(jobId: string) {

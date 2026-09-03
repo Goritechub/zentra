@@ -1,8 +1,9 @@
 import { api } from "./axios";
+import type { ClientReceivedProposalsOverview } from "@/types/proposals";
 
 export async function getClientReceivedProposalsOverview() {
   const response = await api.get("/proposals/client-received-overview");
-  return response.data.data;
+  return response.data.data as ClientReceivedProposalsOverview;
 }
 
 export async function updateClientProposalStatus(proposalId: string, status: string) {

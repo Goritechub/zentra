@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -18,29 +18,56 @@ import {
   Lock, DollarSign, Calendar
 } from "lucide-react";
 
+interface ReceivedOfferClient {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+interface ReceivedOffer {
+  _type: "job_offer" | "direct_offer";
+  id: string;
+  job_id: string | null;
+  client_id: string;
+  client: ReceivedOfferClient | null;
+  title: string;
+  description: string | null;
+  budget: number | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  delivery_days: number | null;
+  delivery_unit: string | null;
+  state: string | null;
+  city: string | null;
+  is_remote: boolean | null;
+  required_skills: string[] | null;
+  status: string;
+  created_at: string;
+}
+
 export default function ReceivedOffersPage() {
   const { format } = useCurrency();
   const { user, bootstrapStatus } = useAuth();
   const navigate = useNavigate();
-  const [offers, setOffers] = useState<any[]>([]);
+  const [offers, setOffers] = useState<ReceivedOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<ReceivedOffer | null>(null);
   const [showDecline, setShowDecline] = useState(false);
+
+  const fetchOffers = useCallback(async () => {
+    if (!user) return;
+    const offers = await getReceivedOffers();
+    setOffers(offers as ReceivedOffer[]);
+    setLoading(false);
+  }, [user]);
 
   useEffect(() => {
     if (!user) navigate("/auth");
     if (user) fetchOffers();
-  }, [user]);
+  }, [user, navigate, fetchOffers]);
 
-  const fetchOffers = async () => {
-    if (!user) return;
-    const offers = await getReceivedOffers();
-    setOffers(offers);
-    setLoading(false);
-  };
-
-  const handleAcceptDirect = async (offer: any) => {
+  const handleAcceptDirect = async (offer: ReceivedOffer) => {
     setActionLoading(true);
     try {
       await acceptDirectOffer(offer.id);
@@ -84,7 +111,7 @@ export default function ReceivedOffersPage() {
   const pendingOffers = offers.filter(o => o.status === "pending");
   const respondedOffers = offers.filter(o => o.status !== "pending");
 
-  const OfferCard = ({ offer }: { offer: any }) => (
+  const OfferCard = ({ offer }: { offer: ReceivedOffer }) => (
     <div className="bg-card rounded-xl border border-border p-6">
       <div className="flex items-start gap-4">
         <Avatar className="h-12 w-12 shrink-0">

@@ -77,9 +77,9 @@ export default function OnboardingPage() {
         username: normalizedUsername,
         referralCode: selectedRole === "client" && referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
       });
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "We could not finish your account setup. Please try again.";
-      if (typeof message === "string" && message.toLowerCase().includes("username")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "We could not finish your account setup. Please try again.";
+      if (message.toLowerCase().includes("username")) {
         setErrors({ username: "This username is already taken" });
       } else {
         setErrors({ general: message });
@@ -105,7 +105,7 @@ export default function OnboardingPage() {
       if (!tz.startsWith("Africa/")) {
         void updateMyProfileData({ preferredCurrency: "USD" });
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     navigate(selectedRole === "freelancer" ? "/jobs" : "/dashboard", { replace: true });
   };

@@ -5,6 +5,16 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { Loader2, Users, Briefcase, FileText, Wallet, Gavel, TrendingUp, UserCheck, DollarSign, ArrowRight, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
+interface OverviewCard {
+  label: string;
+  value: number | string;
+  icon: typeof Users;
+  color: string;
+  route: string;
+  isNaira?: boolean;
+  subtitle?: string;
+}
+
 interface Stats {
   totalUsers: number;
   totalClients: number;
@@ -53,7 +63,7 @@ export default function AdminOverview() {
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  const cards = [
+  const cards: OverviewCard[] = [
     { label: "Total Users", value: stats!.totalUsers, icon: Users, color: "text-primary", route: "/admin/users" },
     { label: "Clients", value: stats!.totalClients, icon: UserCheck, color: "text-blue-500", route: "/admin/users" },
     { label: "Experts", value: stats!.totalExperts, icon: Users, color: "text-emerald-500", route: "/admin/users" },
@@ -81,7 +91,7 @@ export default function AdminOverview() {
                 <div>
                   <p className="text-sm text-muted-foreground">{card.label}</p>
                   <p className="text-2xl font-bold mt-1">{card.isNaira ? card.value : card.value.toLocaleString()}</p>
-                  {(card as any).subtitle && <p className="text-xs text-muted-foreground mt-0.5">{(card as any).subtitle} after gateway fees</p>}
+                  {card.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle} after gateway fees</p>}
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <card.icon className={`h-8 w-8 ${card.color}`} />

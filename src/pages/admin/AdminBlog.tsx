@@ -46,8 +46,8 @@ export default function AdminBlog() {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
       setAllPosts(combined);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to load posts");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load posts");
     } finally {
       setLoading(false);
     }
@@ -73,8 +73,8 @@ export default function AdminBlog() {
         setAllPosts((prev) => prev.filter((p) => p.id !== post.id));
         if (selected?.id === post.id) setSelected(null);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Action failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setActing(false);
       setConfirm(null);

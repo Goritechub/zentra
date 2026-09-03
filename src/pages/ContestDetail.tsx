@@ -24,6 +24,15 @@ import {
 } from "@/components/ui/dialog";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import { useAuth } from "@/hooks/useAuth";
+import type { User } from "@supabase/supabase-js";
+import type {
+  ContestDetailData,
+  ContestEntry,
+  ContestParticipant,
+  ContestComment,
+  ContestCommentRow,
+  ContestCommentLike,
+} from "@/types/marketplace";
 import {
   createContestComment,
   createCommentMention,
@@ -96,7 +105,7 @@ import {
  *                        OR db status is "ended" / "completed"
  */
 function deriveContestStatus(
-  contest: any,
+  contest: ContestDetailData | null,
   winnersCount: number,
 ): "active" | "selecting_winners" | "completed" {
   if (!contest) return "active";
@@ -113,6 +122,13 @@ function deriveContestStatus(
     return "selecting_winners";
   return "active";
 }
+
+type PrizeKey =
+  | "prize_first"
+  | "prize_second"
+  | "prize_third"
+  | "prize_fourth"
+  | "prize_fifth";
 
 function getStatusLabel(status: ReturnType<typeof deriveContestStatus>) {
   if (status === "completed") return "Completed";
@@ -133,19 +149,19 @@ function getStatusVariant(
 // ---------------------------------------------------------------------------
 
 interface CommentItemProps {
-  comment: any;
+  comment: ContestComment;
   depth?: number;
-  contest: any;
-  user: any;
-  commentLikes: any[];
+  contest: ContestDetailData;
+  user: User | null;
+  commentLikes: ContestCommentLike[];
   replyTo: string | null;
   replyText: string;
   postingComment: boolean;
   showMentions: boolean;
-  mentionSuggestions: any[];
+  mentionSuggestions: ContestParticipant[];
   mentionTarget: "comment" | "reply";
   commentsLocked: boolean;
-  getReplies: (parentId: string) => any[];
+  getReplies: (parentId: string) => ContestComment[];
   renderCommentText: (text: string) => React.ReactNode;
   getCommentLikeCount: (commentId: string) => number;
   hasUserLiked: (commentId: string) => boolean;
@@ -154,7 +170,7 @@ interface CommentItemProps {
   onReplyToggle: (commentId: string) => void;
   onReplyTextChange: (value: string) => void;
   onPostReply: (parentId: string) => void;
-  onInsertMention: (participant: any) => void;
+  onInsertMention: (participant: ContestParticipant) => void;
 }
 
 const CommentItem = ({
@@ -193,19 +209,19 @@ const CommentItem = ({
       >
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-foreground">
-            {(comment.user as any)?.full_name || "User"}
+            {comment.user?.full_name || "User"}
           </span>
-          {(comment.user as any)?.username && (
+          {comment.user?.username && (
             <Link
               to={
-                (comment.user as any)?.role === "client"
+                comment.user?.role === "client"
                   ? `/client/${comment.user_id}/profile`
                   : `/expert/${comment.user_id}/profile`
               }
               className="text-xs text-muted-foreground hover:text-primary hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
-              @{(comment.user as any).username}
+              @{comment.user.username}
             </Link>
           )}
           {comment.user_id === contest.client_id && (
@@ -296,7 +312,7 @@ const CommentItem = ({
 
       {replies.length > 0 && (
         <div className="mt-2 space-y-2">
-          {replies.map((r: any) => (
+          {replies.map((r) => (
             <CommentItem
               key={r.id}
               comment={r}
@@ -428,8 +444,8 @@ function WinnerCard({
   isOpen,
   onViewEntry,
 }: {
-  winner: any;
-  contest: any;
+  winner: ContestEntry;
+  contest: ContestDetailData;
   position: number;
   isLarge?: boolean;
   isOpen: boolean;
@@ -448,7 +464,7 @@ function WinnerCard({
   ];
   const medal = medals[position - 1] || "🏅";
   const posLabel = posLabels[position - 1] || `${position}th Place`;
-  const prizeKeys = [
+  const prizeKeys: PrizeKey[] = [
     "prize_first",
     "prize_second",
     "prize_third",
@@ -456,9 +472,9 @@ function WinnerCard({
     "prize_fifth",
   ];
   const prize = contest[prizeKeys[position - 1]] || 0;
-  const name = (winner.freelancer as any)?.full_name || "Expert";
-  const username = (winner.freelancer as any)?.username;
-  const avatarUrl = (winner.freelancer as any)?.avatar_url;
+  const name = winner.freelancer?.full_name || "Expert";
+  const username = winner.freelancer?.username;
+  const avatarUrl = winner.freelancer?.avatar_url;
   const initials = name
     .split(" ")
     .map((n: string) => n[0])
@@ -468,8 +484,7 @@ function WinnerCard({
 
   const justifications = contest.winner_justifications || {};
   const justification = justifications[String(position)] || "";
-  const clientLocation =
-    (contest.client as any)?.state || (contest.client as any)?.city || "";
+  const clientLocation = contest.client?.state || contest.client?.city || "";
 
   const JUSTIFICATION_TRUNCATE = 100;
   const isTruncated = justification.length > JUSTIFICATION_TRUNCATE;
@@ -575,10 +590,10 @@ export default function ContestDetailPage() {
   const location = useLocation();
   const { user, profile } = useAuth();
 
-  const [contest, setContest] = useState<any>(null);
-  const [entries, setEntries] = useState<any[]>([]);
-  const [winners, setWinners] = useState<any[]>([]);
-  const [nominees, setNominees] = useState<any[]>([]);
+  const [contest, setContest] = useState<ContestDetailData | null>(null);
+  const [entries, setEntries] = useState<ContestEntry[]>([]);
+  const [winners, setWinners] = useState<ContestEntry[]>([]);
+  const [nominees, setNominees] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("description");
   const [trueEntryCount, setTrueEntryCount] = useState<number>(0);
@@ -590,7 +605,7 @@ export default function ContestDetailPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Edit entry
-  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editingEntry, setEditingEntry] = useState<ContestEntry | null>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editFiles, setEditFiles] = useState<File[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -618,18 +633,22 @@ export default function ContestDetailPage() {
   const [followLoading, setFollowLoading] = useState(false);
 
   // Comments
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentLikes, setCommentLikes] = useState<any[]>([]);
+  const [comments, setComments] = useState<ContestComment[]>([]);
+  const [commentLikes, setCommentLikes] = useState<ContestCommentLike[]>([]);
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [postingComment, setPostingComment] = useState(false);
-  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+  const [mentionSuggestions, setMentionSuggestions] = useState<
+    ContestParticipant[]
+  >([]);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionTarget, setMentionTarget] = useState<"comment" | "reply">(
     "comment",
   );
-  const [contestParticipants, setContestParticipants] = useState<any[]>([]);
+  const [contestParticipants, setContestParticipants] = useState<
+    ContestParticipant[]
+  >([]);
   const commentsRef = useRef<HTMLDivElement>(null);
 
   const isExpert = profile?.role === "freelancer";
@@ -691,6 +710,63 @@ export default function ContestDetailPage() {
   // Data fetching
   // ---------------------------------------------------------------------------
 
+  const fetchFollowState = useCallback(async () => {
+    if (!user || !id) return;
+    const data = await getContestFollowState(id);
+    setIsFollowing(!!data.isFollowing);
+  }, [user, id]);
+
+  const fetchContest = useCallback(async () => {
+    if (!id) return;
+    const data = await getContestDetailOverview(id);
+    setContest(data.contest);
+    setTrueEntryCount(data.trueEntryCount || 0);
+    setEntries(data.entries || []);
+    setNominees(data.nominees || []);
+    setWinners(data.winners || []);
+    setContestParticipants(data.participants || []);
+    setLoading(false);
+  }, [id]);
+
+  const fetchLikes = useCallback(async () => {
+    if (!id) return;
+    const data = await getContestCommentLikes(id);
+    setCommentLikes(data.likes || []);
+  }, [id]);
+
+  const fetchComments = useCallback(async () => {
+    if (!id) return;
+    let hydrated: ContestComment[] = [];
+    try {
+      const data = await getContestComments(id);
+      hydrated = data.comments || [];
+    } catch {
+      toast.error("Failed to load comments");
+      return;
+    }
+
+    setComments(hydrated);
+    const commentIds = hydrated.map((c) => c.id);
+    if (commentIds.length > 0) {
+      const likesData = await getContestCommentLikes(id!);
+      setCommentLikes(likesData.likes || []);
+    }
+
+    setContestParticipants((prev) => {
+      const updated = [...prev];
+      hydrated.forEach((c) => {
+        if (!updated.find((p) => p.id === c.user_id)) {
+          updated.push({
+            id: c.user_id,
+            full_name: c.user?.full_name,
+            username: c.user?.username,
+          });
+        }
+      });
+      return updated;
+    });
+  }, [id]);
+
   useEffect(() => {
     if (id) {
       fetchContest();
@@ -698,7 +774,7 @@ export default function ContestDetailPage() {
       fetchLikes();
       if (user) fetchFollowState();
     }
-  }, [id, user]);
+  }, [id, user, fetchContest, fetchComments, fetchLikes, fetchFollowState]);
 
   useEffect(() => {
     if (location.hash === "#comments" && commentsRef.current) {
@@ -721,18 +797,19 @@ export default function ContestDetailPage() {
       if (user && contest.client_id === user.id) {
         updateContestStatus(id!, "selecting_winners")
           .then(() => {
-            setContest((prev: any) => ({
-              ...prev,
-              status: "selecting_winners",
-            }));
+            setContest((prev) =>
+              prev ? { ...prev, status: "selecting_winners" } : prev,
+            );
           })
           .catch(() => {});
       } else {
         // Non-owners see derived state without writing to DB
-        setContest((prev: any) => ({ ...prev, status: "selecting_winners" }));
+        setContest((prev) =>
+          prev ? { ...prev, status: "selecting_winners" } : prev,
+        );
       }
     }
-  }, [contest?.id, deadlinePassed, contest?.status, winners.length, user?.id]);
+  }, [contest, id, deadlinePassed, winners.length, user]);
 
   // Auto-select first entry when host enters split-pane review mode
   useEffect(() => {
@@ -743,17 +820,11 @@ export default function ContestDetailPage() {
   }, [
     isOwner,
     isSelectingWinners,
-    entries.length,
-    nominees.length,
-    winners.length,
+    entries,
+    nominees,
+    winners,
     selectedEntryId,
   ]);
-
-  const fetchFollowState = async () => {
-    if (!user || !id) return;
-    const data = await getContestFollowState(id);
-    setIsFollowing(!!data.isFollowing);
-  };
 
   const handleToggleFollow = async () => {
     if (!user || !id) return;
@@ -770,57 +841,6 @@ export default function ContestDetailPage() {
     setFollowLoading(false);
   };
 
-  const fetchContest = async () => {
-    if (!id) return;
-    const data = await getContestDetailOverview(id);
-    setContest(data.contest);
-    setTrueEntryCount(data.trueEntryCount || 0);
-    setEntries(data.entries || []);
-    setNominees(data.nominees || []);
-    setWinners(data.winners || []);
-    setContestParticipants(data.participants || []);
-    setLoading(false);
-  };
-
-  const fetchLikes = async () => {
-    if (!id) return;
-    const data = await getContestCommentLikes(id);
-    setCommentLikes(data.likes || []);
-  };
-
-  const fetchComments = useCallback(async () => {
-    if (!id) return;
-    let hydrated: any[] = [];
-    try {
-      const data = await getContestComments(id);
-      hydrated = data.comments || [];
-    } catch {
-      toast.error("Failed to load comments");
-      return;
-    }
-
-    setComments(hydrated);
-    const commentIds = hydrated.map((c) => c.id);
-    if (commentIds.length > 0) {
-      const likesData = await getContestCommentLikes(id!);
-      setCommentLikes(likesData.likes || []);
-    }
-
-    setContestParticipants((prev) => {
-      const updated = [...prev];
-      hydrated.forEach((c: any) => {
-        if (!updated.find((p) => p.id === c.user_id)) {
-          updated.push({
-            id: c.user_id,
-            full_name: c.user?.full_name,
-            username: c.user?.username,
-          });
-        }
-      });
-      return updated;
-    });
-  }, [id]);
-
   // ---------------------------------------------------------------------------
   // Entry helpers
   // ---------------------------------------------------------------------------
@@ -835,7 +855,7 @@ export default function ContestDetailPage() {
     return count;
   };
 
-  const canEditEntry = (entry: any) => {
+  const canEditEntry = (entry: ContestEntry) => {
     if (entry.freelancer_id !== user?.id) return false;
     if (isNonLive || isCompleted || deadlinePassed) return false;
     if ((entry.edit_count || 0) >= 2) return false;
@@ -844,7 +864,7 @@ export default function ContestDetailPage() {
     return true;
   };
 
-  const canDeleteEntry = (entry: any) => {
+  const canDeleteEntry = (entry: ContestEntry) => {
     if (entry.freelancer_id !== user?.id) return false;
     if (isNonLive || deadlinePassed || isCompleted) return false;
     return true;
@@ -878,8 +898,8 @@ export default function ContestDetailPage() {
       setSubmissionDesc("");
       setSubmissionFiles([]);
       fetchContest();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to submit entry");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit entry");
     } finally {
       setSubmitting(false);
     }
@@ -1039,7 +1059,7 @@ export default function ContestDetailPage() {
     }
   };
 
-  const insertMention = (participant: any) => {
+  const insertMention = (participant: ContestParticipant) => {
     const username =
       participant.username || participant.full_name?.replace(/\s+/g, "");
     if (mentionTarget === "comment") {
@@ -1070,7 +1090,7 @@ export default function ContestDetailPage() {
     const followersData = await getContestFollowers(id);
     const followers = followersData.followers || [];
     if (followers.length) {
-      for (const f of followers as any[]) {
+      for (const f of followers) {
         if (f.user_id === user.id) continue;
         if (f.user_id === contest.client_id) continue;
         await createNotification({
@@ -1090,7 +1110,7 @@ export default function ContestDetailPage() {
     if (!text.trim() || !user) return;
     setPostingComment(true);
 
-    let inserted: any = null;
+    let inserted: ContestCommentRow | null = null;
     try {
       const data = await createContestComment(id!, {
         content: text.trim(),
@@ -1110,7 +1130,7 @@ export default function ContestDetailPage() {
           (p) => p.username?.toLowerCase() === username.toLowerCase(),
         );
         if (mentioned && mentioned.id !== user.id) {
-          await createCommentMention((inserted as any).id, mentioned.id);
+          await createCommentMention(inserted.id, mentioned.id);
           await createNotification({
             userId: mentioned.id,
             type: "mention",
@@ -1139,24 +1159,23 @@ export default function ContestDetailPage() {
   };
 
   const getCommentLikeCount = (commentId: string) =>
-    commentLikes.filter((l: any) => l.comment_id === commentId).length;
+    commentLikes.filter((l) => l.comment_id === commentId).length;
   const hasUserLiked = (commentId: string) =>
     user
       ? commentLikes.some(
-          (l: any) => l.comment_id === commentId && l.user_id === user.id,
+          (l) => l.comment_id === commentId && l.user_id === user.id,
         )
       : false;
   const isLikedByClient = (commentId: string) =>
     contest
       ? commentLikes.some(
-          (l: any) =>
-            l.comment_id === commentId && l.user_id === contest.client_id,
+          (l) => l.comment_id === commentId && l.user_id === contest.client_id,
         )
       : false;
 
-  const topLevelComments = comments.filter((c: any) => !c.parent_id);
+  const topLevelComments = comments.filter((c) => !c.parent_id);
   const getReplies = (parentId: string) =>
-    comments.filter((c: any) => c.parent_id === parentId);
+    comments.filter((c) => c.parent_id === parentId);
 
   const renderCommentText = (text: string) => {
     const parts = text.split(/(@\w+)/g);
@@ -1274,7 +1293,7 @@ export default function ContestDetailPage() {
     "🏅 4th Place",
     "🏅 5th Place",
   ];
-  const prizeKeys = [
+  const prizeKeys: PrizeKey[] = [
     "prize_first",
     "prize_second",
     "prize_third",
@@ -1399,13 +1418,13 @@ export default function ContestDetailPage() {
                 {contest.title}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                by {(contest.client as any)?.full_name || "Client"}
-                {(contest.client as any)?.username && (
+                by {contest.client?.full_name || "Client"}
+                {contest.client?.username && (
                   <Link
                     to={`/client/${contest.client_id}/profile`}
                     className="text-primary ml-1 hover:underline"
                   >
-                    @{(contest.client as any).username}
+                    @{contest.client.username}
                   </Link>
                 )}
               </p>
@@ -1671,7 +1690,7 @@ export default function ContestDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {topLevelComments.map((c: any) => (
+                      {topLevelComments.map((c) => (
                         <CommentItem
                           key={c.id}
                           comment={c}
@@ -1713,11 +1732,11 @@ export default function ContestDetailPage() {
                             </p>
                           </div>
                         ) : (
-                          allEntries.map((entry: any) => {
+                          allEntries.map((entry) => {
                             const isSelected = entry.id === selectedEntryId;
-                            const isNominee = !!(entry as any).is_nominee;
+                            const isNominee = entry.is_nominee;
                             const entryName =
-                              (entry.freelancer as any)?.full_name || "Expert";
+                              entry.freelancer?.full_name || "Expert";
                             const attachCount = entry.attachments?.length || 0;
 
                             return (
@@ -1738,7 +1757,7 @@ export default function ContestDetailPage() {
                                       {entryName}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                      {format(
+                                      {fnsFormat(
                                         new Date(entry.created_at),
                                         "MMM d",
                                       )}
@@ -1788,10 +1807,7 @@ export default function ContestDetailPage() {
                           <div className="px-5 py-4 border-b border-border shrink-0 flex items-start justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                                {(
-                                  (selectedEntry.freelancer as any)
-                                    ?.full_name || "?"
-                                )
+                                {(selectedEntry.freelancer?.full_name || "?")
                                   .split(" ")
                                   .map((n: string) => n[0])
                                   .join("")
@@ -1800,26 +1816,24 @@ export default function ContestDetailPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="font-semibold text-foreground truncate">
-                                  {(selectedEntry.freelancer as any)
-                                    ?.full_name || "Expert"}
+                                  {selectedEntry.freelancer?.full_name ||
+                                    "Expert"}
                                 </p>
-                                {(selectedEntry.freelancer as any)
-                                  ?.username && (
+                                {selectedEntry.freelancer?.username && (
                                   <p className="text-xs text-muted-foreground">
-                                    @
-                                    {(selectedEntry.freelancer as any).username}
+                                    @{selectedEntry.freelancer.username}
                                   </p>
                                 )}
                                 <p className="text-xs text-muted-foreground">
                                   Submitted{" "}
-                                  {format(
+                                  {fnsFormat(
                                     new Date(selectedEntry.created_at),
                                     "PPP",
                                   )}
                                 </p>
                               </div>
                             </div>
-                            {(selectedEntry as any).is_nominee && (
+                            {selectedEntry.is_nominee && (
                               <Badge className="shrink-0 bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-300">
                                 <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />{" "}
                                 Nominated
@@ -1859,7 +1873,7 @@ export default function ContestDetailPage() {
 
                           {/* Nominate / Remove footer */}
                           <div className="px-5 py-3 border-t border-border shrink-0">
-                            {(selectedEntry as any).is_nominee ? (
+                            {selectedEntry.is_nominee ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1915,12 +1929,12 @@ export default function ContestDetailPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {allEntries.map((entry: any) => (
+                        {allEntries.map((entry) => (
                           <div
                             key={entry.id}
                             id={`entry-${entry.id}`}
                             className={`border rounded-lg p-4 transition-all ${
-                              (entry as any).is_nominee
+                              entry.is_nominee
                                 ? "border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/10"
                                 : "border-border"
                             }`}
@@ -1928,10 +1942,9 @@ export default function ContestDetailPage() {
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-foreground">
-                                  {(entry.freelancer as any)?.full_name ||
-                                    "Expert"}
+                                  {entry.freelancer?.full_name || "Expert"}
                                 </p>
-                                {(entry as any).is_nominee && (
+                                {entry.is_nominee && (
                                   <Badge className="mt-1 bg-amber-50 text-amber-800 border border-amber-300 text-xs dark:bg-amber-950/30 dark:text-amber-300">
                                     <Star className="h-2.5 w-2.5 mr-1 fill-amber-500 text-amber-500" />{" "}
                                     Nominee
@@ -1941,7 +1954,7 @@ export default function ContestDetailPage() {
                                   {entry.description}
                                 </p>
                               </div>
-                              {(entry as any).is_nominee ? (
+                              {entry.is_nominee ? (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -2041,10 +2054,9 @@ export default function ContestDetailPage() {
                       {(isOpen || isOwner || !isCompleted
                         ? allEntries
                         : allEntries.filter(
-                            (e: any) =>
-                              e.is_winner || e.freelancer_id === user?.id,
+                            (e) => e.is_winner || e.freelancer_id === user?.id,
                           )
-                      ).map((entry: any) => {
+                      ).map((entry) => {
                         const isMyEntry = entry.freelancer_id === user?.id;
                         const editable = canEditEntry(entry);
                         const deletable = canDeleteEntry(entry);
@@ -2057,7 +2069,7 @@ export default function ContestDetailPage() {
                             className={`border rounded-lg p-4 transition-all ${
                               isMyEntry && entry.is_winner
                                 ? "border-green-500 bg-green-500/5"
-                                : (entry as any).is_nominee
+                                : entry.is_nominee
                                   ? "border-primary/50 bg-primary/5"
                                   : "border-border"
                             }`}
@@ -2072,19 +2084,18 @@ export default function ContestDetailPage() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="font-medium text-foreground">
-                                    {(entry.freelancer as any)?.full_name ||
-                                      "Expert"}
+                                    {entry.freelancer?.full_name || "Expert"}
                                   </p>
-                                  {(entry.freelancer as any)?.username && (
+                                  {entry.freelancer?.username && (
                                     <Link
                                       to={`/expert/${entry.freelancer_id}/profile`}
                                       className="text-xs text-muted-foreground hover:text-primary hover:underline"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      @{(entry.freelancer as any).username}
+                                      @{entry.freelancer.username}
                                     </Link>
                                   )}
-                                  {(entry as any).is_nominee &&
+                                  {entry.is_nominee &&
                                     !entry.is_winner &&
                                     isOwner && (
                                       <Badge
@@ -2118,7 +2129,7 @@ export default function ContestDetailPage() {
                               </div>
                               <div className="flex items-center gap-2 ml-2 shrink-0">
                                 <p className="text-xs text-muted-foreground">
-                                  {format(
+                                  {fnsFormat(
                                     new Date(entry.created_at),
                                     "MMM d, yyyy",
                                   )}
@@ -2207,7 +2218,7 @@ export default function ContestDetailPage() {
                       them official winners.
                     </p>
                     <div className="space-y-3">
-                      {nominees.map((n: any, idx: number) => (
+                      {nominees.map((n, idx: number) => (
                         <div
                           key={n.id}
                           className="flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/20"
@@ -2217,7 +2228,7 @@ export default function ContestDetailPage() {
                           </span>
                           <div className="flex-1">
                             <p className="font-medium text-foreground">
-                              {(n.freelancer as any)?.full_name || "Expert"}
+                              {n.freelancer?.full_name || "Expert"}
                             </p>
                             <p className="text-sm text-muted-foreground line-clamp-1">
                               {n.description}
@@ -2297,7 +2308,7 @@ export default function ContestDetailPage() {
                             : "grid-cols-2 max-w-lg mx-auto"
                         }`}
                       >
-                        {winners.slice(3).map((w: any) => (
+                        {winners.slice(3).map((w) => (
                           <WinnerCard
                             key={w.id}
                             winner={w}
@@ -2310,7 +2321,7 @@ export default function ContestDetailPage() {
                       </div>
                     )}
                     <div className="md:hidden space-y-8 pt-12">
-                      {winners.map((w: any) => (
+                      {winners.map((w) => (
                         <WinnerCard
                           key={w.id}
                           winner={w}
@@ -2331,7 +2342,7 @@ export default function ContestDetailPage() {
                         : "grid-cols-1 sm:grid-cols-2"
                     }`}
                   >
-                    {winners.map((w: any) => (
+                    {winners.map((w) => (
                       <WinnerCard
                         key={w.id}
                         winner={w}
@@ -2463,12 +2474,12 @@ export default function ContestDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            {nominees.map((n: any, idx: number) => (
+            {nominees.map((n, idx: number) => (
               <div key={n.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{nomineeEmojis[idx] || "🏅"}</span>
                   <span className="font-medium">
-                    {(n.freelancer as any)?.full_name || "Expert"}
+                    {n.freelancer?.full_name || "Expert"}
                   </span>
                   <span className="ml-auto font-bold text-primary">
                     {format(contest[prizeKeys[idx]] || 0)}
@@ -2549,7 +2560,7 @@ export default function ContestDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            {nominees.map((n: any, idx: number) => (
+            {nominees.map((n, idx: number) => (
               <button
                 key={n.id}
                 onClick={() => handleSwapNominee(n.id)}
@@ -2558,7 +2569,7 @@ export default function ContestDetailPage() {
                 <span className="text-xl">{nomineeEmojis[idx] || "🏅"}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    {(n.freelancer as any)?.full_name || "Expert"}
+                    {n.freelancer?.full_name || "Expert"}
                   </p>
                   {n.description && (
                     <p className="text-xs text-muted-foreground line-clamp-1">
