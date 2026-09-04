@@ -33,6 +33,7 @@ import {
   ShieldAlert,
   XCircle,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { RevenueWithdrawCard } from "@/components/admin/RevenueWithdrawCard";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -333,10 +334,7 @@ export default function AdminPayments() {
         <TabsContent value="wallets">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
             {filteredWallets.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{q ? "No wallets match your search" : "No wallets found"}</p>
-              </div>
+              <EmptyState variant="wallet" title={q ? "No wallets match your search" : "No wallets found"} />
             ) : (
               <Table>
                 <TableHeader>
@@ -394,10 +392,7 @@ export default function AdminPayments() {
         <TabsContent value="pending">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
             {pendingClearance.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No pending clearance payments</p>
-              </div>
+              <EmptyState variant="wallet" title="No pending clearance payments" />
             ) : (
               <Table>
                 <TableHeader>
@@ -437,10 +432,7 @@ export default function AdminPayments() {
         <TabsContent value="transactions">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
             {filteredTransactions.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{q ? "No transactions match your search" : "No transactions found"}</p>
-              </div>
+              <EmptyState variant="wallet" title={q ? "No transactions match your search" : "No transactions found"} />
             ) : (
               <Table>
                 <TableHeader>
@@ -491,10 +483,7 @@ export default function AdminPayments() {
         <TabsContent value="withdrawals">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
             {filteredWithdrawals.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{q ? "No withdrawals match your search" : "No withdrawals found"}</p>
-              </div>
+              <EmptyState variant="wallet" title={q ? "No withdrawals match your search" : "No withdrawals found"} />
             ) : (
               <Table>
                 <TableHeader>
@@ -570,10 +559,7 @@ export default function AdminPayments() {
         <TabsContent value="revenue">
           <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
             {revenue.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No revenue records found</p>
-              </div>
+              <EmptyState variant="wallet" title="No revenue records found" />
             ) : (
               <Table>
                 <TableHeader>

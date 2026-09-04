@@ -22,6 +22,7 @@ import {
   Clock, AlertCircle, Edit2,
 } from "lucide-react";
 import type { ContestSummary } from "@/types/client";
+import { EmptyState } from "@/components/EmptyState";
 
 const CANCELLATION_REASONS = [
   { value: "insufficient_entries", label: "Not enough entries received" },
@@ -156,13 +157,11 @@ export default function MyContestsPage() {
               ))}
             </div>
           ) : contests.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>You haven't launched any contests yet</p>
-              <Button className="mt-4" asChild>
-                <Link to="/launch-contest">Launch Your First Contest</Link>
-              </Button>
-            </div>
+            <EmptyState
+              variant="trophy"
+              title="You haven't launched any contests yet"
+              action={<Button asChild><Link to="/launch-contest">Launch Your First Contest</Link></Button>}
+            />
           ) : (
             <div className="space-y-4">
               {contests.map((contest) => {

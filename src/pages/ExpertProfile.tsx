@@ -16,6 +16,7 @@ import {
   Send, Award, Settings, Share2, Download, Link as LinkIcon,
   Image, Clock, Pencil, Copy, Check,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExpertProfileOverview } from "@/api/expert-read.api";
 import { useAuth } from "@/hooks/useAuth";
@@ -889,7 +890,7 @@ export default function ExpertProfile() {
                   }
                 />
                 {reviews.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-10">No reviews yet.</p>
+                  <EmptyState variant="people" title="No reviews yet." />
                 ) : (
                   <div className="divide-y divide-border/60">
                     {reviews.map((review, i: number) => {

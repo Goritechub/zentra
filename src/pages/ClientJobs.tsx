@@ -21,8 +21,9 @@ import {
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Briefcase, PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2, Eye } from "lucide-react";
+import { PlusCircle, Loader2, ArrowRight, ArrowLeft, XCircle, Trash2, Eye } from "lucide-react";
 import type { DashboardJob } from "@/types/dashboard";
+import { EmptyState } from "@/components/EmptyState";
 
 interface JobWithCounts extends DashboardJob {
   _proposalCount?: number;
@@ -178,10 +179,10 @@ export default function ClientJobsPage() {
                     ))}
                   </div>
                 ) : filterByStatus(status).length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>{status === "all" ? "No jobs found" : `No ${status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} jobs found`}</p>
-                  </div>
+                  <EmptyState
+                    variant="search"
+                    title={status === "all" ? "No jobs found" : `No ${status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} jobs found`}
+                  />
                 ) : (
                   <div className="space-y-3">
                     {filterByStatus(status).map(job => (

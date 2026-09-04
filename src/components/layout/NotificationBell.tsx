@@ -1,6 +1,7 @@
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -43,7 +44,7 @@ export function NotificationBell() {
         </div>
         <ScrollArea className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>
+            <EmptyState variant="bell" compact title="No notifications" />
           ) : (
             <div className="divide-y divide-border">
               {notifications.slice(0, 20).map((n) => (

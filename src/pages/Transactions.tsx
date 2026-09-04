@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 import type { Tables } from "@/integrations/supabase/types";
 // html2canvas and xlsx are loaded on-demand (export only) to keep the initial bundle small
 
@@ -319,10 +320,7 @@ export default function TransactionsPage() {
             {transactionsQuery.isPending && !transactionsQuery.data ? (
               <TransactionRowSkeleton count={4} />
             ) : filteredTransactions.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{getEmptyMessage()}</p>
-              </div>
+              <EmptyState variant="wallet" title={getEmptyMessage()} />
             ) : (
               <div className="divide-y divide-border">
                 {filteredTransactions.map((tx) => {

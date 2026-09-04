@@ -11,9 +11,10 @@ import { getContracts } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import {
-  FileText, ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle, type LucideIcon
+  ArrowLeft, CheckCircle2, Clock, XCircle, AlertTriangle, type LucideIcon
 } from "lucide-react";
 import { ContractRowSkeleton } from "@/components/skeletons/ContractRowSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 interface ContractsPageContract {
   id: string;
@@ -88,10 +89,10 @@ export default function ContractsPage() {
                 {contractsQuery.isPending && !contractsQuery.data ? (
                   <ContractRowSkeleton count={3} />
                 ) : filterByStatus(status).length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>{status === "all" ? "No contracts" : `No ${status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} contracts`}</p>
-                  </div>
+                  <EmptyState
+                    variant="documents"
+                    title={status === "all" ? "No contracts" : `No ${status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} contracts`}
+                  />
                 ) : (
                   <div className="space-y-4">
                     {filterByStatus(status).map((contract) => {

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DisputeAdjudicator } from "@/components/admin/DisputeAdjudicator";
-import { Loader2, ArrowLeft, Gavel, Eye, AlertTriangle, History } from "lucide-react";
+import { Loader2, ArrowLeft, Gavel, Eye, History } from "lucide-react";
 import { getAdminDisputesList } from "@/api/admin.api";
 import type { AdminDispute } from "@/types/admin";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function AdminDisputes() {
   const [disputes, setDisputes] = useState<AdminDispute[]>([]);
@@ -79,13 +80,6 @@ export default function AdminDisputes() {
     );
   };
 
-  const emptyState = (icon: React.ReactNode, text: string) => (
-    <div className="text-center py-16 text-muted-foreground">
-      {icon}
-      <p>{text}</p>
-    </div>
-  );
-
   return (
     <div>
       <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6">Disputes Management</h1>
@@ -102,14 +96,14 @@ export default function AdminDisputes() {
 
         <TabsContent value="active">
           {activeDisputes.length === 0
-            ? emptyState(<AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />, "No active disputes")
+            ? <EmptyState variant="shield" title="No active disputes" />
             : <div className="space-y-3">{activeDisputes.map(renderDisputeCard)}</div>
           }
         </TabsContent>
 
         <TabsContent value="resolved">
           {resolvedDisputes.length === 0
-            ? emptyState(<History className="h-12 w-12 mx-auto mb-4 opacity-50" />, "No resolved disputes yet")
+            ? <EmptyState variant="shield" title="No resolved disputes yet" />
             : <div className="space-y-3">{resolvedDisputes.map(renderDisputeCard)}</div>
           }
         </TabsContent>

@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Loader2, ArrowLeft, Trash2, X, Archive, RotateCcw } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -187,10 +188,7 @@ const Messages = () => {
         ))}
       </div>
     ) : convos.length === 0 ? (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <MessageSquare className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-        <p className="text-muted-foreground">{isArchived ? "No archived conversations" : "No conversations yet"}</p>
-      </div>
+      <EmptyState variant="chat" title={isArchived ? "No archived conversations" : "No conversations yet"} />
     ) : (
       <div className="overflow-y-auto flex-1">
         <div className="divide-y divide-border">

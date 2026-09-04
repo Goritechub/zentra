@@ -11,6 +11,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { isPast, formatDistanceToNow } from "date-fns";
 import { Trophy, Calendar, Users, ArrowLeft } from "lucide-react";
 import { ContestCardSkeleton } from "@/components/skeletons/ContestCardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
 function deriveContestStatus(contest: ContestSummary, winnersCount: number): "active" | "selecting_winners" | "completed" {
@@ -80,10 +81,7 @@ export default function BrowseContestsPage() {
           {loading ? (
             <ContestCardSkeleton count={4} />
           ) : contests.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No contests available yet</p>
-            </div>
+            <EmptyState variant="trophy" title="No contests available yet" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {contests.map((contest) => {

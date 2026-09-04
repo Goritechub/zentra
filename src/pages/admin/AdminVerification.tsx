@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow } from "date-fns";
 import type { AdminVerification as AdminVerificationRecord } from "@/types/admin";
 
@@ -197,8 +198,8 @@ export default function AdminVerification() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                  No verification requests found
+                <TableCell colSpan={7} className="p-0">
+                  <EmptyState variant="shield" title="No verification requests found" compact />
                 </TableCell>
               </TableRow>
             )}

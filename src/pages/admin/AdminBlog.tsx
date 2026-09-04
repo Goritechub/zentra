@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { Check, Trash2, PenLine, BookOpen } from "lucide-react";
+import { Check, Trash2, PenLine } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { getPendingBlogPosts, getBlogPosts, publishBlogPost, rejectBlogPost, type BlogPost } from "@/api/blog.api";
 import { cn } from "@/lib/utils";
 
@@ -118,11 +119,7 @@ export default function AdminBlog() {
               ))}
             </div>
           ) : allPosts.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-              <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm font-medium text-foreground">No posts yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Posts will appear here once created</p>
-            </div>
+            <EmptyState variant="documents" title="No posts yet" description="Posts will appear here once created" compact />
           ) : (
             <ScrollArea className="flex-1">
               <div className="divide-y divide-border">

@@ -17,6 +17,7 @@ import {
   Inbox, Loader2, ArrowLeft, MapPin, Clock, CheckCircle2, XCircle,
   Lock, DollarSign, Calendar
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 interface ReceivedOfferClient {
   id: string;
@@ -260,10 +261,12 @@ export default function ReceivedOffersPage() {
               ))}
             </div>
           ) : pendingOffers.length === 0 && respondedOffers.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground bg-card rounded-xl border border-border">
-              <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="font-medium">No offers yet</p>
-              <p className="text-sm mt-1">When clients send you private job offers, they'll appear here</p>
+            <div className="bg-card rounded-xl border border-border">
+              <EmptyState
+                variant="documents"
+                title="No offers yet"
+                description="When clients send you private job offers, they'll appear here"
+              />
             </div>
           ) : (
             <div className="space-y-6">

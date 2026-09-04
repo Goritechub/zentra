@@ -25,6 +25,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { VerificationBadges } from "@/components/VerificationBadges";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -319,11 +320,11 @@ export default function ProposalsReceivedPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : allGroups.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No proposals yet</p>
-              <p className="text-sm mt-1">Proposals from experts will appear here once they apply to your jobs.</p>
-            </div>
+            <EmptyState
+              variant="documents"
+              title="No proposals yet"
+              description="Proposals from experts will appear here once they apply to your jobs."
+            />
           ) : (
             <>
               {/* ── Desktop split panel ── */}
@@ -414,10 +415,11 @@ export default function ProposalsReceivedPage() {
 
                       <ScrollArea className="flex-1">
                         {filteredProposals.length === 0 ? (
-                          <div className="text-center py-16 text-muted-foreground">
-                            <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                            <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals for this job</p>
-                          </div>
+                          <EmptyState
+                            variant="documents"
+                            compact
+                            title={`No ${statusFilter !== "all" ? statusFilter : ""} proposals for this job`}
+                          />
                         ) : (
                           <div className={`p-3 space-y-2 ${selectedGroup.contract ? "opacity-60" : ""}`}>
                             {filteredProposals.map((proposal) => (
@@ -528,10 +530,11 @@ export default function ProposalsReceivedPage() {
                     </div>
                     <div className={`p-3 space-y-2 ${selectedGroup.contract ? "opacity-60" : ""}`}>
                       {filteredProposals.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                          <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                          <p className="text-sm">No {statusFilter !== "all" ? statusFilter : ""} proposals</p>
-                        </div>
+                        <EmptyState
+                          variant="documents"
+                          compact
+                          title={`No ${statusFilter !== "all" ? statusFilter : ""} proposals`}
+                        />
                       ) : filteredProposals.map((proposal) => (
                         <ProposalCard
                           key={proposal.id}

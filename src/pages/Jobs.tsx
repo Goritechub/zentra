@@ -22,6 +22,7 @@ import {
   Bookmark, BookmarkCheck, Shield, ChevronDown, ChevronUp, Building2, Wrench,
 } from "lucide-react";
 import { JobCardSkeleton } from "@/components/skeletons/JobCardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const allSkillsAndTools = [...cadSoftwareList, ...cadSkills];
 
@@ -481,11 +482,11 @@ export default function JobsPage() {
                   <JobCardSkeleton count={5} />
                 </div>
               ) : allFiltered.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Briefcase className="h-8 w-8 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">No jobs match your filters</p>
-                  {hasFilters && <Button variant="ghost" className="mt-3" onClick={clearFilters}>Clear filters</Button>}
-                </div>
+                <EmptyState
+                  variant="search"
+                  title="No jobs match your filters"
+                  action={hasFilters && <Button variant="ghost" onClick={clearFilters}>Clear filters</Button>}
+                />
               ) : (
                 <div className="space-y-3">
                   {allFiltered.map((job) => <JobCard key={job.id} job={job} />)}
@@ -495,11 +496,11 @@ export default function JobsPage() {
 
             <TabsContent value="saved">
               {savedFiltered.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Bookmark className="h-10 w-10 mx-auto mb-4 opacity-40" />
-                  <p className="font-medium">No saved jobs yet</p>
-                  <p className="text-sm mt-1">Click the bookmark icon on any job to save it here</p>
-                </div>
+                <EmptyState
+                  variant="bookmark"
+                  title="No saved jobs yet"
+                  description="Click the bookmark icon on any job to save it here"
+                />
               ) : (
                 <div className="space-y-3">
                   {savedFiltered.map((job) => <JobCard key={job.id} job={job} showRemove />)}

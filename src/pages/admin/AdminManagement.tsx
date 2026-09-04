@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, UserPlus, Pencil, Trash2, ShieldCheck, Shield, Ban, CheckCircle, KeyRound } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useOutletContext } from "react-router-dom";
@@ -399,8 +400,8 @@ export default function AdminManagement() {
               ))}
               {admins.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No admin accounts found
+                  <TableCell colSpan={6} className="p-0">
+                    <EmptyState variant="people" title="No admin accounts found" compact />
                   </TableCell>
                 </TableRow>
               )}

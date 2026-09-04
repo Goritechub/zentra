@@ -18,6 +18,7 @@ import {
   ShieldAlert, ImageIcon, Award, Inbox, CheckCircle2, ChevronRight,
   CircleDot, ArrowUpRight, Gift, Copy, Check, type LucideIcon,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExpertStatsBanner } from "@/components/layout/ExpertStatsBanner";
@@ -370,9 +371,7 @@ export default function DashboardPage() {
                         ))}
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                        No recent jobs yet.
-                      </div>
+                      <EmptyState variant="search" compact title="No recent jobs yet." />
                     )}
                   </div>
                 </div>

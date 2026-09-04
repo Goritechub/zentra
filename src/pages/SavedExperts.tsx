@@ -11,6 +11,7 @@ import type { SavedExpert } from "@/types/client";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, Loader2, MapPin, Star, Trash2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function SavedExpertsPage() {
   const { user, bootstrapStatus } = useAuth();
@@ -78,11 +79,11 @@ export default function SavedExpertsPage() {
               ))}
             </div>
           ) : saved.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No saved experts yet</p>
-              <Button size="sm" className="mt-4" asChild><Link to="/freelancers">Browse Experts</Link></Button>
-            </div>
+            <EmptyState
+              variant="bookmark"
+              title="No saved experts yet"
+              action={<Button size="sm" asChild><Link to="/freelancers">Browse Experts</Link></Button>}
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {saved.map((item) => {

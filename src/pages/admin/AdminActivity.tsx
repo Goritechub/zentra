@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Activity } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { getAdminActivityLogs } from "@/api/admin.api";
 import type { AdminActivityLog } from "@/types/admin";
 
@@ -25,10 +26,7 @@ export default function AdminActivity() {
       <h1 className="text-2xl font-bold text-foreground mb-6">Admin Activity Log</h1>
 
       {logs.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No activity recorded yet</p>
-        </div>
+        <EmptyState variant="documents" title="No activity recorded yet" />
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <Table>

@@ -25,6 +25,7 @@ import {
   Search, X, SlidersHorizontal, Star, Clock, Send, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { ServiceCardSkeleton } from "@/components/skeletons/ServiceCardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const PAGE_SIZE = 9;
 
@@ -307,11 +308,11 @@ export default function BrowseServicesPage() {
               {servicesQuery.isPending && !servicesQuery.data ? (
                 <ServiceCardSkeleton count={6} />
               ) : paginated.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No services found</p>
-                  <Button size="sm" className="mt-4" variant="outline" onClick={clearFilters}>Clear Filters</Button>
-                </div>
+                <EmptyState
+                  variant="search"
+                  title="No services found"
+                  action={<Button size="sm" variant="outline" onClick={clearFilters}>Clear Filters</Button>}
+                />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {paginated.map((svc) => {

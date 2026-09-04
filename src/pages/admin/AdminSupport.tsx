@@ -15,6 +15,7 @@ import {
   Loader2, Settings, MessageSquare, AlertTriangle, Send, Mail, Phone, MessageCircle,
   Eye, ChevronRight, Clock, CheckCircle2, XCircle, Search
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -166,10 +167,7 @@ function ComplaintsTab() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p>No complaints found</p>
-        </div>
+        <EmptyState variant="shield" title="No complaints found" />
       ) : (
         <div className="space-y-2">
           {filtered.map((c) => (
@@ -365,10 +363,7 @@ function SupportChatsTab() {
   return (
     <div>
       {chats.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p>No support chats yet</p>
-        </div>
+        <EmptyState variant="chat" title="No support chats yet" />
       ) : (
         <div className="space-y-2">
           {chats.map((c) => (

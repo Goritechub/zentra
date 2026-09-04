@@ -37,6 +37,7 @@ import {
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlatformReviewPrompt } from "@/components/PlatformReviewPrompt";
+import { EmptyState } from "@/components/EmptyState";
 import type {
   ContractDetailData,
   ContractMilestone,
@@ -743,10 +744,7 @@ export default function ContractDetail() {
                   )}
                 </div>
                 {milestones.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No milestones yet.</p>
-                  </div>
+                  <EmptyState variant="documents" title="No milestones yet." />
                 ) : (
                   <div className="space-y-4">
                     {(() => {
@@ -1030,10 +1028,7 @@ export default function ContractDetail() {
                   )}
                 </div>
                 {disputes.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ShieldCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No disputes. Keep it that way! 🤝</p>
-                  </div>
+                  <EmptyState variant="shield" title="No disputes. Keep it that way! 🤝" />
                 ) : (
                   <div className="space-y-4">
                     {disputes.map((d) => {

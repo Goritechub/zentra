@@ -13,6 +13,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Send, Loader2, Clock, CheckCircle2, X, ArrowLeft, Lock, Briefcase, UserPlus, Globe, XCircle } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import type { SentOffer, PrivateJob } from "@/types/offers";
 
 export default function SentOffersPage() {
@@ -121,11 +122,11 @@ export default function SentOffersPage() {
               ))}
             </div>
           ) : totalItems === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No offers sent yet</p>
-              <p className="text-sm mt-1">Send direct offers to experts from their profiles, or post a private job</p>
-            </div>
+            <EmptyState
+              variant="documents"
+              title="No offers sent yet"
+              description="Send direct offers to experts from their profiles, or post a private job"
+            />
           ) : (
             <div className="space-y-8">
               {/* Private Job Offers */}

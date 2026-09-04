@@ -3,6 +3,7 @@
  import { Badge } from "@/components/ui/badge";
  import { formatDistanceToNow } from "date-fns";
  import { cn } from "@/lib/utils";
+ import { EmptyState } from "@/components/EmptyState";
  
  interface Conversation {
    id: string;
@@ -41,11 +42,13 @@
  
    if (conversations.length === 0) {
      return (
-       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-         <p className="text-muted-foreground">No conversations yet</p>
-         <p className="text-sm text-muted-foreground mt-1">
-           Start a conversation by messaging a freelancer or client
-         </p>
+       <div className="flex items-center justify-center h-full">
+         <EmptyState
+           variant="chat"
+           compact
+           title="No conversations yet"
+           description="Start a conversation by messaging a freelancer or client"
+         />
        </div>
      );
    }

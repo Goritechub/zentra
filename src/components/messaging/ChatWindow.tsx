@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { MessageSquare, FileText, ArrowDown } from "lucide-react";
+import { FileText, ArrowDown } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Message {
   id: string;
@@ -103,9 +104,7 @@ export function ChatWindow({ messages, recipientName, recipientAvatar, recipient
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No messages yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Send a message to start the conversation</p>
+          <EmptyState variant="chat" title="No messages yet" description="Send a message to start the conversation" />
         </div>
       </div>
     );

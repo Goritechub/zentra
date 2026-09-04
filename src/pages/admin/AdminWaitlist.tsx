@@ -6,6 +6,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Loader2, Download, Search, Users, Briefcase } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow } from "date-fns";
 import {
   getAdminWaitlistEntries,
@@ -147,8 +148,8 @@ export default function AdminWaitlist() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {search ? "No matches found" : "No waitlist entries yet"}
+                  <TableCell colSpan={8} className="p-0">
+                    <EmptyState variant="people" title={search ? "No matches found" : "No waitlist entries yet"} compact />
                   </TableCell>
                 </TableRow>
               ) : (

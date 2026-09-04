@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Bell, Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNotificationUrl } from "@/lib/notifications";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
@@ -42,10 +43,7 @@ export default function NotificationsPage() {
           </div>
 
           {notifications.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No notifications yet</p>
-            </div>
+            <EmptyState variant="bell" title="No notifications yet" />
           ) : (
             <div className="space-y-2">
               {notifications.map((n) => (

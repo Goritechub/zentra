@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Settings, ArrowLeft, Pencil } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { getClientProfileOverview } from "@/api/client-read.api";
 import { useAuth } from "@/hooks/useAuth";
 import { VerificationBadges } from "@/components/VerificationBadges";
@@ -281,9 +282,7 @@ export default function ClientProfile() {
                 }
               />
               {jobs.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">
-                  No public jobs yet.
-                </p>
+                <EmptyState variant="search" title="No public jobs yet." />
               ) : (
                 <div className="divide-y divide-border/60">
                   {jobs.map((job) => (
@@ -379,7 +378,7 @@ export default function ClientProfile() {
                 right={reviews.length > 0 ? <RatingStars rating={avgRating} count={reviews.length} /> : undefined}
               />
               {reviews.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No reviews yet.</p>
+                <EmptyState variant="people" title="No reviews yet." />
               ) : (
                 <div className="divide-y divide-border/60">
                   {reviews.map((review) => {

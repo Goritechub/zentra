@@ -19,6 +19,7 @@ import {
   Loader2, Search, Trophy, Eye, Trash2, Ban, CheckCircle2, Clock,
   AlertTriangle, XCircle, RefreshCw, ChevronRight,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -292,8 +293,8 @@ export default function AdminContests() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No contests found
+                    <TableCell colSpan={7} className="p-0">
+                      <EmptyState variant="search" title="No contests found" compact />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -376,10 +377,7 @@ export default function AdminContests() {
         {/* ── PENDING REVIEW ───────────────────────────────────── */}
         <TabsContent value="pending">
           {pendingContests.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <CheckCircle2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>No contests awaiting review</p>
-            </div>
+            <EmptyState variant="trophy" title="No contests awaiting review" />
           ) : (
             <div className="space-y-4">
               {pendingContests.map((contest) => (
@@ -448,10 +446,7 @@ export default function AdminContests() {
         {/* ── CANCELLATION REQUESTS ────────────────────────────── */}
         <TabsContent value="cancellations">
           {cancellationRequests.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <CheckCircle2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>No pending cancellation requests</p>
-            </div>
+            <EmptyState variant="documents" title="No pending cancellation requests" />
           ) : (
             <div className="space-y-6">
               {cancellationRequests.map((req) => {

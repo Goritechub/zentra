@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Search, ChevronRight, FileQuestion } from "lucide-react";
+import { Loader2, Search, ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow, format } from "date-fns";
 import { getAdminQuotes, updateAdminQuoteStatus } from "@/api/quotes.api";
 import type { QuoteRequest } from "@/types/quotes";
@@ -101,10 +102,7 @@ export default function AdminQuoteRequests() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <FileQuestion className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p>No quote requests found</p>
-        </div>
+        <EmptyState variant="documents" title="No quote requests found" />
       ) : (
         <div className="space-y-2">
           {filtered.map((q) => (

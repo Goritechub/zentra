@@ -40,6 +40,7 @@ import {
   Loader2, X, Save, Plus, Trash2, Award, Building2, ShieldCheck,
   AlertTriangle, Camera, KeyRound, Building, CheckCircle2, Eye, EyeOff, Mail,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── email prefs ────────────────────────────────────────────────────── */
@@ -824,7 +825,7 @@ export default function SettingsPage() {
                 </div>
 
                 {bankDetails.length === 0 && !showAddBank && (
-                  <p className="text-sm text-muted-foreground">No bank accounts saved yet. Add one to enable withdrawals.</p>
+                  <EmptyState variant="wallet" compact title="No bank accounts saved yet. Add one to enable withdrawals." />
                 )}
 
                 {bankDetails.map((b) => (

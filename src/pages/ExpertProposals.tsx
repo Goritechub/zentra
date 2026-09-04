@@ -17,7 +17,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
-  Loader2, ArrowLeft, Inbox, Clock, UserCheck, FileText, Send, CheckCircle2, X, MessageCircle, LogOut, Mail
+  Loader2, ArrowLeft, Inbox, Clock, UserCheck, CheckCircle2, X, MessageCircle, LogOut,
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import type {
@@ -26,6 +26,7 @@ import type {
   ExpertOverviewInvite,
 } from "@/types/proposals";
 import type { LucideIcon } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function ExpertProposalsPage() {
   const { format } = useCurrency();
@@ -151,13 +152,6 @@ export default function ExpertProposalsPage() {
       setOfferDeclining(false);
     }
   };
-
-  const EmptyState = ({ icon: Icon, text }: { icon: LucideIcon; text: string }) => (
-    <div className="text-center py-16 text-muted-foreground">
-      <Icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-      <p>{text}</p>
-    </div>
-  );
 
   const ProposalCard = ({ p }: { p: ExpertOverviewProposal }) => (
     <div className="bg-card rounded-xl border border-border p-6 card-hover">
@@ -397,7 +391,7 @@ export default function ExpertProposalsPage() {
                   ))}
                 </div>
               ) : pendingOffers.length === 0 ? (
-                <EmptyState icon={Inbox} text="No pending job offers at this time." />
+                <EmptyState variant="documents" title="No pending job offers at this time." />
               ) : (
                 <div className="space-y-4">{pendingOffers.map(o => <OfferCard key={o.id} o={o} />)}</div>
               )}
@@ -423,7 +417,7 @@ export default function ExpertProposalsPage() {
                   ))}
                 </div>
               ) : invites.length === 0 ? (
-                <EmptyState icon={Mail} text="No unanswered invites at this time." />
+                <EmptyState variant="documents" title="No unanswered invites at this time." />
               ) : (
                 <div className="space-y-4">{invites.map(i => <InviteCard key={i.id} invite={i} />)}</div>
               )}
@@ -449,7 +443,7 @@ export default function ExpertProposalsPage() {
                   ))}
                 </div>
               ) : interviewingProposals.length === 0 ? (
-                <EmptyState icon={UserCheck} text="No interviews currently in progress." />
+                <EmptyState variant="people" title="No interviews currently in progress." />
               ) : (
                 <div className="space-y-4">{interviewingProposals.map(p => <ProposalCard key={p.id} p={p} />)}</div>
               )}
@@ -475,7 +469,7 @@ export default function ExpertProposalsPage() {
                   ))}
                 </div>
               ) : applicationProposals.length === 0 ? (
-                <EmptyState icon={FileText} text="You haven't submitted any proposals yet." />
+                <EmptyState variant="documents" title="You haven't submitted any proposals yet." />
               ) : (
                 <div className="space-y-4">{applicationProposals.map(p => <ProposalCard key={p.id} p={p} />)}</div>
               )}

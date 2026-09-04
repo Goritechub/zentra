@@ -9,8 +9,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { getMyContestEntriesList } from "@/api/marketplace.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { format as fnsFormat, isPast } from "date-fns";
-import { Loader2, ArrowLeft, Trophy, Bookmark, FileText, Calendar, Award, type LucideIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Calendar, Award } from "lucide-react";
 import type { MyContestEntry, MyContestEntryContest } from "@/types/marketplace";
+import { EmptyState } from "@/components/EmptyState";
 
 // Canonical status derivation — mirrors ContestDetail.tsx
 function deriveContestStatus(
@@ -100,14 +101,6 @@ export default function ContestEntriesPage() {
   // All five prize tiers
   const totalPrize = (c: MyContestEntryContest) =>
     (c.prize_first || 0) + (c.prize_second || 0) + (c.prize_third || 0) + (c.prize_fourth || 0) + (c.prize_fifth || 0);
-
-  const EmptyState = ({ icon: Icon, text, sub }: { icon: LucideIcon; text: string; sub?: string }) => (
-    <div className="text-center py-16 text-muted-foreground">
-      <Icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-      <p className="font-medium">{text}</p>
-      {sub && <p className="text-sm mt-1">{sub}</p>}
-    </div>
-  );
 
   const EntryCard = ({ entry }: { entry: MyContestEntry }) => {
     const contest = entry.contest;
@@ -233,9 +226,9 @@ export default function ContestEntriesPage() {
             <TabsContent value="entered">
               {entered.length === 0 ? (
                 <EmptyState
-                  icon={FileText}
-                  text="No contest entries yet"
-                  sub="Browse contests and submit your work to compete."
+                  variant="documents"
+                  title="No contest entries yet"
+                  description="Browse contests and submit your work to compete."
                 />
               ) : (
                 <div className="space-y-4">
@@ -248,7 +241,7 @@ export default function ContestEntriesPage() {
 
             <TabsContent value="won">
               {won.length === 0 ? (
-                <EmptyState icon={Trophy} text="No wins yet" sub="Keep entering contests — your time will come!" />
+                <EmptyState variant="trophy" title="No wins yet" description="Keep entering contests — your time will come!" />
               ) : (
                 <div className="space-y-4">
                   {won.map((e) => (
@@ -260,9 +253,9 @@ export default function ContestEntriesPage() {
 
             <TabsContent value="saved">
               <EmptyState
-                icon={Bookmark}
-                text="No saved contests"
-                sub="Save contests you're interested in to find them here later."
+                variant="bookmark"
+                title="No saved contests"
+                description="Save contests you're interested in to find them here later."
               />
             </TabsContent>
           </Tabs>

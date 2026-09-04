@@ -30,6 +30,7 @@ import {
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { FreelancerCardSkeleton } from "@/components/skeletons/FreelancerCardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const PAGE_SIZE = 9;
 
@@ -431,11 +432,11 @@ export default function FreelancersPage() {
                   {freelancersQuery.isPending && !freelancersQuery.data ? (
                     <FreelancerCardSkeleton count={6} />
                   ) : paginated.length === 0 ? (
-                    <div className="text-center py-16">
-                      <Search className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No experts found</h3>
-                      <Button size="sm" onClick={clearFilters}>Clear Filters</Button>
-                    </div>
+                    <EmptyState
+                      variant="search"
+                      title="No experts found"
+                      action={<Button size="sm" onClick={clearFilters}>Clear Filters</Button>}
+                    />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                       {paginated.map((f) => {
@@ -563,11 +564,11 @@ export default function FreelancersPage() {
             {/* ── Saved Experts ── */}
             <TabsContent value="saved">
               {savedExperts.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No saved experts yet</p>
-                  <Button size="sm" className="mt-4" onClick={() => setActiveTab("all")}>Browse Experts</Button>
-                </div>
+                <EmptyState
+                  variant="bookmark"
+                  title="No saved experts yet"
+                  action={<Button size="sm" onClick={() => setActiveTab("all")}>Browse Experts</Button>}
+                />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {savedExperts.map((item) => {

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { FundingStatusBadge } from "@/components/FundingStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import { toast } from "sonner";
 import type {
   JobDetailsJob,
@@ -564,10 +565,7 @@ export default function JobDetailsPage() {
                       )}
 
                       {activeProposals.length === 0 ? (
-                        <div className="text-center py-16 text-muted-foreground">
-                          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No proposals received yet</p>
-                        </div>
+                        <EmptyState variant="documents" title="No proposals received yet" />
                       ) : (
                         activeProposals.map((proposal) => (
                           <div key={proposal.id} className="bg-card rounded-xl border border-border p-4 sm:p-6">
@@ -658,10 +656,7 @@ export default function JobDetailsPage() {
                   <TabsContent value="interviewing">
                     <div className="space-y-4">
                       {interviewContracts.length === 0 ? (
-                        <div className="text-center py-16 text-muted-foreground">
-                          <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No experts being interviewed yet</p>
-                        </div>
+                        <EmptyState variant="people" title="No experts being interviewed yet" />
                       ) : (
                         interviewContracts.map((contract) => (
                           <div

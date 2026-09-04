@@ -26,6 +26,7 @@ import {
   Headphones, Clock, CheckCircle2, XCircle, ArrowLeft, type LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/EmptyState";
 import { useNavigate } from "react-router-dom";
 
 const COMPLAINT_CATEGORIES = [
@@ -202,12 +203,7 @@ function ComplaintHistory({ userId }: { userId: string }) {
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
   if (complaints.length === 0) {
-    return (
-      <div className="text-center py-16 text-muted-foreground">
-        <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-40" />
-        <p>No complaints submitted yet</p>
-      </div>
-    );
+    return <EmptyState variant="shield" title="No complaints submitted yet" />;
   }
 
   return (
@@ -297,7 +293,7 @@ function SupportChatPanel({ userId }: { userId: string }) {
       <ScrollArea className="h-[350px] p-4">
         <div className="space-y-3">
           {messages.length === 0 && (
-            <p className="text-center text-sm text-muted-foreground py-8">No messages yet. Start a conversation!</p>
+            <EmptyState variant="chat" compact title="No messages yet. Start a conversation!" />
           )}
           {messages.map((m) => (
             <div key={m.id} className={cn("flex", m.sender_type === "user" ? "justify-end" : "justify-start")}>

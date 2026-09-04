@@ -10,7 +10,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, RotateCcw, ArrowUpRight, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Loader2, Search, RotateCcw, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -77,10 +78,7 @@ export default function AdminPayoutTransfers() {
 
   const TransferTable = ({ rows }: { rows: AdminPayoutTransfer[] }) => (
     rows.length === 0 ? (
-      <div className="p-12 text-center text-muted-foreground">
-        <ArrowUpRight className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>{q ? "No transfers match your search" : "No transfers in this category"}</p>
-      </div>
+      <EmptyState variant="wallet" title={q ? "No transfers match your search" : "No transfers in this category"} />
     ) : (
       <Table>
         <TableHeader>

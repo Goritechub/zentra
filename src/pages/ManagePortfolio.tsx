@@ -17,6 +17,7 @@ import {
 import type { PortfolioItem } from "@/types/marketplace";
 import { toast } from "sonner";
 import { cadSoftwareList } from "@/lib/nigerian-data";
+import { EmptyState } from "@/components/EmptyState";
 import {
   ArrowLeft,
   Loader2,
@@ -446,12 +447,16 @@ export default function ManagePortfolioPage() {
               ))}
             </div>
           ) : items.length === 0 && !showForm ? (
-            <div className="text-center py-16 bg-card rounded-xl border border-border">
-              <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <p className="text-muted-foreground">No portfolio items yet.</p>
-              <Button className="mt-4" onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4 mr-2" /> Add Your First Project
-              </Button>
+            <div className="bg-card rounded-xl border border-border">
+              <EmptyState
+                variant="image"
+                title="No portfolio items yet."
+                action={
+                  <Button onClick={() => setShowForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Add Your First Project
+                  </Button>
+                }
+              />
             </div>
           ) : (
             <div className="space-y-4">

@@ -23,6 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
+import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@supabase/supabase-js";
 import type {
@@ -1682,12 +1683,7 @@ export default function ContestDetailPage() {
                   ) : null}
 
                   {topLevelComments.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">
-                        No comments yet. Be the first to comment!
-                      </p>
-                    </div>
+                    <EmptyState variant="chat" title="No comments yet. Be the first to comment!" />
                   ) : (
                     <div className="space-y-3">
                       {topLevelComments.map((c) => (
@@ -1725,12 +1721,7 @@ export default function ContestDetailPage() {
 
                       <div className="overflow-y-auto flex-1">
                         {allEntries.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6">
-                            <FileText className="h-10 w-10 mb-3 opacity-40" />
-                            <p className="text-sm text-center">
-                              No entries yet
-                            </p>
-                          </div>
+                          <EmptyState variant="documents" compact title="No entries yet" />
                         ) : (
                           allEntries.map((entry) => {
                             const isSelected = entry.id === selectedEntryId;
@@ -1923,10 +1914,7 @@ export default function ContestDetailPage() {
                       </p>
                     </div>
                     {allEntries.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No entries yet</p>
-                      </div>
+                      <EmptyState variant="documents" title="No entries yet" />
                     ) : (
                       <div className="space-y-3">
                         {allEntries.map((entry) => (
@@ -2010,10 +1998,7 @@ export default function ContestDetailPage() {
                   </div>
 
                   {trueEntryCount === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No entries yet</p>
-                    </div>
+                    <EmptyState variant="documents" title="No entries yet" />
                   ) : !isOpen &&
                     (isBlindActive || (!isOwner && !isCompleted)) ? (
                     /* Closed contest — blurred ghost list + overlay */
@@ -2260,14 +2245,10 @@ export default function ContestDetailPage() {
                 )}
 
                 {winners.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>
-                      {isCompleted
-                        ? "No winners were selected."
-                        : "Winners will appear here when the contest ends."}
-                    </p>
-                  </div>
+                  <EmptyState
+                    variant="trophy"
+                    title={isCompleted ? "No winners were selected." : "Winners will appear here when the contest ends."}
+                  />
                 ) : winners.length >= 3 ? (
                   <>
                     <div className="hidden md:grid grid-cols-3 gap-6 items-end pt-12 pb-4">
