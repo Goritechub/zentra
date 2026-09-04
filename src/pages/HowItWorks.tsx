@@ -4,22 +4,95 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import {
-  UserPlus, Search, FileText, MessageSquare, Handshake, CreditCard,
+  UserPlus, Search, File, MessageSquare, Handshake, CreditCard,
   Trophy, Upload, Briefcase, CheckCircle2, ArrowRight, Star
 } from "lucide-react";
 
-const freelancerSteps = [
-  { icon: UserPlus, title: "Create Your Profile", description: "Sign up as a freelancer, add your skills, software expertise, portfolio items, and set your rates." },
-  { icon: Search, title: "Browse & Apply", description: "Find jobs matching your skills. Submit proposals with your bid, timeline, and cover letter." },
-  { icon: MessageSquare, title: "Discuss & Collaborate", description: "Chat with clients, clarify requirements, share files, and agree on deliverables." },
-  { icon: CreditCard, title: "Get Paid Securely", description: "Complete milestones, get approved, and receive payment from ZentraGig upon client approval." },
+const clientSteps = [
+  {
+    title: "Post a Job or Contest",
+    description: "Describe your engineering project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <div className="absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4">
+          <File className="absolute inset-0 h-8 w-8 text-primary" />
+          <div className="how-it-works-write-line-1 absolute left-[33%] top-[37%] w-[8%] h-0.5 rounded-full bg-primary/70 origin-left opacity-0" />
+          <div className="how-it-works-write-line-2 absolute left-[33%] top-[54%] w-[33%] h-0.5 rounded-full bg-primary/70 origin-left opacity-0" />
+          <div className="how-it-works-write-line-3 absolute left-[33%] top-[71%] w-[33%] h-0.5 rounded-full bg-primary/70 origin-left opacity-0" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: "Review Proposals",
+    description: "Browse proposals from qualified engineers. Check portfolios, ratings, and reviews.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <Search className="how-it-works-search-icon absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-primary" />
+      </div>
+    ),
+  },
+  {
+    title: "Hire & Collaborate",
+    description: "Select your expert, set milestones, and work together with built-in messaging and file sharing.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <Handshake className="how-it-works-handshake-icon absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-primary" />
+      </div>
+    ),
+  },
+  {
+    title: "Approve & Pay",
+    description: "Review deliverables, request revisions if needed, and release payment when satisfied.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <CheckCircle2 className="how-it-works-approve-icon absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-primary" />
+      </div>
+    ),
+  },
 ];
 
-const clientSteps = [
-  { icon: FileText, title: "Post a Job or Contest", description: "Describe your engineering project, set a budget, required skills, and timeline. Or launch a contest for multiple submissions." },
-  { icon: Search, title: "Review Proposals", description: "Browse proposals from qualified engineers. Check portfolios, ratings, and reviews." },
-  { icon: Handshake, title: "Hire & Collaborate", description: "Select your expert, set milestones, and work together with built-in messaging and file sharing." },
-  { icon: CheckCircle2, title: "Approve & Pay", description: "Review deliverables, request revisions if needed, and release payment when satisfied." },
+const freelancerSteps = [
+  {
+    title: "Create Your Profile",
+    description: "Sign up as a freelancer, add your skills, software expertise, portfolio items, and set your rates.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <span className="how-it-works-ping-ring absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 rounded-full border-2 border-accent/60 opacity-0" />
+        <UserPlus className="how-it-works-ping-icon absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-accent" />
+      </div>
+    ),
+  },
+  {
+    title: "Browse & Apply",
+    description: "Find jobs matching your skills. Submit proposals with your bid, timeline, and cover letter.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <Search className="how-it-works-search-icon absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-accent" />
+      </div>
+    ),
+  },
+  {
+    title: "Discuss & Collaborate",
+    description: "Chat with clients, clarify requirements, share files, and agree on deliverables.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <MessageSquare className="absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-accent transition-opacity duration-300 group-hover:opacity-20" />
+        <div className="how-it-works-bubble-left absolute h-3 w-6 rounded-md rounded-bl-sm bg-primary/70 bottom-4 left-3 opacity-0" />
+        <div className="how-it-works-bubble-right absolute h-3 w-6 rounded-md rounded-br-sm bg-primary/70 bottom-4 right-3 opacity-0" />
+      </div>
+    ),
+  },
+  {
+    title: "Get Paid Securely",
+    description: "Complete milestones, get approved, and receive payment from ZentraGig upon client approval.",
+    render: () => (
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        <CreditCard className="absolute left-1/2 top-1/2 h-8 w-8 -ml-4 -mt-4 text-accent" />
+        <div className="how-it-works-card-swipe-bar absolute left-1/2 top-1/2 -mt-4 h-8 w-2 -ml-1 rounded-full bg-accent/40 opacity-0" />
+      </div>
+    ),
+  },
 ];
 
 const benefits = [
@@ -63,7 +136,7 @@ export default function HowItWorksPage() {
               {clientSteps.map((step, i) => (
                 <div key={i} className="relative text-center group">
                   <div className="relative z-10 mx-auto w-20 h-20 rounded-2xl bg-card border-2 border-border flex items-center justify-center mb-6 group-hover:border-primary group-hover:shadow-lg transition-all">
-                    <step.icon className="h-8 w-8 text-primary" />
+                    {step.render()}
                     <span className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shadow-lg">{i + 1}</span>
                   </div>
                   <h3 className="text-xl font-semibold text-foreground mb-3">{step.title}</h3>
@@ -93,7 +166,7 @@ export default function HowItWorksPage() {
               {freelancerSteps.map((step, i) => (
                 <div key={i} className="relative text-center group">
                   <div className="relative z-10 mx-auto w-20 h-20 rounded-2xl bg-card border-2 border-border flex items-center justify-center mb-6 group-hover:border-accent group-hover:shadow-lg transition-all">
-                    <step.icon className="h-8 w-8 text-accent" />
+                    {step.render()}
                     <span className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-accent text-accent-foreground text-sm font-bold flex items-center justify-center shadow-lg">{i + 1}</span>
                   </div>
                   <h3 className="text-xl font-semibold text-foreground mb-3">{step.title}</h3>

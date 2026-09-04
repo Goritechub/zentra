@@ -394,6 +394,68 @@
       }
     }
 
+    @keyframes write-line-grow {
+      0%,
+      100% {
+        transform: scaleX(0);
+        opacity: 0;
+      }
+      15% {
+        opacity: 1;
+      }
+      40%,
+      85% {
+        transform: scaleX(1);
+        opacity: 1;
+      }
+      95% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes handshake-shake {
+      0%,
+      100% {
+        transform: rotate(0deg);
+      }
+      10%,
+      30% {
+        transform: rotate(-10deg);
+      }
+      20%,
+      40% {
+        transform: rotate(10deg);
+      }
+      50% {
+        transform: rotate(0deg);
+      }
+    }
+
+    @keyframes profile-ping-ring {
+      0% {
+        transform: scale(0.6);
+        opacity: 0.6;
+      }
+      80%,
+      100% {
+        transform: scale(1.8);
+        opacity: 0;
+      }
+    }
+
+    @keyframes profile-ping-icon {
+      0%,
+      100% {
+        transform: scale(1);
+      }
+      15% {
+        transform: scale(1.12);
+      }
+      30% {
+        transform: scale(1);
+      }
+    }
+
     .group:hover .how-it-works-search-icon {
       animation: search-orbit 4.2s ease-in-out infinite;
     }
@@ -416,6 +478,38 @@
 
     .group:hover .how-it-works-card-swipe {
       animation: card-swipe 1.8s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-card-swipe-bar {
+      animation: card-swipe 1.8s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-write-line-1 {
+      animation: write-line-grow 2.4s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-write-line-2 {
+      animation: write-line-grow 2.4s ease-in-out infinite 0.25s;
+    }
+
+    .group:hover .how-it-works-write-line-3 {
+      animation: write-line-grow 2.4s ease-in-out infinite 0.5s;
+    }
+
+    .group:hover .how-it-works-handshake-icon {
+      animation: handshake-shake 2.2s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-approve-icon {
+      animation: file-icon-confirm 2s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-ping-ring {
+      animation: profile-ping-ring 1.8s ease-out infinite;
+    }
+
+    .group:hover .how-it-works-ping-icon {
+      animation: profile-ping-icon 1.8s ease-in-out infinite;
     }
   }
 }
