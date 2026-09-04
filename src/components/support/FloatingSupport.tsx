@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MessageCircle, X, HelpCircle, ChevronRight, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,14 +39,33 @@ const FAQ_ITEMS = [
 export function FloatingSupport() {
   const [open, setOpen] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
 
   // Don't show on admin pages or auth page
   if (location.pathname.startsWith("/admin") || location.pathname === "/auth") return null;
 
   return (
-    <>
+    <div ref={containerRef}>
       {/* Floating Button */}
       <button
         onClick={() => setOpen(!open)}
@@ -108,6 +127,6 @@ export function FloatingSupport() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

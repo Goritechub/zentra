@@ -1,8 +1,28 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Briefcase, Users } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function CTASection() {
+  const { user, role, bootstrapStatus } = useAuth();
+  const isAuthenticated = !!user && bootstrapStatus === "ready";
+  const isFreelancer = isAuthenticated && role === "freelancer";
+
+  const freelancerCard = isFreelancer
+    ? {
+        heading: "Keep Building",
+        body: "Check your dashboard for new offers, contracts, and contest invites.",
+        cta: { to: "/dashboard", label: "My Dashboard" },
+      }
+    : {
+        heading: "Are You an Engineer?",
+        body: "Join a fast-growing engineering marketplace. Set your rates, build your portfolio, and grow your career.",
+        cta: {
+          to: "/auth?tab=signup&role=freelancer",
+          label: "Join as Freelancer",
+        },
+      };
+
   return (
     <section className="section-padding bg-hero-gradient text-white relative overflow-hidden">
       {/* Background decoration */}
@@ -21,9 +41,15 @@ export function CTASection() {
               </div>
               <h3 className="text-2xl font-bold mb-3">Looking to Hire?</h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Post your engineering project and receive proposals from verified technical experts within hours.
+                Post your project and receive proposals from verified technical
+                experts within hours.
               </p>
-              <Button size="lg" variant="hero" asChild className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                variant="hero"
+                asChild
+                className="w-full sm:w-auto"
+              >
                 <Link to="/post-job">
                   Post a Project
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -42,13 +68,20 @@ export function CTASection() {
               <div className="w-14 h-14 rounded-xl bg-accent/80 flex items-center justify-center mb-6">
                 <Users className="h-7 w-7 text-accent-foreground" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">Are You an Engineer?</h3>
+              <h3 className="text-2xl font-bold mb-3">
+                {freelancerCard.heading}
+              </h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Join a fast-growing engineering marketplace. Set your rates, build your portfolio, and grow your career.
+                {freelancerCard.body}
               </p>
-              <Button size="lg" variant="heroOutline" asChild className="w-full sm:w-auto">
-                <Link to="/auth?tab=signup&role=freelancer">
-                  Join as Freelancer
+              <Button
+                size="lg"
+                variant="heroOutline"
+                asChild
+                className="w-full sm:w-auto"
+              >
+                <Link to={freelancerCard.cta.to}>
+                  {freelancerCard.cta.label}
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>

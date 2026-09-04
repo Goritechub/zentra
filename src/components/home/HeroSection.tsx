@@ -7,8 +7,24 @@ import {
   Users,
   Briefcase,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function HeroSection() {
+  const { user, role, bootstrapStatus } = useAuth();
+  const isAuthenticated = !!user && bootstrapStatus === "ready";
+  const isFreelancer = isAuthenticated && role === "freelancer";
+  const isClient = isAuthenticated && role === "client";
+
+  const primaryCta = isFreelancer
+    ? { to: "/jobs", label: "Browse Gigs" }
+    : { to: "/freelancers", label: "Find Experts" };
+
+  const secondaryCta = isFreelancer
+    ? { to: "/dashboard", label: "My Dashboard" }
+    : isClient
+      ? { to: "/post-job", label: "Post a Project" }
+      : { to: "/auth?tab=signup&role=freelancer", label: "Become a Freelancer" };
+
   return (
     <section className="relative overflow-hidden bg-hero-gradient text-white">
       {/* Background pattern */}
@@ -50,19 +66,30 @@ export function HeroSection() {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up animation-delay-200">
               <Button size="xl" variant="hero" className="min-w-[200px]" asChild>
-                <Link to="/freelancers">
+                <Link to={primaryCta.to}>
                   <Search className="h-5 w-5 mr-2" />
-                  Find Experts
+                  {primaryCta.label}
                 </Link>
               </Button>
               <Button size="xl" variant="heroOutline" className="min-w-[200px]" asChild>
-                <Link to="/auth?tab=signup&role=freelancer">
-                  Become a Freelancer
+                <Link to={secondaryCta.to}>
+                  {secondaryCta.label}
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Link>
               </Button>
             </div>
-            <p className="mt-3 text-sm text-white/60">Free to join · No credit card required</p>
+            <p className="mt-3 text-sm text-white/60">
+              Free to join · No credit card required
+              {!isAuthenticated && (
+                <>
+                  {" "}
+                  · Not ready to sign up?{" "}
+                  <Link to="/get-a-quote" className="text-accent hover:text-accent/80 transition-colors">
+                    Get a free quote
+                  </Link>
+                </>
+              )}
+            </p>
 
             {/* Trust indicators */}
             <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-white/70 animate-fade-in-up animation-delay-300">

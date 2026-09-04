@@ -111,6 +111,25 @@ export function Header() {
   const [mobileSubMenu, setMobileSubMenu] = useState<string | null>(null);
   const [themeOpen, setThemeOpen] = useState(false);
   const [bootstrapStalled, setBootstrapStalled] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [mobileMenuOpen]);
 
   const {
     user, profile, signOut, isAdmin,
@@ -203,7 +222,10 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
       <div className="container-wide">
         <div className="flex h-16 items-center justify-between">
 
@@ -241,11 +263,21 @@ export function Header() {
             ) : (
               <>
                 {!isAuthenticated && (
-                  <NavDropdown
-                    label="Browse"
-                    items={browseItemsLimited}
-                    active={isActive(["/blog", "/how-it-works"])}
-                  />
+                  <>
+                    <NavDropdown
+                      label="Browse"
+                      items={browseItemsLimited}
+                      active={isActive(["/blog", "/how-it-works"])}
+                    />
+                    <Link
+                      to="/get-a-quote"
+                      className={`text-sm font-medium transition-colors px-1 py-1 ${
+                        isActive(["/get-a-quote"]) ? "text-primary" : "text-foreground/80 hover:text-foreground"
+                      }`}
+                    >
+                      Get a Quote
+                    </Link>
+                  </>
                 )}
                 {isAuthenticated && !needsSetup && profileLoaded && (
                   <>
@@ -517,6 +549,15 @@ export function Header() {
               toggle={() => setMobileSubMenu(mobileSubMenu === "browse" ? null : "browse")}
               close={() => setMobileMenuOpen(false)}
             />
+            {!isAuthenticated && (
+              <Link
+                to="/get-a-quote"
+                className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Get a Quote
+              </Link>
+            )}
             {isAuthenticated && !needsSetup && !isAdmin && (
               <Link
                 to="/messages"

@@ -2,9 +2,17 @@ import { Link } from "react-router-dom";
 import { MapPin, Mail, Phone, MessageCircle } from "lucide-react";
 import { ZentraGigLogo } from "@/components/ZentraGigLogo";
 import { useSupportSettings } from "@/hooks/useSupportSettings";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Footer() {
   const { settings, loading } = useSupportSettings();
+  const { user, role, bootstrapStatus } = useAuth();
+  const isAuthenticated = !!user && bootstrapStatus === "ready";
+  const isFreelancer = isAuthenticated && role === "freelancer";
+
+  const freelancerLink = isFreelancer
+    ? { to: "/dashboard", label: "My Dashboard" }
+    : { to: "/auth?tab=signup&role=freelancer", label: "Become a Freelancer" };
 
   return (
     <footer className="bg-foreground text-background">
@@ -71,10 +79,10 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-background/70">
               <li>
                 <Link
-                  to="/auth?tab=signup&role=freelancer"
+                  to={freelancerLink.to}
                   className="hover:text-accent transition-colors"
                 >
-                  Become a Freelancer
+                  {freelancerLink.label}
                 </Link>
               </li>
               <li>
