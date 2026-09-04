@@ -212,7 +212,7 @@ export default function GetAQuote() {
         <Header />
         <main className="flex-1 flex items-center justify-center bg-muted/30 py-12">
           <div className="text-center max-w-md mx-auto px-4">
-            <CheckCircle2 className="h-14 w-14 mx-auto text-green-500 mb-4" />
+            <CheckCircle2 className="h-14 w-14 mx-auto text-success mb-4" />
             <h2 className="text-2xl font-bold mb-2">Request Received!</h2>
             <p className="text-muted-foreground mb-6">
               Thanks, {contactName.split(" ")[0]}. Our team will review your project and reach out to{" "}

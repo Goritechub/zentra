@@ -62,7 +62,7 @@ function RatingStars({ rating, count }: { rating: number; count: number }) {
         {Array.from({ length: 5 }).map((_, i) => (
           <Star
             key={i}
-            className={`h-3.5 w-3.5 ${i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+            className={`h-3.5 w-3.5 ${i < Math.round(rating) ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
           />
         ))}
       </div>
@@ -160,7 +160,7 @@ function ContractsCarousel({ contracts }: { contracts: ExpertPastContract[] }) {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-3 w-3 ${i < c.review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                    className={`h-3 w-3 ${i < c.review.rating ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
                   />
                 ))}
               </div>
@@ -460,7 +460,7 @@ export default function ExpertProfile() {
                         onClick={handleCopyReferral}
                         className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
                       >
-                        {copiedReferral ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        {copiedReferral ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                         {copiedReferral ? "Copied!" : "Copy Referral Link"}
                       </button>
                     )}
@@ -512,10 +512,10 @@ export default function ExpertProfile() {
                   </h1>
 
                   {isAvailable && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success mt-1.5">
                       <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success" />
                       </span>
                       Available Now
                     </span>
@@ -923,7 +923,7 @@ export default function ExpertProfile() {
                                     key={j}
                                     className={`h-3 w-3 ${
                                       j < (review.rating || 0)
-                                        ? "fill-amber-400 text-amber-400"
+                                        ? "fill-warning text-warning"
                                         : "text-muted-foreground/30"
                                     }`}
                                   />

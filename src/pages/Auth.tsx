@@ -880,7 +880,7 @@ export default function AuthPage() {
     if (score <= 2)
       return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
     if (score <= 3)
-      return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
+      return { label: "Fair", color: "bg-warning", width: "w-2/4" };
     if (score <= 4)
       return { label: "Good", color: "bg-accent", width: "w-3/4" };
     return { label: "Strong", color: "bg-primary", width: "w-full" };
@@ -1589,7 +1589,7 @@ export default function AuthPage() {
                                   passwordStrength.label === "Weak"
                                     ? "text-destructive"
                                     : passwordStrength.label === "Fair"
-                                      ? "text-amber-500"
+                                      ? "text-warning"
                                       : passwordStrength.label === "Good"
                                         ? "text-accent"
                                         : "text-primary",

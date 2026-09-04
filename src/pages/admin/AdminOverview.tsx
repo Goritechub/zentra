@@ -65,15 +65,15 @@ export default function AdminOverview() {
 
   const cards: OverviewCard[] = [
     { label: "Total Users", value: stats!.totalUsers, icon: Users, color: "text-primary", route: "/admin/users" },
-    { label: "Clients", value: stats!.totalClients, icon: UserCheck, color: "text-blue-500", route: "/admin/users" },
-    { label: "Experts", value: stats!.totalExperts, icon: Users, color: "text-emerald-500", route: "/admin/users" },
-    { label: "Active Jobs", value: stats!.activeJobs, icon: Briefcase, color: "text-amber-500", route: "/admin/jobs" },
-    { label: "Active Contests", value: stats!.activeContests, icon: Trophy, color: "text-orange-500", route: "/admin/contests" },
-    { label: "Active Contracts", value: stats!.activeContracts, icon: FileText, color: "text-purple-500", route: "/admin/contracts" },
-    { label: "Active Project Budget", value: format(stats!.totalEscrow), icon: Wallet, color: "text-red-500", isNaira: true, route: "/admin/payments" },
-    { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-indigo-500", route: "/admin/payments" },
+    { label: "Clients", value: stats!.totalClients, icon: UserCheck, color: "text-info", route: "/admin/users" },
+    { label: "Experts", value: stats!.totalExperts, icon: Users, color: "text-success", route: "/admin/users" },
+    { label: "Active Jobs", value: stats!.activeJobs, icon: Briefcase, color: "text-warning", route: "/admin/jobs" },
+    { label: "Active Contests", value: stats!.activeContests, icon: Trophy, color: "text-accent", route: "/admin/contests" },
+    { label: "Active Contracts", value: stats!.activeContracts, icon: FileText, color: "text-misc", route: "/admin/contracts" },
+    { label: "Active Project Budget", value: format(stats!.totalEscrow), icon: Wallet, color: "text-error", isNaira: true, route: "/admin/payments" },
+    { label: "Total Transactions", value: stats!.totalTransactions, icon: TrendingUp, color: "text-misc", route: "/admin/payments" },
     { label: "Open Disputes", value: stats!.openDisputes, icon: Gavel, color: "text-destructive", route: "/admin/disputes" },
-    { label: "Platform Revenue", value: format(stats!.totalRevenue), icon: DollarSign, color: "text-emerald-600", isNaira: true, route: "/admin/payments", subtitle: `Net ${format(stats!.totalRevenue - stats!.totalGatewayFees)}` },
+    { label: "Platform Revenue", value: format(stats!.totalRevenue), icon: DollarSign, color: "text-success", isNaira: true, route: "/admin/payments", subtitle: `Net ${format(stats!.totalRevenue - stats!.totalGatewayFees)}` },
   ];
 
   return (

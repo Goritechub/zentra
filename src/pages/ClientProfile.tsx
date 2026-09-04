@@ -28,7 +28,7 @@ function RatingStars({ rating, count }: { rating: number; count: number }) {
           <Star
             key={i}
             className={`h-3.5 w-3.5 ${
-              i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+              i < Math.round(rating) ? "fill-warning text-warning" : "text-muted-foreground/30"
             }`}
           />
         ))}
@@ -421,7 +421,7 @@ export default function ClientProfile() {
                                 key={i}
                                 className={`h-3.5 w-3.5 ${
                                   i < Math.round(review.rating || 0)
-                                    ? "fill-amber-400 text-amber-400"
+                                    ? "fill-warning text-warning"
                                     : "text-muted-foreground/30"
                                 }`}
                               />

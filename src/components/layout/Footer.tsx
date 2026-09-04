@@ -13,7 +13,7 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="inline-block">
-              <ZentraGigLogo size="md" textClassName="text-white" />
+              <ZentraGigLogo size="md" variant="white" />
             </Link>
             <p className="text-sm text-background/70">
               The premier marketplace for engineering projects and technical
@@ -21,7 +21,7 @@ export function Footer() {
               worldwide.
             </p>
             <div className="flex items-center gap-4 text-background/70">
-              <MapPin className="h-4 w-4 text-primary" />
+              <MapPin className="h-4 w-4 text-accent" />
               <span className="text-sm">Global Platform</span>
             </div>
           </div>
@@ -33,7 +33,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/freelancers"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Find Engineers
                 </Link>
@@ -41,7 +41,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/post-job"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Post a Project
                 </Link>
@@ -49,7 +49,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/how-it-works"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   How It Works
                 </Link>
@@ -57,7 +57,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/pricing"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Pricing
                 </Link>
@@ -72,7 +72,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/auth?tab=signup&role=freelancer"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Become a Freelancer
                 </Link>
@@ -80,7 +80,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/jobs"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Browse Jobs
                 </Link>
@@ -88,7 +88,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/resources"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Resources
                 </Link>
@@ -96,7 +96,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/success-stories"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   Success Stories
                 </Link>
@@ -109,30 +109,30 @@ export function Footer() {
             <h4 className="font-semibold text-lg">Contact Us</h4>
             <ul className="space-y-3 text-sm text-background/70">
               <li className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-primary" />
+                <Mail className="h-4 w-4 text-accent" />
                 <a
                   href={`mailto:${settings.support_email}`}
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   {loading ? "..." : settings.support_email}
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-primary" />
+                <Phone className="h-4 w-4 text-accent" />
                 <a
                   href={`tel:${settings.support_phone.replace(/\s/g, "")}`}
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   {loading ? "..." : settings.support_phone}
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <MessageCircle className="h-4 w-4 text-primary" />
+                <MessageCircle className="h-4 w-4 text-accent" />
                 <a
                   href={`https://wa.me/${settings.support_whatsapp.replace(/[\s+]/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-accent transition-colors"
                 >
                   WhatsApp Support
                 </a>
@@ -140,7 +140,7 @@ export function Footer() {
             </ul>
             <Link
               to="/contact"
-              className="inline-block text-sm text-primary hover:underline mt-2"
+              className="inline-block text-sm text-accent hover:underline mt-2"
             >
               Contact Support →
             </Link>
@@ -156,16 +156,16 @@ export function Footer() {
           <div className="flex items-center gap-6 text-sm text-background/60">
             <Link
               to="/terms?doc=privacy-policy"
-              className="hover:text-primary transition-colors"
+              className="hover:text-accent transition-colors"
             >
               Privacy Policy
             </Link>
-            <Link to="/terms" className="hover:text-primary transition-colors">
+            <Link to="/terms" className="hover:text-accent transition-colors">
               Terms & Conditions
             </Link>
             <Link
               to="/terms?doc=dispute-resolution-policy"
-              className="hover:text-primary transition-colors"
+              className="hover:text-accent transition-colors"
             >
               Dispute Policy
             </Link>

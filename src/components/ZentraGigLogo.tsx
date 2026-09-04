@@ -1,32 +1,26 @@
-import logoIcon from "@/assets/zentragig-logo.png";
+import logoNavy from "@/assets/zentragig-wordmark-navy.png";
+import logoWhite from "@/assets/zentragig-wordmark-white.png";
 
 interface ZentraGigLogoProps {
   size?: "sm" | "md" | "lg";
-  showText?: boolean;
+  variant?: "navy" | "white";
   className?: string;
-  textClassName?: string;
 }
 
 const sizeMap = {
-  sm: { circle: "h-9 w-9", icon: "h-11 w-11", text: "text-lg" },
-  md: { circle: "h-10 w-10", icon: "h-12 w-12", text: "text-xl" },
-  lg: { circle: "h-12 w-12", icon: "h-14 w-14", text: "text-2xl" },
+  sm: "h-6",
+  md: "h-8",
+  lg: "h-10",
 };
 
-export function ZentraGigLogo({ size = "md", showText = true, className = "", textClassName }: ZentraGigLogoProps) {
-  const s = sizeMap[size];
+export function ZentraGigLogo({ size = "md", variant = "navy", className = "" }: ZentraGigLogoProps) {
+  const src = variant === "white" ? logoWhite : logoNavy;
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <span className={`${s.circle} rounded-full flex items-center justify-center shrink-0 bg-primary overflow-hidden shadow-md ring-2 ring-primary/20`}>
-        <img src={logoIcon} alt="ZentraGig" className="h-full w-full object-cover scale-150" />
-      </span>
-      {showText && (
-        <span className={`${s.text} font-bold`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-          <span className={textClassName || "text-foreground"}>Zentra</span>
-          <span className="text-primary">Gig</span>
-        </span>
-      )}
-    </span>
+    <img
+      src={src}
+      alt="ZentraGig"
+      className={`${sizeMap[size]} w-auto object-contain ${className}`}
+    />
   );
 }

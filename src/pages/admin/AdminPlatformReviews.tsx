@@ -87,7 +87,7 @@ export default function AdminPlatformReviews() {
                 <TableCell className="text-sm font-medium">{r.profiles?.full_name || "—"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    <Star className="h-3 w-3 fill-warning text-warning" />
                     <span className="text-sm font-medium">{r.rating}</span>
                   </div>
                 </TableCell>

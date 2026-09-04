@@ -4,8 +4,8 @@ self.addEventListener("push", (e) => {
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/zentragig-logo.PNG",
-      badge: "/zentragig-logo.PNG",
+      icon: "/favicon-32x32.png",
+      badge: "/favicon-16x16.png",
       data: { url: data.url || "/" },
     })
   );

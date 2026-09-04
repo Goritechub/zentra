@@ -50,10 +50,10 @@ function deriveContestStatus(contest: ContestSummary, winnersCount: number): "ac
 
 function StatusBadge({ contest }: { contest: ContestSummary }) {
   const special = getSpecialStatus(contest);
-  if (special === "pending_review") return <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400"><Clock className="h-3 w-3 mr-1" />Under Review</Badge>;
+  if (special === "pending_review") return <Badge variant="outline" className="border-warning text-warning"><Clock className="h-3 w-3 mr-1" />Under Review</Badge>;
   if (special === "rejected") return <Badge variant="destructive">Rejected</Badge>;
   if (special === "cancelled") return <Badge variant="secondary">Cancelled</Badge>;
-  if (special === "cancellation_requested") return <Badge variant="outline" className="border-orange-400 text-orange-600 dark:text-orange-400"><AlertCircle className="h-3 w-3 mr-1" />Cancellation Requested</Badge>;
+  if (special === "cancellation_requested") return <Badge variant="outline" className="border-error text-error"><AlertCircle className="h-3 w-3 mr-1" />Cancellation Requested</Badge>;
 
   const derived = deriveContestStatus(contest, contest._winnersCount || 0);
   if (derived === "completed") return <Badge variant="secondary">Completed</Badge>;
@@ -176,7 +176,7 @@ export default function MyContestsPage() {
                 return (
                   <div
                     key={contest.id}
-                    className={`bg-card rounded-xl border p-6 ${special === "rejected" ? "border-destructive/40" : special === "pending_review" ? "border-amber-400/40" : "border-border"}`}
+                    className={`bg-card rounded-xl border p-6 ${special === "rejected" ? "border-destructive/40" : special === "pending_review" ? "border-warning/40" : "border-border"}`}
                   >
                     <div className="flex items-start justify-between">
                       <Link to={`/contest/${contest.id}`} className="flex-1 min-w-0 group">
@@ -195,14 +195,14 @@ export default function MyContestsPage() {
 
                         {/* Pending review info */}
                         {special === "pending_review" && (
-                          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                          <p className="mt-2 text-xs text-warning">
                             Awaiting admin approval before going live.
                           </p>
                         )}
 
                         {/* Cancellation requested info */}
                         {special === "cancellation_requested" && (
-                          <p className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                          <p className="mt-2 text-xs text-error">
                             Your cancellation request is being reviewed by an admin.
                           </p>
                         )}
@@ -244,7 +244,7 @@ export default function MyContestsPage() {
                           </Button>
                         )}
                         {special === "cancellation_requested" && (
-                          <Badge variant="outline" className="text-xs text-orange-600 dark:text-orange-400 border-orange-400/40 flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs text-error border-error/40 flex items-center gap-1">
                             <Clock className="h-3 w-3" /> Pending Approval
                           </Badge>
                         )}
@@ -274,7 +274,7 @@ export default function MyContestsPage() {
                   will be refunded to your wallet.
                 </p>
                 {hasEntries ? (
-                  <p className="mt-2 text-amber-600 dark:text-amber-400 text-sm">
+                  <p className="mt-2 text-warning text-sm">
                     This contest has {cancelTarget._entryCount} entr{cancelTarget._entryCount !== 1 ? "ies" : "y"}. Your cancellation request will be reviewed by an admin before taking effect.
                   </p>
                 ) : (

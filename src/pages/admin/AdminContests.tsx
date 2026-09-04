@@ -236,7 +236,7 @@ export default function AdminContests() {
           <TabsTrigger value="pending" className="relative">
             Pending Review
             {pendingCount > 0 && (
-              <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white font-bold">{pendingCount}</span>
+              <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] text-white font-bold">{pendingCount}</span>
             )}
           </TabsTrigger>
           <TabsTrigger value="cancellations" className="relative">
@@ -383,7 +383,7 @@ export default function AdminContests() {
           ) : (
             <div className="space-y-4">
               {pendingContests.map((contest) => (
-                <div key={contest.id} className="rounded-xl border border-amber-300/50 bg-card p-5">
+                <div key={contest.id} className="rounded-xl border border-warning/50 bg-card p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -425,7 +425,7 @@ export default function AdminContests() {
                     <div className="flex flex-col gap-2 shrink-0">
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="bg-success hover:bg-success/90 text-white"
                         onClick={() => handleApproveContest(contest.id)}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
@@ -460,7 +460,7 @@ export default function AdminContests() {
                   (contest?.prize_third || 0) + (contest?.prize_fourth || 0) +
                   (contest?.prize_fifth || 0);
                 return (
-                  <div key={req.id} className="rounded-xl border border-orange-300/50 bg-card p-5 space-y-4">
+                  <div key={req.id} className="rounded-xl border border-warning/50 bg-card p-5 space-y-4">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -512,7 +512,7 @@ export default function AdminContests() {
                           {req.client_recent_transactions.map((tx, i) => (
                             <div key={i} className="flex items-center justify-between text-xs rounded bg-muted/30 px-2 py-1">
                               <span className="text-muted-foreground truncate max-w-[200px]">{tx.description}</span>
-                              <span className={tx.type === "credit" ? "text-emerald-600 font-medium" : "text-foreground font-medium"}>
+                              <span className={tx.type === "credit" ? "text-success font-medium" : "text-foreground font-medium"}>
                                 {tx.type === "credit" ? "+" : "-"}{format(tx.amount)}
                               </span>
                             </div>
@@ -525,7 +525,7 @@ export default function AdminContests() {
                     <div className="flex gap-2 pt-1">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                          <Button size="sm" className="bg-success hover:bg-success/90 text-white">
                             <CheckCircle2 className="h-4 w-4 mr-1" /> Approve & Refund
                           </Button>
                         </AlertDialogTrigger>
@@ -539,7 +539,7 @@ export default function AdminContests() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Back</AlertDialogCancel>
                             <AlertDialogAction
-                              className="bg-emerald-600 hover:bg-emerald-700"
+                              className="bg-success hover:bg-success/90"
                               onClick={() => handleApproveCancellation(req.id)}
                             >
                               Confirm Approval
@@ -627,7 +627,7 @@ export default function AdminContests() {
                 <p className="text-sm text-muted-foreground mb-2">Prize Breakdown</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="gap-1">
-                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {format(selectedContest.prize_first)}
+                    <Trophy className="h-3 w-3 text-warning" /> 1st: {format(selectedContest.prize_first)}
                   </Badge>
                   {(selectedContest.prize_second ?? 0) > 0 && (
                     <Badge variant="outline">2nd: {format(selectedContest.prize_second!)}</Badge>

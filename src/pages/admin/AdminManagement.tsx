@@ -313,7 +313,7 @@ export default function AdminManagement() {
                         <Ban className="h-3 w-3 mr-1" /> Suspended
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                      <Badge variant="outline" className="text-xs text-success border-success">
                         <CheckCircle className="h-3 w-3 mr-1" /> Active
                       </Badge>
                     )}
@@ -378,9 +378,9 @@ export default function AdminManagement() {
                             disabled={admin.permissions.includes("admin_management")}
                           >
                             {admin.is_suspended ? (
-                              <CheckCircle className="h-4 w-4 text-emerald-500" />
+                              <CheckCircle className="h-4 w-4 text-success" />
                             ) : (
-                              <Ban className="h-4 w-4 text-amber-500" />
+                              <Ban className="h-4 w-4 text-warning" />
                             )}
                           </Button>
                           <Button

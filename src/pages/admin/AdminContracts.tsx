@@ -131,7 +131,7 @@ export default function AdminContracts() {
             {filtered.map(c => {
               const staleLabel = getStaleLabel(c);
               return (
-                <TableRow key={c.id} className={staleLabel ? "bg-amber-500/5" : ""}>
+                <TableRow key={c.id} className={staleLabel ? "bg-warning/5" : ""}>
                   <TableCell className="font-medium max-w-[180px] truncate">{c.job_title || "—"}</TableCell>
                   <TableCell className="text-sm">{c.client?.full_name || "—"}</TableCell>
                   <TableCell className="text-sm">{c.freelancer?.full_name || "—"}</TableCell>
@@ -140,7 +140,7 @@ export default function AdminContracts() {
                     <div className="flex items-center gap-1.5">
                       <Badge variant={statusColor(c.status)} className="capitalize">{c.status}</Badge>
                       {staleLabel && (
-                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                        <Badge variant="outline" className="text-[10px] text-warning border-warning">
                           <AlertTriangle className="h-3 w-3 mr-0.5" />{staleLabel}
                         </Badge>
                       )}

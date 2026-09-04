@@ -1786,8 +1786,8 @@ export default function ContestDetailPage() {
                                     <Star
                                       className={`h-4 w-4 transition-colors ${
                                         isNominee
-                                          ? "fill-amber-400 text-amber-400"
-                                          : "text-muted-foreground/30 group-hover:text-amber-300"
+                                          ? "fill-warning text-warning"
+                                          : "text-muted-foreground/30 group-hover:text-warning/70"
                                       }`}
                                     />
                                   </button>
@@ -1834,8 +1834,8 @@ export default function ContestDetailPage() {
                               </div>
                             </div>
                             {selectedEntry.is_nominee && (
-                              <Badge className="shrink-0 bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/30 dark:text-amber-300">
-                                <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />{" "}
+                              <Badge className="shrink-0 bg-warning/10 text-warning border border-warning/30">
+                                <Star className="h-3 w-3 mr-1 fill-warning text-warning" />{" "}
                                 Nominated
                               </Badge>
                             )}
@@ -1887,7 +1887,7 @@ export default function ContestDetailPage() {
                             ) : (
                               <Button
                                 size="sm"
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                                className="w-full bg-warning hover:bg-warning/90 text-warning-foreground"
                                 onClick={() => handleNominate(selectedEntry.id)}
                               >
                                 <Star className="h-4 w-4 mr-2" /> Nominate this
@@ -1935,7 +1935,7 @@ export default function ContestDetailPage() {
                             id={`entry-${entry.id}`}
                             className={`border rounded-lg p-4 transition-all ${
                               entry.is_nominee
-                                ? "border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/10"
+                                ? "border-warning/50 bg-warning/5"
                                 : "border-border"
                             }`}
                           >
@@ -1945,8 +1945,8 @@ export default function ContestDetailPage() {
                                   {entry.freelancer?.full_name || "Expert"}
                                 </p>
                                 {entry.is_nominee && (
-                                  <Badge className="mt-1 bg-amber-50 text-amber-800 border border-amber-300 text-xs dark:bg-amber-950/30 dark:text-amber-300">
-                                    <Star className="h-2.5 w-2.5 mr-1 fill-amber-500 text-amber-500" />{" "}
+                                  <Badge className="mt-1 bg-warning/10 text-warning border border-warning/30 text-xs">
+                                    <Star className="h-2.5 w-2.5 mr-1 fill-warning text-warning" />{" "}
                                     Nominee
                                   </Badge>
                                 )}
@@ -1965,7 +1965,7 @@ export default function ContestDetailPage() {
                               ) : (
                                 <Button
                                   size="sm"
-                                  className="bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+                                  className="bg-warning hover:bg-warning/90 text-warning-foreground shrink-0"
                                   onClick={() => handleNominate(entry.id)}
                                 >
                                   <Star className="h-3 w-3 mr-1" /> Nominate
@@ -2068,14 +2068,14 @@ export default function ContestDetailPage() {
                             id={`entry-${entry.id}`}
                             className={`border rounded-lg p-4 transition-all ${
                               isMyEntry && entry.is_winner
-                                ? "border-green-500 bg-green-500/5"
+                                ? "border-success bg-success/5"
                                 : entry.is_nominee
                                   ? "border-primary/50 bg-primary/5"
                                   : "border-border"
                             }`}
                           >
                             {isMyEntry && entry.is_winner && (
-                              <div className="flex items-center gap-2 mb-3 text-green-600 font-semibold text-sm">
+                              <div className="flex items-center gap-2 mb-3 text-success font-semibold text-sm">
                                 <Award className="h-4 w-4" />
                                 You won this contest
                               </div>
@@ -2564,7 +2564,7 @@ export default function ContestDetailPage() {
               <button
                 key={n.id}
                 onClick={() => handleSwapNominee(n.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-warning hover:bg-warning/10 transition-colors text-left"
               >
                 <span className="text-xl">{nomineeEmojis[idx] || "🏅"}</span>
                 <div className="flex-1 min-w-0">

@@ -888,7 +888,7 @@ export default function SettingsPage() {
                       </div>
                     )}
                     {nameMismatch && resolvedName && (
-                      <div className="flex gap-2 rounded-lg border border-yellow-400/50 bg-yellow-50/70 dark:bg-yellow-900/20 p-3 text-sm text-yellow-800 dark:text-yellow-300">
+                      <div className="flex gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-warning">
                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                         <span>
                           The account name <strong>{resolvedName}</strong> doesn't closely match your profile name <strong>{fullName}</strong>. Make sure this account belongs to you.

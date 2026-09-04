@@ -240,34 +240,34 @@ export default function AdminPayments() {
           <CardContent className="pt-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Active Project Budget</p>
-              <p className="text-xl font-bold text-amber-500">
+              <p className="text-xl font-bold text-warning">
                 {format(totalEscrow)}
               </p>
             </div>
-            <ArrowDownLeft className="h-8 w-8 text-amber-500" />
+            <ArrowDownLeft className="h-8 w-8 text-warning" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Pending Clearance</p>
-              <p className="text-xl font-bold text-orange-500">
+              <p className="text-xl font-bold text-warning">
                 {format(totalPending)}
               </p>
             </div>
-            <Timer className="h-8 w-8 text-orange-500" />
+            <Timer className="h-8 w-8 text-warning" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Platform Revenue</p>
-              <p className="text-xl font-bold text-emerald-500">
+              <p className="text-xl font-bold text-success">
                 {format(totalRev)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">Net {format(totalRev - totalGatewayFees)} after gateway fees</p>
             </div>
-            <TrendingUp className="h-8 w-8 text-emerald-500" />
+            <TrendingUp className="h-8 w-8 text-success" />
           </CardContent>
         </Card>
       </div>
@@ -374,11 +374,11 @@ export default function AdminPayments() {
                         {format(w.balance)}
                       </TableCell>
                       <TableCell
-                        className={`font-medium ${(w.pending_clearance || 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`}
+                        className={`font-medium ${(w.pending_clearance || 0) > 0 ? "text-warning" : "text-muted-foreground"}`}
                       >
                         {format(w.pending_clearance || 0)}
                       </TableCell>
-                      <TableCell className="text-amber-500">
+                      <TableCell className="text-warning">
                         {format(w.escrow_balance)}
                       </TableCell>
                       <TableCell>{format(w.total_earned)}</TableCell>
@@ -420,7 +420,7 @@ export default function AdminPayments() {
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium text-orange-500">
+                      <TableCell className="font-medium text-warning">
                         {format(w.pending_clearance)}
                       </TableCell>
                       <TableCell className="font-medium text-primary">
@@ -465,7 +465,7 @@ export default function AdminPayments() {
                         </Badge>
                       </TableCell>
                       <TableCell
-                        className={`font-medium ${t.amount > 0 ? "text-emerald-500" : "text-destructive"}`}
+                        className={`font-medium ${t.amount > 0 ? "text-success" : "text-destructive"}`}
                       >
                         {format(Math.abs(t.amount))}
                       </TableCell>
@@ -594,7 +594,7 @@ export default function AdminPayments() {
                       <TableCell>
                         {(r.commission_rate * 100).toFixed(0)}%
                       </TableCell>
-                      <TableCell className="text-emerald-500 font-medium">
+                      <TableCell className="text-success font-medium">
                         {format(r.commission_amount)}
                       </TableCell>
                       <TableCell>{format(r.net_to_freelancer)}</TableCell>

@@ -447,12 +447,12 @@ export default function JobDetailsPage() {
               {job.is_remote && <Badge variant="outline"><Globe className="h-3 w-3 mr-1" />Remote</Badge>}
               <Badge variant="outline">{job.is_hourly ? "Hourly" : "Fixed Price"}</Badge>
               {job.is_nda && (
-                <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+                <Badge variant="outline" className="gap-1 border-warning/50 text-warning bg-warning/10">
                   <Shield className="h-3 w-3" /> NDA Required
                 </Badge>
               )}
               {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
-                <Badge variant="outline" className={`gap-1 ${job.payment_type_preference === "milestone" ? "border-blue-400/60 text-blue-700 dark:text-blue-300" : "border-violet-400/60 text-violet-700 dark:text-violet-300"}`}>
+                <Badge variant="outline" className={`gap-1 ${job.payment_type_preference === "milestone" ? "border-info/60 text-info" : "border-misc/60 text-misc"}`}>
                   {job.payment_type_preference === "milestone" ? "Milestone Payments" : "Lump Sum"}
                 </Badge>
               )}
@@ -503,8 +503,8 @@ export default function JobDetailsPage() {
 
           {/* ===== Material Changes Banner (freelancer with active proposal) ===== */}
           {showChangesBanner && (
-            <Alert className="mb-6 border-amber-500/50 bg-amber-500/10">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <Alert className="mb-6 border-warning/50 bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <span className="flex-1 text-sm">
                   The client has updated key terms on this job (budget, deadline, or requirements). Review the changes and decide whether to keep or withdraw your proposal.
@@ -1148,8 +1148,8 @@ function OverviewContent({ job, deliveryLabel, similarJobs, profileRole, format,
         <h3 className="text-lg font-semibold mb-2">Description</h3>
         <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
         {ipPolicyGated && (
-          <div className="mt-4 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
-            <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="mt-4 rounded-lg border border-warning/60 bg-warning/10 p-4 flex items-start gap-3">
+            <Lock className="h-4 w-4 text-warning shrink-0 mt-0.5" />
             <div className="space-y-2">
               <p className="text-sm text-foreground">
                 Full details are protected by an IP Policy. Apply and agree to the policy to view the complete description

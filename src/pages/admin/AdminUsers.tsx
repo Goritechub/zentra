@@ -259,7 +259,7 @@ export default function AdminUsers() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Balance: <span className="font-bold text-primary">{format(userWallet.balance)}</span></div>
-                    <div>Project Budget: <span className="font-bold text-amber-500">{format(userWallet.escrow_balance)}</span></div>
+                    <div>Project Budget: <span className="font-bold text-warning">{format(userWallet.escrow_balance)}</span></div>
                     <div>Total Earned: <span className="font-medium">{format(userWallet.total_earned)}</span></div>
                     <div>Total Spent: <span className="font-medium">{format(userWallet.total_spent)}</span></div>
                   </div>
@@ -299,7 +299,7 @@ export default function AdminUsers() {
                       {frozenWithdrawalUsers[selectedUser.id] ? "Unfreeze Withdrawal" : "Freeze Withdrawal"}
                     </Button>
                     {userWallet && (userWallet.balance > 0 || userWallet.escrow_balance > 0) ? (
-                      <Button size="sm" variant="outline" className="border-amber-500 text-amber-600" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
+                      <Button size="sm" variant="outline" className="border-warning text-warning" onClick={() => sendWithdrawReminder(selectedUser)} disabled={notifyingUser}>
                         {notifyingUser ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-1" />}
                         Send Withdraw Reminder
                       </Button>

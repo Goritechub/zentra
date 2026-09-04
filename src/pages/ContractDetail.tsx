@@ -781,7 +781,7 @@ export default function ContractDetail() {
                             <div className="flex-1 min-w-0 w-full">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`flex-shrink-0 w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
-                                  isCompleted ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  isCompleted ? "bg-success/10 text-success"
                                   : isCancelled ? "bg-muted text-muted-foreground"
                                   : "bg-primary/10 text-primary"
                                 }`}>{milestoneNumberMap.get(ms.id)}</span>
@@ -801,7 +801,7 @@ export default function ContractDetail() {
                                   const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000);
                                   const isOverdue = daysLeft < 0;
                                   return (
-                                    <span className={`flex items-center gap-1 ${isOverdue ? "text-destructive font-medium" : daysLeft <= 2 ? "text-amber-500 font-medium" : ""}`}>
+                                    <span className={`flex items-center gap-1 ${isOverdue ? "text-destructive font-medium" : daysLeft <= 2 ? "text-warning font-medium" : ""}`}>
                                       <Clock className="h-3 w-3" />
                                       {isOverdue ? `Overdue by ${Math.abs(daysLeft)}d` : daysLeft === 0 ? "Due today" : `${daysLeft}d left`}
                                     </span>
@@ -1097,7 +1097,7 @@ export default function ContractDetail() {
                     <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
                       <div className="flex items-center gap-2">
                         {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
-                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-success shrink-0" />}
                         {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
                         <span className="text-sm flex-1 truncate">{item.file.name}</span>
                         {item.status === "error" && (
@@ -1316,7 +1316,7 @@ export default function ContractDetail() {
                     <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
                       <div className="flex items-center gap-2">
                         {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
-                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-success shrink-0" />}
                         {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
                         <span className="text-sm flex-1 truncate">{item.file.name}</span>
                         {item.status === "error" && (

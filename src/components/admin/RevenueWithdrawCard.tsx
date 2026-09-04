@@ -159,10 +159,10 @@ export function RevenueWithdrawCard() {
 
   return (
     <>
-      <Card className="border-emerald-500/30 bg-emerald-500/5">
+      <Card className="border-success/30 bg-success/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Banknote className="h-5 w-5 text-emerald-500" /> Revenue Withdrawal
+            <Banknote className="h-5 w-5 text-success" /> Revenue Withdrawal
           </CardTitle>
           <CardDescription>Withdraw platform commission revenue (Super Admin only)</CardDescription>
         </CardHeader>
@@ -170,11 +170,11 @@ export function RevenueWithdrawCard() {
           <div className="grid grid-cols-3 gap-3 text-sm">
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-bold text-emerald-500">{format(totalRevenue)}</p>
+              <p className="text-lg font-bold text-success">{format(totalRevenue)}</p>
             </div>
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Withdrawn</p>
-              <p className="text-lg font-bold text-amber-500">{format(totalWithdrawn)}</p>
+              <p className="text-lg font-bold text-warning">{format(totalWithdrawn)}</p>
             </div>
             <div className="bg-card rounded-lg p-3 border border-border">
               <p className="text-muted-foreground">Available</p>
@@ -183,9 +183,9 @@ export function RevenueWithdrawCard() {
           </div>
 
           {bankDetails.length === 0 && !needsBankSetup && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-amber-700 dark:text-amber-300">No bank account linked.</span>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <span className="text-sm text-warning">No bank account linked.</span>
               <Button
                 size="sm"
                 variant="outline"
@@ -239,7 +239,7 @@ export function RevenueWithdrawCard() {
                 </Button>
               </div>
               {resolvedName && (
-                <div className="flex items-center justify-between p-2 rounded bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center justify-between p-2 rounded bg-success/10 border border-success/30">
                   <span className="text-sm font-medium">{resolvedName}</span>
                   <Button size="sm" onClick={saveBank} disabled={savingBank}>
                     {savingBank ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}

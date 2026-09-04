@@ -436,7 +436,7 @@ export default function MyServicesPage() {
                                       </div>
                                     </div>
                                   )}
-                                  {item.status === "done" && <div className="absolute top-1 left-1 bg-emerald-500 rounded-full p-0.5"><CheckCircle2 className="h-3 w-3 text-white" /></div>}
+                                  {item.status === "done" && <div className="absolute top-1 left-1 bg-success rounded-full p-0.5"><CheckCircle2 className="h-3 w-3 text-white" /></div>}
                                   {item.status === "error" && (
                                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
                                       <AlertCircle className="h-4 w-4 text-destructive" />
@@ -685,10 +685,10 @@ export default function MyServicesPage() {
                             </h3>
                           </div>
                           {svc.is_active ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <span className="inline-flex items-center gap-1 text-xs text-success shrink-0">
                               <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success" />
                               </span>
                               Live
                             </span>

@@ -91,7 +91,7 @@ export default function AdminBlog() {
         <p className="text-muted-foreground text-sm mt-1">
           Review and manage all blog posts.
           {pendingCount > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-amber-600 font-medium">
+            <span className="ml-2 inline-flex items-center gap-1 text-warning font-medium">
               {pendingCount} pending review
             </span>
           )}
@@ -137,11 +137,11 @@ export default function AdminBlog() {
                   >
                     <div className="flex items-center gap-2 mb-1">
                       {post.status === "pending" ? (
-                        <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+                        <Badge variant="outline" className="text-[10px] border-warning text-warning bg-warning/10">
                           Pending Review
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] border-green-400 text-green-600 bg-green-50 dark:bg-green-950/30">
+                        <Badge variant="outline" className="text-[10px] border-success text-success bg-success/10">
                           Published
                         </Badge>
                       )}
@@ -178,11 +178,11 @@ export default function AdminBlog() {
                 <div className="p-6 space-y-4">
                   <div className="flex items-center gap-2">
                     {selected.status === "pending" ? (
-                      <Badge variant="outline" className="border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+                      <Badge variant="outline" className="border-warning text-warning bg-warning/10">
                         Pending Review
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="border-green-400 text-green-600 bg-green-50 dark:bg-green-950/30">
+                      <Badge variant="outline" className="border-success text-success bg-success/10">
                         Published
                       </Badge>
                     )}

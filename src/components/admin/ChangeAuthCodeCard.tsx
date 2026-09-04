@@ -28,7 +28,7 @@ function getCodeStrength(code: string) {
   if (checks.hasVariety) score++;
 
   const labels = ["", "Very Weak", "Weak", "Fair", "Good", "Strong", "Very Strong"];
-  const colors = ["", "bg-destructive", "bg-destructive", "bg-amber-500", "bg-amber-500", "bg-emerald-500", "bg-emerald-500"];
+  const colors = ["", "bg-destructive", "bg-destructive", "bg-warning", "bg-warning", "bg-success", "bg-success"];
 
   return { score, label: labels[score] || "", color: colors[score] || "", checks };
 }
@@ -113,7 +113,7 @@ export function ChangeAuthCodeCard() {
                 <div className="space-y-2 mt-2">
                   <div className="flex items-center gap-2">
                     <Progress value={(strength.score / 6) * 100} className="flex-1 h-2" />
-                    <span className={`text-xs font-medium ${strength.score >= 4 ? "text-emerald-500" : strength.score >= 3 ? "text-amber-500" : "text-destructive"}`}>
+                    <span className={`text-xs font-medium ${strength.score >= 4 ? "text-success" : strength.score >= 3 ? "text-warning" : "text-destructive"}`}>
                       {strength.label}
                     </span>
                   </div>
@@ -135,7 +135,7 @@ export function ChangeAuthCodeCard() {
                 <p className="text-xs text-destructive mt-1">Codes don't match</p>
               )}
               {codesMatch && (
-                <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
+                <p className="text-xs text-success mt-1 flex items-center gap-1">
                   <Check className="h-3 w-3" /> Codes match
                 </p>
               )}
@@ -171,7 +171,7 @@ export function ChangeAuthCodeCard() {
 
 function StrengthCheck({ pass, label }: { pass?: boolean; label: string }) {
   return (
-    <div className={`flex items-center gap-1 ${pass ? "text-emerald-500" : "text-muted-foreground"}`}>
+    <div className={`flex items-center gap-1 ${pass ? "text-success" : "text-muted-foreground"}`}>
       {pass ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
       <span>{label}</span>
     </div>

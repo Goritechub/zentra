@@ -38,9 +38,9 @@ const COMPLAINT_CATEGORIES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; color: string }> = {
-  new: { label: "New", icon: Clock, color: "text-amber-500" },
+  new: { label: "New", icon: Clock, color: "text-warning" },
   in_review: { label: "In Review", icon: Clock, color: "text-primary" },
-  resolved: { label: "Resolved", icon: CheckCircle2, color: "text-green-500" },
+  resolved: { label: "Resolved", icon: CheckCircle2, color: "text-success" },
   closed: { label: "Closed", icon: XCircle, color: "text-muted-foreground" },
 };
 

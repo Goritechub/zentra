@@ -1276,9 +1276,9 @@ export default function ApplyJobPage() {
                     </p>
 
                     {job?.is_nda && (
-                      <div className={`rounded-lg border p-4 space-y-3 ${ndaAcknowledged ? "border-primary/40 bg-primary/5" : "border-amber-400/60 bg-amber-50 dark:bg-amber-950/20"}`}>
+                      <div className={`rounded-lg border p-4 space-y-3 ${ndaAcknowledged ? "border-primary/40 bg-primary/5" : "border-warning/60 bg-warning/10"}`}>
                         <div className="flex items-start gap-2">
-                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <Info className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                           <div className="space-y-2 flex-1">
                             <p className="text-sm font-medium text-foreground">NDA Required</p>
                             {job.nda_url ? (
@@ -1310,9 +1310,9 @@ export default function ApplyJobPage() {
                     )}
 
                     {job?.is_ip_policy && (
-                      <div className={`rounded-lg border p-4 space-y-3 ${ipPolicyAcknowledged ? "border-primary/40 bg-primary/5" : "border-amber-400/60 bg-amber-50 dark:bg-amber-950/20"}`}>
+                      <div className={`rounded-lg border p-4 space-y-3 ${ipPolicyAcknowledged ? "border-primary/40 bg-primary/5" : "border-warning/60 bg-warning/10"}`}>
                         <div className="flex items-start gap-2">
-                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <Info className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                           <div className="space-y-2 flex-1">
                             <p className="text-sm font-medium text-foreground">IP Policy Required</p>
                             {job.ip_policy_type === "custom" && job.ip_policy_url ? (

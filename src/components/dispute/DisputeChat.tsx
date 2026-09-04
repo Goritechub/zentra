@@ -127,7 +127,7 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
               const showDateHeader = !prevDate || getDateLabel(msgDate) !== getDateLabel(prevDate);
 
               const roleColor = sender?.role === "adjudicator"
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                ? "bg-warning/10 text-warning"
                 : sender?.role === "complainant"
                   ? "bg-destructive/10 text-destructive"
                   : "bg-primary/10 text-primary";
@@ -173,7 +173,7 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
                           <p className="text-xs text-muted-foreground mb-0.5 ml-1">
                             {sender?.name || "Unknown"}
                             {sender?.role === "adjudicator" && (
-                              <span className="ml-1 text-amber-600 dark:text-amber-400 font-medium">• Adjudicator</span>
+                              <span className="ml-1 text-warning font-medium">• Adjudicator</span>
                             )}
                           </p>
                         )}
@@ -181,10 +181,10 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
                           "rounded-2xl px-4 py-2",
                           isOwn
                             ? sender?.role === "adjudicator"
-                              ? "bg-amber-500/20 text-foreground rounded-br-md"
+                              ? "bg-warning/20 text-foreground rounded-br-md"
                               : "bg-primary text-primary-foreground rounded-br-md"
                             : sender?.role === "adjudicator"
-                              ? "bg-amber-500/10 border border-amber-500/20 rounded-bl-md"
+                              ? "bg-warning/10 border border-warning/20 rounded-bl-md"
                               : "bg-muted rounded-bl-md"
                         )}>
                           <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(msg.content, isOwn)}</p>

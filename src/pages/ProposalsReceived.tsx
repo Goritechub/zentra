@@ -899,7 +899,7 @@ function ProposalAnalyticsStrip({ proposal, job }: { proposal: ClientReceivedPro
     const diff = proposal.bid_amount - job.budget_max;
     const pct = Math.round(Math.abs(diff / job.budget_max) * 100);
     if (diff > 0) chips.push({ label: `${pct}% over budget`, className: "border-destructive/60 text-destructive bg-destructive/5" });
-    else if (diff < 0) chips.push({ label: `${pct}% under budget`, className: "border-emerald-400/60 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" });
+    else if (diff < 0) chips.push({ label: `${pct}% under budget`, className: "border-success/60 text-success bg-success/10" });
     else chips.push({ label: "Exact budget match", className: "border-primary/40 text-primary bg-primary/5" });
   }
 
@@ -913,7 +913,7 @@ function ProposalAnalyticsStrip({ proposal, job }: { proposal: ClientReceivedPro
     const diff = actual - suggested;
     if (diff === 0) chips.push({ label: `${actual} milestone${actual !== 1 ? "s" : ""} (as suggested)`, className: "border-primary/40 text-primary bg-primary/5" });
     else if (diff > 0) chips.push({ label: `+${diff} milestone${diff !== 1 ? "s" : ""} added`, className: "border-border text-muted-foreground" });
-    else chips.push({ label: `${Math.abs(diff)} milestone${Math.abs(diff) !== 1 ? "s" : ""} fewer`, className: "border-amber-400/60 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30" });
+    else chips.push({ label: `${Math.abs(diff)} milestone${Math.abs(diff) !== 1 ? "s" : ""} fewer`, className: "border-warning/60 text-warning bg-warning/10" });
   }
 
   if (chips.length === 0) return null;

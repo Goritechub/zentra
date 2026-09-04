@@ -302,7 +302,7 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
       {dispute.dispute_status !== "resolved" && (
         <div className="flex items-center justify-between">
           {totalHeld <= 0 && (
-            <p className="text-sm text-amber-600 flex items-center gap-1">
+            <p className="text-sm text-warning flex items-center gap-1">
               <AlertTriangle className="h-4 w-4" />
               No project funds — payment was already released or contract completed.
             </p>

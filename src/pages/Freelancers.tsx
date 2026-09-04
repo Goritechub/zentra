@@ -453,7 +453,7 @@ export default function FreelancersPage() {
                               className="absolute top-3 right-3 h-7 w-7 p-0 z-10"
                               onClick={(e) => handleSaveExpert(e, f.user_id)}
                             >
-                              <Heart className={`h-3.5 w-3.5 ${savedIds.has(f.user_id) ? "fill-current text-rose-500" : ""}`} />
+                              <Heart className={`h-3.5 w-3.5 ${savedIds.has(f.user_id) ? "fill-current text-error" : ""}`} />
                             </Button>
 
                             <div className="flex gap-3 mb-3 pr-8">
@@ -601,7 +601,7 @@ export default function FreelancersPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 w-7 p-0 text-rose-500 hover:text-rose-600 shrink-0"
+                            className="h-7 w-7 p-0 text-error hover:text-error/80 shrink-0"
                             onClick={(e) => removeSaved(e, item.id, item.freelancer_id)}
                           >
                             <Heart className="h-3.5 w-3.5 fill-current" />

@@ -49,7 +49,7 @@ export function StripeConnectOnboarding({ show = true }: StripeConnectOnboarding
     <div className="flex items-start gap-4 p-4 rounded-lg border border-primary/30 bg-primary/5">
       <div className="shrink-0 mt-0.5">
         {isIncomplete ? (
-          <AlertCircle className="h-5 w-5 text-amber-500" />
+          <AlertCircle className="h-5 w-5 text-warning" />
         ) : (
           <Globe className="h-5 w-5 text-primary" />
         )}
@@ -95,7 +95,7 @@ export function StripeConnectBadge() {
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       {status.ready ? (
         <>
-          <CheckCircle2 className="h-3 w-3 text-green-500" />
+          <CheckCircle2 className="h-3 w-3 text-success" />
           <span>International payouts enabled</span>
         </>
       ) : (

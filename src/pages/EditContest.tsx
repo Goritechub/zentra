@@ -304,7 +304,7 @@ export default function EditContestPage() {
 
           {/* Pending review notice */}
           {!isRejected && (
-            <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 mb-6 text-sm text-amber-800 dark:text-amber-200">
+            <div className="rounded-lg border border-warning/60 bg-warning/10 px-4 py-3 mb-6 text-sm text-warning">
               <span className="font-semibold">Under review — </span>
               your contest is currently being reviewed. Saving changes will notify the admin to re-review.
             </div>
@@ -445,7 +445,7 @@ export default function EditContestPage() {
               <div className="flex flex-wrap gap-2">
                 {parseInt(prizeFirst) > 0 && (
                   <Badge variant="outline" className="gap-1">
-                    <Trophy className="h-3 w-3 text-amber-500" /> 1st: {format(parseInt(prizeFirst))}
+                    <Trophy className="h-3 w-3 text-warning" /> 1st: {format(parseInt(prizeFirst))}
                   </Badge>
                 )}
                 {parseInt(prizeSecond) > 0 && (

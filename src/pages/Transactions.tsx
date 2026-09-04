@@ -62,7 +62,7 @@ function ClearanceCountdown({ clearanceAt }: { clearanceAt: string }) {
   if (hoursLeft === null) return null;
 
   return (
-    <span className={`text-xs font-medium ${hoursLeft === 0 ? "text-primary" : "text-amber-500"}`}>
+    <span className={`text-xs font-medium ${hoursLeft === 0 ? "text-primary" : "text-warning"}`}>
       <Timer className="h-3 w-3 inline mr-0.5" />
       {hoursLeft === 0 ? "Releasing..." : `${hoursLeft}h`}
     </span>
@@ -221,9 +221,9 @@ export default function TransactionsPage() {
 
             {/* Pending Clearance (freelancer only) */}
             {isFreelancer && (
-              <div className="bg-card rounded-xl border border-amber-500/30 p-4 sm:p-6">
+              <div className="bg-card rounded-xl border border-warning/30 p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <Timer className="h-5 w-5 text-amber-500" />
+                  <Timer className="h-5 w-5 text-warning" />
                   <span className="text-sm text-muted-foreground">Pending Clearance</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -269,10 +269,10 @@ export default function TransactionsPage() {
 
           {/* Pending Clearance Details (freelancer) */}
           {isFreelancer && pendingClearanceTxs.length > 0 && (
-            <div className="bg-card rounded-xl border border-amber-500/20 mb-8">
+            <div className="bg-card rounded-xl border border-warning/20 mb-8">
               <div className="p-4 border-b border-border">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-amber-500" />
+                  <Timer className="h-4 w-4 text-warning" />
                   Pending Clearance ({pendingClearanceTxs.length})
                 </h3>
               </div>
@@ -284,7 +284,7 @@ export default function TransactionsPage() {
                       <p className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("en-NG")}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-amber-500">{format(tx.amount)}</p>
+                      <p className="font-semibold text-warning">{format(tx.amount)}</p>
                       <ClearanceCountdown clearanceAt={tx.clearance_at} />
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default function TransactionsPage() {
                           <p className="font-medium text-foreground text-sm sm:text-base truncate">
                             {maskDescription(tx.description) || tx.type}
                             {isPendingClearance && (
-                              <Badge variant="outline" className="ml-2 text-amber-500 border-amber-500/30 text-[10px] px-1.5 py-0">
+                              <Badge variant="outline" className="ml-2 text-warning border-warning/30 text-[10px] px-1.5 py-0">
                                 Pending
                               </Badge>
                             )}
@@ -355,7 +355,7 @@ export default function TransactionsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold ${neutral ? "text-foreground dark:text-gray-300" : isPendingClearance ? "text-amber-500" : credit ? "text-primary" : "text-destructive"}`}>
+                        <p className={`font-semibold ${neutral ? "text-foreground" : isPendingClearance ? "text-warning" : credit ? "text-primary" : "text-destructive"}`}>
                           {neutral ? "" : credit ? "+" : "-"}{format(tx.amount)}
                         </p>
                         {tx.balance_after != null && <p className="text-xs text-muted-foreground">{neutral ? "Project balance:" : "Bal:"} {format(tx.balance_after)}</p>}
@@ -416,7 +416,7 @@ export default function TransactionsPage() {
                       {exportFrom && exportTo ? `${exportFrom} — ${exportTo}` : "All Transactions"}
                     </p>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#2563eb" }}>ZentraGig</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#1E2337" }}>ZentraGig</div>
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
@@ -432,7 +432,7 @@ export default function TransactionsPage() {
                       <tr key={tx.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                         <td style={{ padding: "8px 4px" }}>{new Date(tx.created_at).toLocaleDateString("en-NG")}</td>
                         <td style={{ padding: "8px 4px" }}>{maskDescription(tx.description) || tx.type}</td>
-                        <td style={{ padding: "8px 4px", textAlign: "right", color: isNeutral(tx) ? "#374151" : isCredit(tx) ? "#16a34a" : "#dc2626" }}>
+                        <td style={{ padding: "8px 4px", textAlign: "right", color: isNeutral(tx) ? "#374151" : isCredit(tx) ? "#1F7A52" : "#C23854" }}>
                           {isNeutral(tx) ? "" : isCredit(tx) ? "+" : "-"}₦{tx.amount?.toLocaleString()}
                         </td>
                         <td style={{ padding: "8px 4px", textAlign: "right" }}>₦{tx.balance_after?.toLocaleString()}</td>
@@ -442,7 +442,7 @@ export default function TransactionsPage() {
                 </table>
                 <div style={{ marginTop: 24, borderTop: "1px solid #e5e7eb", paddingTop: 12, display: "flex", justifyContent: "space-between", fontSize: 11, color: "#aaa" }}>
                   <span>Generated on {new Date().toLocaleDateString("en-NG")}</span>
-                  <span style={{ fontWeight: 700, color: "#2563eb" }}>© ZentraGig</span>
+                  <span style={{ fontWeight: 700, color: "#1E2337" }}>© ZentraGig</span>
                 </div>
               </div>
             </div>

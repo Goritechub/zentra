@@ -330,7 +330,7 @@ export default function DisputeDetail() {
                   </Badge>
                 </p>
                 {dispute.response_deadline && !dispute.respondent_explanation && (
-                  <p className={`text-xs ${deadlineExpired ? "text-destructive font-medium" : "text-amber-500"}`}>
+                  <p className={`text-xs ${deadlineExpired ? "text-destructive font-medium" : "text-warning"}`}>
                     {deadlineExpired
                       ? "Response deadline expired"
                       : `Deadline: ${fnsFormat(new Date(dispute.response_deadline), "PPp")}`}
@@ -462,7 +462,7 @@ export default function DisputeDetail() {
                     <div key={item.id} className="rounded-lg border border-border bg-muted/50 p-2 space-y-1">
                       <div className="flex items-center gap-2">
                         {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />}
-                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                        {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-success shrink-0" />}
                         {item.status === "error" && <AlertCircle className="h-4 w-4 text-destructive shrink-0" />}
                         <span className="text-sm flex-1 truncate">{item.file.name}</span>
                         {item.status === "error" && (

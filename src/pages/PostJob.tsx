@@ -910,7 +910,7 @@ export default function PostJobPage() {
                           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
                         )}
                         {item.status === "done" && (
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          <Check className="h-4 w-4 text-success shrink-0" />
                         )}
                         {item.status === "error" && (
                           <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
@@ -1019,7 +1019,7 @@ export default function PostJobPage() {
                                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
                               )}
                               {ndaUpload.status === "done" && (
-                                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                                <Check className="h-3.5 w-3.5 text-success shrink-0" />
                               )}
                               {ndaUpload.status === "error" && (
                                 <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
@@ -1186,7 +1186,7 @@ export default function PostJobPage() {
                                     <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
                                   )}
                                   {ipPolicyUpload.status === "done" && (
-                                    <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                                    <Check className="h-3.5 w-3.5 text-success shrink-0" />
                                   )}
                                   {ipPolicyUpload.status === "error" && (
                                     <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
@@ -1264,9 +1264,9 @@ export default function PostJobPage() {
                           </div>
                         )}
 
-                        <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900">
-                          <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                          <AlertDescription className="text-xs text-amber-800 dark:text-amber-400">
+                        <Alert className="bg-warning/10 border-warning/30">
+                          <ShieldAlert className="h-4 w-4 text-warning" />
+                          <AlertDescription className="text-xs text-warning">
                             An IP Policy is a legal agreement, not encryption — avoid pasting highly sensitive proprietary
                             details directly into the description. Consider sharing specifics after hiring.
                           </AlertDescription>

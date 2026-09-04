@@ -140,7 +140,7 @@ export function ExpertStatsBanner() {
           onClick={() => navigate("/transactions")}
           className="relative overflow-hidden rounded-xl border border-border bg-card p-4 text-left transition-all hover:shadow-md hover:border-primary/30 group"
         >
-          <MiniTrendChart data={earningsTrend} color="hsl(142, 71%, 45%)" />
+          <MiniTrendChart data={earningsTrend} color="hsl(152, 45%, 32%)" />
           <div className="relative z-10">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
               <Wallet className="h-3.5 w-3.5" />
@@ -148,7 +148,7 @@ export function ExpertStatsBanner() {
             </div>
             <p className="text-xl font-bold text-foreground">{format(monthlyEarnings)}</p>
             {pctChange !== 0 && (
-              <p className={`text-xs mt-1 font-medium ${pctChange > 0 ? "text-green-500" : "text-destructive"}`}>
+              <p className={`text-xs mt-1 font-medium ${pctChange > 0 ? "text-success" : "text-destructive"}`}>
                 {pctChange > 0 ? "+" : ""}{pctChange}% from last month
               </p>
             )}

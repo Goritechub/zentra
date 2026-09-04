@@ -145,7 +145,7 @@ export function TotpSetupCard() {
                     {secret}
                   </code>
                   <Button variant="ghost" size="icon" onClick={copySecret} className="shrink-0">
-                    {secretCopied ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {secretCopied ? <CheckCheck className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export function TotpSetupCard() {
 
           {step === "enabled" && (
             <div className="flex items-center justify-between">
-              <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              <Badge className="bg-success/10 text-success">
                 Active
               </Badge>
               <Button variant="destructive" size="sm" onClick={() => setShowDisableDialog(true)}>
@@ -211,7 +211,7 @@ export function TotpSetupCard() {
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={copyAllRecovery} className="w-full sm:w-auto">
-              {recoveryCopied ? <CheckCheck className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+              {recoveryCopied ? <CheckCheck className="h-4 w-4 mr-2 text-success" /> : <Copy className="h-4 w-4 mr-2" />}
               Copy All
             </Button>
             <Button onClick={() => setShowRecovery(false)} className="w-full sm:w-auto">

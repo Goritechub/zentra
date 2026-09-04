@@ -389,7 +389,7 @@ export default function ManagePortfolioPage() {
                             </div>
                           )}
                           {item.status === "done" && (
-                            <div className="absolute top-1 left-1 bg-emerald-500 rounded-full p-0.5">
+                            <div className="absolute top-1 left-1 bg-success rounded-full p-0.5">
                               <CheckCircle2 className="h-3 w-3 text-white" />
                             </div>
                           )}

@@ -256,7 +256,7 @@ export default function JobsPage() {
             </Badge>
           )}
           {job.is_nda && (
-            <Badge variant="outline" className="text-xs gap-1 border-amber-400/60 text-amber-700 dark:text-amber-400">
+            <Badge variant="outline" className="text-xs gap-1 border-warning/60 text-warning">
               <Shield className="h-3 w-3" /> NDA
             </Badge>
           )}

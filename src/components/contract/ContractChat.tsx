@@ -364,7 +364,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
                   {item.status === "uploading" ? (
                     <Loader2 className="h-3 w-3 text-primary shrink-0 animate-spin" />
                   ) : item.status === "done" ? (
-                    <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                    <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
                   ) : (
                     <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
                   )}

@@ -37,7 +37,7 @@ const getPasswordStrength = (password: string) => {
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
   if (score <= 2) return { label: "Weak", color: "bg-destructive", width: "w-1/4" };
-  if (score <= 3) return { label: "Fair", color: "bg-amber-500", width: "w-2/4" };
+  if (score <= 3) return { label: "Fair", color: "bg-warning", width: "w-2/4" };
   if (score <= 4) return { label: "Good", color: "bg-accent", width: "w-3/4" };
   return { label: "Strong", color: "bg-primary", width: "w-full" };
 };
@@ -157,7 +157,7 @@ export default function ResetPassword() {
                           <span className={cn(
                             "text-xs font-medium",
                             strength.label === "Weak" ? "text-destructive" :
-                            strength.label === "Fair" ? "text-amber-500" :
+                            strength.label === "Fair" ? "text-warning" :
                             strength.label === "Good" ? "text-accent" : "text-primary"
                           )}>
                             {strength.label}
