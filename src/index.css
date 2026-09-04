@@ -291,6 +291,133 @@
   .animation-delay-500 {
     animation-delay: 500ms;
   }
+
+  /* How It Works — per-step hover animations */
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes search-orbit {
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+      18%,
+      27% {
+        transform: translate(-22px, -22px) scale(1.08);
+      }
+      45%,
+      54% {
+        transform: translate(22px, -22px) scale(1.08);
+      }
+      72%,
+      81% {
+        transform: translate(0, 22px) scale(1.08);
+      }
+    }
+
+    @keyframes bubble-rise-left {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.85);
+      }
+      15% {
+        opacity: 1;
+        transform: translateY(2px) scale(1);
+      }
+      70% {
+        opacity: 1;
+        transform: translateY(-16px) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-24px) scale(0.9);
+      }
+    }
+
+    @keyframes bubble-rise-right {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.85);
+      }
+      15% {
+        opacity: 1;
+        transform: translateY(2px) scale(1);
+      }
+      70% {
+        opacity: 1;
+        transform: translateY(-16px) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-24px) scale(0.9);
+      }
+    }
+
+    @keyframes progress-ring {
+      from {
+        stroke-dashoffset: 233;
+      }
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @keyframes file-icon-confirm {
+      0%,
+      78% {
+        transform: scale(1) rotate(0deg);
+      }
+      90% {
+        transform: scale(1.22) rotate(-8deg);
+      }
+      100% {
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    @keyframes card-swipe {
+      0% {
+        transform: translateX(-30px) rotate(-8deg);
+        opacity: 0;
+      }
+      15% {
+        opacity: 1;
+      }
+      50% {
+        transform: translateX(0) rotate(-4deg);
+        opacity: 1;
+      }
+      85% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(30px) rotate(-8deg);
+        opacity: 0;
+      }
+    }
+
+    .group:hover .how-it-works-search-icon {
+      animation: search-orbit 4.2s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-bubble-left {
+      animation: bubble-rise-left 2.6s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-bubble-right {
+      animation: bubble-rise-right 2.6s ease-in-out infinite 1.3s;
+    }
+
+    .group:hover .how-it-works-progress-ring circle {
+      animation: progress-ring 2s linear infinite;
+    }
+
+    .group:hover .how-it-works-file-icon {
+      animation: file-icon-confirm 2s ease-in-out infinite;
+    }
+
+    .group:hover .how-it-works-card-swipe {
+      animation: card-swipe 1.8s ease-in-out infinite;
+    }
+  }
 }
 
 @layer utilities {
