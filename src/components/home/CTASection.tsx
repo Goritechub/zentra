@@ -41,8 +41,8 @@ export function CTASection() {
               </div>
               <h3 className="text-2xl font-bold mb-3">Looking to Hire?</h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Post your project and receive proposals from verified technical
-                experts within hours.
+                Post your engineering project and receive proposals from
+                verified technical experts within hours.
               </p>
               <Button
                 size="lg"
