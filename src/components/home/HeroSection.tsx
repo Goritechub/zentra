@@ -40,15 +40,6 @@ export function HeroSection() {
       <div className="container-wide relative">
         <div className="py-20 md:py-28 lg:py-32">
           <div className="max-w-3xl mx-auto text-center space-y-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 animate-fade-in">
-              <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse-soft" />
-              <span className="text-sm font-medium">
-                {/* Where hardware and engineering projects get built */}
-                Beta Launch
-              </span>
-            </div>
-
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in-up">
               Hire <span className="text-accent">Engineers</span> & Makers.
