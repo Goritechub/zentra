@@ -63,7 +63,7 @@ export function TestimonialsSection() {
   if (loading) return null;
 
   return (
-    <section className="section-padding">
+    <section id="testimonials" className="section-padding">
       <div className="container-wide">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">

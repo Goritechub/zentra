@@ -64,10 +64,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  to="/pricing"
+                  to="/get-a-quote"
                   className="hover:text-accent transition-colors"
                 >
-                  Pricing
+                  Get a Quote
                 </Link>
               </li>
             </ul>
@@ -95,18 +95,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  to="/resources"
+                  to="/blog"
                   className="hover:text-accent transition-colors"
                 >
-                  Resources
+                  Blogs
                 </Link>
               </li>
               <li>
                 <Link
-                  to="/success-stories"
+                  to="/#testimonials"
                   className="hover:text-accent transition-colors"
                 >
-                  Success Stories
+                  Testimonials
                 </Link>
               </li>
             </ul>
