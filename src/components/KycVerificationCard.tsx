@@ -6,6 +6,7 @@ import { ShieldCheck, Loader2, ExternalLink, RefreshCw, CheckCircle2, XCircle, C
 import { useKycVerification } from "@/hooks/useKycVerification";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { TermsModal } from "@/components/TermsModal";
 
 export function KycVerificationCard({ role }: { role?: "client" | "freelancer" | null }) {
   const { kycData, loading, startVerification, checkStatus, isVerified: kycVerified, isZentraVerified } = useKycVerification();
@@ -14,6 +15,8 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
   const zentraLabel = role === "client" ? "ZentraGig Verified Partner" : "ZentraGig Verified Expert";
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [kycConsentAccepted, setKycConsentAccepted] = useState(false);
+  const [kycModalOpen, setKycModalOpen] = useState(false);
 
   const handleStart = async () => {
     setStarting(true);
@@ -34,6 +37,19 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
       toast.error("Failed to start verification");
     }
     setStarting(false);
+  };
+
+  const handleVerifyClick = () => {
+    if (kycConsentAccepted) {
+      handleStart();
+    } else {
+      setKycModalOpen(true);
+    }
+  };
+
+  const handleKycConsentAgree = () => {
+    setKycConsentAccepted(true);
+    handleStart();
   };
 
   const handleCheck = async () => {
@@ -147,7 +163,7 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
         {/* Actions */}
         <div className="flex gap-2">
           {(status === "not_started" || status === "failed") && (
-            <Button size="sm" onClick={handleStart} disabled={starting}>
+            <Button size="sm" onClick={handleVerifyClick} disabled={starting}>
               {starting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />}
               {status === "failed" ? "Try Again" : "Verify Identity"}
             </Button>
@@ -209,6 +225,14 @@ export function KycVerificationCard({ role }: { role?: "client" | "freelancer" |
           </div>
         </div>
       </CardContent>
+
+      <TermsModal
+        open={kycModalOpen}
+        onOpenChange={setKycModalOpen}
+        onAgree={handleKycConsentAgree}
+        slug="kyc-policy"
+        title="Identity Verification (KYC) Policy"
+      />
     </Card>
   );
 }

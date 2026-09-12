@@ -177,6 +177,12 @@ export function Footer() {
             >
               Dispute Policy
             </Link>
+            <Link
+              to="/terms?doc=payment-agreement"
+              className="hover:text-accent transition-colors"
+            >
+              Refund Policy
+            </Link>
           </div>
         </div>
       </div>
