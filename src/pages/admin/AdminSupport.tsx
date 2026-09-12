@@ -352,7 +352,7 @@ function SupportChatsTab() {
             placeholder="Type a reply..."
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
           />
-          <Button onClick={handleSend} disabled={sending || !newMsg.trim()} size="icon">
+          <Button onClick={handleSend} disabled={sending || !newMsg.trim()} size="icon" aria-label="Send message">
             <Send className="h-4 w-4" />
           </Button>
         </div>

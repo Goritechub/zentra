@@ -336,12 +336,13 @@ export default function AdminContests() {
                               size="icon"
                               onClick={() => setSelectedContest(contest)}
                               title="View details"
+                              aria-label="View details"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Delete contest">
+                                <Button variant="ghost" size="icon" title="Delete contest" aria-label="Delete contest">
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>

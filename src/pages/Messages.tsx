@@ -258,6 +258,7 @@ const Messages = () => {
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-primary"
                   onClick={(e) => { e.stopPropagation(); handleUnhide(convo.contractId); }}
+                  aria-label="Unhide conversation"
                 >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
@@ -268,6 +269,7 @@ const Messages = () => {
                     size="icon"
                     className="shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={(e) => { e.stopPropagation(); handleHideSingle(convo.contractId); }}
+                    aria-label="Hide conversation"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -285,7 +287,7 @@ const Messages = () => {
       <Header />
       <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Messages</h1>

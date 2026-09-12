@@ -314,7 +314,7 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label="Change theme">
                   <Palette className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -361,7 +361,7 @@ export function Header() {
                 {/* User menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" aria-label="User menu">
                       <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>

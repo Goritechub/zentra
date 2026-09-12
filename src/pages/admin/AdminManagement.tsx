@@ -357,6 +357,7 @@ export default function AdminManagement() {
                               setResetCode("");
                             }}
                             title="Reset auth code"
+                            aria-label="Reset auth code"
                           >
                             <KeyRound className="h-4 w-4" />
                           </Button>
@@ -368,6 +369,7 @@ export default function AdminManagement() {
                               setEditPermissions([...admin.permissions]);
                             }}
                             title="Edit permissions"
+                            aria-label="Edit permissions"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -376,6 +378,7 @@ export default function AdminManagement() {
                             size="icon"
                             onClick={() => handleSuspendToggle(admin)}
                             title={admin.is_suspended ? "Unsuspend" : "Suspend"}
+                            aria-label={admin.is_suspended ? "Unsuspend" : "Suspend"}
                             disabled={admin.permissions.includes("admin_management")}
                           >
                             {admin.is_suspended ? (
@@ -389,6 +392,7 @@ export default function AdminManagement() {
                             size="icon"
                             onClick={() => handleRemove(admin)}
                             title="Remove admin"
+                            aria-label="Remove admin"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

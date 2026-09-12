@@ -237,7 +237,7 @@ export function DisputeChat({ disputeId, parties, isActive }: DisputeChatProps) 
               className="min-h-[36px] max-h-24 resize-none text-sm"
               rows={1}
             />
-            <Button onClick={handleSend} disabled={!content.trim() || sending} size="icon" className="flex-shrink-0 h-9 w-9">
+            <Button onClick={handleSend} disabled={!content.trim() || sending} size="icon" className="flex-shrink-0 h-9 w-9" aria-label="Send message">
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>

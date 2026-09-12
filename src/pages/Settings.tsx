@@ -845,6 +845,7 @@ export default function SettingsPage() {
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={() => setDeleteBankId(b.id)}
+                        aria-label="Delete bank account"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

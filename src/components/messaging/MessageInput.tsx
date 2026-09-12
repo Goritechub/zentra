@@ -178,6 +178,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
           className="flex-shrink-0 h-11 w-11"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || sending || uploading}
+          aria-label="Attach file"
         >
           <Paperclip className="h-5 w-5" />
         </Button>
@@ -195,6 +196,7 @@ export function MessageInput({ onSend, disabled, sending }: MessageInputProps) {
           disabled={(!content.trim() && attachments.length === 0) || disabled || sending || uploading}
           size="icon"
           className="flex-shrink-0 h-11 w-11"
+          aria-label="Send message"
         >
           {sending || uploading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

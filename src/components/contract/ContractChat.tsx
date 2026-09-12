@@ -389,6 +389,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
               onClick={() => fileInputRef.current?.click()}
               disabled={sending || uploadItems.length >= MAX_FILES}
               title={uploadItems.length === 0 ? `Attach files (max ${MAX_FILES})` : `${MAX_FILES - uploadItems.length} of ${MAX_FILES} slots remaining`}
+              aria-label="Attach files"
             >
               <Paperclip className="h-4 w-4" />
             </Button>
@@ -405,6 +406,7 @@ export function ContractChat({ contractId, partnerName, partnerAvatar, isRestric
               onClick={handleSend}
               disabled={(!content.trim() && uploadItems.length === 0) || sending || uploadItems.some(u => u.status === "uploading")}
               size="icon" className="flex-shrink-0 h-9 w-9"
+              aria-label="Send message"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>

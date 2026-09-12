@@ -253,6 +253,7 @@ export default function AdminSettings() {
                           className="h-9 w-9 text-destructive hover:text-destructive"
                           onClick={() => removeDraftTier(i)}
                           disabled={draftTiers.length <= 2}
+                          aria-label="Remove tier"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

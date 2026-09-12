@@ -488,6 +488,7 @@ export default function ManagePortfolioPage() {
                       size="icon"
                       className="text-destructive hover:text-destructive"
                       onClick={() => handleDelete(item.id)}
+                      aria-label="Delete portfolio item"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

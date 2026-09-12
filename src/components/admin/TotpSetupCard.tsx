@@ -144,7 +144,13 @@ export function TotpSetupCard() {
                   <code className="text-xs font-mono bg-muted px-2 py-1 rounded select-all break-all flex-1">
                     {secret}
                   </code>
-                  <Button variant="ghost" size="icon" onClick={copySecret} className="shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={copySecret}
+                    className="shrink-0"
+                    aria-label={secretCopied ? "Secret copied" : "Copy secret"}
+                  >
                     {secretCopied ? <CheckCheck className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>

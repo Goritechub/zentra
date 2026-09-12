@@ -418,6 +418,7 @@ const Blog = () => {
                 size="icon"
                 disabled={page === 1}
                 onClick={() => setPage(page - 1)}
+                aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -429,6 +430,7 @@ const Blog = () => {
                 size="icon"
                 disabled={page === totalPages}
                 onClick={() => setPage(page + 1)}
+                aria-label="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
