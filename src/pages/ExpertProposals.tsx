@@ -193,6 +193,7 @@ export default function ExpertProposalsPage() {
               variant="ghost"
               className="h-8 w-8 text-muted-foreground hover:text-primary"
               title={`Message ${p.job?.client?.full_name || "client"}`}
+              aria-label={`Message ${p.job?.client?.full_name || "client"}`}
               onClick={(e) => {
                 e.preventDefault();
                 if (interviewContracts[p.id]) {
@@ -263,15 +264,6 @@ export default function ExpertProposalsPage() {
               </Button>
             </>
           )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            title={`Message ${o.client?.full_name || "client"}`}
-            onClick={() => navigate(`/messages?user=${o.client_id}`)}
-          >
-            <MessageCircle className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>

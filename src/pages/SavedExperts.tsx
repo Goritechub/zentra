@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getSavedExpertsList, removeSavedExpert } from "@/api/client-read.api";
 import type { SavedExpert } from "@/types/client";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, Loader2, MapPin, Star, Trash2, ArrowLeft } from "lucide-react";
+import { Heart, Loader2, MapPin, Star, ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -93,7 +93,7 @@ export default function SavedExpertsPage() {
                 return (
                   <Link
                     key={item.id}
-                    to={`/messages?user=${item.freelancer_id}`}
+                    to={`/expert/${item.freelancer_id}/profile`}
                     className="block bg-card rounded-xl border border-border p-4 sm:p-5 card-hover transition-all hover:border-primary/30"
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -109,9 +109,7 @@ export default function SavedExpertsPage() {
                         </Button>
                       </div>
                     </div>
-                    <h3 className="font-semibold text-foreground">
-                      <Link to={`/expert/${item.freelancer_id}/profile`} onClick={(e) => e.stopPropagation()} className="hover:underline hover:text-primary transition-colors">{f.full_name}</Link>
-                    </h3>
+                    <h3 className="font-semibold text-foreground">{f.full_name}</h3>
                     {fp?.title && (
                       <p className="text-sm text-primary font-medium mt-0.5">{fp.title}</p>
                     )}
@@ -135,9 +133,20 @@ export default function SavedExpertsPage() {
                         {fp.skills.length > 3 && <Badge variant="secondary" className="text-xs">+{fp.skills.length - 3}</Badge>}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-3">
+                    <p className="text-xs text-muted-foreground mt-3 mb-3">
                       {getRelativeTime(item.created_at)}
                     </p>
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/post-job?invite=${item.freelancer_id}&name=${encodeURIComponent(f.full_name || "Expert")}`);
+                      }}
+                    >
+                      <Send className="h-3.5 w-3.5 mr-1.5" /> Hire
+                    </Button>
                   </Link>
                 );
               })}

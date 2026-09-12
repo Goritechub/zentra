@@ -509,7 +509,7 @@ export default function BrowseServicesPage() {
                 <Button size="sm" variant="outline" onClick={() => { setSelectedService(null); navigate(`/expert/${selectedService.freelancer_id}/profile`); }}>
                   View Profile
                 </Button>
-                <Button size="sm" onClick={() => { setSelectedService(null); navigate(`/messages?user=${selectedService.freelancer_id}`); }}>
+                <Button size="sm" onClick={() => { setSelectedService(null); navigate(`/post-job?invite=${selectedService.freelancer_id}&name=${encodeURIComponent(selectedService.freelancer?.full_name || "Expert")}`); }}>
                   <Send className="h-4 w-4 mr-1.5" /> Hire Expert
                 </Button>
               </>

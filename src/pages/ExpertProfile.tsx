@@ -777,23 +777,21 @@ export default function ExpertProfile() {
                           <Button
                             size="sm"
                             className="w-full rounded-lg"
-                            onClick={() => navigate(`/messages?user=${id}`)}
+                            onClick={() =>
+                              navigate(
+                                `/post-job?invite=${id}&name=${encodeURIComponent(profile.full_name || "Expert")}`,
+                              )
+                            }
                           >
                             Select Package
                           </Button>
-                        ) : (
+                        ) : !user ? (
                           <Button size="sm" variant="outline" className="w-full rounded-lg" asChild>
-                            <Link
-                              to={
-                                user
-                                  ? `/messages?user=${id}`
-                                  : `/auth?redirect=${encodeURIComponent(`/expert/${id}/profile`)}`
-                              }
-                            >
+                            <Link to={`/auth?redirect=${encodeURIComponent(`/expert/${id}/profile`)}`}>
                               Contact
                             </Link>
                           </Button>
-                        )}
+                        ) : null}
                       </div>
                     ))}
                   </div>
