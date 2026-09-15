@@ -9,7 +9,14 @@ import { getSavedExpertsList } from "@/api/client-read.api";
 // an explicit Hire action that pre-invites the expert into a private job —
 // never the dead Messages link.
 
-const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+// mockUser must be a stable object reference across renders — SavedExpertsPage's
+// effect depends on `user` by identity, and a fresh literal here on every render
+// (the real useAuth's `user` comes from useState, so it IS stable) would re-fire
+// the fetch effect forever.
+const { mockNavigate, mockUser } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockUser: { id: "client-1" },
+}));
 
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router-dom")>();
@@ -20,7 +27,7 @@ vi.mock("@/components/layout/Header", () => ({ Header: () => null }));
 vi.mock("@/components/layout/Footer", () => ({ Footer: () => null }));
 
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "client-1" }, bootstrapStatus: "ready" }),
+  useAuth: () => ({ user: mockUser, bootstrapStatus: "ready" }),
 }));
 
 vi.mock("@/api/client-read.api", () => ({
