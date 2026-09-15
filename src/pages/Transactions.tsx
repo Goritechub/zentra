@@ -409,7 +409,7 @@ export default function TransactionsPage() {
               <div ref={exportRef} style={{ width: 800, padding: 32, background: "#fff", fontFamily: "sans-serif" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
                   <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>ZentraGig Transaction Report</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1E2337" }}>ZentraGig Transaction Report</h2>
                     <p style={{ fontSize: 12, color: "#888" }}>
                       {exportFrom && exportTo ? `${exportFrom} — ${exportTo}` : "All Transactions"}
                     </p>
