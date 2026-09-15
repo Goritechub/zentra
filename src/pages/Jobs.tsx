@@ -43,6 +43,7 @@ interface OpenJob {
   created_at: string | null;
   is_nda: boolean;
   payment_type_preference: string | null;
+  has_material_changes: boolean;
 }
 
 function computeMatch(jobSkills: string[], userSkills: string[]): number | null {
@@ -259,6 +260,11 @@ export default function JobsPage() {
           {job.is_nda && (
             <Badge variant="outline" className="text-xs gap-1 border-warning/60 text-warning">
               <Shield className="h-3 w-3" /> NDA
+            </Badge>
+          )}
+          {job.has_material_changes && (
+            <Badge variant="outline" className="text-xs gap-1 border-warning/60 text-warning">
+              Updated
             </Badge>
           )}
           <Badge variant="outline" className="text-xs py-0">{job.is_hourly ? "Hourly" : "Fixed"}</Badge>

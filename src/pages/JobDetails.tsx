@@ -452,6 +452,11 @@ export default function JobDetailsPage() {
                   <Shield className="h-3 w-3" /> NDA Required
                 </Badge>
               )}
+              {job.has_material_changes && (
+                <Badge variant="outline" className="gap-1 border-warning/50 text-warning bg-warning/10">
+                  <AlertTriangle className="h-3 w-3" /> Updated
+                </Badge>
+              )}
               {job.payment_type_preference && job.payment_type_preference !== "negotiable" && (
                 <Badge variant="outline" className={`gap-1 ${job.payment_type_preference === "milestone" ? "border-info/60 text-info" : "border-misc/60 text-misc"}`}>
                   {job.payment_type_preference === "milestone" ? "Milestone Payments" : "Lump Sum"}

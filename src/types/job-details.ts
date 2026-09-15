@@ -26,6 +26,7 @@ export interface JobDetailsJob {
   ip_policy_type: string | null;
   ip_policy_url: string | null;
   suggested_milestones: string[] | null;
+  has_material_changes: boolean;
 }
 
 export interface JobDetailsClient {
