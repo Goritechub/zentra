@@ -27,6 +27,7 @@ import { withdrawMyJobProposal } from "@/api/proposals.api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useKycVerification } from "@/hooks/useKycVerification";
+import { useShare } from "@/hooks/useShare";
 import { KycRequiredModal } from "@/components/KycRequiredModal";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { formatDistanceToNow } from "date-fns";
@@ -82,6 +83,7 @@ export default function JobDetailsPage() {
   const [fundingChoice, setFundingChoice] = useState<"now" | "later">("now");
   const [interviewingId, setInterviewingId] = useState<string | null>(null);
   const { isVerified: kycVerified } = useKycVerification();
+  const { share } = useShare();
   const [showKycModal, setShowKycModal] = useState(false);
   const [jobAssigned, setJobAssigned] = useState(false);
   const [myProposal, setMyProposal] = useState<{ id: string; status: string; notified_of_change: boolean } | null>(null);
@@ -370,22 +372,9 @@ export default function JobDetailsPage() {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     const shareUrl = `${window.location.origin}/job/${id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: job.title, url: shareUrl });
-      } catch {
-        // user cancelled the native share sheet — no-op
-      }
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Link copied to clipboard!");
-    } catch {
-      toast.error("Could not copy link.");
-    }
+    return share({ title: job.title, url: shareUrl });
   };
 
   const deliveryLabel = () => {

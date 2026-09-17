@@ -12,9 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { getBrowseServicesList } from "@/api/client-read.api";
 import type { BrowseService } from "@/types/client";
@@ -22,7 +19,7 @@ import { cadSoftwareList } from "@/lib/nigerian-data";
 import { useCurrency } from "@/hooks/useCurrency";
 import { categoryNames } from "@/lib/categories";
 import {
-  Search, X, SlidersHorizontal, Star, Clock, Send, ChevronLeft, ChevronRight,
+  Search, X, SlidersHorizontal, Star, Clock, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { ServiceCardSkeleton } from "@/components/skeletons/ServiceCardSkeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -136,8 +133,6 @@ export default function BrowseServicesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedService, setSelectedService] = useState<BrowseServiceRow | null>(null);
-  const [galleryIdx, setGalleryIdx] = useState(0);
 
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
@@ -213,8 +208,6 @@ export default function BrowseServicesPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const svcImages = selectedService?.images || [];
 
   const sidebarProps: SidebarProps = {
     selectedCategory, setSelectedCategory: (v) => { setSelectedCategory(v); setPage(1); },
@@ -321,7 +314,7 @@ export default function BrowseServicesPage() {
                       <div
                         key={svc.id}
                         className="bg-card rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer flex flex-col"
-                        onClick={() => { setSelectedService(svc); setGalleryIdx(0); }}
+                        onClick={() => navigate(`/service/${svc.id}`)}
                       >
                         {/* Expert header */}
                         <div className="flex items-center gap-2.5 mb-3">
@@ -409,114 +402,6 @@ export default function BrowseServicesPage() {
         </div>
       </main>
       <Footer />
-
-      {/* Service Detail Dialog */}
-      <Dialog open={!!selectedService} onOpenChange={() => setSelectedService(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedService?.title}</DialogTitle>
-            {selectedService?.category && (
-              <DialogDescription>{selectedService.category}</DialogDescription>
-            )}
-          </DialogHeader>
-
-          {svcImages.length > 0 && (
-            <div className="space-y-3">
-              <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                <img src={svcImages[galleryIdx]} alt={`Service image ${galleryIdx + 1}`} className="w-full h-full object-cover" />
-                {svcImages.length > 1 && (
-                  <>
-                    <button onClick={() => setGalleryIdx((i) => (i - 1 + svcImages.length) % svcImages.length)}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1.5 hover:bg-background">
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => setGalleryIdx((i) => (i + 1) % svcImages.length)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1.5 hover:bg-background">
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-              {svcImages.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {svcImages.map((url: string, i: number) => (
-                    <button key={i} onClick={() => setGalleryIdx(i)}
-                      className={`aspect-video bg-muted rounded-lg overflow-hidden border-2 transition-colors ${i === galleryIdx ? "border-primary" : "border-transparent"}`}>
-                      <img src={url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="space-y-4 py-2">
-            {selectedService?.freelancer && (
-              <div className="flex items-center gap-2.5">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={selectedService.freelancer.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {(selectedService.freelancer.full_name || "U")[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <Link to={`/expert/${selectedService.freelancer_id}/profile`}
-                  className="text-sm font-medium hover:text-primary"
-                  onClick={() => setSelectedService(null)}>
-                  {selectedService.freelancer.full_name}
-                </Link>
-              </div>
-            )}
-
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedService?.description}</p>
-
-            <div className="flex flex-wrap gap-4 text-sm">
-              {selectedService?.price && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Price</p>
-                  <p className="font-bold text-primary">
-                    {selectedService.pricing_type === "starting_from" ? "Starting at " : ""}
-                    {format(selectedService.price)}
-                  </p>
-                </div>
-              )}
-              {selectedService?.delivery_days && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Delivery</p>
-                  <p className="font-medium">{selectedService.delivery_days} {selectedService.delivery_unit || "days"}</p>
-                </div>
-              )}
-              {selectedService?.revisions_allowed && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisions</p>
-                  <p className="font-medium">{selectedService.revisions_allowed}</p>
-                </div>
-              )}
-            </div>
-
-            {selectedService?.skills?.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {selectedService.skills.map((s: string) => (
-                  <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button size="sm" variant="outline" onClick={() => setSelectedService(null)}>Close</Button>
-            {selectedService?.freelancer_id && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => { setSelectedService(null); navigate(`/expert/${selectedService.freelancer_id}/profile`); }}>
-                  View Profile
-                </Button>
-                <Button size="sm" onClick={() => { setSelectedService(null); navigate(`/post-job?invite=${selectedService.freelancer_id}&name=${encodeURIComponent(selectedService.freelancer?.full_name || "Expert")}`); }}>
-                  <Send className="h-4 w-4 mr-1.5" /> Hire Expert
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

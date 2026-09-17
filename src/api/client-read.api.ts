@@ -91,6 +91,25 @@ export async function getBrowseServicesList() {
   return response.data;
 }
 
+export type OtherService = Pick<
+  BrowseService,
+  "id" | "title" | "price" | "pricing_type" | "images" | "category"
+>;
+
+export interface PublicServiceResponse {
+  success: boolean;
+  data: BrowseService & {
+    freelancer_rating: number | null;
+    freelancer_jobs: number;
+    other_services: OtherService[];
+  };
+}
+
+export async function getPublicServiceById(serviceId: string) {
+  const response = await api.get<PublicServiceResponse>(`/services/${serviceId}`);
+  return response.data;
+}
+
 export async function getPublishedLegalDocument(slug: string) {
   const response = await api.get(`/legal-documents/${slug}`);
   return response.data.data as { document: { title: string; content: string } | null };

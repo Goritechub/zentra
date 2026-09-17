@@ -5,10 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import BrowseServices from "@/pages/BrowseServices";
 import { getBrowseServicesList } from "@/api/client-read.api";
 
-// Regression guard: the "Hire Expert" button used to navigate to
-// `/messages?user=<id>`, which is a dead end — Messages only renders
-// conversations scoped to an existing contract. It must open the job form
-// instead, with the expert pre-invited and visibility forced to private.
+// Regression guard: service cards used to open an in-page modal. They now
+// navigate to a full public page at /service/:id (so the service can be
+// shared and previewed on social platforms).
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
 
@@ -61,7 +60,7 @@ function renderPage() {
   );
 }
 
-describe("BrowseServices — Hire Expert button", () => {
+describe("BrowseServices — service card navigation", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     vi.mocked(getBrowseServicesList).mockResolvedValue({
@@ -69,20 +68,12 @@ describe("BrowseServices — Hire Expert button", () => {
     } as Awaited<ReturnType<typeof getBrowseServicesList>>);
   });
 
-  it("opens the job form with the expert pre-invited instead of a dead /messages link", async () => {
+  it("navigates to the service's full public page instead of opening a modal", async () => {
     renderPage();
 
     const card = await screen.findByRole("heading", { name: mockService.title });
     fireEvent.click(card);
 
-    const hireButton = await screen.findByRole("button", { name: /hire expert/i });
-    fireEvent.click(hireButton);
-
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
-    const [destination] = mockNavigate.mock.calls[0];
-    expect(destination).not.toMatch(/^\/messages/);
-    expect(destination).toBe(
-      `/post-job?invite=freelancer-1&name=${encodeURIComponent("Ada Okafor")}`,
-    );
+    expect(mockNavigate).toHaveBeenCalledWith(`/service/${mockService.id}`);
   });
 });

@@ -26,6 +26,7 @@ import { VerificationBadges } from "@/components/VerificationBadges";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KycVerificationCard } from "@/components/KycVerificationCard";
 import { useKycVerification } from "@/hooks/useKycVerification";
+import { useShare } from "@/hooks/useShare";
 import { getReferralInfo } from "@/api/auth.api";
 import { NetworkError } from "@/components/NetworkError";
 import { logError } from "@/lib/error-utils";
@@ -240,6 +241,7 @@ export default function ExpertProfile() {
   const { isVerified: ownerKycVerified, isZentraVerified: ownerZentraVerified } = useKycVerification(
     isOwner ? id : undefined,
   );
+  const { share } = useShare();
 
   const kycVerified = isOwner
     ? ownerKycVerified
@@ -408,13 +410,15 @@ export default function ExpertProfile() {
   const seoDescription = freelancerProfile?.bio
     ? freelancerProfile.bio.slice(0, 155) + "…"
     : `${profile.full_name} is a verified ${occupation}${skills ? ` skilled in ${skills}` : ""} available for hire on ZentraGig.`;
+  const seoImage = profile.avatar_url || `${window.location.origin}/zentragig-logo.PNG`;
+  const shareUrl = `${window.location.origin}/expert/${profile.username || profile.id}/profile`;
 
   return (
     <div className="min-h-screen flex flex-col">
       <SEO
         title={`${profile.full_name} | ${occupation}`}
         description={seoDescription}
-        image={profile.avatar_url || undefined}
+        image={seoImage}
         type="profile"
         jsonLd={{
           "@context": "https://schema.org",
@@ -424,7 +428,7 @@ export default function ExpertProfile() {
             name: profile.full_name,
             jobTitle: occupation,
             description: freelancerProfile?.bio || seoDescription,
-            image: profile.avatar_url || undefined,
+            image: seoImage,
             url: `https://zentragig.com/expert/${profile.id}/profile`,
             knowsAbout: (freelancerProfile?.skills as string[] | undefined) || [],
             worksFor: { "@type": "Organization", name: "ZentraGig", url: "https://zentragig.com" },
@@ -444,41 +448,56 @@ export default function ExpertProfile() {
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             {isOwner && (
-              <div className="relative">
-                <Button variant="outline" size="sm" onClick={() => setShowShareMenu(!showShareMenu)}>
-                  <Share2 className="h-4 w-4 mr-2" /> Share / Export
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    share({
+                      title: profile.full_name || "Hire me on ZentraGig",
+                      text: `hire me on ZentraGig, visit my zentralink ${shareUrl}`,
+                      url: shareUrl,
+                    })
+                  }
+                >
+                  <Share2 className="h-4 w-4 mr-2" /> Share Profile
                 </Button>
-                {showShareMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-popover border border-border/60 rounded-xl shadow-lg z-50 w-48 overflow-hidden">
-                    <button
-                      onClick={handleCopyLink}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
-                    >
-                      <LinkIcon className="h-4 w-4" /> Copy Link
-                    </button>
-                    {referralQuery.data?.share_url && (
+                <div className="relative">
+                  <Button variant="outline" size="sm" onClick={() => setShowShareMenu(!showShareMenu)}>
+                    <Share2 className="h-4 w-4 mr-2" /> Share / Export
+                  </Button>
+                  {showShareMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-popover border border-border/60 rounded-xl shadow-lg z-50 w-48 overflow-hidden">
                       <button
-                        onClick={handleCopyReferral}
+                        onClick={handleCopyLink}
                         className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
                       >
-                        {copiedReferral ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
-                        {copiedReferral ? "Copied!" : "Copy Referral Link"}
+                        <LinkIcon className="h-4 w-4" /> Copy Link
                       </button>
-                    )}
-                    <button
-                      onClick={handleExportImage}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
-                    >
-                      <Image className="h-4 w-4" /> Download Image
-                    </button>
-                    <button
-                      onClick={handleExportPDF}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" /> Print / PDF
-                    </button>
-                  </div>
-                )}
+                      {referralQuery.data?.share_url && (
+                        <button
+                          onClick={handleCopyReferral}
+                          className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+                        >
+                          {copiedReferral ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                          {copiedReferral ? "Copied!" : "Copy Referral Link"}
+                        </button>
+                      )}
+                      <button
+                        onClick={handleExportImage}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+                      >
+                        <Image className="h-4 w-4" /> Download Image
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" /> Print / PDF
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

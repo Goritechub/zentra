@@ -50,6 +50,10 @@ export interface BrowseServiceFreelancer {
   full_name: string | null;
   avatar_url: string | null;
   username: string | null;
+  is_verified?: boolean;
+  occupation?: string | null;
+  state?: string | null;
+  city?: string | null;
 }
 
 export interface BrowseService {
