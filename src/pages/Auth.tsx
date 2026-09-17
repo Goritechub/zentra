@@ -27,6 +27,7 @@ import {
   updateAuthRole,
 } from "@/api/auth.api";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
+import { useResendVerification } from "@/hooks/useResendVerification";
 import { classifyError, logError } from "@/lib/error-utils";
 import {
   Briefcase,
@@ -117,6 +118,8 @@ const sanitizeRedirectTarget = (
   }
 };
 
+const ALREADY_REGISTERED_MESSAGE = "This email is already registered. Please sign in instead.";
+
 const GeneralFormError = ({ message }: { message?: string }) => {
   if (!message) return null;
 
@@ -126,6 +129,41 @@ const GeneralFormError = ({ message }: { message?: string }) => {
     </div>
   );
 };
+
+const ResendVerificationLink = ({
+  email,
+  resend,
+}: {
+  email: string;
+  resend: ReturnType<typeof useResendVerification>;
+}) => (
+  <div className="space-y-2">
+    <Button
+      type="button"
+      variant="link"
+      className="text-sm h-auto p-0"
+      disabled={resend.loading || resend.cooldown > 0}
+      onClick={() => resend.resend(email)}
+    >
+      {resend.loading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Resending...
+        </>
+      ) : resend.cooldown > 0 ? (
+        `Resend in ${resend.cooldown}s`
+      ) : (
+        "Resend verification email"
+      )}
+    </Button>
+    {resend.feedback?.type === "success" && (
+      <p className="text-sm text-primary">{resend.feedback.message}</p>
+    )}
+    <GeneralFormError
+      message={resend.feedback?.type === "error" ? resend.feedback.message : undefined}
+    />
+  </div>
+);
 
 /*
  * Auth fixes checklist
@@ -181,6 +219,10 @@ export default function AuthPage() {
   const [ipPolicyAccepted, setIpPolicyAccepted] = useState(false);
   const [ipPolicyModalOpen, setIpPolicyModalOpen] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const signupResend = useResendVerification();
+  const signinResend = useResendVerification();
+  const dupSignupResend = useResendVerification();
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
 
   const [signInData, setSignInData] = useState({
     identifier: "",
@@ -597,7 +639,7 @@ export default function AuthPage() {
       localStorage.removeItem("pending_signup_role");
       if (error.message.includes("already registered")) {
         setSignUpErrors({
-          email: "This email is already registered. Please sign in instead.",
+          email: ALREADY_REGISTERED_MESSAGE,
         });
       } else {
         setSignUpErrors({ general: error.message });
@@ -607,6 +649,7 @@ export default function AuthPage() {
     }
 
     setSignUpSuccess(true);
+    signupResend.reset();
     const grecaptcha = window.grecaptcha;
     if (grecaptcha && recaptchaWidgetIdRef.current !== null) {
       grecaptcha.reset(recaptchaWidgetIdRef.current);
@@ -617,7 +660,7 @@ export default function AuthPage() {
 
   const mapSignInError = (
     error: Error,
-  ): { field?: string; message: string } => {
+  ): { field?: string; message: string; unconfirmed?: boolean } => {
     const msg = error.message?.toLowerCase() || "";
     if (
       msg.includes("invalid login credentials") ||
@@ -631,6 +674,7 @@ export default function AuthPage() {
       return {
         field: "identifier",
         message: "Please confirm your email before signing in.",
+        unconfirmed: true,
       };
     if (
       msg.includes("too many requests") ||
@@ -743,6 +787,7 @@ export default function AuthPage() {
 
       if (error) {
         const mapped = mapSignInError(error);
+        setUnconfirmedEmail(mapped.unconfirmed ? email : null);
         if (mapped.field) {
           setSignInErrors({ [mapped.field]: mapped.message });
         } else {
@@ -1037,6 +1082,7 @@ export default function AuthPage() {
                                 const { identifier, ...rest } = prev;
                                 return rest;
                               });
+                            setUnconfirmedEmail(null);
                           }}
                           className={fieldClass("identifier", signInErrors)}
                         />
@@ -1044,6 +1090,9 @@ export default function AuthPage() {
                           <p className="text-sm text-destructive">
                             {signInErrors.identifier}
                           </p>
+                        )}
+                        {signInErrors.identifier && unconfirmedEmail && (
+                          <ResendVerificationLink email={unconfirmedEmail} resend={signinResend} />
                         )}
                       </div>
 
@@ -1151,6 +1200,8 @@ export default function AuthPage() {
                         to verify your account.
                       </p>
                     </div>
+
+                    <ResendVerificationLink email={signUpData.email} resend={signupResend} />
 
                     <div className="bg-muted/50 rounded-xl border border-border p-5 text-left space-y-3">
                       <div className="flex items-center gap-2">
@@ -1523,6 +1574,9 @@ export default function AuthPage() {
                           <p className="text-sm text-destructive">
                             {signUpErrors.email}
                           </p>
+                        )}
+                        {signUpErrors.email === ALREADY_REGISTERED_MESSAGE && (
+                          <ResendVerificationLink email={signUpData.email} resend={dupSignupResend} />
                         )}
                       </div>
 
