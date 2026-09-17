@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -45,32 +46,6 @@ export default function BlogPostPage() {
     fetch();
   }, [id]);
 
-  useEffect(() => {
-    if (!post) return;
-    const title = `${post.title} — ZentraGig Blog`;
-    const description = post.content.slice(0, 200).replace(/\n/g, " ").trim();
-    const image = post.cover_image || "https://zentragig.com/og-image.jpeg";
-    const url = `${window.location.origin}/blog/${post.id}`;
-
-    document.title = title;
-    const setMeta = (selector: string, value: string) => {
-      const el = document.querySelector(selector);
-      if (el) el.setAttribute("content", value);
-    };
-    setMeta('meta[name="description"]', description);
-    setMeta('meta[property="og:title"]', title);
-    setMeta('meta[property="og:description"]', description);
-    setMeta('meta[property="og:image"]', image);
-    setMeta('meta[property="og:url"]', url);
-    setMeta('meta[name="twitter:title"]', title);
-    setMeta('meta[name="twitter:description"]', description);
-    setMeta('meta[name="twitter:image"]', image);
-
-    return () => {
-      document.title = "ZentraGig — Hire Engineers. Build Things.";
-    };
-  }, [post]);
-
   const handleLike = async () => {
     if (!user) { toast.error("Sign in to like posts"); return; }
     if (!post) return;
@@ -86,14 +61,12 @@ export default function BlogPostPage() {
 
   const handleShare = (platform: string) => {
     if (!post) return;
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-    const previewUrl = `${apiBase}/blog/posts/${post.id}/preview`;
     const frontendUrl = `${window.location.origin}/blog/${post.id}`;
     const text = `Check out "${post.title}" on ZentraGig`;
     const links: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(previewUrl)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewUrl)}`,
-      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(previewUrl)}&title=${encodeURIComponent(post.title)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(frontendUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(frontendUrl)}`,
+      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(frontendUrl)}&title=${encodeURIComponent(post.title)}`,
     };
 
     if (platform === "copy") {
@@ -179,6 +152,12 @@ export default function BlogPostPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SEO
+        title={post.title}
+        description={post.content.slice(0, 155).replace(/\n/g, " ").trim()}
+        image={post.cover_image || undefined}
+        type="article"
+      />
       <Header />
       <main className="flex-1">
         {/* Cover image */}

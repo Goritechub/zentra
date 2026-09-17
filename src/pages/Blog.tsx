@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -116,15 +117,12 @@ const Blog = () => {
   };
 
   const handleShare = (post: BlogPost, platform: string) => {
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-    const previewUrl = `${apiBase}/blog/posts/${post.id}/preview`;
     const frontendUrl = `${window.location.origin}/blog/${post.id}`;
     const text = `Check out "${post.title}" on ZentraGig`;
     const links: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(previewUrl)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewUrl)}`,
-      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(previewUrl)}&title=${encodeURIComponent(post.title)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(frontendUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(frontendUrl)}`,
+      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(frontendUrl)}&title=${encodeURIComponent(post.title)}`,
     };
 
     if (platform === "copy") {
@@ -181,6 +179,10 @@ const Blog = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SEO
+        title="Blog"
+        description="Insights, tips, and stories from our community of experts and clients."
+      />
       <Header />
       <main className="flex-1">
         {/* Hero */}
