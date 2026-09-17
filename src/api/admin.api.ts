@@ -21,6 +21,7 @@ import type {
   AdminAccount,
   AdminPayoutTransfer,
   CommissionTier,
+  CommissionPromo,
 } from "@/types/admin";
 
 export async function getAdminOverview() {
@@ -272,7 +273,11 @@ export async function closeAdminUserAccount(userId: string) {
 
 export async function getAdminSettingsData() {
   const response = await api.get("/admin/settings");
-  return response.data.data as { categories: AdminCategory[]; commissionTiers: CommissionTier[] };
+  return response.data.data as {
+    categories: AdminCategory[];
+    commissionTiers: CommissionTier[];
+    commissionPromo: CommissionPromo | null;
+  };
 }
 
 export async function addAdminCategory(name: string, slug: string) {
@@ -282,6 +287,11 @@ export async function addAdminCategory(name: string, slug: string) {
 
 export async function updateAdminCommissionTiers(tiers: CommissionTier[]) {
   const response = await api.patch("/admin/settings/commission-tiers", { tiers });
+  return response.data.data;
+}
+
+export async function updateAdminCommissionPromo(promo: CommissionPromo) {
+  const response = await api.patch("/admin/settings/commission-promo", { promo });
   return response.data.data;
 }
 

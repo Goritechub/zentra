@@ -1107,7 +1107,10 @@ export default function ApplyJobPage() {
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Info className="h-3 w-3 shrink-0" />
                               {parseCommaNumber(bidAmountFormatted) > 0
-                                ? `Service fee: ${calculateServiceCharge(parseCommaNumber(bidAmountFormatted), referralDiscount ? 0.5 : 1.0).rateLabel} on this bid.${referralDiscount ? " (Referral discount applied)" : ""}`
+                                ? (() => {
+                                    const info = calculateServiceCharge(parseCommaNumber(bidAmountFormatted), referralDiscount ? 0.5 : 1.0);
+                                    return `Service fee: ${info.originalRateLabel ? `${info.originalRateLabel} → ` : ""}${info.rateLabel} on this bid.${referralDiscount ? " (Referral discount applied)" : ""}${info.promoLabel ? ` · ${info.promoLabel}` : ""}`;
+                                  })()
                                 : `Service fee: ${referralDiscount ? "3.5–10%" : "7–20%"} depending on bid amount.`}
                             </p>
                           </div>
@@ -1459,7 +1462,7 @@ export default function ApplyJobPage() {
 
 function ServiceChargeSummary({ amount, referralDiscount = false }: { amount: number; referralDiscount?: boolean }) {
   const { format } = useCurrency();
-  const { rateLabel, charge, takeHome } = calculateServiceCharge(amount, referralDiscount ? 0.5 : 1.0);
+  const { rateLabel, originalRateLabel, promoLabel, charge, takeHome } = calculateServiceCharge(amount, referralDiscount ? 0.5 : 1.0);
   return (
     <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
       <div className="flex justify-between text-sm">
@@ -1468,8 +1471,9 @@ function ServiceChargeSummary({ amount, referralDiscount = false }: { amount: nu
       </div>
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">
-          Service Charge ({rateLabel})
+          Service Charge ({originalRateLabel && <s className="mr-1">{originalRateLabel}</s>}{rateLabel})
           {referralDiscount && <span className="ml-1 text-primary font-medium">· Referral discount applied</span>}
+          {promoLabel && <span className="ml-1 text-primary font-medium">· {promoLabel}</span>}
         </span>
         <span className="text-destructive">-{format(charge)}</span>
       </div>

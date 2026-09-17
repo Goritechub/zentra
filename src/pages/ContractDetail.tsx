@@ -695,10 +695,16 @@ export default function ContractDetail() {
                     {/* Fee preview - expert only */}
                     {isFreelancer && (() => {
                       const amt = contract.accepted_bid_amount || contract.amount;
-                      const { rateLabel, charge, takeHome } = calculateServiceCharge(amt, referralDiscount ? 0.5 : 1.0);
+                      const { rateLabel, originalRateLabel, promoLabel, charge, takeHome } = calculateServiceCharge(amt, referralDiscount ? 0.5 : 1.0);
                       return (
                         <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                          <p className="text-muted-foreground">Platform fee: <strong className="text-foreground">{rateLabel}</strong> ({format(charge)}){referralDiscount && <span className="ml-1 text-primary font-medium">· Referral discount applied</span>}</p>
+                          <p className="text-muted-foreground">
+                            Platform fee:{" "}
+                            {originalRateLabel && <s className="text-muted-foreground/70 mr-1">{originalRateLabel}</s>}
+                            <strong className="text-foreground">{rateLabel}</strong> ({format(charge)})
+                            {referralDiscount && <span className="ml-1 text-primary font-medium">· Referral discount applied</span>}
+                            {promoLabel && <span className="ml-1 text-primary font-medium">· {promoLabel}</span>}
+                          </p>
                           <p className="text-muted-foreground">You receive: <strong className="text-primary">{format(takeHome)}</strong></p>
                         </div>
                       );
@@ -812,7 +818,8 @@ export default function ContractDetail() {
                               {/* Fee breakdown - expert view only */}
                               {isFreelancer && (ms.status === "pending" || ms.status === "funded") && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Fee: {feeInfo.rateLabel} → You get {format(feeInfo.takeHome)}
+                                  Fee: {feeInfo.originalRateLabel && <s className="mr-1">{feeInfo.originalRateLabel}</s>}
+                                  {feeInfo.rateLabel} → You get {format(feeInfo.takeHome)}
                                 </p>
                               )}
                               {["submitted", "approved", "paid"].includes(ms.status) && (ms.submission_notes || ms.submission_attachments?.length > 0) && (
@@ -1244,7 +1251,7 @@ export default function ContractDetail() {
             </div>
             {newMilestone.amount && parseInt(newMilestone.amount) > 0 && isFreelancer && (
               <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount), referralDiscount ? 0.5 : 1.0); return <p className="text-muted-foreground">Fee: {info.rateLabel} ({format(info.charge)}) → You receive <strong className="text-primary">{format(info.takeHome)}</strong></p>; })()}
+                {(() => { const info = calculateServiceCharge(parseInt(newMilestone.amount), referralDiscount ? 0.5 : 1.0); return <p className="text-muted-foreground">Fee: {info.originalRateLabel && <s className="mr-1">{info.originalRateLabel}</s>}{info.rateLabel} ({format(info.charge)}) → You receive <strong className="text-primary">{format(info.takeHome)}</strong></p>; })()}
               </div>
             )}
           </div>

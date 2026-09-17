@@ -1,6 +1,6 @@
-import type { CommissionTier } from "@/lib/service-charge";
+import type { CommissionTier, CommissionPromo } from "@/lib/service-charge";
 
-export type { CommissionTier };
+export type { CommissionTier, CommissionPromo };
 
 export interface AdminReview {
   id: string;
