@@ -55,6 +55,7 @@ const BrowseServices = lazy(() => import("./pages/BrowseServices"));
 const ServiceDetail = lazy(() => import("./pages/ServiceDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const SavedExperts = lazy(() => import("./pages/SavedExperts"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
@@ -148,6 +149,7 @@ const AppShell = () => {
               <Route path="/onboarding" element={<AuthGuard allowIncomplete><Onboarding /></AuthGuard>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/expert/:id" element={<ExpertProfile />} />
               <Route path="/expert/:id/profile" element={<ExpertProfile />} />

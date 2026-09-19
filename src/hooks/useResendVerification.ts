@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { resendVerificationEmail } from "@/api/auth.api";
 
 export type ResendFeedback = { type: "success" | "error"; message: string } | null;
 
@@ -20,8 +20,7 @@ export function useResendVerification() {
     setLoading(true);
     setFeedback(null);
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email });
-      if (error) throw error;
+      await resendVerificationEmail(email);
       setFeedback({ type: "success", message: "Verification email resent." });
       setCooldown(60);
     } catch (err) {

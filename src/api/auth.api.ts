@@ -141,3 +141,24 @@ export async function resetPasswordWithToken(token: string, password: string) {
   const response = await api.post("/auth/reset-password", { token, password });
   return response.data as { success: boolean };
 }
+
+export async function signUpUser(
+  email: string,
+  password: string,
+  role: string,
+  fullName: string,
+  username: string,
+) {
+  const response = await api.post("/auth/signup", { email, password, role, fullName, username });
+  return response.data as { success: boolean };
+}
+
+export async function verifyEmailToken(token: string) {
+  const response = await api.post("/auth/verify-email", { token });
+  return response.data as { success: boolean };
+}
+
+export async function resendVerificationEmail(email: string) {
+  const response = await api.post("/auth/resend-verification", { email });
+  return response.data as { success: boolean };
+}

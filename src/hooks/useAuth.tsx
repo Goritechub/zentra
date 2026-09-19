@@ -10,7 +10,7 @@ import {
 } from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuthBootstrap, signOutUser } from "@/api/auth.api";
+import { getAuthBootstrap, signOutUser, signUpUser } from "@/api/auth.api";
 
 type UserRole = "client" | "freelancer" | "admin";
 type BootstrapStatus = "loading" | "ready" | "unauthenticated" | "error";
@@ -572,22 +572,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fullName: string,
     username: string,
   ) => {
-    const redirectUrl = `${window.location.origin}/`;
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          role,
-          username,
-        },
-      },
-    });
-
-    return { error: error as Error | null };
+    try {
+      await signUpUser(email, password, role, fullName, username);
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {

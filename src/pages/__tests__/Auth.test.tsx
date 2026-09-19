@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AuthPage from "@/pages/Auth";
-import { lookupAuthUser } from "@/api/auth.api";
-import { supabase } from "@/integrations/supabase/client";
+import { lookupAuthUser, resendVerificationEmail } from "@/api/auth.api";
 
 // Regression guard: a user who signs up, abandons the verification email
 // (closes the tab, deletes it, etc.) and later retries sign-in used to hit a
@@ -49,14 +48,7 @@ vi.mock("@/api/auth.api", () => ({
   buildGoogleOauthStartUrl: vi.fn(),
   requestPasswordReset: vi.fn(),
   updateAuthRole: vi.fn(),
-}));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    auth: {
-      resend: vi.fn(),
-    },
-  },
+  resendVerificationEmail: vi.fn(),
 }));
 
 function renderPage() {
@@ -74,10 +66,7 @@ describe("Auth — resend verification on sign-in dead end", () => {
       email: "abandoned@example.com",
     } as Awaited<ReturnType<typeof lookupAuthUser>>);
     mockSignIn.mockResolvedValue({ error: new Error("Email not confirmed") });
-    vi.mocked(supabase.auth.resend).mockResolvedValue({
-      data: {},
-      error: null,
-    } as Awaited<ReturnType<typeof supabase.auth.resend>>);
+    vi.mocked(resendVerificationEmail).mockResolvedValue({ success: true });
   });
 
   it("shows a working resend link instead of a dead end when sign-in reports an unconfirmed email", async () => {
@@ -99,10 +88,7 @@ describe("Auth — resend verification on sign-in dead end", () => {
     fireEvent.click(resendButton);
 
     await waitFor(() =>
-      expect(supabase.auth.resend).toHaveBeenCalledWith({
-        type: "signup",
-        email: "abandoned@example.com",
-      }),
+      expect(resendVerificationEmail).toHaveBeenCalledWith("abandoned@example.com"),
     );
     await screen.findByText(/verification email resent/i);
   });

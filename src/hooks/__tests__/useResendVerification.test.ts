@@ -1,36 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useResendVerification } from "@/hooks/useResendVerification";
-import { supabase } from "@/integrations/supabase/client";
+import { resendVerificationEmail } from "@/api/auth.api";
 
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    auth: {
-      resend: vi.fn(),
-    },
-  },
+vi.mock("@/api/auth.api", () => ({
+  resendVerificationEmail: vi.fn(),
 }));
 
 describe("useResendVerification", () => {
   beforeEach(() => {
-    vi.mocked(supabase.auth.resend).mockReset();
+    vi.mocked(resendVerificationEmail).mockReset();
   });
 
   it("resends and starts a 60s cooldown on success", async () => {
-    vi.mocked(supabase.auth.resend).mockResolvedValue({
-      data: {},
-      error: null,
-    } as Awaited<ReturnType<typeof supabase.auth.resend>>);
+    vi.mocked(resendVerificationEmail).mockResolvedValue({ success: true });
     const { result } = renderHook(() => useResendVerification());
 
     await act(async () => {
       await result.current.resend("user@example.com");
     });
 
-    expect(supabase.auth.resend).toHaveBeenCalledWith({
-      type: "signup",
-      email: "user@example.com",
-    });
+    expect(resendVerificationEmail).toHaveBeenCalledWith("user@example.com");
     expect(result.current.feedback).toEqual({
       type: "success",
       message: "Verification email resent.",
@@ -39,10 +29,7 @@ describe("useResendVerification", () => {
   });
 
   it("surfaces the error message when the resend call fails", async () => {
-    vi.mocked(supabase.auth.resend).mockResolvedValue({
-      data: null,
-      error: new Error("Too many requests"),
-    } as Awaited<ReturnType<typeof supabase.auth.resend>>);
+    vi.mocked(resendVerificationEmail).mockRejectedValue(new Error("Too many requests"));
     const { result } = renderHook(() => useResendVerification());
 
     await act(async () => {
@@ -57,21 +44,18 @@ describe("useResendVerification", () => {
   });
 
   it("ignores resend attempts while a cooldown is active", async () => {
-    vi.mocked(supabase.auth.resend).mockResolvedValue({
-      data: {},
-      error: null,
-    } as Awaited<ReturnType<typeof supabase.auth.resend>>);
+    vi.mocked(resendVerificationEmail).mockResolvedValue({ success: true });
     const { result } = renderHook(() => useResendVerification());
 
     await act(async () => {
       await result.current.resend("user@example.com");
     });
-    expect(supabase.auth.resend).toHaveBeenCalledTimes(1);
+    expect(resendVerificationEmail).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await result.current.resend("user@example.com");
     });
-    expect(supabase.auth.resend).toHaveBeenCalledTimes(1);
+    expect(resendVerificationEmail).toHaveBeenCalledTimes(1);
   });
 
   it("ignores resend attempts with no email", async () => {
@@ -81,14 +65,11 @@ describe("useResendVerification", () => {
       await result.current.resend("");
     });
 
-    expect(supabase.auth.resend).not.toHaveBeenCalled();
+    expect(resendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it("reset clears cooldown and feedback", async () => {
-    vi.mocked(supabase.auth.resend).mockResolvedValue({
-      data: {},
-      error: null,
-    } as Awaited<ReturnType<typeof supabase.auth.resend>>);
+    vi.mocked(resendVerificationEmail).mockResolvedValue({ success: true });
     const { result } = renderHook(() => useResendVerification());
 
     await act(async () => {
