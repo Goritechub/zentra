@@ -369,7 +369,10 @@ export default function BrowseServicesPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-10">
                   <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    onClick={() => {
+                      setPage((p) => Math.max(1, p - 1));
+                      window.scrollTo(0, 0);
+                    }}
                     disabled={page === 1}
                     className="h-8 w-8 flex items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30 transition-colors"
                   >
@@ -378,7 +381,10 @@ export default function BrowseServicesPage() {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                     <button
                       key={n}
-                      onClick={() => setPage(n)}
+                      onClick={() => {
+                        setPage(n);
+                        window.scrollTo(0, 0);
+                      }}
                       className={`h-8 w-8 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
                         n === page
                           ? "bg-primary text-primary-foreground"
@@ -389,7 +395,10 @@ export default function BrowseServicesPage() {
                     </button>
                   ))}
                   <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() => {
+                      setPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo(0, 0);
+                    }}
                     disabled={page === totalPages}
                     className="h-8 w-8 flex items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30 transition-colors"
                   >

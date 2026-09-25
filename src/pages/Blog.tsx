@@ -385,7 +385,10 @@ const Blog = () => {
                 variant="outline"
                 size="icon"
                 disabled={page === 1}
-                onClick={() => setPage(page - 1)}
+                onClick={() => {
+                  setPage(page - 1);
+                  window.scrollTo(0, 0);
+                }}
                 aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -397,7 +400,10 @@ const Blog = () => {
                 variant="outline"
                 size="icon"
                 disabled={page === totalPages}
-                onClick={() => setPage(page + 1)}
+                onClick={() => {
+                  setPage(page + 1);
+                  window.scrollTo(0, 0);
+                }}
                 aria-label="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
