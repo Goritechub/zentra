@@ -59,6 +59,8 @@ const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const SavedExperts = lazy(() => import("./pages/SavedExperts"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
+const BlogWrite = lazy(() => import("./pages/BlogWrite"));
+const BlogAuthor = lazy(() => import("./pages/BlogAuthor"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const WalletCallback = lazy(() => import("./pages/WalletCallback"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -184,6 +186,10 @@ const AppShell = () => {
               <Route path="/contact" element={<Contact />} />
               <Route path="/get-a-quote" element={<GetAQuote />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/write" element={<AuthGuard><BlogWrite /></AuthGuard>} />
+              <Route path="/blog/write/:id" element={<AuthGuard><BlogWrite /></AuthGuard>} />
+              <Route path="/blog/category/:slug" element={<Blog />} />
+              <Route path="/blog/author/:id" element={<BlogAuthor />} />
               <Route path="/blog/:id" element={<BlogPost />} />
               <Route path="/unsubscribe" element={<Unsubscribe />} />
               <Route path="/wallet/callback" element={<WalletCallback />} />

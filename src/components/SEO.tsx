@@ -12,6 +12,8 @@ interface SEOProps {
   type?: "website" | "profile" | "article";
   noIndex?: boolean;
   jsonLd?: object | object[];
+  /** Override the canonical URL (e.g. to strip filter/query params). Defaults to the current href. */
+  canonicalUrl?: string;
 }
 
 export function SEO({
@@ -21,9 +23,10 @@ export function SEO({
   type = "website",
   noIndex = false,
   jsonLd,
+  canonicalUrl,
 }: SEOProps) {
   const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — Hire Engineers. Build Things.`;
-  const canonical = typeof window !== "undefined" ? window.location.href : "";
+  const canonical = canonicalUrl ?? (typeof window !== "undefined" ? window.location.href : "");
 
   return (
     <Helmet>

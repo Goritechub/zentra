@@ -2,12 +2,16 @@
 // serves them static, bot-readable HTML (via the backend's public-preview
 // endpoint) instead of the JS-only SPA. Real browsers fall through untouched
 // via context.next(). The bare /blog list page shares this function's path
-// prefix, so it's explicitly passed through rather than treated as a post id.
+// prefix, so it's explicitly passed through rather than treated as a post id
+// — same for the /blog/write, /blog/category/:slug and /blog/author/:id
+// sub-routes, which aren't post ids and have no per-post preview data.
 
 import type { Config, Context } from "https://edge.netlify.com";
 
 const BOT_UA_REGEX =
   /facebookexternalhit|Facebot|WhatsApp|TelegramBot|Slackbot|Twitterbot|LinkedInBot|Discordbot|Applebot|SkypeUriPreview|redditbot|Pinterest|vkShare|Googlebot|Bingbot|Embedly|Iframely|W3C_Validator/i;
+
+const NON_POST_SEGMENTS = new Set(["write", "category", "author"]);
 
 function escapeHtml(value: string | undefined | null): string {
   return String(value || "")
@@ -26,7 +30,7 @@ export default async (request: Request, context: Context) => {
 
   const url = new URL(request.url);
   const segments = url.pathname.split("/").filter(Boolean); // ["blog", ":id"?]
-  if (!segments[1]) {
+  if (!segments[1] || NON_POST_SEGMENTS.has(segments[1])) {
     return context.next();
   }
 

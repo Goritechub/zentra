@@ -1,21 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -36,31 +28,47 @@ import { EmptyState } from "@/components/EmptyState";
 import { BlogCardSkeleton } from "@/components/skeletons/BlogCardSkeleton";
 import {
   getBlogPosts,
-  createBlogPost,
+  getBlogTagFacets,
   likeBlogPost,
   unlikeBlogPost,
   type BlogPost,
 } from "@/api/blog.api";
+import { blogCategories, getBlogCategoryBySlug } from "@/lib/blogCategories";
+import { estimateReadingMinutes } from "@/lib/readingTime";
 
 const POSTS_PER_PAGE = 9;
 
 const Blog = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { slug: categorySlugParam } = useParams<{ slug?: string }>();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(categorySlugParam || null);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [showCreate, setShowCreate] = useState(false);
+  const [tagFacets, setTagFacets] = useState<{ tag: string; count: number }[]>([]);
 
-  // Create form
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tags, setTags] = useState("");
-  const [coverImage, setCoverImage] = useState("");
-  const [publishing, setPublishing] = useState(false);
+  // Keep local state in sync with the :slug route param (e.g. browser back/forward,
+  // or landing directly on /blog/category/:slug).
+  useEffect(() => {
+    setSelectedCategory(categorySlugParam ? getBlogCategoryBySlug(categorySlugParam)?.slug ?? null : null);
+    setPage(1);
+  }, [categorySlugParam]);
+
+  const selectCategory = (slug: string | null) => {
+    setSelectedCategory(slug);
+    setPage(1);
+    navigate(slug ? `/blog/category/${slug}` : "/blog");
+  };
+
+  useEffect(() => {
+    getBlogTagFacets()
+      .then(({ tags }) => setTagFacets(tags))
+      .catch(() => {});
+  }, []);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -69,6 +77,7 @@ const Blog = () => {
         page,
         search || undefined,
         selectedTag || undefined,
+        selectedCategory || undefined,
       );
       setPosts(data);
       setTotalCount(total);
@@ -77,7 +86,7 @@ const Blog = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, search, selectedTag]);
+  }, [page, search, selectedTag, selectedCategory]);
 
   useEffect(() => {
     fetchPosts();
@@ -133,38 +142,6 @@ const Blog = () => {
     }
   };
 
-  const handlePublish = async () => {
-    if (!user || !title.trim() || !content.trim()) {
-      toast.error("Title and content are required");
-      return;
-    }
-    setPublishing(true);
-    try {
-      const parsedTags = tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-      await createBlogPost({
-        title: title.trim(),
-        content: content.trim(),
-        coverImage: coverImage.trim() || undefined,
-        tags: parsedTags.length > 0 ? parsedTags : undefined,
-      });
-      toast.success("Post submitted for review!");
-      setTitle("");
-      setContent("");
-      setTags("");
-      setCoverImage("");
-      setShowCreate(false);
-      fetchPosts();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to publish");
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const allTags = Array.from(new Set(posts.flatMap((p) => p.tags || [])));
   const totalPages = Math.ceil(totalCount / POSTS_PER_PAGE);
 
   const getInitials = (name: string | null) => {
@@ -180,8 +157,9 @@ const Blog = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO
-        title="Blog"
+        title={selectedCategory ? getBlogCategoryBySlug(selectedCategory)?.name || "Blog" : "Blog"}
         description="Insights, tips, and stories from our community of experts and clients."
+        canonicalUrl={`${window.location.origin}${window.location.pathname}`}
       />
       <Header />
       <main className="flex-1">
@@ -209,55 +187,16 @@ const Blog = () => {
                 />
               </div>
               {user && (
-                <Dialog open={showCreate} onOpenChange={setShowCreate}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2 shrink-0">
-                      <PenLine className="h-4 w-4" /> Write
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Write a Post</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-2">
-                      <Input
-                        placeholder="Title"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                      />
-                      <Textarea
-                        placeholder="Write your post..."
-                        rows={6}
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                      />
-                      <Input
-                        placeholder="Cover image URL (optional)"
-                        value={coverImage}
-                        onChange={(e) => setCoverImage(e.target.value)}
-                      />
-                      <Input
-                        placeholder="Tags (comma-separated)"
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                      />
-                      <Button
-                        onClick={handlePublish}
-                        disabled={publishing}
-                        className="w-full"
-                      >
-                        {publishing ? "Submitting..." : "Submit for Review"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button className="gap-2 shrink-0" onClick={() => navigate("/blog/write")}>
+                  <PenLine className="h-4 w-4" /> Write
+                </Button>
               )}
             </div>
           </div>
         </section>
 
         {/* Tags */}
-        {allTags.length > 0 && (
+        {tagFacets.length > 0 && (
           <div className="container-wide max-w-5xl mx-auto px-4 py-4 flex flex-wrap gap-2">
             <Badge
               variant={selectedTag === null ? "default" : "outline"}
@@ -269,7 +208,7 @@ const Blog = () => {
             >
               All
             </Badge>
-            {allTags.map((tag) => (
+            {tagFacets.map(({ tag, count }) => (
               <Badge
                 key={tag}
                 variant={selectedTag === tag ? "default" : "outline"}
@@ -279,11 +218,32 @@ const Blog = () => {
                   setPage(1);
                 }}
               >
-                {tag}
+                {tag} ({count})
               </Badge>
             ))}
           </div>
         )}
+
+        {/* Categories */}
+        <div className="container-wide max-w-5xl mx-auto px-4 py-2 flex flex-wrap gap-2">
+          <Badge
+            variant={selectedCategory === null ? "default" : "outline"}
+            className="cursor-pointer"
+            onClick={() => selectCategory(null)}
+          >
+            All Categories
+          </Badge>
+          {blogCategories.map((cat) => (
+            <Badge
+              key={cat.slug}
+              variant={selectedCategory === cat.slug ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => selectCategory(cat.slug)}
+            >
+              {cat.name}
+            </Badge>
+          ))}
+        </div>
 
         {/* Posts Grid */}
         <section className="container-wide max-w-5xl mx-auto px-4 py-8">
@@ -347,7 +307,10 @@ const Blog = () => {
 
                     {/* Author + date */}
                     <div className="flex items-center gap-2 pt-1">
-                      <Avatar className="h-6 w-6">
+                      <Avatar
+                        className="h-6 w-6 cursor-pointer"
+                        onClick={() => navigate(`/blog/author/${post.author.id}`)}
+                      >
                         <AvatarImage
                           src={post.author.avatar_url || undefined}
                         />
@@ -355,12 +318,15 @@ const Blog = () => {
                           {getInitials(post.author.full_name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground truncate">
+                      <span
+                        className="text-xs text-muted-foreground truncate cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate(`/blog/author/${post.author.id}`)}
+                      >
                         {post.author.full_name || "Anonymous"}
                       </span>
                       <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {format(new Date(post.created_at), "MMM d")}
+                        {format(new Date(post.created_at), "MMM d")} · {estimateReadingMinutes(post.content)} min read
                       </span>
                     </div>
 

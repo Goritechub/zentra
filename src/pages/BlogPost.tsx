@@ -13,8 +13,10 @@ import {
   Heart, Clock, Twitter, Facebook, Linkedin,
   Link as LinkIcon, ArrowLeft, Loader2, Trash2,
 } from "lucide-react";
-import { getBlogPostById, likeBlogPost, unlikeBlogPost, rejectBlogPost, type BlogPost } from "@/api/blog.api";
+import { getBlogPostById, likeBlogPost, unlikeBlogPost, archiveBlogPost, type BlogPost } from "@/api/blog.api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BlogBlockRenderer } from "@/components/blog/BlogBlockRenderer";
+import { estimateReadingMinutes } from "@/lib/readingTime";
 
 const getInitials = (name: string | null) => {
   if (!name) return "U";
@@ -77,6 +79,10 @@ export default function BlogPostPage() {
     }
   };
 
+  const headings = (post?.blocks ?? [])
+    .filter((b) => b.type === "h1" || b.type === "h2" || b.type === "h3")
+    .map((b) => ({ id: b.id, level: b.type, text: "text" in b ? b.text : "" }));
+
   const isAuthor = !!user && !!post && user.id === post.author.id;
   const isAdmin = profile?.role === "admin";
   const canDelete = isAuthor || isAdmin;
@@ -85,7 +91,7 @@ export default function BlogPostPage() {
     if (!post || !window.confirm("Delete this post? This cannot be undone.")) return;
     setDeleting(true);
     try {
-      await rejectBlogPost(post.id);
+      await archiveBlogPost(post.id);
       toast.success("Post deleted.");
       navigate("/blog");
     } catch {
@@ -157,6 +163,35 @@ export default function BlogPostPage() {
         description={post.content.slice(0, 155).replace(/\n/g, " ").trim()}
         image={post.cover_image || undefined}
         type="article"
+        canonicalUrl={`${window.location.origin}/blog/${post.id}`}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: post.title,
+            description: post.content.slice(0, 155).replace(/\n/g, " ").trim(),
+            image: post.cover_image || undefined,
+            datePublished: post.published_at || post.created_at,
+            dateModified: post.updated_at,
+            author: {
+              "@type": "Person",
+              name: post.author.full_name || "ZentraGig",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "ZentraGig",
+              sameAs: "https://zentragig.com",
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Blog", item: `${window.location.origin}/blog` },
+              { "@type": "ListItem", position: 2, name: post.title, item: `${window.location.origin}/blog/${post.id}` },
+            ],
+          },
+        ]}
       />
       <Header />
       <main className="flex-1">
@@ -192,24 +227,51 @@ export default function BlogPostPage() {
 
           {/* Author + date */}
           <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
-            <Avatar className="h-9 w-9">
+            <Avatar
+              className="h-9 w-9 cursor-pointer"
+              onClick={() => navigate(`/blog/author/${post.author.id}`)}
+            >
               <AvatarImage src={post.author.avatar_url || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                 {getInitials(post.author.full_name)}
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm font-medium text-foreground">{post.author.full_name || "Anonymous"}</p>
+              <p
+                className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                onClick={() => navigate(`/blog/author/${post.author.id}`)}
+              >
+                {post.author.full_name || "Anonymous"}
+              </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {format(new Date(post.created_at), "MMMM d, yyyy")}
+                {format(new Date(post.created_at), "MMMM d, yyyy")} · {estimateReadingMinutes(post.content)} min read
               </p>
             </div>
           </div>
 
+          {/* Table of contents */}
+          {headings.length > 1 && (
+            <nav className="mb-8 rounded-lg border border-border p-4 text-sm">
+              <p className="font-semibold text-foreground mb-2">Contents</p>
+              <ul className="space-y-1.5">
+                {headings.map((h) => (
+                  <li
+                    key={h.id}
+                    className={h.level === "h1" ? "" : h.level === "h2" ? "ml-3" : "ml-6"}
+                  >
+                    <a href={`#${h.id}`} className="text-muted-foreground hover:text-primary transition-colors">
+                      {h.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+
           {/* Content */}
-          <div className="prose prose-neutral dark:prose-invert max-w-none text-foreground leading-relaxed whitespace-pre-wrap mb-10">
-            {post.content}
+          <div className="text-foreground leading-relaxed mb-10">
+            <BlogBlockRenderer blocks={post.blocks} legacyContent={post.content} />
           </div>
 
           {/* Reactions */}
