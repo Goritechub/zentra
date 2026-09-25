@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getPublicSupportSettings } from "@/api/support.api";
 
 export interface SupportSettings {
   support_email: string;
@@ -22,18 +22,11 @@ export function useSupportSettings() {
 
     const fetchSettings = async () => {
       try {
-        const { data, error } = await supabase
-          .from("platform_settings")
-          .select("key, value")
-          .in("key", ["support_email", "support_phone", "support_whatsapp"]);
+        const { settings } = await getPublicSupportSettings();
 
-        if (error) {
-          throw error;
-        }
-
-        if (!cancelled && data) {
+        if (!cancelled && settings) {
           const result = { ...defaults };
-          for (const row of data) {
+          for (const row of settings) {
             const key = row.key as keyof SupportSettings;
             if (key in result) {
               result[key] = typeof row.value === "string" ? row.value : JSON.stringify(row.value).replace(/^"|"$/g, "");

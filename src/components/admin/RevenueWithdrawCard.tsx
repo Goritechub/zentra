@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
+import { getAdminRevenueWithdrawInfo } from "@/api/admin.api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "sonner";
@@ -38,29 +38,24 @@ export function RevenueWithdrawCard() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [revRes, settingsRes, bankRes] = await Promise.all([
-      supabase.from("platform_revenue").select("commission_amount"),
-      supabase.from("platform_settings").select("value").eq("key", "total_revenue_withdrawn").maybeSingle(),
-      supabase.from("bank_details").select("*").eq("user_id", user.id),
-    ]);
-
-    const totalRev = (revRes.data || []).reduce((s, r) => s + (r.commission_amount || 0), 0);
-    const withdrawn = settingsRes.data?.value ? Number(settingsRes.data.value) : 0;
-    setTotalRevenue(totalRev);
-    setTotalWithdrawn(withdrawn);
-    setAvailableRevenue(totalRev - withdrawn);
-    setBankDetails(bankRes.data || []);
-    if (bankRes.data?.length) {
-      setSelectedBank(bankRes.data[0].id);
+    const info = await getAdminRevenueWithdrawInfo();
+    setTotalRevenue(info.totalRevenue);
+    setTotalWithdrawn(info.totalWithdrawn);
+    setAvailableRevenue(info.availableRevenue);
+    setBankDetails(info.bankDetails as unknown as BankDetail[]);
+    if (info.bankDetails?.length) {
+      setSelectedBank((info.bankDetails[0] as unknown as BankDetail).id);
     }
   }, [user]);
 
   const checkAccess = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.rpc("is_super_admin", { _user_id: user.id });
-    setIsSuperAdmin(!!data);
-    if (data) {
+    try {
       await fetchData();
+      setIsSuperAdmin(true);
+    } catch {
+      // 403 (not super admin) or any other failure — hide the card, fail closed.
+      setIsSuperAdmin(false);
     }
     setLoading(false);
   }, [user, fetchData]);

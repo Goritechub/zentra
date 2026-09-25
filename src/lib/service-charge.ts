@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getPublicPlatformSettings } from "@/api/client-read.api";
 
 export interface CommissionTier {
   max_amount: number | null;
@@ -44,14 +44,11 @@ export async function getCommissionTiers(): Promise<CommissionTier[]> {
   if (cachedTiers && Date.now() - cacheTime < CACHE_TTL) return cachedTiers;
 
   try {
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "commission_tiers")
-      .maybeSingle();
+    const { settings } = await getPublicPlatformSettings();
+    const row = settings.find((s) => s.key === "commission_tiers");
 
-    if (data?.value && Array.isArray(data.value)) {
-      cachedTiers = data.value as unknown as CommissionTier[];
+    if (row?.value && Array.isArray(row.value)) {
+      cachedTiers = row.value as unknown as CommissionTier[];
       cacheTime = Date.now();
       return cachedTiers;
     }
@@ -66,13 +63,10 @@ export async function getCommissionPromo(): Promise<CommissionPromo | null> {
   if (promoCacheTime !== 0 && Date.now() - promoCacheTime < CACHE_TTL) return cachedPromo;
 
   try {
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "commission_promo")
-      .maybeSingle();
+    const { settings } = await getPublicPlatformSettings();
+    const row = settings.find((s) => s.key === "commission_promo");
 
-    cachedPromo = (data?.value as unknown as CommissionPromo) || null;
+    cachedPromo = (row?.value as unknown as CommissionPromo) || null;
     promoCacheTime = Date.now();
   } catch (e) {
     console.error("Failed to load commission promo:", e);

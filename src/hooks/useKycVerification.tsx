@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/api/axios";
+import { getKycVerification } from "@/api/kyc.api";
 import { toast } from "sonner";
 
 export type KycStatus = "not_started" | "pending" | "verified" | "failed" | "manual_review";
@@ -40,31 +40,23 @@ export function useKycVerification(userId?: string) {
   const kycComplete = searchParams?.get("kyc") === "complete";
 
   const fetchKyc = useCallback(async () => {
-    console.log("[KYC] fetchKyc called, targetUserId:", targetUserId);
-    if (!targetUserId) { console.log("[KYC] no targetUserId, returning early"); return; }
+    if (!targetUserId) return;
     setLoading(true);
-    console.log("[KYC] loading=true, starting Supabase query");
     try {
-      const result = await Promise.race([
-        supabase
-          .from("kyc_verifications")
-          .select("*")
-          .eq("user_id", targetUserId)
-          .maybeSingle(),
+      const { verification } = await Promise.race([
+        getKycVerification(userId ? targetUserId : undefined),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("kyc fetch timeout")), 8000)
         ),
       ]);
-      console.log("[KYC] query resolved — data:", result.data, "error:", result.error);
-      setKycData(result.data as KycVerification | null);
+      setKycData(verification as unknown as KycVerification | null);
     } catch (err) {
-      console.error("[KYC] query threw:", err);
+      console.error("[KYC] fetch failed:", err);
       setKycData(null);
     } finally {
-      console.log("[KYC] finally — setting loading=false");
       setLoading(false);
     }
-  }, [targetUserId]);
+  }, [targetUserId, userId]);
 
   useEffect(() => {
     fetchKyc();

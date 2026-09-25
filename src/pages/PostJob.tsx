@@ -15,8 +15,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from
 "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
 import { createJobPost, updateJobPost, searchInviteExperts } from "@/api/jobs.api";
+import { lookupProfileNames } from "@/api/client-read.api";
 import { getLocalStorageToken } from "@/api/axios";
 import { getJobDetailsOverview } from "@/api/job-details.api";
 import { useAuth } from "@/hooks/useAuth";
@@ -166,12 +166,12 @@ export default function PostJobPage() {
         );
         setExistingAttachmentUrls(j.attachments || []);
         if (j.invited_expert_ids?.length) {
-          supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", j.invited_expert_ids)
-            .then(({ data }) => {
-              setInvitedExperts((data || []).map((p: { id: string; full_name: string | null }) => ({ id: p.id, full_name: p.full_name || "" })));
+          lookupProfileNames(j.invited_expert_ids)
+            .then(({ profiles }) => {
+              setInvitedExperts((profiles || []).map((p) => ({ id: p.id, full_name: p.full_name || "" })));
+            })
+            .catch((err) => {
+              console.error("[PostJob] failed to load invited experts:", err);
             });
         }
         setLoadingJob(false);

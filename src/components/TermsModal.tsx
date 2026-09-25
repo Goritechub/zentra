@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { getPublishedLegalDocument } from "@/api/client-read.api";
 import { Loader2 } from "lucide-react";
 
 interface TermsModalProps {
@@ -22,25 +22,28 @@ export function TermsModal({
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (open) {
       setLoading(true);
       setContent(null);
-      supabase
-        .from("legal_documents")
-        .select("content")
-        .eq("slug", slug)
-        .eq("is_published", true)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) setContent(data.content);
+      setError(false);
+      (async () => {
+        try {
+          const { document } = await getPublishedLegalDocument(slug);
+          if (document) setContent(document.content);
+        } catch {
+          setError(true);
+        } finally {
           setLoading(false);
-        });
+        }
+      })();
     }
     if (open) setScrolledToBottom(false);
-  }, [open, slug]);
+  }, [open, slug, retryCount]);
 
   const handleScroll = useCallback(() => {
     const el = viewportRef.current;
@@ -59,6 +62,9 @@ export function TermsModal({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Review the {title} and scroll to the bottom to agree.
+          </DialogDescription>
         </DialogHeader>
         <div
           ref={viewportRef}
@@ -69,6 +75,15 @@ export function TermsModal({
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                Couldn't load this document. Check your connection and try again.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setRetryCount((c) => c + 1)}>
+                Retry
+              </Button>
             </div>
           ) : (
             <pre className="whitespace-pre-wrap font-sans text-sm text-foreground/90 leading-relaxed">

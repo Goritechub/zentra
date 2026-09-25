@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { updateAdminPlatformSetting } from "@/api/admin.api";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -8,11 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { AuthCodeVerifyModal } from "@/components/AuthCodeVerifyModal";
 import { broadcastNotification } from "@/lib/broadcast";
-import { useAuth } from "@/hooks/useAuth";
 import { usePlatformFreeze } from "@/hooks/usePlatformFreeze";
 
 export function PlatformFreezeCard() {
-  const { user } = useAuth();
   const { signupsPaused, platformFrozen, freezeMessage, refetch } = usePlatformFreeze();
 
   const [localSignupsPaused, setLocalSignupsPaused] = useState(signupsPaused);
@@ -80,31 +78,20 @@ export function PlatformFreezeCard() {
   };
 
   const upsertSetting = async (key: string, value: { enabled: boolean; message?: string }) => {
-    // Try update first, then insert
-    const { data: existing } = await supabase
-      .from("platform_settings")
-      .select("id")
-      .eq("key", key)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from("platform_settings")
-        .update({ value, updated_at: new Date().toISOString(), updated_by: user?.id })
-        .eq("key", key);
-    } else {
-      await supabase
-        .from("platform_settings")
-        .insert({ key, value, updated_by: user?.id });
-    }
+    await updateAdminPlatformSetting(key, value);
   };
 
   const updateFreezeMessage = async () => {
     if (!localFreezeMessage.trim()) return;
     setSaving(true);
-    await upsertSetting("platform_frozen", { enabled: localPlatformFrozen, message: localFreezeMessage });
-    toast.success("Freeze message updated");
-    await refetch();
+    try {
+      await upsertSetting("platform_frozen", { enabled: localPlatformFrozen, message: localFreezeMessage });
+      toast.success("Freeze message updated");
+      await refetch();
+    } catch (e) {
+      toast.error("Failed to update freeze message");
+      console.error(e);
+    }
     setSaving(false);
   };
 

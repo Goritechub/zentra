@@ -5,22 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { useCurrency } from "@/hooks/useCurrency";
-import { supabase } from "@/integrations/supabase/client";
+import { getFeaturedExperts, type FeaturedExpert } from "@/api/client-read.api";
 import { useAuth } from "@/hooks/useAuth";
-
-interface FeaturedExpert {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  state: string | null;
-  city: string | null;
-  is_verified: boolean | null;
-  title: string | null;
-  rating: number | null;
-  total_jobs_completed: number | null;
-  hourly_rate: number | null;
-  skills: string[] | null;
-}
 
 export function FeaturedFreelancers() {
   const { format } = useCurrency();
@@ -33,54 +19,16 @@ export function FeaturedFreelancers() {
     let cancelled = false;
 
     const fetchExperts = async () => {
-      const { data: fpData, error: fpError } = await supabase
-        .from("freelancer_profiles")
-        .select("user_id, title, rating, total_jobs_completed, hourly_rate, skills")
-        .order("rating", { ascending: false, nullsFirst: false })
-        .limit(4);
-
-      if (cancelled) return;
-
-      if (fpError) {
-        console.error("[FeaturedFreelancers] failed to load freelancer_profiles:", fpError);
+      try {
+        const { experts: fetched } = await getFeaturedExperts();
+        if (cancelled) return;
+        setExperts(fetched || []);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("[FeaturedFreelancers] failed to load featured experts:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (!fpData || fpData.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const userIds = fpData.map((fp) => fp.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url, state, city, is_verified")
-        .in("id", userIds);
-
-      if (cancelled) return;
-
-      if (profilesError) {
-        console.error("[FeaturedFreelancers] failed to load profiles:", profilesError);
-      }
-
-      const merged: FeaturedExpert[] = fpData.map((fp) => {
-        const p = profiles?.find((pr) => pr.id === fp.user_id);
-        return {
-          id: fp.user_id,
-          full_name: p?.full_name || null,
-          avatar_url: p?.avatar_url || null,
-          state: p?.state || null,
-          city: p?.city || null,
-          is_verified: p?.is_verified || null,
-          title: fp.title,
-          rating: fp.rating,
-          total_jobs_completed: fp.total_jobs_completed,
-          hourly_rate: fp.hourly_rate,
-          skills: fp.skills,
-        };
-      });
-
-      setExperts(merged);
-      setLoading(false);
     };
     fetchExperts();
     return () => {

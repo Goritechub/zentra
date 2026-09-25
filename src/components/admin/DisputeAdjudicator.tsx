@@ -9,8 +9,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
+import { getAdminContractDetail } from "@/api/admin.api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { DisputeChat } from "@/components/dispute/DisputeChat";
@@ -44,19 +44,18 @@ export function DisputeAdjudicator({ dispute, onResolved }: DisputeAdjudicatorPr
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDetails = useCallback(async () => {
-    const [contractRes, chatRes, msRes, escrowRes] = await Promise.all([
-      supabase.from("contracts")
-        .select("*, client:profiles!contracts_client_id_fkey(full_name, avatar_url, id, email), freelancer:profiles!contracts_freelancer_id_fkey(full_name, avatar_url, id, email)")
-        .eq("id", dispute.contract_id).single(),
-      supabase.from("contract_messages").select("*").eq("contract_id", dispute.contract_id).order("created_at", { ascending: true }).limit(200),
-      supabase.from("milestones").select("*").eq("contract_id", dispute.contract_id).order("created_at", { ascending: true }),
-      supabase.from("escrow_ledger").select("*").eq("contract_id", dispute.contract_id),
-    ]);
-    setContract(contractRes.data as DisputeAdjudicatorContract | null);
-    setChatHistory(chatRes.data || []);
-    setMilestones(msRes.data || []);
-    setEscrowLedger(escrowRes.data || []);
-    setLoading(false);
+    try {
+      const { contract: contractData, messages, milestones: milestoneData, escrow } =
+        await getAdminContractDetail(dispute.contract_id);
+      setContract(contractData as unknown as DisputeAdjudicatorContract | null);
+      setChatHistory((messages || []) as unknown as ContractMessage[]);
+      setMilestones((milestoneData || []) as unknown as MilestoneRecord[]);
+      setEscrowLedger((escrow || []) as unknown as EscrowLedgerEntry[]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load dispute details");
+    } finally {
+      setLoading(false);
+    }
   }, [dispute.contract_id]);
 
   useEffect(() => { fetchDetails(); }, [fetchDetails]);

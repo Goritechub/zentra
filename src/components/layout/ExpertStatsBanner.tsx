@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyEarningsStats } from "@/api/expert-read.api";
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -44,62 +44,12 @@ export function ExpertStatsBanner() {
 
     const fetchStats = async () => {
       try {
-        const now = new Date();
-        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-        const sixMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-        const yearStartDate = new Date(now.getFullYear(), 0, 1);
-
-        // Earnings covering the full 6-month trend window in a single query
-        const { data: earningsTx, error: earningsErr } = await supabase
-          .from("wallet_transactions")
-          .select("amount, created_at")
-          .eq("user_id", user.id)
-          .in("type", ["credit", "escrow_release"])
-          .gte("created_at", sixMonthsAgoStart.toISOString());
-        if (earningsErr) throw earningsErr;
-
-        const txList = earningsTx || [];
-        const sumInRange = (start: Date, end?: Date) =>
-          txList.reduce((s, t) => {
-            const d = new Date(t.created_at);
-            return d >= start && (!end || d <= end) ? s + (t.amount || 0) : s;
-          }, 0);
-
-        setMonthlyEarnings(sumInRange(thisMonthStart));
-        setLastMonthEarnings(sumInRange(lastMonthStart, lastMonthEnd));
-
-        // Contracts completed (use completed_at, fallback to created_at)
-        const { data: allCompleted, error: contractsErr } = await supabase
-          .from("contracts")
-          .select("id, completed_at, created_at")
-          .eq("freelancer_id", user.id)
-          .eq("status", "completed");
-        if (contractsErr) throw contractsErr;
-
-        const completedList = allCompleted || [];
-        const completedInRange = (start: Date, end?: Date) =>
-          completedList.filter(c => {
-            const d = new Date(c.completed_at || c.created_at);
-            return d >= start && (!end || d <= end);
-          });
-
-        setYearlyCompleted(completedInRange(yearStartDate).length);
-        setMonthlyCompleted(completedInRange(thisMonthStart).length);
-
-        // 6-month trend, bucketed from the data already fetched above
-        const trendPoints: TrendPoint[] = Array.from({ length: 6 }, (_, i) => {
-          const mStart = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-          const mEnd = new Date(mStart.getFullYear(), mStart.getMonth() + 1, 0, 23, 59, 59);
-          return {
-            label: mStart.toLocaleString("default", { month: "short" }),
-            earnings: sumInRange(mStart, mEnd),
-            contracts: completedInRange(mStart, mEnd).length,
-            isCurrent: i === 5,
-          };
-        });
-        setTrend(trendPoints);
+        const stats = await getMyEarningsStats();
+        setMonthlyEarnings(stats.monthlyEarnings);
+        setLastMonthEarnings(stats.lastMonthEarnings);
+        setYearlyCompleted(stats.yearlyCompleted);
+        setMonthlyCompleted(stats.monthlyCompleted);
+        setTrend(stats.trend);
       } catch (err) {
         console.error("ExpertStatsBanner: failed to load stats", err);
       } finally {

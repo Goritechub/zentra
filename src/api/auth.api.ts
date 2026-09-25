@@ -162,3 +162,8 @@ export async function resendVerificationEmail(email: string) {
   const response = await api.post("/auth/resend-verification", { email });
   return response.data as { success: boolean };
 }
+
+export async function dismissAuthCodeSetup() {
+  const response = await api.post("/auth/auth-code", { action: "dismiss" });
+  return response.data as { success: boolean };
+}

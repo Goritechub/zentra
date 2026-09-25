@@ -28,3 +28,23 @@ export async function getExpertProfileOverview(expertId: string) {
   const response = await api.get<ExpertProfileOverviewResponse>(`/experts/${expertId}/profile-overview`);
   return response.data;
 }
+
+export interface EarningsTrendPoint {
+  label: string;
+  earnings: number;
+  contracts: number;
+  isCurrent: boolean;
+}
+
+export interface MyEarningsStats {
+  monthlyEarnings: number;
+  lastMonthEarnings: number;
+  yearlyCompleted: number;
+  monthlyCompleted: number;
+  trend: EarningsTrendPoint[];
+}
+
+export async function getMyEarningsStats() {
+  const response = await api.get("/expert/earnings-stats");
+  return response.data.data as MyEarningsStats;
+}

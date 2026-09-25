@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getPublicPlatformSettings } from "@/api/client-read.api";
 
 interface PlatformFreezeState {
   signupsPaused: boolean;
@@ -24,13 +24,9 @@ export function PlatformFreezeProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchFreezeSettings = async () => {
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("key, value")
-      .in("key", ["signups_paused", "platform_frozen"]);
-
-    if (data) {
-      for (const row of data) {
+    try {
+      const { settings } = await getPublicPlatformSettings();
+      for (const row of settings) {
         const val = row.value as { enabled?: boolean; message?: string } | null;
         if (row.key === "signups_paused") {
           setSignupsPaused(val?.enabled === true);
@@ -40,8 +36,11 @@ export function PlatformFreezeProvider({ children }: { children: ReactNode }) {
           setFreezeMessage(val?.message || "The platform is temporarily under maintenance.");
         }
       }
+    } catch (error) {
+      console.error("[usePlatformFreeze] failed to load platform settings:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {

@@ -122,3 +122,50 @@ export async function getClientProfileOverview(clientId: string) {
     data: ClientProfileOverview;
   };
 }
+
+export interface PlatformSettingRow {
+  key: string;
+  value: unknown;
+}
+
+export async function getPublicPlatformSettings() {
+  const response = await api.get("/platform-settings/public");
+  return response.data.data as { settings: PlatformSettingRow[] };
+}
+
+export interface FeaturedTestimonial {
+  rating: number;
+  comment: string | null;
+  user_id: string;
+  is_featured: boolean;
+  profiles: { full_name: string | null; avatar_url: string | null; city: string | null; state: string | null } | null;
+}
+
+export async function getFeaturedTestimonials() {
+  const response = await api.get("/platform-reviews/featured");
+  return response.data.data as { reviews: FeaturedTestimonial[] };
+}
+
+export interface FeaturedExpert {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  state: string | null;
+  city: string | null;
+  is_verified: boolean | null;
+  title: string | null;
+  rating: number | null;
+  total_jobs_completed: number | null;
+  hourly_rate: number | null;
+  skills: string[] | null;
+}
+
+export async function getFeaturedExperts() {
+  const response = await api.get("/experts/featured");
+  return response.data.data as { experts: FeaturedExpert[] };
+}
+
+export async function lookupProfileNames(ids: string[]) {
+  const response = await api.post("/profiles/lookup", { ids });
+  return response.data.data as { profiles: { id: string; full_name: string | null }[] };
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Star, Quote } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/integrations/supabase/client";
+import { getFeaturedTestimonials } from "@/api/client-read.api";
 
 interface PlatformReview {
   name: string;
@@ -10,19 +10,6 @@ interface PlatformReview {
   avatar: string | null;
   rating: number;
   content: string;
-}
-
-interface PlatformReviewRow {
-  rating: number;
-  comment: string | null;
-  user_id: string;
-  is_featured: boolean;
-  profiles: {
-    full_name: string | null;
-    avatar_url: string | null;
-    city: string | null;
-    state: string | null;
-  } | null;
 }
 
 export function TestimonialsSection() {
@@ -34,30 +21,27 @@ export function TestimonialsSection() {
   }, []);
 
   const fetchApprovedReviews = async () => {
-    const { data } = await supabase
-      .from("platform_reviews")
-      .select("rating, comment, user_id, is_featured, profiles:user_id(full_name, avatar_url, city, state)")
-      .eq("is_approved", true)
-      .order("is_featured", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(6);
-
-    const rows = data as PlatformReviewRow[] | null;
-    if (rows && rows.length >= 3) {
-      const mapped: PlatformReview[] = rows
-        .filter((r) => r.comment)
-        .slice(0, 3)
-        .map((r) => ({
-          name: r.profiles?.full_name || "ZentraGig User",
-          role: "Verified User",
-          location: r.profiles?.state || r.profiles?.city || "Nigeria",
-          avatar: r.profiles?.avatar_url || null,
-          rating: r.rating,
-          content: r.comment as string,
-        }));
-      if (mapped.length >= 3) setTestimonials(mapped);
+    try {
+      const { reviews } = await getFeaturedTestimonials();
+      if (reviews && reviews.length >= 3) {
+        const mapped: PlatformReview[] = reviews
+          .filter((r) => r.comment)
+          .slice(0, 3)
+          .map((r) => ({
+            name: r.profiles?.full_name || "ZentraGig User",
+            role: "Verified User",
+            location: r.profiles?.state || r.profiles?.city || "Nigeria",
+            avatar: r.profiles?.avatar_url || null,
+            rating: r.rating,
+            content: r.comment as string,
+          }));
+        if (mapped.length >= 3) setTestimonials(mapped);
+      }
+    } catch (error) {
+      console.error("[TestimonialsSection] failed to load testimonials:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (loading) return null;

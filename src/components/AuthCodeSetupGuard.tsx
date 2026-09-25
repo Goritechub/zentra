@@ -4,8 +4,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AuthCodeInput } from "@/components/AuthCodeInput";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
+import { dismissAuthCodeSetup } from "@/api/auth.api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Check, Clock } from "lucide-react";
@@ -48,12 +48,12 @@ export function AuthCodeSetupGuard({ children }: { children: React.ReactNode }) 
   }, [user, profile]);
 
   const handleDismiss = async () => {
-    // Store dismissal timestamp in DB
     if (user) {
-      await supabase
-        .from("profiles")
-        .update({ auth_code_dismissed_at: new Date().toISOString() })
-        .eq("id", user.id);
+      try {
+        await dismissAuthCodeSetup();
+      } catch (err) {
+        console.error("[AuthCodeSetupGuard] failed to record dismissal:", err);
+      }
     }
     setStep("idle");
     toast.info("You can set up your security code anytime from your profile settings.");

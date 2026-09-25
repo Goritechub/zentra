@@ -25,6 +25,11 @@ export async function sendSupportChatMessage(message: string) {
   return response.data.data as { chatId: string };
 }
 
+export async function getPublicSupportSettings() {
+  const response = await api.get("/support/public-settings");
+  return response.data.data as { settings: { key: string; value: unknown }[] };
+}
+
 export async function getAdminSupportSettings() {
   const response = await api.get("/support/admin/settings");
   return response.data.data as { email: string; phone: string; whatsapp: string };

@@ -74,9 +74,24 @@ export async function getAdminContractsData() {
   return response.data.data as { contracts: AdminContract[] };
 }
 
+export interface AdminContractMessage {
+  id: string;
+  contract_id: string;
+  sender_id: string;
+  content: string;
+  is_system_message?: boolean;
+  created_at: string;
+  [key: string]: unknown;
+}
+
 export async function getAdminContractDetail(contractId: string) {
   const response = await api.get(`/admin/contracts/${contractId}`);
-  return response.data.data as { contract: AdminContract; milestones: AdminMilestone[]; escrow: AdminEscrowEntry[] };
+  return response.data.data as {
+    contract: AdminContract;
+    milestones: AdminMilestone[];
+    escrow: AdminEscrowEntry[];
+    messages: AdminContractMessage[];
+  };
 }
 
 export async function deleteAdminContract(contractId: string) {
@@ -344,4 +359,21 @@ export async function getAdminPayoutTransfers() {
 export async function retryAdminPayoutTransfer(transferId: string) {
   const response = await api.post(`/admin/payouts/${transferId}/retry`);
   return response.data.data;
+}
+
+export interface AdminRevenueWithdrawInfo {
+  totalRevenue: number;
+  totalWithdrawn: number;
+  availableRevenue: number;
+  bankDetails: Record<string, unknown>[];
+}
+
+export async function getAdminRevenueWithdrawInfo() {
+  const response = await api.get("/admin/revenue/withdraw-info");
+  return response.data.data as AdminRevenueWithdrawInfo;
+}
+
+export async function updateAdminPlatformSetting(key: string, value: unknown) {
+  const response = await api.patch(`/admin/platform-settings/${key}`, { value });
+  return response.data.data as { key: string; value: unknown };
 }
