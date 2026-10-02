@@ -151,6 +151,12 @@ serve(async (req) => {
     }
 
     // ── ADMIN REVENUE WITHDRAWAL ──
+    // Note: this action isn't called by the live frontend (it talks to the NestJS
+    // backend exclusively), but it's reachable directly via the Edge Function URL by
+    // anyone with a valid session, so it gets the same hardening as the NestJS path:
+    // a per-attempt ledger row (reserve_/complete_/reverse_platform_revenue_withdrawal_atomic,
+    // not a bare counter) and a definite-vs-ambiguous-failure split so a Paystack
+    // network error doesn't trigger an unsafe automatic reversal.
     if (action === "admin_withdraw_revenue") {
       const { amount, bank_detail_id } = body;
 
@@ -158,60 +164,90 @@ serve(async (req) => {
       if (!isSuperAdmin) return jsonRes({ error: "Only Super Admins can withdraw revenue" }, 403);
       if (!amount || amount <= 0) return jsonRes({ error: "Invalid amount" }, 400);
 
-      const { data: revData } = await supabase.from("platform_revenue").select("commission_amount");
-      const totalRevenue = (revData || []).reduce((sum: number, r: any) => sum + (r.commission_amount || 0), 0);
+      const { data: reserveResult, error: reserveError } = await supabase.rpc(
+        "reserve_platform_revenue_withdrawal_atomic",
+        { _admin_id: user.id, _amount: amount },
+      );
+      if (reserveError) return jsonRes({ error: reserveError.message }, 500);
+      if (!reserveResult?.success) return jsonRes({ error: reserveResult?.error || "Withdrawal failed" }, 400);
 
-      const { data: withdrawnSetting } = await supabase
-        .from("platform_settings").select("value").eq("key", "total_revenue_withdrawn").maybeSingle();
-      const totalWithdrawn = withdrawnSetting?.value ? Number(withdrawnSetting.value) : 0;
-      const availableRevenue = totalRevenue - totalWithdrawn;
+      const withdrawalId = reserveResult.withdrawal_id;
 
-      if (amount > availableRevenue) {
-        return jsonRes({ error: `Insufficient revenue. Available: ${availableRevenue}` }, 400);
-      }
+      const reverseReservation = async (reason: string) => {
+        const { data, error } = await supabase.rpc("reverse_platform_revenue_withdrawal_atomic", {
+          _admin_id: user.id, _withdrawal_id: withdrawalId, _reason: reason,
+        });
+        if (error || !data?.success) {
+          console.error(`Failed to reverse platform revenue withdrawal ${withdrawalId}:`, error || data?.error);
+        }
+      };
 
       const { data: bankDetail } = await supabase.from("bank_details")
         .select("*").eq("id", bank_detail_id).eq("user_id", user.id).single();
 
       if (!bankDetail?.recipient_code) {
+        await reverseReservation("Bank details not found");
         return jsonRes({ error: "Bank details not found. Please add bank details first." }, 400);
       }
 
-      const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          source: "balance", amount: amount * 100,
-          recipient: bankDetail.recipient_code, reason: "Platform revenue withdrawal",
-        }),
-      });
-      const transferData = await transferRes.json();
+      const providerReference = `platform_revenue_${withdrawalId}`;
+      let transferData: any;
+      try {
+        const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            source: "balance", amount: amount * 100,
+            recipient: bankDetail.recipient_code, reason: "Platform revenue withdrawal",
+            reference: providerReference,
+          }),
+        });
+        transferData = await transferRes.json();
+      } catch (err) {
+        // Network/timeout error — we can't tell whether Paystack actually processed
+        // this. Leave the reservation pending for reconciliation instead of guessing.
+        const { data, error } = await supabase.rpc("flag_platform_revenue_withdrawal_ambiguous_atomic", {
+          _admin_id: user.id, _withdrawal_id: withdrawalId,
+          _note: (err as Error)?.message || "Network error contacting Paystack",
+          _provider_reference: providerReference,
+        });
+        if (error || !data?.success) {
+          console.error(`Failed to flag platform revenue withdrawal ${withdrawalId} as ambiguous:`, error || data?.error);
+        }
+        return jsonRes({
+          error: `Could not confirm the transfer status with Paystack. Withdrawal ${withdrawalId} is pending ` +
+            `manual reconciliation (reference: ${providerReference}) — do not retry until this is resolved.`,
+        }, 502);
+      }
 
       if (!transferData.status) {
+        // A real response from Paystack saying the transfer was declined — safe to reverse.
+        await reverseReservation(transferData.message || "Transfer failed");
         return jsonRes({ error: transferData.message || "Transfer failed" }, 400);
       }
 
-      const newWithdrawn = totalWithdrawn + amount;
-      if (withdrawnSetting) {
-        await supabase.from("platform_settings")
-          .update({ value: newWithdrawn as any, updated_at: new Date().toISOString(), updated_by: user.id })
-          .eq("key", "total_revenue_withdrawn");
-      } else {
-        await supabase.from("platform_settings")
-          .insert({ key: "total_revenue_withdrawn", value: newWithdrawn as any, updated_by: user.id });
+      const { data: completeResult, error: completeError } = await supabase.rpc(
+        "complete_platform_revenue_withdrawal_atomic",
+        {
+          _admin_id: user.id, _withdrawal_id: withdrawalId,
+          _transfer_code: transferData.data?.transfer_code, _provider_reference: providerReference,
+        },
+      );
+      if (completeError || !completeResult?.success) {
+        console.error(`Failed to mark platform revenue withdrawal ${withdrawalId} completed:`, completeError || completeResult?.error);
       }
 
       await supabase.from("admin_activity_log").insert({
         admin_id: user.id, action: "revenue_withdrawal", target_type: "platform_revenue",
-        details: { amount, transfer_code: transferData.data?.transfer_code, bank: bankDetail.bank_name },
+        details: { amount, transfer_code: transferData.data?.transfer_code, bank: bankDetail.bank_name, withdrawal_id: withdrawalId },
       });
 
       return jsonRes({
         success: true, transfer_code: transferData.data?.transfer_code,
-        available_after: availableRevenue - amount,
+        available_after: reserveResult.available_after,
       });
     }
 

@@ -105,7 +105,7 @@ serve(async (req) => {
       const { data: payout } = await supabase.from("payout_transfers")
         .select("*").eq("transfer_code", transferCode).single();
 
-      if (payout) {
+      if (payout && payout.status !== "success") {
         await supabase.from("payout_transfers").update({
           status: "success",
           completed_at: new Date().toISOString(),
@@ -149,7 +149,7 @@ serve(async (req) => {
       const { data: payout } = await supabase.from("payout_transfers")
         .select("*").eq("transfer_code", transferCode).single();
 
-      if (payout) {
+      if (payout && payout.status !== "failed") {
         await supabase.from("payout_transfers").update({
           status: "failed",
           paystack_response: event.data,
