@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
@@ -150,6 +151,102 @@ function FilterSidebar({
             </label>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Skill badges (dynamic overflow) ─────────────────────────────────────────────
+
+const SKILL_BADGE_GAP_PX = 4; // matches gap-1
+
+// Renders as many skill badges as actually fit the card's width on one line,
+// then a "+N" badge (hover for the rest) for whatever doesn't fit -- measured
+// per-card via an invisible copy, since a static slice count either wastes
+// room on short skill names or overflows on long ones.
+function SkillBadges({ skills }: { skills: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(skills.length);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure) return;
+
+    const recalc = () => {
+      const containerWidth = container.offsetWidth;
+      const badgeEls = Array.from(measure.children) as HTMLElement[];
+      const overflowWidth = badgeEls[skills.length]?.offsetWidth ?? 0;
+      const skillWidths = badgeEls.slice(0, skills.length).map((el) => el.offsetWidth);
+
+      const totalWidth = skillWidths.reduce(
+        (sum, w, i) => sum + w + (i > 0 ? SKILL_BADGE_GAP_PX : 0),
+        0,
+      );
+      if (totalWidth <= containerWidth) {
+        setVisibleCount(skills.length);
+        return;
+      }
+
+      let used = 0;
+      let count = 0;
+      for (let i = 0; i < skillWidths.length; i++) {
+        const withGap = skillWidths[i] + (i > 0 ? SKILL_BADGE_GAP_PX : 0);
+        const reserve = overflowWidth + SKILL_BADGE_GAP_PX;
+        if (used + withGap + reserve > containerWidth) break;
+        used += withGap;
+        count++;
+      }
+      setVisibleCount(count);
+    };
+
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [skills]);
+
+  const hiddenSkills = skills.slice(visibleCount);
+
+  return (
+    <div ref={containerRef} className="relative flex flex-nowrap overflow-hidden gap-1 mb-3">
+      {skills.slice(0, visibleCount).map((s) => (
+        <Badge key={s} variant="secondary" className="text-xs px-2 py-0 whitespace-nowrap shrink-0">
+          {s}
+        </Badge>
+      ))}
+      {hiddenSkills.length > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="secondary"
+              className="text-xs px-2 py-0 cursor-help shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              +{hiddenSkills.length}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs">
+            {hiddenSkills.join(", ")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {/* Invisible measuring copy: every skill plus one overflow badge, laid
+          out off the normal flow so its natural (unwrapped) widths can be
+          read without affecting what's rendered above. */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="absolute left-0 top-0 flex flex-nowrap gap-1 invisible pointer-events-none"
+      >
+        {skills.map((s) => (
+          <Badge key={s} variant="secondary" className="text-xs px-2 py-0 whitespace-nowrap shrink-0">
+            {s}
+          </Badge>
+        ))}
+        <Badge variant="secondary" className="text-xs px-2 py-0 shrink-0">+{skills.length}</Badge>
       </div>
     </div>
   );
@@ -418,7 +515,7 @@ export default function FreelancersPage() {
             <TabsContent value="all">
               <div className="flex gap-6">
                 {/* Desktop sidebar */}
-                <aside className="hidden lg:block w-52 xl:w-60 shrink-0">
+                <aside className="hidden lg:block w-52 xl:w-60 shrink-0 self-start">
                   <div className="bg-card rounded-xl border border-border p-5 sticky top-6">
                     <FilterSidebar {...sidebarProps} />
                   </div>
@@ -444,7 +541,7 @@ export default function FreelancersPage() {
                         return (
                           <div
                             key={f.id}
-                            className="relative bg-card rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                            className="relative bg-card rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer flex flex-col h-full"
                             onClick={() => navigate(`/expert/${f.user_id}/profile`)}
                           >
                             {/* Heart — top right */}
@@ -485,18 +582,9 @@ export default function FreelancersPage() {
                               </div>
                             </div>
 
-                            {f.skills?.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {f.skills.slice(0, 4).map((s: string) => (
-                                  <Badge key={s} variant="secondary" className="text-xs px-2 py-0">{s}</Badge>
-                                ))}
-                                {f.skills.length > 4 && (
-                                  <Badge variant="secondary" className="text-xs px-2 py-0">+{f.skills.length - 4}</Badge>
-                                )}
-                              </div>
-                            )}
+                            {f.skills?.length > 0 && <SkillBadges skills={f.skills} />}
 
-                            <div className="pt-3 border-t border-border">
+                            <div className="pt-3 border-t border-border mt-auto">
                               <p className="text-sm font-bold text-primary mb-2">
                                 {f.hourly_rate ? `${format(f.hourly_rate)}/hr` : <span className="text-muted-foreground font-normal text-xs">Rate not set</span>}
                               </p>
