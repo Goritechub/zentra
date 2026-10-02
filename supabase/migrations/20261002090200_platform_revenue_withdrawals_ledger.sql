@@ -168,10 +168,16 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.reserve_platform_revenue_withdrawal_atomic(uuid, integer, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.complete_platform_revenue_withdrawal_atomic(uuid, uuid, text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.reverse_platform_revenue_withdrawal_atomic(uuid, uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.flag_platform_revenue_withdrawal_ambiguous_atomic(uuid, uuid, text, text) FROM PUBLIC;
+-- Must name anon/authenticated explicitly, not just PUBLIC: this project's
+-- Supabase instance grants EXECUTE to anon/authenticated directly at
+-- function-creation time (confirmed by a post-apply privilege audit that
+-- caught these 4 functions still callable by anon when this only revoked
+-- from PUBLIC -- see 20261002130000_fix_ledger_rpc_anon_grants.sql), not just
+-- through the PUBLIC default a plain `REVOKE ... FROM PUBLIC` would strip.
+REVOKE ALL ON FUNCTION public.reserve_platform_revenue_withdrawal_atomic(uuid, integer, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.complete_platform_revenue_withdrawal_atomic(uuid, uuid, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.reverse_platform_revenue_withdrawal_atomic(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.flag_platform_revenue_withdrawal_ambiguous_atomic(uuid, uuid, text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reserve_platform_revenue_withdrawal_atomic(uuid, integer, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_platform_revenue_withdrawal_atomic(uuid, uuid, text, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.reverse_platform_revenue_withdrawal_atomic(uuid, uuid, text) TO service_role;
