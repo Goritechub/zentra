@@ -44,6 +44,7 @@ export interface ContractMilestone {
   submission_notes: string | null;
   submission_attachments: string[];
   duration_days: number | null;
+  sort_order?: number | null;
   proposed_extension_date: string | null;
   created_at: string;
 }
@@ -122,6 +123,7 @@ export interface MilestoneRecord {
   approved_at: string | null;
   submission_notes: string | null;
   submission_attachments: string[] | null;
+  sort_order?: number | null;
   created_at: string;
   updated_at: string;
 }

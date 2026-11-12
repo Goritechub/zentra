@@ -26,6 +26,7 @@ import {
 } from "@/api/contracts.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { calculateServiceCharge } from "@/lib/service-charge";
+import { FUNDING_GRACE_DAYS, FUNDING_GRACE_MS, getFundingWaitStartMs, sortMilestones } from "@/lib/milestones";
 import { formatDistanceToNow, format as fnsFormat } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -168,7 +169,7 @@ export default function ContractDetail() {
   const fetchData = useCallback(async () => {
     const data = await getContractDetail(id!);
     const contractData = data.contract;
-    const ms = data.milestones || [];
+    const ms = sortMilestones(data.milestones || []);
     setContract(contractData);
     setMilestones(ms);
     setReferralDiscount(!!data.referralDiscount);
@@ -754,22 +755,17 @@ export default function ContractDetail() {
                 ) : (
                   <div className="space-y-4">
                     {(() => {
-                      const milestoneNumberMap = new Map(
-                        [...milestones]
-                          .sort((a, b) => {
-                          const d = (m: ContractMilestone) => m.due_date || m.created_at;
-                          return new Date(d(a)).getTime() - new Date(d(b)).getTime();
-                        })
-                          .map((m, i) => [m.id, i + 1])
-                      );
-                      return milestones.map((ms, msIdx) => {
+                      const orderedMilestones = sortMilestones(milestones);
+                      const firstPendingIdx = orderedMilestones.findIndex(m => m.status === "pending");
+                      return orderedMilestones.map((ms, msIdx) => {
                       const feeInfo = calculateServiceCharge(ms.amount, referralDiscount ? 0.5 : 1.0);
                       const isCancelled = ms.status === "cancelled";
                       const isCompleted = ms.status === "approved" || ms.status === "paid";
-                      const firstPendingIdx = milestones.findIndex(m => m.status === "pending");
                       const isNextToFund = msIdx === firstPendingIdx;
                       const isLockedPending = ms.status === "pending" && !isNextToFund;
                       const msCfg = MILESTONE_STATUS[ms.status] || { variant: "secondary", label: ms.status };
+                      const waitStartMs = getFundingWaitStartMs(orderedMilestones, ms.id);
+                      const canCancelUnfunded = isFreelancer && waitStartMs !== null && Date.now() >= waitStartMs + FUNDING_GRACE_MS;
                       return (
                         <div
                           key={ms.id}
@@ -788,7 +784,7 @@ export default function ContractDetail() {
                                   isCompleted ? "bg-success/10 text-success"
                                   : isCancelled ? "bg-muted text-muted-foreground"
                                   : "bg-primary/10 text-primary"
-                                }`}>{milestoneNumberMap.get(ms.id)}</span>
+                                }`}>{msIdx + 1}</span>
                                 <h3 className={`font-medium ${isCancelled ? "line-through text-muted-foreground" : "text-foreground"}`}>{ms.title}</h3>
                                 <Badge variant={msCfg.variant}>{msCfg.label}</Badge>
                               </div>
@@ -885,7 +881,7 @@ export default function ContractDetail() {
                                   </Button>
                                 </div>
                               )}
-                              {isFreelancer && ms.status === "pending" && ms.due_date && new Date(ms.due_date) <= new Date() && (
+                              {canCancelUnfunded && (
                                 <Button
                                   size="sm" variant="destructive"
                                   onClick={() => { setSelectedMilestoneId(ms.id); setShowCancelUnfundedDialog(true); }}
@@ -1287,7 +1283,7 @@ export default function ContractDetail() {
           <DialogHeader>
             <DialogTitle>Cancel unfunded milestone?</DialogTitle>
             <DialogDescription>
-              This milestone was not funded by its due date. Cancelling will notify the client and flag this contract for admin review. This action cannot be undone.
+              This milestone was not funded within the {FUNDING_GRACE_DAYS}-day funding grace period. Cancelling will notify the client and flag this contract for admin review. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
