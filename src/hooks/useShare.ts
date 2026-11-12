@@ -8,16 +8,18 @@ export interface ShareOptions {
 
 export function useShare() {
   const share = async ({ title, text, url }: ShareOptions) => {
+    const cleanText = text?.split(url).join("").replace(/\s{2,}/g, " ").trim() || undefined;
+
     if (navigator.share) {
       try {
-        await navigator.share({ title, text, url });
+        await navigator.share({ title, text: cleanText, url });
       } catch {
         // user cancelled the native share sheet — no-op
       }
       return;
     }
     try {
-      await navigator.clipboard.writeText(text ? `${text} ${url}` : url);
+      await navigator.clipboard.writeText(cleanText ? `${cleanText} ${url}` : url);
       toast.success("Link copied to clipboard!");
     } catch {
       toast.error("Could not copy link.");

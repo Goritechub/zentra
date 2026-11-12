@@ -455,7 +455,7 @@ export default function ExpertProfile() {
                   onClick={() =>
                     share({
                       title: profile.full_name || "Hire me on ZentraGig",
-                      text: `hire me on ZentraGig, visit my zentralink ${shareUrl}`,
+                      text: "hire me on ZentraGig, visit my zentralink",
                       url: shareUrl,
                     })
                   }
