@@ -1,0 +1,104 @@
+workflow:
+  rules:
+    # Run on merge requests
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # Avoid duplicate pipeline when branch has an open merge request
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    # Run on pushes/merges to default branch (main)
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+stages:
+  - lint-commits
+  - quality-and-tests
+  - security
+
+default:
+  image: node:20-alpine
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+# ==============================================================================
+# 1. COMMITLINT STAGE
+# Validates commit messages in Merge Requests:
+# - Conventional Commits (feat:, fix:, chore:, etc.)
+# - Max 100 characters per line
+# - Max 3 lines total
+# ==============================================================================
+commitlint:
+  stage: lint-commits
+  image: node:20
+  before_script:
+    - apk add --no-cache git || (apt-get update && apt-get install -y git)
+    - npm ci --prefer-offline --no-audit
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=50
+  script:
+    - npx commitlint --from "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --to "$CI_COMMIT_SHA" --verbose
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ==============================================================================
+# 2. QUALITY & TESTS STAGE
+# Ensures types, lint, tests, and build pass
+# ==============================================================================
+frontend-typecheck:
+  stage: quality-and-tests
+  before_script:
+    - npm ci --prefer-offline --no-audit
+  script:
+    - npx tsc --noEmit -p tsconfig.app.json
+
+frontend-lint:
+  stage: quality-and-tests
+  before_script:
+    - npm ci --prefer-offline --no-audit
+  script:
+    - npm run lint
+
+frontend-test:
+  stage: quality-and-tests
+  before_script:
+    - npm ci --prefer-offline --no-audit
+  script:
+    - npm test
+
+frontend-build:
+  stage: quality-and-tests
+  before_script:
+    - npm ci --prefer-offline --no-audit
+  script:
+    - npm run build
+
+# ==============================================================================
+# 3. SECURITY & SECRET LEAK PREVENTION
+# Gitleaks scans git history/commits for leaked credentials & API secrets
+# ==============================================================================
+secret-detection-mr:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  before_script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=50
+  script:
+    - gitleaks detect --source . --log-opts="origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME..$CI_COMMIT_SHA" --verbose --redact --exit-code 1
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+secret-detection-main:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --verbose --redact --exit-code 1
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
