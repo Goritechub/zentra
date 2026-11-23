@@ -1,1 +1,0 @@
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auth_code_dismissed_at timestamp with time zone DEFAULT NULL;

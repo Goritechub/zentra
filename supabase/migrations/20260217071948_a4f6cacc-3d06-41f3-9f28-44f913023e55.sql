@@ -1,1 +1,0 @@
-ALTER TABLE public.proposals ADD COLUMN attachments text[] DEFAULT '{}'::text[];
