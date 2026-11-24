@@ -47,6 +47,7 @@ export interface MyProfileGeneralProfile {
   avatar_url: string | null;
   occupation: string | null;
   email_preferences: ProfileEmailPreferences | null;
+  theme_preference?: string | null;
 }
 
 export interface MyProfileEditFlags {
@@ -114,4 +115,6 @@ export interface UpdateProfilePayload {
   deletedExpIds?: string[];
   preferredCurrency?: "USD" | "NGN";
   emailPreferences?: ProfileEmailPreferences;
+  themePreference?: string;
+  theme_preference?: string;
 }

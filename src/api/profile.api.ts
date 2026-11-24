@@ -34,3 +34,8 @@ export async function getPlatformReviewEligibility(): Promise<{ hasReviewed: boo
 export async function submitPlatformReview(rating: number, comment: string | null, completedContracts: number): Promise<void> {
   await api.post("/profile/platform-review", { rating, comment, completedContracts });
 }
+
+export async function deleteMyAccount() {
+  const response = await api.delete("/profile/me");
+  return response.data;
+}

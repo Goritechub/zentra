@@ -1,5 +1,6 @@
 import { api } from "./axios";
 import type { ContractMessage } from "@/hooks/useContractMessages";
+import type { DisputeMessage } from "@/hooks/useDisputeMessages";
 import type {
   DisputeDetailResponse,
   ContractDetailResponse,
@@ -82,4 +83,17 @@ export async function sendContractMessage(
     content,
     attachments: attachments || [],
   });
+}
+
+export async function getDisputeMessages(disputeId: string): Promise<DisputeMessage[]> {
+  const response = await api.get(`/contracts/disputes/${disputeId}/messages`);
+  return response.data.data.messages || [];
+}
+
+export async function sendDisputeMessage(disputeId: string, content: string): Promise<void> {
+  await api.post(`/contracts/disputes/${disputeId}/messages`, { content });
+}
+
+export async function markDisputeMessagesRead(disputeId: string): Promise<void> {
+  await api.patch(`/contracts/disputes/${disputeId}/messages/read`);
 }

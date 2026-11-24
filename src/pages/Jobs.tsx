@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { getOpenJobs, getSavedJobIds, saveJob, unsaveJob } from "@/api/jobs.api";
+import { getMyProfileOverview } from "@/api/profile.api";
 import { cadSoftwareList, cadSkills, getAllStates } from "@/lib/nigerian-data";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatDistanceToNow } from "date-fns";
@@ -97,22 +98,17 @@ export default function JobsPage() {
     ? new Set(savedIdsQuery.data || [])
     : localSaved;
 
-  // User skills for match % (from freelancer profile via auth context or separate query)
+  // User skills for match % (from freelancer profile via profile API)
   const [userSkills, setUserSkills] = useState<string[]>([]);
   useEffect(() => {
     if (!user) return;
-    // Attempt to read skills from the user's profile — stored in freelancer_profiles.
-    // We use the supabase client directly since there's no dedicated endpoint yet.
-    import("@/integrations/supabase/client").then(({ supabase }) => {
-      supabase
-        .from("freelancer_profiles")
-        .select("skills")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.skills) setUserSkills(data.skills);
-        });
-    });
+    getMyProfileOverview()
+      .then((data) => {
+        if (data?.freelancerProfile?.skills) {
+          setUserSkills(data.freelancerProfile.skills);
+        }
+      })
+      .catch(() => {});
   }, [user]);
 
   // Save / unsave mutations

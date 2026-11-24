@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMyProfileOverview, updateMyProfileData } from "@/api/profile.api";
 
 export type ColorTheme = "navy" | "purple" | "black" | "silverblue" | "rose";
 
@@ -128,21 +129,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     colorThemeRef.current = colorTheme;
   }, [colorTheme]);
 
-  // On auth state change (login), load theme from DB
+  // On auth state change (login), load theme from DB via profile API
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("theme_preference")
-          .eq("id", session.user.id)
-          .maybeSingle();
-
-        const dbTheme = data?.theme_preference;
-        if (isValidTheme(dbTheme) && dbTheme !== colorThemeRef.current) {
-          localStorage.setItem(THEME_STORAGE_KEY, dbTheme);
-          setColorThemeState(dbTheme);
-          applyTheme(dbTheme);
+        try {
+          const profile = await getMyProfileOverview();
+          const dbTheme = profile?.generalProfile?.theme_preference;
+          if (isValidTheme(dbTheme) && dbTheme !== colorThemeRef.current) {
+            localStorage.setItem(THEME_STORAGE_KEY, dbTheme);
+            setColorThemeState(dbTheme);
+            applyTheme(dbTheme);
+          }
+        } catch {
+          // Ignore network or initialization errors
         }
       }
     });
@@ -158,10 +158,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Persist to DB if logged in
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      await supabase
-        .from("profiles")
-        .update({ theme_preference: theme })
-        .eq("id", session.user.id);
+      updateMyProfileData({ theme_preference: theme }).catch(() => {});
     }
   }, []);
 

@@ -27,6 +27,10 @@ interface Conversation {
   unreadCount: number;
 }
 
+/**
+ * @deprecated Legacy direct 1-to-1 messaging hook. The platform standard is
+ * contract-based messaging via `@/api/messages.api` and `useContractMessages`.
+ */
 export function useMessages(selectedUserId?: string) {
   const { user } = useAuth();
   const { toast } = useToast();

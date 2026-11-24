@@ -23,6 +23,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/api/axios";
 import {
+  deleteMyAccount,
   getMyProfileDeleteChecks,
   getMyProfileOverview,
   updateMyAvatarUrl,
@@ -447,16 +448,7 @@ export default function MyProfilePage() {
   const handleDeleteAfterAuthCode = async () => {
     setDeleting(true);
     try {
-      const { data, error } = await supabase.rpc("delete_user_account", { _user_id: user!.id });
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string };
-      if (!result.success) {
-        toast({ title: "Cannot delete account", description: result.error, variant: "destructive" });
-        setDeleting(false);
-        return;
-      }
-
+      await deleteMyAccount();
       toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
       signOut();
     } catch (err) {

@@ -12,7 +12,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { getWalletOverview } from "@/api/wallet.api";
 import { useCurrency } from "@/hooks/useCurrency";
 import { FundWalletModal } from "@/components/wallet/FundWalletModal";

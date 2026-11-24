@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { filterMessageContent } from "@/lib/message-filters";
+import {
+  getDisputeMessages,
+  sendDisputeMessage,
+  markDisputeMessagesRead,
+} from "@/api/contracts.api";
 import { toast } from "sonner";
 
 export interface DisputeMessage {
@@ -23,22 +28,15 @@ export function useDisputeMessages(disputeId?: string) {
   const fetchMessages = useCallback(async () => {
     if (!disputeId || !user) { setLoading(false); return; }
 
-    const { data: msgs } = await supabase
-      .from("dispute_messages")
-      .select("*")
-      .eq("dispute_id", disputeId)
-      .order("created_at", { ascending: true });
-
-    setMessages((msgs as DisputeMessage[]) || []);
-    setLoading(false);
-
-    // Mark unread as read
-    await supabase
-      .from("dispute_messages")
-      .update({ is_read: true })
-      .eq("dispute_id", disputeId)
-      .neq("sender_id", user.id)
-      .eq("is_read", false);
+    try {
+      const msgs = await getDisputeMessages(disputeId);
+      setMessages(msgs || []);
+      await markDisputeMessagesRead(disputeId);
+    } catch (err) {
+      console.error("Failed to fetch dispute messages:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [disputeId, user]);
 
   const sendMessage = async (content: string): Promise<boolean> => {
@@ -53,15 +51,7 @@ export function useDisputeMessages(disputeId?: string) {
 
     setSending(true);
     try {
-      const { error } = await supabase
-        .from("dispute_messages")
-        .insert({
-          dispute_id: disputeId,
-          sender_id: user.id,
-          content: content.trim(),
-        });
-
-      if (error) throw error;
+      await sendDisputeMessage(disputeId, content.trim());
       return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send message");
